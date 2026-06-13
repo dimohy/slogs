@@ -1,0 +1,108 @@
+@implements IDisposable
+
+<nav class="rounded-xl border border-slate-200 bg-slate-50 p-3" aria-label="main menu">
+    <div class="mb-3 text-xs font-bold uppercase tracking-wide text-slate-500">메뉴</div>
+    <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
+             ActiveClass="bg-slate-900 text-white" href="/" Match="NavLinkMatch.All">홈</NavLink>
+    <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
+             ActiveClass="bg-slate-900 text-white" href="@GetFeaturedTagPath()">추천 태그</NavLink>
+    @if (CurrentUser is not null)
+    {
+    }
+    <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
+             ActiveClass="bg-slate-900 text-white" href="/tag">전체 태그</NavLink>
+    <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
+             ActiveClass="bg-slate-900 text-white" href="/writer">작성자</NavLink>
+    <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
+             ActiveClass="bg-slate-900 text-white" href="/series">전체 시리즈</NavLink>
+    @if (CurrentUser is not null)
+    {
+        <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
+                 ActiveClass="bg-slate-900 text-white" href="/feed">팔로우 피드</NavLink>
+    }
+
+    @if (CurrentUser is not null)
+    {
+        <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
+                 ActiveClass="bg-slate-900 text-white" href="/me">내 글</NavLink>
+        <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
+                 ActiveClass="bg-slate-900 text-white" href="/me/bookmarks">내 북마크</NavLink>
+        <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
+                 ActiveClass="bg-slate-900 text-white" href="/me/likes">내 좋아요</NavLink>
+        <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
+                 ActiveClass="bg-slate-900 text-white" href="/write">새 글쓰기</NavLink>
+    }
+
+    <div class="mt-4 mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">인기 태그</div>
+
+    @if (trendingTags.Length == 0)
+    {
+        <p class="text-sm text-slate-500">태그가 준비 중입니다.</p>
+    }
+    else
+    {
+        foreach (var tag in trendingTags)
+        {
+            <a class="mb-2 mr-2 inline-block rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-sm font-semibold text-slate-700 transition hover:bg-slate-900 hover:text-white"
+               href="@($"/tag/{Uri.EscapeDataString(tag)}")">#@tag</a>
+        }
+    }
+
+    <div class="mt-4 mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">시리즈</div>
+    @if (serieses.Length == 0)
+    {
+        <p class="text-sm text-slate-500">시리즈가 없습니다.</p>
+    }
+    else
+    {
+        foreach (var series in serieses)
+        {
+            <a class="mb-2 mr-2 inline-block rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-sm font-semibold text-slate-700 transition hover:bg-slate-900 hover:text-white"
+               href="@($"/series/{Uri.EscapeDataString(series)}")">@series</a>
+        }
+    }
+</nav>
+
+@code {
+    [Inject] private BlogService BlogService { get; set; } = default!;
+    [Inject] private AuthService AuthService { get; set; } = default!;
+
+    private string[] trendingTags = [];
+    private string[] serieses = [];
+    private bool isLoaded;
+    private string GetFeaturedTagPath() => trendingTags.Length > 0
+        ? $"/tag/{Uri.EscapeDataString(trendingTags[0])}"
+        : "/tag";
+
+    private AuthUser? CurrentUser => AuthService.CurrentUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthService.AuthStateChanged += OnAuthStateChanged;
+        trendingTags = (await BlogService.GetTrendingTagsAsync(8)).ToArray();
+        serieses = (await BlogService.GetSeriesAsync(8)).ToArray();
+        isLoaded = true;
+    }
+
+    public void Dispose()
+    {
+        AuthService.AuthStateChanged -= OnAuthStateChanged;
+    }
+
+    private void OnAuthStateChanged()
+    {
+        _ = RefreshSideMenuAsync();
+    }
+
+    private async Task RefreshSideMenuAsync()
+    {
+        if (!isLoaded)
+        {
+            return;
+        }
+
+        trendingTags = (await BlogService.GetTrendingTagsAsync(8)).ToArray();
+        serieses = (await BlogService.GetSeriesAsync(8)).ToArray();
+        await InvokeAsync(StateHasChanged);
+    }
+}

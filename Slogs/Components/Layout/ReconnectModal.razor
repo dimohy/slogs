@@ -1,0 +1,24 @@
+<script type="module" src="@Assets["Components/Layout/ReconnectModal.razor.js"]"></script>
+
+<div id="components-reconnect-modal"
+     class="components-reconnect-status"
+     data-state="connected"
+     data-nosnippet
+     aria-live="polite"
+     aria-atomic="true">
+    <span class="components-reconnect-dot" aria-hidden="true"></span>
+    <span class="components-reconnect-label components-reconnect-connected-visible">연결됨</span>
+    <span class="components-reconnect-label components-reconnect-first-attempt-visible">연결 중</span>
+    <span class="components-reconnect-label components-reconnect-repeated-attempt-visible">
+        재연결 중 <span id="components-seconds-to-next-attempt"></span>초
+    </span>
+    <span class="components-reconnect-label components-reconnect-failed-visible">연결 실패</span>
+    <span class="components-reconnect-label components-pause-visible">일시 중지됨</span>
+    <span class="components-reconnect-label components-resume-failed-visible">복구 실패</span>
+    <button id="components-reconnect-button" class="components-reconnect-action components-reconnect-failed-visible" type="button">
+        재시도
+    </button>
+    <button id="components-resume-button" class="components-reconnect-action components-pause-visible components-resume-failed-visible" type="button">
+        재개
+    </button>
+</div>

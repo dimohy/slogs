@@ -1,0 +1,247 @@
+@page "/@{Writer}/followers"
+@page "/@{Writer}/following"
+@using Microsoft.AspNetCore.Http
+@inject AuthService AuthService
+@inject IHttpContextAccessor HttpContextAccessor
+@inject NavigationManager Navigation
+
+<PageTitle>@($"{Writer} - {(IsFollowersView ? "팔로워" : "팔로잉")}")</PageTitle>
+<SeoHead Title="@($"{Writer} {(IsFollowersView ? "팔로워" : "팔로잉")} | slogs")"
+         Description="@($"{Writer} 슬로거의 {(IsFollowersView ? "팔로워" : "팔로잉")} 목록입니다.")"
+         NoIndex="true" />
+
+@if (!isWriterKnown)
+{
+    <p class="mt-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">해당 작성자를 찾을 수 없습니다.</p>
+}
+else
+{
+    <h1 class="text-2xl font-bold text-slate-900">@Writer 님의 @(IsFollowersView ? "팔로워" : "팔로잉")</h1>
+
+    <div class="mt-2 flex flex-wrap gap-2">
+        <a class="@GetTabClass(true)" href="@GetFollowersPath()">팔로워 (@followerCount)</a>
+        <a class="@GetTabClass(false)" href="@GetFollowingPath()">팔로잉 (@followingCount)</a>
+    </div>
+
+    <p class="mt-2 text-sm text-slate-500">@($"{totalCount}명")</p>
+
+    <section class="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+        @if (!users.Any())
+        {
+            <p class="text-sm text-slate-500">표시할 항목이 없습니다.</p>
+        }
+        else
+        {
+            @foreach (var user in users)
+            {
+                <article class="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3 last:mb-0 last:border-b-0 last:pb-0">
+                    <a class="font-semibold text-slate-900 hover:underline" href="@($"/@{Uri.EscapeDataString(user)}")">@user</a>
+
+                    @if (CurrentUser is not null && !user.Equals(CurrentUserName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        <button class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 @(IsBusy(user) ? "cursor-wait opacity-60" : "")"
+                                disabled="@IsBusy(user)"
+                                type="button"
+                                @onclick="() => ToggleFollowAsync(user)">
+                            @(IsFollowingUser(user) ? "팔로우 해제" : "팔로우")
+                        </button>
+                    }
+                    else if (CurrentUser is not null)
+                    {
+                        <span class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">(내 프로필)</span>
+                    }
+                </article>
+            }
+        }
+    </section>
+}
+
+@if (totalPages > 1)
+{
+    <div class="mt-4 flex flex-wrap items-center justify-center gap-2">
+        <a class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 @(currentPage == 1 ? "pointer-events-none opacity-50" : string.Empty)"
+           href="@GetPageHref(currentPage - 1)">이전</a>
+
+        @foreach (var pageNumber in GetPageNumbers())
+        {
+            <a class="@(pageNumber == currentPage
+                ? "rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white"
+                : "rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100")"
+               href="@GetPageHref(pageNumber)">
+                @pageNumber
+            </a>
+        }
+
+        <a class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 @(currentPage == totalPages ? "pointer-events-none opacity-50" : string.Empty)"
+           href="@GetPageHref(currentPage + 1)">다음</a>
+    </div>
+}
+
+@code {
+    [Parameter] public string Writer { get; set; } = string.Empty;
+    [SupplyParameterFromQuery(Name = "page")] public string? PageQuery { get; set; }
+
+    private IReadOnlyList<string> users = Array.Empty<string>();
+    private HashSet<string> followingByCurrent = [];
+    private HashSet<string> busyUsers = [];
+    private int currentPage;
+    private int totalCount;
+    private int totalPages;
+    private int followerCount;
+    private int followingCount;
+    private bool isWriterKnown;
+
+    private bool IsFollowersView
+    {
+        get
+        {
+            var path = new Uri(Navigation.Uri).AbsolutePath;
+            return path.EndsWith("/followers", StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    private string CurrentUserName => AuthService.CurrentUser?.UserName ?? string.Empty;
+    private AuthUser? CurrentUser => AuthService.CurrentUser;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        currentPage = ListQueryUrlBuilder.ParsePage(PageQuery);
+        await LoadConnectionsAsync();
+    }
+
+    private async Task LoadConnectionsAsync()
+    {
+        isWriterKnown = await AuthService.IsKnownUserAsync(Writer);
+        if (!isWriterKnown)
+        {
+            var response = HttpContextAccessor.HttpContext?.Response;
+            if (response is not null)
+            {
+                response.StatusCode = StatusCodes.Status404NotFound;
+                response.Headers["Cache-Control"] = "no-store";
+            }
+
+            users = Array.Empty<string>();
+            totalCount = 0;
+            totalPages = 0;
+            followerCount = 0;
+            followingCount = 0;
+            currentPage = 1;
+            followingByCurrent = [];
+            return;
+        }
+
+        var source = IsFollowersView
+            ? await AuthService.GetFollowersAsync(Writer)
+            : await AuthService.GetFollowingAsync(Writer);
+        var sorted = source.OrderBy(x => x).ToList();
+
+        totalCount = sorted.Count;
+        totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / 20d);
+        currentPage = Math.Min(currentPage, Math.Max(1, totalPages));
+
+        users = sorted
+            .Skip((currentPage - 1) * 20)
+            .Take(20)
+            .ToList();
+
+        followerCount = (await AuthService.GetFollowerCountAsync(Writer));
+        followingCount = (await AuthService.GetFollowingAsync(Writer)).Count;
+
+        followingByCurrent = CurrentUser is null
+            ? []
+            : (await AuthService.GetFollowingAsync(CurrentUserName)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private string GetFollowersPath() => $"/@{Uri.EscapeDataString(Writer)}/followers";
+
+    private string GetFollowingPath() => $"/@{Uri.EscapeDataString(Writer)}/following";
+
+    private string GetPageHref(int targetPage)
+    {
+        var page = Math.Max(1, targetPage);
+        return ListQueryUrlBuilder.Build(
+            IsFollowersView ? GetFollowersPath() : GetFollowingPath(),
+            sort: null,
+            query: null,
+            page: page,
+            totalPages: totalPages);
+    }
+
+    private IEnumerable<int> GetPageNumbers()
+    {
+        if (totalPages <= 1)
+        {
+            yield break;
+        }
+
+        const int maxButtons = 7;
+        var half = maxButtons / 2;
+        var start = Math.Max(1, currentPage - half);
+        var end = Math.Min(totalPages, start + maxButtons - 1);
+        if (end - start + 1 < maxButtons)
+        {
+            start = Math.Max(1, end - maxButtons + 1);
+        }
+
+        for (var pageNumber = start; pageNumber <= end; pageNumber++)
+        {
+            yield return pageNumber;
+        }
+    }
+
+    private string GetLoginReturnUrl()
+    {
+        var uri = new Uri(Navigation.Uri);
+        var returnUrl = string.IsNullOrWhiteSpace(uri.Query) ? uri.AbsolutePath : uri.PathAndQuery;
+        return $"/login?returnUrl={Uri.EscapeDataString(returnUrl)}";
+    }
+
+    private string GetTabClass(bool followersTab)
+    {
+        var isActive = IsFollowersView == followersTab;
+        return isActive
+            ? "rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white"
+            : "rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100";
+    }
+
+    private bool IsBusy(string userName) => busyUsers.Contains(userName);
+
+    private bool IsFollowingUser(string userName) => followingByCurrent.Contains(userName);
+
+    private async Task ToggleFollowAsync(string targetUser)
+    {
+        if (CurrentUser is null)
+        {
+            Navigation.NavigateTo(GetLoginReturnUrl());
+            return;
+        }
+
+        if (busyUsers.Contains(targetUser))
+        {
+            return;
+        }
+
+        busyUsers.Add(targetUser);
+        try
+        {
+            var isNowFollowing = await AuthService.ToggleFollowAsync(CurrentUserName, targetUser);
+            if (isNowFollowing)
+            {
+                followingByCurrent.Add(targetUser);
+            }
+            else
+            {
+                followingByCurrent.Remove(targetUser);
+            }
+
+            await LoadConnectionsAsync();
+        }
+        finally
+        {
+            busyUsers.Remove(targetUser);
+        }
+    }
+}
+
+

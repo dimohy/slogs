@@ -1,0 +1,200 @@
+@page "/writer"
+@inject BlogService BlogService
+@inject NavigationManager Navigation
+
+<PageTitle>작성자</PageTitle>
+<SeoHead Title="슬로거 | slogs"
+         Description="slogs에서 글을 발행하는 슬로거를 찾고 개인 홈페이지로 이동합니다."
+         CanonicalPath="/writer"
+         NoIndex="@(!string.IsNullOrWhiteSpace(Query))"
+         JsonLd="@(SeoMetadata.CollectionPageJsonLd(Navigation.BaseUri, "/writer", "slogs 슬로거", "slogs에서 글을 발행하는 슬로거를 찾고 개인 홈페이지로 이동합니다."))" />
+
+<h1 class="text-2xl font-bold text-slate-900">작성자</h1>
+<p class="mb-3 text-sm text-slate-500">작성자 목록에서 프로필을 선택하세요.</p>
+
+<div class="mb-4 flex flex-wrap gap-2">
+    <input class="min-w-0 flex-1 rounded-full border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900"
+           value="@searchText"
+           @oninput="HandleSearchInputChanged"
+           @onkeydown="HandleSearchKeyDown"
+           placeholder="작성자 검색"
+           aria-label="작성자 검색어 입력" />
+    <a class="rounded-full border border-slate-300 bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+       href="@GetSearchResultHref()">
+        검색
+    </a>
+    @if (!string.IsNullOrWhiteSpace(Query))
+    {
+        <a class="rounded-full border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+           href="@GetListQuery(Sort)">
+            검색 초기화
+        </a>
+    }
+</div>
+
+<div class="mb-4 flex flex-wrap gap-2">
+    <a class="@GetSortChipClass(null)" href="@GetListQuery(null)">글 수</a>
+    <a class="@GetSortChipClass("name")" href='@GetListQuery("name")'>이름순</a>
+</div>
+
+<section class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+@if (writers.Count == 0)
+{
+        <p class="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+            @GetEmptyMessage()
+        </p>
+    }
+    else
+    {
+        @foreach (var item in writers)
+        {
+            <a class="group rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
+               href="@($"/@{Uri.EscapeDataString(item.Author)}")">
+                @item.Author
+                <span class="ml-2 text-xs text-slate-500 transition group-hover:text-slate-200">(@item.Count)</span>
+            </a>
+        }
+    }
+</section>
+
+@if (totalPages > 1)
+{
+    <div class="mt-4 flex flex-wrap items-center justify-center gap-2">
+        <a class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 @(currentPage == 1 ? "pointer-events-none opacity-50" : string.Empty)"
+           href="@GetPageHref(Math.Max(1, currentPage - 1))">이전</a>
+
+        @foreach (var pageNumber in GetPageNumbers())
+        {
+            <a class="@(pageNumber == currentPage
+                ? "rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white"
+                : "rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100")"
+               href="@GetPageHref(pageNumber)">
+                @pageNumber
+            </a>
+        }
+
+        <a class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 @(currentPage == totalPages ? "pointer-events-none opacity-50" : string.Empty)"
+           href="@GetPageHref(Math.Min(totalPages, currentPage + 1))">다음</a>
+    </div>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "sort")] public string? Sort { get; set; }
+    [SupplyParameterFromQuery(Name = "page")] public string? PageQuery { get; set; }
+    [SupplyParameterFromQuery(Name = "q")] public string? Query { get; set; }
+
+    private IReadOnlyList<(string Author, int Count)> writers = [];
+    private int currentPage;
+    private int totalPages;
+    private string searchText = string.Empty;
+    private string? normalizedSort;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        searchText = Query ?? string.Empty;
+        normalizedSort = ListQueryUrlBuilder.NormalizeSortValue(Sort, "count", "name");
+        await LoadWritersAsync();
+    }
+
+    private async Task LoadWritersAsync()
+    {
+        var allWriters = (await BlogService.GetAuthorCloudAsync(200)).ToList();
+
+        if (!string.IsNullOrWhiteSpace(Query))
+        {
+            var normalized = Query.Trim();
+            allWriters = [.. allWriters.Where(x => x.Author.Contains(normalized, StringComparison.OrdinalIgnoreCase))];
+        }
+
+        allWriters = normalizedSort switch
+        {
+            "name" => allWriters.OrderBy(x => x.Author, StringComparer.OrdinalIgnoreCase).ToList(),
+            _ => allWriters.OrderByDescending(x => x.Count).ThenBy(x => x.Author, StringComparer.OrdinalIgnoreCase).ToList()
+        };
+
+        totalPages = allWriters.Count == 0 ? 0 : (int)Math.Ceiling(allWriters.Count / 12d);
+        currentPage = ListQueryUrlBuilder.ParsePage(PageQuery);
+        currentPage = Math.Min(currentPage, Math.Max(1, totalPages));
+        writers = allWriters.Skip((currentPage - 1) * 12).Take(12).ToList();
+    }
+
+    private string GetListQuery(string? sort)
+    {
+        return BuildListQuery(sort: sort, query: Query, page: 1);
+    }
+
+    private string GetEmptyMessage()
+    {
+        if (!string.IsNullOrWhiteSpace(Query))
+        {
+            return $"\"{Query.Trim()}\"에 대한 작성자 검색 결과가 없습니다.";
+        }
+
+        return "등록된 작성자가 아직 없습니다.";
+    }
+
+    private string GetSearchResultHref()
+    {
+        return BuildListQuery(sort: normalizedSort, query: searchText, page: 1);
+    }
+
+    private string GetPageHref(int targetPage)
+    {
+        var page = Math.Max(1, targetPage);
+        return BuildListQuery(sort: normalizedSort, query: Query, page: page);
+    }
+
+    private IEnumerable<int> GetPageNumbers()
+    {
+        if (totalPages <= 1)
+        {
+            yield break;
+        }
+
+        const int maxButtons = 7;
+        var half = maxButtons / 2;
+        var start = Math.Max(1, currentPage - half);
+        var end = Math.Min(totalPages, start + maxButtons - 1);
+        if (end - start + 1 < maxButtons)
+        {
+            start = Math.Max(1, end - maxButtons + 1);
+        }
+
+        for (var pageNumber = start; pageNumber <= end; pageNumber++)
+        {
+            yield return pageNumber;
+        }
+    }
+
+    private string BuildListQuery(string? sort = null, string? query = null, int? page = null)
+    {
+        var normalizedSortValue = ListQueryUrlBuilder.NormalizeSortValue(sort, "count", "name") ?? normalizedSort;
+        return ListQueryUrlBuilder.Build("/writer", normalizedSortValue, query ?? Query, page ?? ListQueryUrlBuilder.ParsePage(PageQuery), totalPages);
+    }
+
+    private string GetSortChipClass(string? sort)
+    {
+        var target = (sort ?? string.Empty).Trim().ToLowerInvariant();
+        var current = string.IsNullOrWhiteSpace(normalizedSort) ? "count" : normalizedSort!;
+        var isActive = (target == "count" ? string.IsNullOrWhiteSpace(current) || current == "count" : current == target);
+
+        return isActive
+            ? "rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white"
+            : "rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100";
+    }
+
+    private void HandleSearchInputChanged(ChangeEventArgs e)
+    {
+        searchText = e?.Value?.ToString() ?? string.Empty;
+    }
+
+    private void HandleSearchKeyDown(KeyboardEventArgs e)
+    {
+        if (string.Equals(e.Key, "Enter", StringComparison.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo(GetSearchResultHref());
+        }
+    }
+}
+
+

@@ -1,0 +1,291 @@
+@page "/series/{Series}"
+@inject BlogService BlogService
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+@inject IHttpContextAccessor HttpContextAccessor
+
+<PageTitle>시리즈 - @Series</PageTitle>
+<SeoHead Title="@($"{Series} 시리즈 | slogs")"
+         Description="@($"slogs에서 {Series} 시리즈 글 {totalCount}개를 확인합니다.")"
+         CanonicalPath="@GetSeriesPath()"
+         NoIndex="@(totalCount == 0)"
+         JsonLd="@(SeoMetadata.CollectionPageJsonLd(NavigationManager.BaseUri, GetSeriesPath(), $"{Series} 시리즈", $"slogs에서 {Series} 시리즈 글을 확인합니다."))" />
+
+<h1 class="text-2xl font-bold text-slate-900">@Series</h1>
+<p class="text-sm text-slate-500">@($"{totalCount}개")</p>
+<p class="mb-2 text-xs text-slate-500">@(totalPages > 1 ? $"페이지 {currentPage}/{totalPages}" : string.Empty)</p>
+<div class="mb-3 mt-1 flex flex-wrap gap-2">
+    <a class="@GetSortChipClass(null)" href="@GetSortQuery(null)">최신</a>
+    <a class="@GetSortChipClass("popular")" href="@GetSortQuery("popular")">인기</a>
+    <a class="@GetSortChipClass("updated")" href="@GetSortQuery("updated")">최신 업데이트</a>
+</div>
+
+<section class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+    @if (!posts.Any())
+    {
+        <p class="rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">해당 시리즈 글이 없습니다.</p>
+    }
+    else
+    {
+        foreach (var post in posts)
+        {
+            <article class="clickable-post-card rounded-2xl border border-slate-200 bg-white p-4"
+                     data-card-click-href="@GetPostUrl(post)"
+                     tabindex="0"
+                     role="link"
+                     aria-label="@($"{post.Title} 상세 보기")">
+                <PostCardImage Post="post" PostUrl="@GetPostUrl(post)" />
+                <a class="mb-2 block text-xl font-bold text-slate-900 hover:underline" href="@GetPostUrl(post)">@post.Title</a>
+                <div class="mb-2 flex items-center gap-1 text-sm text-slate-500">
+                    <a class="hover:underline" href="@($"/@{Uri.EscapeDataString(post.Author)}")">@post.Author</a>
+                    <span>·</span>
+                    <span>@FormatDate(post.PublishedAt)</span>
+                    <span>·</span>
+                    <span>@post.ReadTimeMinutes 분</span>
+                    <span>·</span>
+                    <span>@post.CommentCount 개 댓글</span>
+                    <span>·</span>
+                    <span>@post.ViewCount 회 조회</span>
+                    @if (post.Series.Count > 0)
+                    {
+                        <span>·</span>
+                        @foreach (var series in post.Series)
+                        {
+                            <a class="hover:underline" href="@($"/series/{Uri.EscapeDataString(series)}")">시리즈: @series</a>
+                        }
+                    }
+                </div>
+                <p class="text-slate-700">@post.Summary</p>
+                <div class="mt-2 flex flex-wrap gap-2">
+                    @foreach (var tag in post.Tags)
+                    {
+                        <a class="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-900 hover:bg-sky-100"
+                           href="@($"/tag/{Uri.EscapeDataString(tag)}")">#@tag</a>
+                    }
+                </div>
+
+                <div class="mt-3 flex flex-wrap gap-2">
+                    <button class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold transition hover:bg-slate-100 @(IsPostBusy(post.Slug, pendingLikeSlugs) ? "opacity-60" : "")"
+                            disabled="@IsPostBusy(post.Slug, pendingLikeSlugs)"
+                            @onclick="() => ToggleLikeAsync(post.Slug)">
+                        @((post.IsLikedBy(CurrentUserName) ? "좋아요 취소" : "좋아요")) (@post.LikeCount)
+                    </button>
+                    <button class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold transition hover:bg-slate-100 @(IsPostBusy(post.Slug, pendingBookmarkSlugs) ? "opacity-60" : "")"
+                            disabled="@IsPostBusy(post.Slug, pendingBookmarkSlugs)"
+                            @onclick="() => ToggleBookmarkAsync(post.Slug)">
+                        @(post.IsBookmarkedBy(CurrentUserName) ? "북마크 해제" : "북마크")
+                    </button>
+                <a class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold transition hover:bg-slate-100"
+                       href="@GetPostCommentsUrl(post)">댓글 @post.CommentCount</a>
+                </div>
+            </article>
+        }
+    }
+</section>
+
+@if (totalPages > 1)
+{
+    <div class="mt-4 flex flex-wrap items-center justify-center gap-2">
+        <a class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 @(currentPage == 1 ? "pointer-events-none opacity-50" : string.Empty)"
+           href="@GetPageHref(currentPage - 1)">이전</a>
+
+        @foreach (var pageNumber in GetPageNumbers())
+        {
+            <a class="@(pageNumber == currentPage
+                ? "rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white"
+                : "rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100")"
+               href="@GetPageHref(pageNumber)">
+                @pageNumber
+            </a>
+        }
+
+        <a class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 @(currentPage == totalPages ? "pointer-events-none opacity-50" : string.Empty)"
+           href="@GetPageHref(currentPage + 1)">다음</a>
+    </div>
+}
+
+@code {
+    [Parameter] public string Series { get; set; } = string.Empty;
+    [SupplyParameterFromQuery(Name = "sort")] public string? Sort { get; set; }
+    [SupplyParameterFromQuery(Name = "page")] public string? PageQuery { get; set; }
+
+    private IReadOnlyList<BlogPost> posts = Array.Empty<BlogPost>();
+    private int currentPage;
+    private int totalCount;
+    private int totalPages;
+    private HashSet<string> pendingLikeSlugs = [];
+    private HashSet<string> pendingBookmarkSlugs = [];
+    private string normalizedSeries = string.Empty;
+    private string? normalizedSort;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        normalizedSeries = NormalizeSeries(Series);
+        normalizedSort = ListQueryUrlBuilder.NormalizeSortValue(Sort, "latest", "popular", "updated");
+        await LoadPostsAsync();
+    }
+
+    private IReadOnlyList<BlogPost> SortPosts(IEnumerable<BlogPost> source)
+    {
+        return normalizedSort switch
+        {
+            "popular" => source.OrderByDescending(x => x.LikeCount * 2 + x.ViewCount).ThenByDescending(x => x.PublishedAt).ToList(),
+            "updated" => source.OrderByDescending(x => x.UpdatedAt).ThenByDescending(x => x.PublishedAt).ToList(),
+            _ => source.OrderByDescending(x => x.PublishedAt).ToList()
+        };
+    }
+
+    private string GetSortQuery(string? sort)
+    {
+        var normalizedSortValue = ListQueryUrlBuilder.NormalizeSortValue(sort, "latest", "popular", "updated") ?? normalizedSort;
+        return ListQueryUrlBuilder.Build(GetSeriesPath(), normalizedSortValue, query: null, page: 1, totalPages: totalPages);
+    }
+
+    private string GetSortChipClass(string? sort)
+    {
+        var target = (sort ?? string.Empty).Trim().ToLowerInvariant();
+        var current = string.IsNullOrWhiteSpace(normalizedSort) ? "latest" : normalizedSort!;
+        var isActive = (target == "latest" ? string.IsNullOrWhiteSpace(current) || current == "latest" : current == target);
+
+        return isActive
+            ? "rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white"
+            : "rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100";
+    }
+
+    private string GetPageHref(int targetPage)
+    {
+        var page = Math.Max(1, targetPage);
+        return ListQueryUrlBuilder.Build(GetSeriesPath(), normalizedSort, query: null, page: page, totalPages: totalPages);
+    }
+
+    private IEnumerable<int> GetPageNumbers()
+    {
+        if (totalPages <= 1)
+        {
+            yield break;
+        }
+
+        const int maxButtons = 7;
+        var half = maxButtons / 2;
+        var start = Math.Max(1, currentPage - half);
+        var end = Math.Min(totalPages, start + maxButtons - 1);
+        if (end - start + 1 < maxButtons)
+        {
+            start = Math.Max(1, end - maxButtons + 1);
+        }
+
+        for (var pageNumber = start; pageNumber <= end; pageNumber++)
+        {
+            yield return pageNumber;
+        }
+    }
+
+    private static string FormatDate(DateTime dateTime) => dateTime.ToLocalTime().ToString("yyyy.MM.dd");
+
+    private string CurrentUserName => AuthService.CurrentUser?.UserName ?? string.Empty;
+
+    private bool IsPostBusy(string slug, HashSet<string> busySet) => busySet.Contains(slug);
+
+    private static string GetPostUrl(BlogPost post)
+        => $"/@{Uri.EscapeDataString(post.Author)}/{Uri.EscapeDataString(post.Slug)}";
+
+    private static string GetPostCommentsUrl(BlogPost post)
+        => $"{GetPostUrl(post)}#comments";
+
+    private async Task ToggleLikeAsync(string slug)
+    {
+        if (AuthService.CurrentUser is null)
+        {
+            NavigateToLogin(GetLoginReturnUrl());
+            return;
+        }
+
+        if (pendingLikeSlugs.Contains(slug))
+        {
+            return;
+        }
+
+        pendingLikeSlugs.Add(slug);
+        try
+        {
+            await BlogService.ToggleLikeAsync(slug, AuthService.CurrentUser.UserName);
+            await LoadPostsAsync();
+        }
+        finally
+        {
+            pendingLikeSlugs.Remove(slug);
+        }
+    }
+
+    private async Task ToggleBookmarkAsync(string slug)
+    {
+        if (AuthService.CurrentUser is null)
+        {
+            NavigateToLogin(GetLoginReturnUrl());
+            return;
+        }
+
+        if (pendingBookmarkSlugs.Contains(slug))
+        {
+            return;
+        }
+
+        pendingBookmarkSlugs.Add(slug);
+        try
+        {
+            await BlogService.ToggleBookmarkAsync(slug, AuthService.CurrentUser.UserName);
+            await LoadPostsAsync();
+        }
+        finally
+        {
+            pendingBookmarkSlugs.Remove(slug);
+        }
+    }
+
+    private void NavigateToLogin(string returnUrl)
+    {
+        var encoded = Uri.EscapeDataString(string.IsNullOrWhiteSpace(returnUrl) ? "/" : returnUrl);
+        NavigationManager.NavigateTo($"/login?returnUrl={encoded}");
+    }
+
+    private string GetLoginReturnUrl()
+    {
+        return ListQueryUrlBuilder.Build(GetSeriesPath(), normalizedSort, query: null, page: currentPage, totalPages: totalPages);
+    }
+
+    private async Task LoadPostsAsync()
+    {
+        if (string.IsNullOrWhiteSpace(normalizedSeries))
+        {
+            var response = HttpContextAccessor.HttpContext?.Response;
+            if (response is not null)
+            {
+                response.StatusCode = StatusCodes.Status404NotFound;
+                response.Headers["Cache-Control"] = "no-store";
+            }
+
+            totalCount = 0;
+            totalPages = 0;
+            currentPage = 1;
+            posts = Array.Empty<BlogPost>();
+            return;
+        }
+
+        currentPage = ListQueryUrlBuilder.ParsePage(PageQuery);
+        var allPosts = SortPosts(await BlogService.GetBySeriesAsync(normalizedSeries));
+        totalCount = allPosts.Count;
+        totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / 6d);
+        currentPage = Math.Min(currentPage, Math.Max(1, totalPages));
+        posts = allPosts.Skip((currentPage - 1) * 6).Take(6).ToList();
+    }
+
+    private string GetSeriesPath()
+    {
+        return $"/series/{Uri.EscapeDataString(Series)}";
+    }
+
+    private static string NormalizeSeries(string? series)
+        => series?.Trim() ?? string.Empty;
+}
+
+

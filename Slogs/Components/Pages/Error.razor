@@ -1,0 +1,37 @@
+@page "/Error"
+@using System.Diagnostics
+
+<PageTitle>오류</PageTitle>
+<SeoHead Title="오류 | slogs" Description="요청 처리 중 오류가 발생했습니다." NoIndex="true" />
+
+<h1 class="text-2xl font-bold text-slate-900">요청 처리 중 오류가 발생했습니다.</h1>
+<p class="mt-2 text-sm text-slate-500">일시적으로 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.</p>
+
+<div class="mt-4 flex flex-wrap gap-2">
+    <a class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
+       href="/">홈으로</a>
+    <a class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
+       href="/">최신 글</a>
+    <a class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
+       href="/me">내 글</a>
+</div>
+
+@if (ShowRequestId)
+{
+    <p class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+        <strong>요청 ID:</strong> <code>@RequestId</code>
+    </p>
+}
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private string? RequestId { get; set; }
+    private bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+
+    protected override void OnInitialized() =>
+        RequestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+}
+
+

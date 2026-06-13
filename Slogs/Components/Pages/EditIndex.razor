@@ -1,0 +1,14 @@
+@page "/edit"
+@inject NavigationManager Navigation
+
+<PageTitle>글 수정</PageTitle>
+<SeoHead Title="글 수정 | slogs" Description="slogs 글 수정 화면으로 이동합니다." NoIndex="true" />
+
+@code {
+    protected override void OnInitialized()
+    {
+        Navigation.NavigateTo("/me");
+    }
+}
+
+

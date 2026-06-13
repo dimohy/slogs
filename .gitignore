@@ -1,0 +1,24 @@
+# Agent-only operational documents
+.agent-docs/
+AGENTS.md
+SPECS.md
+IMPLEMENTATION_CHECKLIST.md
+LLM-WIKI/
+
+# Verification and generated artifacts
+artifacts/
+*.log
+
+# .NET build output
+bin/
+obj/
+TestResults/
+*.user
+*.suo
+
+# IDE and OS files
+.vs/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
