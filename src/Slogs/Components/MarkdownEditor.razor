@@ -1,0 +1,66 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div class="slogs-markdown-editor" data-card-click-ignore>
+    <div id="@editorId"></div>
+</div>
+
+@code {
+    private readonly string editorId = $"slogs-markdown-editor-{Guid.NewGuid():N}";
+    private DotNetObjectReference<MarkdownEditor>? dotNetReference;
+    private bool isInitialized;
+    private string currentEditorValue = string.Empty;
+
+    [Parameter] public string Value { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public string Placeholder { get; set; } = "Markdown으로 본문을 작성하세요.";
+    [Parameter] public int MinHeight { get; set; } = 360;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var normalizedValue = Value ?? string.Empty;
+
+        if (!isInitialized)
+        {
+            dotNetReference = DotNetObjectReference.Create(this);
+            currentEditorValue = normalizedValue;
+            await JS.InvokeVoidAsync("slogsMarkdownEditor.init", editorId, dotNetReference, normalizedValue, new
+            {
+                placeholder = Placeholder,
+                minHeight = MinHeight
+            });
+            isInitialized = true;
+            return;
+        }
+
+        if (!string.Equals(normalizedValue, currentEditorValue, StringComparison.Ordinal))
+        {
+            currentEditorValue = normalizedValue;
+            await JS.InvokeVoidAsync("slogsMarkdownEditor.setValue", editorId, normalizedValue);
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnMarkdownChanged(string value)
+    {
+        currentEditorValue = value;
+        await ValueChanged.InvokeAsync(value);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (isInitialized)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("slogsMarkdownEditor.dispose", editorId);
+            }
+            catch (JSDisconnectedException)
+            {
+                // The circuit can already be gone during navigation or refresh.
+            }
+        }
+
+        dotNetReference?.Dispose();
+    }
+}

@@ -73,3 +73,142 @@
         navigateToCard(card);
     });
 })();
+
+window.slogsMarkdownEditor = (() => {
+    const vditorVersion = "3.11.2";
+    const vditorCdn = `https://unpkg.com/vditor@${vditorVersion}`;
+    const editors = new Map();
+    let loadPromise;
+
+    const loadVditor = () => {
+        if (window.Vditor) {
+            return Promise.resolve();
+        }
+
+        if (loadPromise) {
+            return loadPromise;
+        }
+
+        loadPromise = new Promise((resolve, reject) => {
+            const stylesheetId = "slogs-vditor-css";
+            if (!document.getElementById(stylesheetId)) {
+                const link = document.createElement("link");
+                link.id = stylesheetId;
+                link.rel = "stylesheet";
+                link.href = `${vditorCdn}/dist/index.css`;
+                document.head.appendChild(link);
+            }
+
+            const script = document.createElement("script");
+            script.src = `${vditorCdn}/dist/index.min.js`;
+            script.async = true;
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error("Vditor failed to load"));
+            document.head.appendChild(script);
+        });
+
+        return loadPromise;
+    };
+
+    const createFallbackEditor = (host, dotNetReference, value, options) => {
+        const textarea = document.createElement("textarea");
+        textarea.className = "slogs-markdown-editor__fallback";
+        textarea.placeholder = options.placeholder ?? "";
+        textarea.value = value ?? "";
+        textarea.style.minHeight = `${options.minHeight ?? 360}px`;
+        textarea.addEventListener("input", () => {
+            dotNetReference.invokeMethodAsync("OnMarkdownChanged", textarea.value);
+        });
+        host.replaceChildren(textarea);
+        return { fallback: textarea };
+    };
+
+    const init = async (id, dotNetReference, value, options = {}) => {
+        const host = document.getElementById(id);
+        if (!host) {
+            return;
+        }
+
+        dispose(id);
+
+        try {
+            await loadVditor();
+        } catch {
+            editors.set(id, createFallbackEditor(host, dotNetReference, value, options));
+            return;
+        }
+
+        let editor;
+        editor = new window.Vditor(id, {
+            mode: "ir",
+            value: value ?? "",
+            cdn: vditorCdn,
+            lang: "ko_KR",
+            theme: "classic",
+            icon: "material",
+            minHeight: options.minHeight ?? 360,
+            cache: {
+                enable: false
+            },
+            counter: {
+                enable: true,
+                type: "markdown"
+            },
+            placeholder: options.placeholder ?? "",
+            toolbar: [
+                "headings",
+                "bold",
+                "italic",
+                "strike",
+                "|",
+                "quote",
+                "list",
+                "ordered-list",
+                "check",
+                "|",
+                "code",
+                "inline-code",
+                "link",
+                "table",
+                "|",
+                "undo",
+                "redo"
+            ],
+            input: (markdown) => {
+                dotNetReference.invokeMethodAsync("OnMarkdownChanged", markdown);
+            },
+            after: () => {
+                dotNetReference.invokeMethodAsync("OnMarkdownChanged", editor.getValue());
+            }
+        });
+
+        editors.set(id, { editor });
+    };
+
+    const setValue = (id, value) => {
+        const instance = editors.get(id);
+        const nextValue = value ?? "";
+
+        if (instance?.editor && instance.editor.getValue() !== nextValue) {
+            instance.editor.setValue(nextValue);
+        }
+
+        if (instance?.fallback && instance.fallback.value !== nextValue) {
+            instance.fallback.value = nextValue;
+        }
+    };
+
+    const dispose = (id) => {
+        const instance = editors.get(id);
+        if (instance?.editor) {
+            instance.editor.destroy();
+        }
+        editors.delete(id);
+    };
+
+    return {
+        init,
+        setValue,
+        dispose
+    };
+})();

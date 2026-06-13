@@ -40,7 +40,7 @@ else
         <input class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="series" />
 
         <label class="text-sm font-semibold text-slate-700">본문</label>
-        <textarea class="min-h-56 rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="body" rows="16"></textarea>
+        <MarkdownEditor @bind-Value="body" Placeholder="Markdown으로 본문을 수정하세요." />
 
         <div class="flex flex-wrap gap-2">
             <button class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"

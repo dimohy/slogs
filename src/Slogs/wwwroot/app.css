@@ -273,3 +273,53 @@ header.bg-white {
     border-left: 3px solid var(--theme-accent);
     color: #415247;
 }
+
+.slogs-markdown-editor {
+    overflow: hidden;
+    border: 1px solid var(--theme-border-strong);
+    border-radius: 1rem;
+    background: var(--theme-surface-input);
+}
+
+.slogs-markdown-editor .vditor {
+    border: 0;
+    background: transparent;
+}
+
+.slogs-markdown-editor .vditor-toolbar,
+.slogs-markdown-editor .vditor-ir,
+.slogs-markdown-editor .vditor-content,
+.slogs-markdown-editor .vditor-reset {
+    background: var(--theme-surface-input);
+}
+
+.slogs-markdown-editor .vditor-ir pre.vditor-reset {
+    padding: 1rem 1.125rem;
+}
+
+.slogs-markdown-editor .vditor-toolbar {
+    border-bottom: 1px solid var(--theme-border);
+    padding: 0.25rem 0.5rem;
+}
+
+.slogs-markdown-editor .vditor-counter {
+    border-top: 1px solid var(--theme-border);
+    color: var(--theme-text-muted);
+}
+
+.slogs-markdown-editor__fallback {
+    display: block;
+    width: 100%;
+    resize: vertical;
+    border: 0;
+    padding: 1rem;
+    background: var(--theme-surface-input);
+    color: var(--theme-text);
+    font: inherit;
+    line-height: 1.7;
+}
+
+.slogs-markdown-editor__fallback:focus {
+    outline: 3px solid rgba(15, 118, 110, 0.14);
+    outline-offset: -3px;
+}

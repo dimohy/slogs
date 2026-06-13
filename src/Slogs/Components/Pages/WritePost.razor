@@ -30,7 +30,7 @@ else
         <input class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="series" placeholder="시리즈명 입력(선택)" />
 
         <label class="text-sm font-semibold text-slate-700">본문</label>
-        <textarea class="min-h-56 rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="body" rows="16"></textarea>
+        <MarkdownEditor @bind-Value="body" Placeholder="Markdown으로 본문을 작성하세요." />
 
         <button class="w-fit rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                 @onclick="Publish" disabled="@isSaving">@((isSaving) ? "발행 중..." : "발행")</button>
