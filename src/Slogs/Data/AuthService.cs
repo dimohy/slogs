@@ -2,10 +2,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Slogs.Data;
 
-public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory)
+public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHttpContextAccessor httpContextAccessor)
 {
     private readonly object stateLock = new();
-    private AuthUser? currentUser;
+    private AuthUser? currentUser = SlogsAuthentication.TryCreateUser(httpContextAccessor.HttpContext?.User);
 
     public AuthUser? CurrentUser
     {
@@ -70,7 +70,7 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory)
             UserName = normalized,
             DisplayName = string.IsNullOrWhiteSpace(displayName) ? userName.Trim() : displayName.Trim(),
             Password = password,
-            ProfileImageUrl = GetDefaultProfileImageUrl(normalized),
+            ProfileImageUrl = string.Empty,
             Bio = "slogs에서 새 글을 준비 중인 작성자입니다.",
             RegisteredAt = DateTime.UtcNow
         };
@@ -262,10 +262,4 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory)
 
     private static string NormalizeUser(string value)
         => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToLowerInvariant();
-
-    private static string GetDefaultProfileImageUrl(string userName)
-    {
-        var seed = Uri.EscapeDataString(string.IsNullOrWhiteSpace(userName) ? "slogs" : userName.Trim());
-        return $"https://api.dicebear.com/9.x/initials/svg?seed={seed}&backgroundColor=e0f2fe,dbeafe,f0fdf4,fef3c7";
-    }
 }

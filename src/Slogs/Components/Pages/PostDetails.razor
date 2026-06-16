@@ -96,9 +96,7 @@ else
             }
         </div>
 
-        <div class="markdown-body mt-4 max-w-none">
-            @((MarkupString)MarkdownRenderer.Render(post.Body))
-        </div>
+        <MarkdownPreview Value="@post.Body" Class="mt-4" />
 
         <div class="mt-4 flex flex-wrap gap-2">
             <button class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold transition hover:bg-slate-100"
@@ -229,18 +227,16 @@ else
         {
             <div class="mt-2 flex flex-col gap-2">
                 <div class="text-right text-xs text-slate-500">@($"{newComment?.Length ?? 0}/1000")</div>
-                <textarea class="min-h-24 rounded-2xl border border-slate-300 p-3 text-sm"
-                          disabled="@isCommentSaving"
-                          rows="4" maxlength="1000" @bind="newComment" @bind:event="oninput"
-                          @onkeydown="HandleCommentKeyDown" placeholder="의견을 남겨주세요"></textarea>
-                <button class="w-fit rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                        @onclick="SubmitComment" disabled="@(!CanSubmitComment)">
-                    댓글 등록
-                </button>
-                <button class="w-fit rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-                        type="button" @onclick="ResetNewComment">
-                    취소
-                </button>
+                <div class="comment-compose">
+                    <textarea class="comment-compose__input rounded-2xl border border-slate-300 p-3 text-sm"
+                              disabled="@isCommentSaving"
+                              rows="4" maxlength="1000" @bind="newComment" @bind:event="oninput"
+                              @onkeydown="HandleCommentKeyDown" placeholder="의견을 남겨주세요"></textarea>
+                    <button class="comment-compose__submit rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                            @onclick="SubmitComment" disabled="@(!CanSubmitComment)">
+                        등록
+                    </button>
+                </div>
             </div>
         }
 

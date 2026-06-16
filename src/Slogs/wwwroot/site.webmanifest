@@ -1,0 +1,18 @@
+{
+  "name": "slogs",
+  "short_name": "slogs",
+  "description": "slogs는 개발자의 글쓰기, 태그 탐색, 슬로거 팔로우를 위한 한국어 개발 블로그 서비스입니다.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#edf4ee",
+  "theme_color": "#0f3d34",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

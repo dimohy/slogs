@@ -1,0 +1,63 @@
+@inject IJSRuntime JS
+
+<div class="@CssClass" data-markdown-preview-shell>
+    <div id="@previewId" class="slogs-markdown-preview__runtime" data-markdown-preview data-card-click-ignore></div>
+    <div class="slogs-markdown-preview__fallback">
+        @((MarkupString)MarkdownRenderer.Render(Value))
+    </div>
+</div>
+
+@code {
+    private readonly string previewId = $"slogs-markdown-preview-{Guid.NewGuid():N}";
+    private string? renderedValue;
+
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private string CssClass => string.IsNullOrWhiteSpace(Class)
+        ? "markdown-body slogs-markdown-preview max-w-none"
+        : $"markdown-body slogs-markdown-preview max-w-none {Class}";
+
+    protected override bool ShouldRender() => renderedValue is null;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (renderedValue is not null)
+        {
+            await RenderPreviewAsync();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await RenderPreviewAsync();
+        }
+    }
+
+    private async Task RenderPreviewAsync()
+    {
+        var normalizedValue = Value ?? string.Empty;
+        if (string.Equals(renderedValue, normalizedValue, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var fallbackHtml = MarkdownRenderer.Render(normalizedValue);
+
+        try
+        {
+            await JS.InvokeVoidAsync("slogsMarkdownPreview.render", previewId, normalizedValue, fallbackHtml);
+            renderedValue = normalizedValue;
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit can already be gone during navigation or refresh.
+        }
+        catch (InvalidOperationException)
+        {
+            // Static rendering can run before browser JS interop is available.
+        }
+    }
+}

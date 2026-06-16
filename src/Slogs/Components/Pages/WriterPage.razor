@@ -25,12 +25,12 @@
 }
 else
 {
-    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <div class="h-28 bg-slate-900"></div>
-        <div class="-mt-12 px-5 pb-5 md:px-7 md:pb-7">
-            <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                <div class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end">
-                    <div class="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-2xl border-4 border-white bg-slate-100 text-2xl font-black text-slate-800 shadow-lg">
+    <section class="slogger-hero rounded-2xl border border-slate-200 bg-white">
+        <div class="slogger-hero__cover"></div>
+        <div class="slogger-hero__body">
+            <div class="slogger-hero__header">
+                <div class="slogger-hero__identity">
+                    <div class="slogger-hero__avatar">
                         @if (!string.IsNullOrWhiteSpace(writerProfile?.ProfileImageUrl))
                         {
                             <img class="h-full w-full object-cover"
@@ -41,17 +41,17 @@ else
                         }
                         else
                         {
-                            <span>@GetInitials()</span>
+                            <span class="slogger-hero__initials">@GetInitials()</span>
                         }
                     </div>
-                    <div class="min-w-0 pb-1">
-                        <p class="text-xs font-bold text-slate-500">슬로거 홈</p>
-                        <h1 class="mt-1 break-words text-3xl font-black text-slate-900">@GetSloggerDisplayName()</h1>
-                        <p class="mt-1 text-sm font-semibold text-slate-500">@GetSloggerAddress()</p>
+                    <div class="slogger-hero__copy">
+                        <p class="slogger-hero__eyebrow">슬로거 홈</p>
+                        <h1 class="slogger-hero__name">@GetSloggerDisplayName()</h1>
+                        <p class="slogger-hero__address">@GetSloggerAddress()</p>
                     </div>
                 </div>
 
-                <div class="flex flex-wrap gap-2">
+                <div class="slogger-hero__actions">
                     <a class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
                        href="@GetFollowersPath()">팔로워 @followerCount</a>
                     <a class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"

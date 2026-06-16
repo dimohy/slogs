@@ -62,7 +62,7 @@ public static class SlogsDbInitializer
                 UserName = userName,
                 DisplayName = displayName,
                 Password = password,
-                ProfileImageUrl = GetProfileImageUrl(userName),
+                ProfileImageUrl = string.Empty,
                 Bio = GetDefaultBio(userName),
                 RegisteredAt = DateTime.UtcNow
             });
@@ -78,9 +78,9 @@ public static class SlogsDbInitializer
 
         foreach (var user in users)
         {
-            if (string.IsNullOrWhiteSpace(user.ProfileImageUrl))
+            if (IsLegacyDefaultProfileImageUrl(user.ProfileImageUrl))
             {
-                user.ProfileImageUrl = GetProfileImageUrl(user.UserName);
+                user.ProfileImageUrl = string.Empty;
                 changed = true;
             }
 
@@ -226,11 +226,9 @@ public static class SlogsDbInitializer
         };
     }
 
-    private static string GetProfileImageUrl(string userName)
-    {
-        var seed = Uri.EscapeDataString(string.IsNullOrWhiteSpace(userName) ? "slogs" : userName.Trim());
-        return $"https://api.dicebear.com/9.x/initials/svg?seed={seed}&backgroundColor=e0f2fe,dbeafe,f0fdf4,fef3c7";
-    }
+    private static bool IsLegacyDefaultProfileImageUrl(string? profileImageUrl)
+        => !string.IsNullOrWhiteSpace(profileImageUrl)
+            && profileImageUrl.StartsWith("https://api.dicebear.com/9.x/initials/svg", StringComparison.OrdinalIgnoreCase);
 
     private static string GetDefaultThumbnailUrl(string slug)
     {

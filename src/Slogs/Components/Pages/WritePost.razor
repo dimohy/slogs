@@ -17,17 +17,17 @@ else
     <h1 class="text-2xl font-bold text-slate-900">새 글 쓰기</h1>
 
     <div class="mt-4 grid gap-3">
-        <label class="text-sm font-semibold text-slate-700">제목</label>
-        <input class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="title" />
+        <label class="text-sm font-semibold text-slate-700" for="write-title">제목</label>
+        <input id="write-title" class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="title" />
 
-        <label class="text-sm font-semibold text-slate-700">요약</label>
-        <input class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="summary" />
+        <label class="text-sm font-semibold text-slate-700" for="write-summary">요약</label>
+        <input id="write-summary" class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="summary" />
 
-        <label class="text-sm font-semibold text-slate-700">태그 (쉼표 구분)</label>
-        <input class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="tags" placeholder="blazor, csharp, dotnet" />
+        <label class="text-sm font-semibold text-slate-700" for="write-tags">태그</label>
+        <TagBadgeInput Id="write-tags" @bind-Value="tags" Placeholder="태그를 선택하거나 입력하세요" />
 
-        <label class="text-sm font-semibold text-slate-700">시리즈</label>
-        <input class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="series" placeholder="시리즈명 입력(선택)" />
+        <label class="text-sm font-semibold text-slate-700" for="write-series">시리즈</label>
+        <input id="write-series" class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="series" placeholder="시리즈명 입력(선택)" />
 
         <label class="text-sm font-semibold text-slate-700">본문</label>
         <MarkdownEditor @bind-Value="body" Placeholder="Markdown으로 본문을 작성하세요." />
@@ -57,9 +57,7 @@ else
         {
             <p class="mb-2 text-sm text-slate-500">시리즈: @series</p>
         }
-        <div class="markdown-body max-w-none">
-            @((MarkupString)MarkdownRenderer.Render(body))
-        </div>
+        <MarkdownPreview Value="@body" />
     </section>
 }
 

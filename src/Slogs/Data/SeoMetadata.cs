@@ -10,6 +10,7 @@ public sealed record SitemapEntry(string Path, DateTime? LastModified = null, st
 public static class SeoMetadata
 {
     public const string SiteName = "slogs";
+    public const string SiteIconPath = "/favicon.svg";
     public const string DefaultDescription = "slogs는 개발자의 글쓰기, 태그 탐색, 슬로거 팔로우를 위한 한국어 개발 블로그 서비스입니다.";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -100,6 +101,7 @@ public static class SeoMetadata
             ["name"] = SiteName,
             ["url"] = AbsoluteUrl(baseUri, "/"),
             ["description"] = DefaultDescription,
+            ["image"] = AbsoluteUrl(baseUri, SiteIconPath),
             ["inLanguage"] = "ko-KR",
             ["potentialAction"] = new Dictionary<string, object?>
             {
@@ -168,7 +170,12 @@ public static class SeoMetadata
             {
                 ["@type"] = "Organization",
                 ["name"] = SiteName,
-                ["url"] = AbsoluteUrl(baseUri, "/")
+                ["url"] = AbsoluteUrl(baseUri, "/"),
+                ["logo"] = new Dictionary<string, object?>
+                {
+                    ["@type"] = "ImageObject",
+                    ["url"] = AbsoluteUrl(baseUri, SiteIconPath)
+                }
             },
             ["datePublished"] = FormatDateTime(post.PublishedAt),
             ["dateModified"] = FormatDateTime(post.UpdatedAt),

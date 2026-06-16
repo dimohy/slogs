@@ -9,6 +9,12 @@ LLM-WIKI/
 artifacts/
 *.log
 
+# Project-local SDK cache
+.dotnet/
+
+# Runtime uploads
+src/Slogs/wwwroot/uploads/
+
 # .NET build output
 bin/
 obj/

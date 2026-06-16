@@ -74,13 +74,32 @@
     });
 })();
 
-window.slogsMarkdownEditor = (() => {
-    const vditorVersion = "3.11.2";
-    const vditorCdn = `https://unpkg.com/vditor@${vditorVersion}`;
-    const editors = new Map();
+window.slogsVditorRuntime = (() => {
+    const version = "3.11.2";
+    const cdn = `https://unpkg.com/vditor@${version}`;
     let loadPromise;
+    const localizedCodeCopyControls = new WeakSet();
+    const chromeTranslations = new Map([
+        ["复制到公众号", "WeChat으로 복사"],
+        ["复制到知乎", "Zhihu로 복사"]
+    ]);
 
-    const loadVditor = () => {
+    const ensureStylesheet = () => {
+        const stylesheetId = "slogs-vditor-css";
+        if (document.getElementById(stylesheetId)) {
+            return;
+        }
+
+        const link = document.createElement("link");
+        link.id = stylesheetId;
+        link.rel = "stylesheet";
+        link.href = `${cdn}/dist/index.css`;
+        document.head.appendChild(link);
+    };
+
+    const load = () => {
+        ensureStylesheet();
+
         if (window.Vditor) {
             return Promise.resolve();
         }
@@ -90,17 +109,8 @@ window.slogsMarkdownEditor = (() => {
         }
 
         loadPromise = new Promise((resolve, reject) => {
-            const stylesheetId = "slogs-vditor-css";
-            if (!document.getElementById(stylesheetId)) {
-                const link = document.createElement("link");
-                link.id = stylesheetId;
-                link.rel = "stylesheet";
-                link.href = `${vditorCdn}/dist/index.css`;
-                document.head.appendChild(link);
-            }
-
             const script = document.createElement("script");
-            script.src = `${vditorCdn}/dist/index.min.js`;
+            script.src = `${cdn}/dist/index.min.js`;
             script.async = true;
             script.onload = () => resolve();
             script.onerror = () => reject(new Error("Vditor failed to load"));
@@ -108,6 +118,201 @@ window.slogsMarkdownEditor = (() => {
         });
 
         return loadPromise;
+    };
+
+    const getCopyText = (copy) => {
+        const textarea = copy.querySelector("textarea");
+        if (textarea?.value) {
+            return textarea.value;
+        }
+
+        const code = copy.closest("pre")?.querySelector("code")
+            ?? copy.parentElement?.querySelector("code");
+
+        return code?.textContent ?? "";
+    };
+
+    const writeClipboardText = async (text) => {
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(text);
+            return;
+        }
+
+        const fallback = document.createElement("textarea");
+        fallback.value = text;
+        fallback.setAttribute("readonly", "");
+        fallback.style.position = "fixed";
+        fallback.style.left = "-9999px";
+        fallback.style.top = "0";
+        document.body.appendChild(fallback);
+
+        try {
+            fallback.select();
+            if (!document.execCommand("copy")) {
+                throw new Error("copy command failed");
+            }
+        } finally {
+            fallback.remove();
+        }
+    };
+
+    const shouldResetCopyLabel = (label) => !label || /复制|已复制|copy|copied/i.test(label);
+
+    const localizeVditorChrome = (host) => {
+        if (!host?.querySelectorAll) {
+            return;
+        }
+
+        for (const element of host.querySelectorAll("[aria-label], [title]")) {
+            const ariaLabel = element.getAttribute("aria-label");
+            const title = element.getAttribute("title");
+
+            if (chromeTranslations.has(ariaLabel)) {
+                element.setAttribute("aria-label", chromeTranslations.get(ariaLabel));
+            }
+
+            if (chromeTranslations.has(title)) {
+                element.setAttribute("title", chromeTranslations.get(title));
+            }
+        }
+    };
+
+    const localizeCodeCopyControls = (host) => {
+        if (!host?.querySelectorAll) {
+            return;
+        }
+
+        localizeVditorChrome(host);
+
+        for (const copy of host.querySelectorAll(".vditor-copy")) {
+            const control = copy.querySelector("span");
+            if (!control) {
+                continue;
+            }
+
+            control.removeAttribute("onmouseover");
+            control.removeAttribute("onclick");
+
+            if (shouldResetCopyLabel(control.getAttribute("aria-label") ?? "")) {
+                control.setAttribute("aria-label", "복사");
+            }
+
+            if (localizedCodeCopyControls.has(control)) {
+                continue;
+            }
+
+            localizedCodeCopyControls.add(control);
+
+            const resetLabel = () => control.setAttribute("aria-label", "복사");
+            control.addEventListener("mouseover", resetLabel);
+            control.addEventListener("focus", resetLabel);
+            control.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+
+                try {
+                    await writeClipboardText(getCopyText(copy));
+                    control.setAttribute("aria-label", "복사됨");
+                } catch {
+                    control.setAttribute("aria-label", "복사 실패");
+                }
+            });
+        }
+    };
+
+    const observeCodeCopyControls = (host) => {
+        localizeCodeCopyControls(host);
+
+        if (!host || !window.MutationObserver) {
+            return null;
+        }
+
+        const observer = new MutationObserver(() => localizeCodeCopyControls(host));
+        observer.observe(host, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ["aria-label", "onclick", "onmouseover"]
+        });
+
+        return observer;
+    };
+
+    return {
+        cdn,
+        load,
+        localizeCodeCopyControls,
+        localizeVditorChrome,
+        observeCodeCopyControls
+    };
+})();
+
+window.slogsMarkdownEditor = (() => {
+    const editors = new Map();
+    const maxImageBytes = 5 * 1024 * 1024;
+    const imageTypes = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+
+    const isSupportedImage = (file) => file && imageTypes.has(file.type) && file.size > 0 && file.size <= maxImageBytes;
+
+    const getImageFiles = (itemsOrFiles) => Array.from(itemsOrFiles ?? [])
+        .map((item) => typeof item.getAsFile === "function" ? item.getAsFile() : item)
+        .filter(isSupportedImage);
+
+    const markdownEscape = (value) => (value ?? "image")
+        .replace(/[[\]\\]/g, "\\$&")
+        .replace(/\r?\n/g, " ")
+        .trim() || "image";
+
+    const uploadImage = async (file) => {
+        const formData = new FormData();
+        formData.append("image", file, file.name || "pasted-image.png");
+
+        const response = await fetch("/editor/images", {
+            method: "POST",
+            body: formData,
+            credentials: "same-origin"
+        });
+
+        if (!response.ok) {
+            let error = "이미지 삽입에 실패했습니다.";
+            try {
+                const body = await response.json();
+                error = body.error || error;
+            } catch {
+            }
+
+            throw new Error(error);
+        }
+
+        return await response.json();
+    };
+
+    const makeImageMarkdown = (uploadResult, file) => {
+        const altText = markdownEscape(uploadResult.altText || file.name?.replace(/\.[^.]+$/, "") || "image");
+        return `![${altText}](${uploadResult.url})`;
+    };
+
+    const setStatus = (host, message, kind = "info") => {
+        let status = host.querySelector("[data-editor-image-status]");
+        if (!status) {
+            status = document.createElement("div");
+            status.setAttribute("data-editor-image-status", "");
+            status.setAttribute("aria-live", "polite");
+            status.className = "slogs-markdown-editor__image-status";
+            host.appendChild(status);
+        }
+
+        status.textContent = message;
+        status.dataset.kind = kind;
+        window.clearTimeout(status.__slogsStatusTimer);
+        status.__slogsStatusTimer = window.setTimeout(() => {
+            status.textContent = "";
+            delete status.dataset.kind;
+        }, kind === "error" ? 2600 : 1400);
+    };
+
+    const setDropActive = (host, active) => {
+        host.classList.toggle("is-image-dragging", active);
     };
 
     const createFallbackEditor = (host, dotNetReference, value, options) => {
@@ -123,6 +328,196 @@ window.slogsMarkdownEditor = (() => {
         return { fallback: textarea };
     };
 
+    const insertIntoFallback = (textarea, markdown) => {
+        const start = textarea.selectionStart ?? textarea.value.length;
+        const end = textarea.selectionEnd ?? start;
+        const prefix = textarea.value.slice(0, start);
+        const suffix = textarea.value.slice(end);
+        const needsLeadingBreak = prefix.length > 0 && !prefix.endsWith("\n");
+        const needsTrailingBreak = suffix.length > 0 && !suffix.startsWith("\n");
+        const snippet = `${needsLeadingBreak ? "\n\n" : ""}${markdown}${needsTrailingBreak ? "\n\n" : ""}`;
+        textarea.value = `${prefix}${snippet}${suffix}`;
+        const cursor = start + snippet.length;
+        textarea.setSelectionRange(cursor, cursor);
+        textarea.dispatchEvent(new Event("input", { bubbles: true }));
+        textarea.focus();
+    };
+
+    const placeCaretFromPoint = (container, clientX, clientY) => {
+        if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) {
+            return;
+        }
+
+        const range = document.caretRangeFromPoint
+            ? document.caretRangeFromPoint(clientX, clientY)
+            : document.caretPositionFromPoint
+                ? (() => {
+                    const position = document.caretPositionFromPoint(clientX, clientY);
+                    if (!position) {
+                        return null;
+                    }
+
+                    const nextRange = document.createRange();
+                    nextRange.setStart(position.offsetNode, position.offset);
+                    return nextRange;
+                })()
+                : null;
+
+        if (!range || !container.contains(range.startContainer)) {
+            return;
+        }
+
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+    };
+
+    const insertIntoEditor = (editor, eventTarget, markdown, pointerEvent) => {
+        if (pointerEvent) {
+            placeCaretFromPoint(eventTarget, pointerEvent.clientX, pointerEvent.clientY);
+        }
+
+        editor.focus();
+        const formatted = `\n\n${markdown}\n\n`;
+        editor.insertValue(formatted);
+    };
+
+    const createImageInsertionHandlers = (host, eventTarget, getTarget, notifyChanged) => {
+        let dragDepth = 0;
+        let isUploading = false;
+
+        const insertFiles = async (files, sourceEvent) => {
+            if (isUploading || files.length === 0) {
+                return;
+            }
+
+            isUploading = true;
+            setStatus(host, "이미지 삽입 중...");
+
+            try {
+                for (const file of files) {
+                    const uploadResult = await uploadImage(file);
+                    const markdown = makeImageMarkdown(uploadResult, file);
+                    const target = getTarget();
+
+                    if (target?.editor) {
+                        insertIntoEditor(target.editor, eventTarget, markdown, sourceEvent);
+                    } else if (target?.fallback) {
+                        insertIntoFallback(target.fallback, markdown);
+                    }
+                }
+
+                notifyChanged();
+                setStatus(host, "이미지 삽입 완료");
+            } catch (error) {
+                setStatus(host, error.message || "이미지 삽입에 실패했습니다.", "error");
+            } finally {
+                isUploading = false;
+                dragDepth = 0;
+                setDropActive(host, false);
+            }
+        };
+
+        const paste = (event) => {
+            const files = getImageFiles(event.clipboardData?.items);
+            if (files.length === 0) {
+                return;
+            }
+
+            event.preventDefault();
+            event.stopPropagation();
+            void insertFiles(files, event);
+        };
+
+        const dragEnter = (event) => {
+            if (getImageFiles(event.dataTransfer?.items).length === 0) {
+                return;
+            }
+
+            dragDepth += 1;
+            setDropActive(host, true);
+        };
+
+        const dragOver = (event) => {
+            if (getImageFiles(event.dataTransfer?.items).length === 0) {
+                return;
+            }
+
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "copy";
+            setDropActive(host, true);
+        };
+
+        const dragLeave = () => {
+            dragDepth = Math.max(0, dragDepth - 1);
+            if (dragDepth === 0) {
+                setDropActive(host, false);
+            }
+        };
+
+        const drop = (event) => {
+            const files = getImageFiles(event.dataTransfer?.files);
+            if (files.length === 0) {
+                setDropActive(host, false);
+                dragDepth = 0;
+                return;
+            }
+
+            event.preventDefault();
+            event.stopPropagation();
+            void insertFiles(files, event);
+        };
+
+        const listeners = [
+            { eventName: "paste", listener: paste },
+            { eventName: "dragenter", listener: dragEnter },
+            { eventName: "dragover", listener: dragOver },
+            { eventName: "dragleave", listener: dragLeave },
+            { eventName: "drop", listener: drop }
+        ];
+
+        for (const { eventName, listener } of listeners) {
+            eventTarget.addEventListener(eventName, listener, true);
+        }
+
+        return listeners;
+    };
+
+    const createChangeNotifier = (id, editor, dotNetReference, initialValue) => {
+        let lastValue = initialValue ?? "";
+        let timer;
+
+        const notify = (markdown) => {
+            const nextValue = markdown ?? "";
+            if (nextValue === lastValue) {
+                return;
+            }
+
+            lastValue = nextValue;
+            window.clearTimeout(timer);
+            timer = window.setTimeout(() => {
+                const liveInstance = editors.get(id);
+                if (liveInstance?.editor !== editor) {
+                    return;
+                }
+
+                dotNetReference.invokeMethodAsync("OnMarkdownChanged", nextValue).catch(() => {
+                    // The Blazor circuit can be gone during navigation.
+                });
+            }, 20);
+        };
+
+        const readAndNotify = () => {
+            try {
+                notify(editor.getValue());
+            } catch {
+                // Vditor can briefly report no current mode while reconciling IR state.
+            }
+        };
+
+        return { notify, readAndNotify };
+    };
+
     const init = async (id, dotNetReference, value, options = {}) => {
         const host = document.getElementById(id);
         if (!host) {
@@ -132,17 +527,24 @@ window.slogsMarkdownEditor = (() => {
         dispose(id);
 
         try {
-            await loadVditor();
+            await window.slogsVditorRuntime.load();
         } catch {
-            editors.set(id, createFallbackEditor(host, dotNetReference, value, options));
+            const fallbackInstance = createFallbackEditor(host, dotNetReference, value, options);
+            const imageListeners = createImageInsertionHandlers(
+                host,
+                fallbackInstance.fallback,
+                () => fallbackInstance,
+                () => fallbackInstance.fallback.dispatchEvent(new Event("input", { bubbles: true })));
+            editors.set(id, { ...fallbackInstance, imageEventTarget: fallbackInstance.fallback, imageListeners });
             return;
         }
 
         let editor;
+        let changeNotifier;
         editor = new window.Vditor(id, {
             mode: "ir",
             value: value ?? "",
-            cdn: vditorCdn,
+            cdn: window.slogsVditorRuntime.cdn,
             lang: "ko_KR",
             theme: "classic",
             icon: "material",
@@ -175,22 +577,63 @@ window.slogsMarkdownEditor = (() => {
                 "redo"
             ],
             input: (markdown) => {
-                dotNetReference.invokeMethodAsync("OnMarkdownChanged", markdown);
+                changeNotifier?.notify(markdown);
+                window.setTimeout(() => window.slogsVditorRuntime.localizeCodeCopyControls(host), 0);
             },
             after: () => {
-                dotNetReference.invokeMethodAsync("OnMarkdownChanged", editor.getValue());
+                changeNotifier?.readAndNotify();
+                window.slogsVditorRuntime.localizeCodeCopyControls(host);
             }
         });
 
-        editors.set(id, { editor });
+        changeNotifier = createChangeNotifier(id, editor, dotNetReference, value);
+        const eventTarget = host.querySelector(".vditor-content") ?? host;
+        const copyLocalizationObserver = window.slogsVditorRuntime.observeCodeCopyControls(host);
+        const eventNames = ["input", "keyup", "paste", "compositionend"];
+        const listeners = eventNames.map((eventName) => {
+            const listener = () => changeNotifier.readAndNotify();
+            eventTarget.addEventListener(eventName, listener, true);
+            return { eventName, listener };
+        });
+        const imageListeners = createImageInsertionHandlers(
+            host,
+            eventTarget,
+            () => editors.get(id),
+            () => changeNotifier.readAndNotify());
+
+        editors.set(id, { editor, eventTarget, listeners, imageEventTarget: eventTarget, imageListeners, copyLocalizationObserver });
     };
 
     const setValue = (id, value) => {
         const instance = editors.get(id);
         const nextValue = value ?? "";
 
-        if (instance?.editor && instance.editor.getValue() !== nextValue) {
-            instance.editor.setValue(nextValue);
+        if (instance?.editor) {
+            const applyEditorValue = () => {
+                const liveInstance = editors.get(id);
+                if (liveInstance?.editor !== instance.editor) {
+                    return true;
+                }
+
+                try {
+                    instance.editor.setValue(nextValue);
+                    return true;
+                } catch {
+                    return false;
+                }
+            };
+
+            try {
+                if (instance.editor.getValue() === nextValue) {
+                    return;
+                }
+            } catch {
+                // Vditor can briefly report no current mode while it is reconciling IR state.
+            }
+
+            if (!applyEditorValue()) {
+                window.setTimeout(applyEditorValue, 100);
+            }
         }
 
         if (instance?.fallback && instance.fallback.value !== nextValue) {
@@ -200,6 +643,20 @@ window.slogsMarkdownEditor = (() => {
 
     const dispose = (id) => {
         const instance = editors.get(id);
+        if (instance?.eventTarget && instance.listeners) {
+            for (const { eventName, listener } of instance.listeners) {
+                instance.eventTarget.removeEventListener(eventName, listener, true);
+            }
+        }
+
+        if (instance?.imageEventTarget && instance.imageListeners) {
+            for (const { eventName, listener } of instance.imageListeners) {
+                instance.imageEventTarget.removeEventListener(eventName, listener, true);
+            }
+        }
+
+        instance?.copyLocalizationObserver?.disconnect();
+
         if (instance?.editor) {
             instance.editor.destroy();
         }
@@ -210,5 +667,68 @@ window.slogsMarkdownEditor = (() => {
         init,
         setValue,
         dispose
+    };
+})();
+
+window.slogsMarkdownPreview = (() => {
+    const renderCounters = new Map();
+
+    const render = async (id, value, fallbackHtml) => {
+        const host = document.getElementById(id);
+        if (!host) {
+            return;
+        }
+
+        const markdown = value ?? "";
+        const shell = host.closest("[data-markdown-preview-shell]");
+        const token = (renderCounters.get(id) ?? 0) + 1;
+        renderCounters.set(id, token);
+        host.setAttribute("data-card-click-ignore", "");
+
+        if (!markdown.trim()) {
+            host.classList.remove("vditor-reset");
+            host.innerHTML = typeof fallbackHtml === "string"
+                ? fallbackHtml
+                : '<p class="text-slate-500">내용이 없습니다.</p>';
+            shell?.classList.add("is-rendered");
+            return;
+        }
+
+        try {
+            await window.slogsVditorRuntime.load();
+            if (renderCounters.get(id) !== token) {
+                return;
+            }
+
+            host.innerHTML = "";
+            host.classList.add("vditor-reset");
+            await window.Vditor.preview(host, markdown, {
+                cdn: window.slogsVditorRuntime.cdn,
+                lang: "ko_KR",
+                mode: "light",
+                anchor: 0,
+                speech: {
+                    enable: false
+                },
+                hljs: {
+                    enable: true,
+                    lineNumber: false,
+                    style: "github"
+                },
+                theme: {
+                    current: "light"
+                }
+            });
+            window.slogsVditorRuntime.localizeCodeCopyControls(host);
+            shell?.classList.add("is-rendered");
+        } catch {
+            host.classList.remove("vditor-reset");
+            host.innerHTML = typeof fallbackHtml === "string" ? fallbackHtml : "";
+            shell?.classList.add("is-rendered");
+        }
+    };
+
+    return {
+        render
     };
 })();

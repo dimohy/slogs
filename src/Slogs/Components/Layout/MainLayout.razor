@@ -5,11 +5,18 @@
 @inherits LayoutComponentBase
 
 <div class="min-h-screen bg-slate-100">
-    <header class="sticky top-0 z-20 border-b border-slate-200 bg-white bg-opacity-90 backdrop-blur-md">
-        <div class="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-3 px-4 py-3 md:flex-nowrap">
-            <a class="text-2xl font-black tracking-tight text-slate-900" href="/">slogs</a>
+    <header class="slogs-app-header sticky top-0 z-20 border-b border-slate-200 bg-white bg-opacity-90 backdrop-blur-md">
+        <div class="slogs-reconnect-slot">
+            <ReconnectModal />
+        </div>
 
-                <div class="hidden min-w-0 flex-1 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 md:flex">
+        <div class="slogs-app-header__inner mx-auto flex w-full max-w-6xl flex-wrap items-center gap-3 px-4 py-3 md:flex-nowrap">
+            <a class="slogs-brand" href="/" aria-label="slogs 홈">
+                <img class="slogs-brand__icon" src="@Assets["favicon.svg"]" alt="" width="32" height="32" />
+                <span class="slogs-brand__wordmark">slogs</span>
+            </a>
+
+            <div class="slogs-header-search hidden min-w-0 flex-1 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 md:flex">
                 <input class="min-w-0 flex-1 border-0 bg-transparent text-sm text-slate-700 outline-none"
                        @bind="searchTerm" @bind:event="oninput" placeholder="글 제목, 태그, 작성자로 검색"
                        @onkeydown="HandleSearchKeyDown" />
@@ -19,32 +26,51 @@
                 </button>
             </div>
 
-            <nav class="ml-auto flex items-center gap-2" aria-label="header actions">
-                <ReconnectModal />
+            <nav class="slogs-header-actions ml-auto flex items-center gap-2" aria-label="header actions">
                 @if (CurrentUser is null)
                 {
-                    <a class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
-                       href="@GetRegisterHref()">회원가입</a>
                     <a class="rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-slate-800"
                        href="@GetLoginHref()">로그인</a>
                 }
                 else
                 {
-                    <span class="rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5 text-sm text-slate-700">
-                        @CurrentUser.DisplayName
-                    </span>
                     <a class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
                        href="/write">글쓰기</a>
-                    <a class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
-                       href="/me">내 글</a>
-                    <button class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
-                            type="button" @onclick="Logout">로그아웃</button>
+                    <div class="relative">
+                        <button class="rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
+                                type="button"
+                                aria-haspopup="menu"
+                                aria-expanded="@isAccountMenuOpen"
+                                @onclick="ToggleAccountMenu">
+                            @CurrentUser.DisplayName
+                        </button>
+                        @if (isAccountMenuOpen)
+                        {
+                            <div class="absolute right-0 mt-2 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
+                                 role="menu">
+                                <a class="block px-4 py-2 font-semibold text-slate-800 transition hover:bg-slate-100"
+                                   href="@GetCurrentUserPath()"
+                                   role="menuitem"
+                                   @onclick="CloseAccountMenu">@GetCurrentUserMenuText()</a>
+                                <a class="block px-4 py-2 text-slate-700 transition hover:bg-slate-100"
+                                   href="/me"
+                                   role="menuitem"
+                                   @onclick="CloseAccountMenu">내 글</a>
+                                <form method="post" action="/auth/logout">
+                                    <input type="hidden" name="returnUrl" value="/" />
+                                    <button class="block w-full px-4 py-2 text-left text-slate-700 transition hover:bg-slate-100"
+                                            type="submit"
+                                            role="menuitem">로그아웃</button>
+                                </form>
+                            </div>
+                        }
+                    </div>
                 }
             </nav>
         </div>
     </header>
 
-    <div class="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 px-4 py-4 lg:grid-cols-12">
+    <div class="slogs-page-shell mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 px-4 py-4 lg:grid-cols-12">
         <aside class="lg:sticky lg:top-24 lg:self-start lg:col-span-4 xl:col-span-3">
             <NavMenu />
         </aside>
@@ -63,6 +89,7 @@
 
 @code {
     private string searchTerm = string.Empty;
+    private bool isAccountMenuOpen;
 
     private AuthUser? CurrentUser => AuthService.CurrentUser;
 
@@ -81,16 +108,34 @@
         InvokeAsync(StateHasChanged);
     }
 
+    private void ToggleAccountMenu()
+    {
+        isAccountMenuOpen = !isAccountMenuOpen;
+    }
+
+    private void CloseAccountMenu()
+    {
+        isAccountMenuOpen = false;
+    }
+
+    private string GetCurrentUserPath()
+    {
+        return CurrentUser is null
+            ? "/"
+            : $"/@{Uri.EscapeDataString(CurrentUser.UserName)}";
+    }
+
+    private string GetCurrentUserMenuText()
+    {
+        return CurrentUser is null
+            ? "@"
+            : $"@{CurrentUser.UserName}";
+    }
+
     private string GetLoginHref()
     {
         var safeReturn = GetCurrentPathWithQuery();
         return $"/login?returnUrl={Uri.EscapeDataString(safeReturn)}";
-    }
-
-    private string GetRegisterHref()
-    {
-        var safeReturn = GetCurrentPathWithQuery();
-        return $"/register?returnUrl={Uri.EscapeDataString(safeReturn)}";
     }
 
     private string GetCurrentPathWithQuery()
@@ -183,12 +228,6 @@
         {
             GoSearch();
         }
-    }
-
-    private async Task Logout()
-    {
-        await AuthService.LogoutAsync();
-        Navigation.NavigateTo("/");
     }
 
     private static string ParseSearchDestination(string term)

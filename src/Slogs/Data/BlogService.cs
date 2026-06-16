@@ -294,6 +294,34 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
             .ToList();
     }
 
+    public async Task<IReadOnlyList<(string Series, int Count, int LikeCount)>> GetPopularSeriesAsync(int topCount)
+    {
+        var posts = await LoadPostModelsAsync(includeComments: false);
+        return BuildSeriesSummaries(posts)
+            .OrderByDescending(x => x.LikeCount)
+            .ThenByDescending(x => x.Count)
+            .ThenBy(x => x.Series, StringComparer.OrdinalIgnoreCase)
+            .Take(topCount)
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<(string Series, int Count, int LikeCount)>> GetSeriesByAuthorAsync(string author, int topCount)
+    {
+        var normalizedAuthor = NormalizeUser(author);
+        if (string.IsNullOrWhiteSpace(normalizedAuthor))
+        {
+            return Array.Empty<(string Series, int Count, int LikeCount)>();
+        }
+
+        var posts = await LoadPostModelsAsync(includeComments: false);
+        return BuildSeriesSummaries(posts.Where(x => x.Author.Equals(normalizedAuthor, StringComparison.OrdinalIgnoreCase)))
+            .OrderByDescending(x => x.Count)
+            .ThenByDescending(x => x.LikeCount)
+            .ThenBy(x => x.Series, StringComparer.OrdinalIgnoreCase)
+            .Take(topCount)
+            .ToList();
+    }
+
     public async Task<IReadOnlyList<string>> GetSeriesAsync(int topCount)
     {
         var posts = await LoadPostModelsAsync(includeComments: false);
@@ -667,6 +695,20 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
         }
 
         return [series.Trim()];
+    }
+
+    private static IReadOnlyList<(string Series, int Count, int LikeCount)> BuildSeriesSummaries(IEnumerable<BlogPost> posts)
+    {
+        return posts
+            .SelectMany(post => post.Series
+                .Where(series => !string.IsNullOrWhiteSpace(series))
+                .Select(series => (Series: series.Trim(), LikeCount: post.LikeCount)))
+            .GroupBy(x => x.Series, StringComparer.OrdinalIgnoreCase)
+            .Select(group => (
+                Series: group.Key,
+                Count: group.Count(),
+                LikeCount: group.Sum(x => x.LikeCount)))
+            .ToList();
     }
 
     private static string NormalizeOptionalUrl(string? value)

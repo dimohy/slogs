@@ -1,0 +1,9 @@
+{
+  "sdk": {
+    "version": "11.0.100-preview.5.26302.115",
+    "allowPrerelease": true,
+    "rollForward": "latestFeature",
+    "paths": [".dotnet", "$host$"],
+    "errorMessage": "Required .NET 11 Preview SDK not found. Run the project-local dotnet-install flow or install .NET 11 Preview before building Slogs."
+  }
+}
