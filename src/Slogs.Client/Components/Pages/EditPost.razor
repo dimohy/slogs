@@ -1,0 +1,235 @@
+@page "/edit/{Slug}"
+@inject SlogsApiClient ApiClient
+@inject SlogsAuthState AuthState
+@inject NavigationManager Navigation
+<PageTitle>글 수정</PageTitle>
+<SeoHead Title="글 수정 | slogs" Description="slogs 글을 수정합니다." NoIndex="true" />
+
+@if (CurrentUser is null)
+{
+    <p class="rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">
+        로그인이 필요합니다. <a class="font-semibold underline" href="@GetLoginHref()">로그인</a>해 주세요.
+    </p>
+}
+else if (post is null)
+{
+    <p class="rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">수정할 글을 찾지 못했습니다.</p>
+}
+else if (!CanEditPost)
+{
+    <p class="rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">권한이 없습니다.</p>
+}
+else
+{
+    <h1 class="text-2xl font-bold text-slate-900">글 수정</h1>
+
+    <div class="mt-4 grid gap-3">
+        <label class="text-sm font-semibold text-slate-700" for="edit-title">제목</label>
+        <input id="edit-title" class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="title" />
+
+        <label class="text-sm font-semibold text-slate-700" for="edit-summary">요약</label>
+        <input id="edit-summary" class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="summary" />
+
+        <label class="text-sm font-semibold text-slate-700" for="edit-tags">태그</label>
+        <TagBadgeInput Id="edit-tags" @bind-Value="tags" Placeholder="태그를 선택하거나 입력하세요" />
+
+        <label class="text-sm font-semibold text-slate-700" for="edit-series">시리즈</label>
+        <input id="edit-series" class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="series" />
+
+        <label class="text-sm font-semibold text-slate-700">본문</label>
+        <MarkdownEditor @bind-Value="body" Placeholder="Markdown으로 본문을 수정하세요." />
+
+        <div class="flex flex-wrap gap-2">
+            <button class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                    @onclick="Save" disabled="@isSaving">
+                @((isSaving) ? "저장 중..." : "수정 저장")
+            </button>
+        <button class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-100"
+                    @onclick="Cancel">
+                취소
+            </button>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <p class="text-sm text-red-700">@errorMessage</p>
+        }
+    </div>
+
+    <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
+        <h3 class="mb-2 text-lg font-bold text-slate-900">미리보기</h3>
+        <p class="mb-2 font-semibold text-slate-900">@(string.IsNullOrWhiteSpace(title) ? "제목을 입력해 주세요" : title)</p>
+        <p class="mb-2 text-slate-700">@summary</p>
+        <div class="mb-2 flex flex-wrap gap-2 text-sm text-slate-600">
+            @foreach (var tag in ParsedTags)
+            {
+                <span class="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">#@tag</span>
+            }
+        </div>
+        @if (!string.IsNullOrWhiteSpace(series))
+        {
+            <p class="mb-2 text-sm text-slate-500">시리즈: @series</p>
+        }
+        <MarkdownPreview Value="@body" />
+    </section>
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = string.Empty;
+    [SupplyParameterFromQuery(Name = "returnUrl")] public string? ReturnUrl { get; set; }
+
+    private BlogPost? post;
+    private bool isSaving;
+    private string errorMessage = string.Empty;
+    private string title = string.Empty;
+    private string summary = string.Empty;
+    private string body = string.Empty;
+    private string tags = string.Empty;
+    private string series = string.Empty;
+    private IReadOnlyList<string> ParsedTags => ApiClient.ParseTagsForDisplay(tags);
+
+    private AuthUser? CurrentUser => AuthState.CurrentUser;
+    private bool CanEditPost => post is not null && CurrentUser is not null && post.IsAuthor(CurrentUser.UserName);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthState.EnsureInitializedAsync();
+        if (CurrentUser is null)
+        {
+            Navigation.NavigateTo(GetLoginHref());
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await AuthState.EnsureInitializedAsync();
+        if (CurrentUser is null)
+        {
+            post = null;
+            return;
+        }
+
+        post = await ApiClient.GetBySlugAsync(Slug);
+        if (post is null || !post.IsAuthor(CurrentUser.UserName))
+        {
+
+            return;
+        }
+
+        title = post.Title;
+        summary = post.Summary;
+        body = post.Body;
+        tags = string.Join(", ", post.Tags);
+        series = string.Join(", ", post.Series);
+    }
+
+    private async Task Save()
+    {
+        errorMessage = string.Empty;
+
+        if (post is null || CurrentUser is null)
+        {
+            errorMessage = "수정할 글을 찾을 수 없습니다.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(body))
+        {
+            errorMessage = "제목과 본문은 필수입니다.";
+            return;
+        }
+
+        if (isSaving)
+        {
+            return;
+        }
+
+        isSaving = true;
+        BlogPost? updatedPost;
+
+        try
+        {
+            updatedPost = await ApiClient.UpdatePostAsync(post.Slug, CurrentUser.UserName, title, summary, body, tags, series);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+
+        if (updatedPost is null)
+        {
+            errorMessage = "수정 권한이 없거나 글이 존재하지 않습니다.";
+            return;
+        }
+
+        Navigation.NavigateTo(GetReturnDestination(GetPostUrl(updatedPost)));
+    }
+
+    private void Cancel()
+    {
+        var destination = GetReturnDestination(post is null
+            ? "/me"
+            : GetPostUrl(post));
+        Navigation.NavigateTo(destination);
+    }
+
+    private string GetReturnDestination(string fallback)
+    {
+        return (TryNormalizeRelativeReturnUrl(ReturnUrl, out var safeUrl), safeUrl) switch
+        {
+            (true, _) => safeUrl,
+            _ => fallback
+        };
+    }
+
+    private bool TryNormalizeRelativeReturnUrl(string? returnUrl, out string safeUrl)
+    {
+        safeUrl = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(returnUrl))
+        {
+            return false;
+        }
+
+        if (!Uri.TryCreate(returnUrl, UriKind.RelativeOrAbsolute, out var parsedUrl))
+        {
+            return false;
+        }
+
+        if (!parsedUrl.IsAbsoluteUri && parsedUrl.OriginalString.StartsWith("/"))
+        {
+            safeUrl = parsedUrl.OriginalString;
+            return true;
+        }
+
+        if (parsedUrl.IsAbsoluteUri)
+        {
+            var baseUri = new Uri(Navigation.BaseUri);
+            if (parsedUrl.Host.Equals(baseUri.Host, StringComparison.OrdinalIgnoreCase))
+            {
+                safeUrl = parsedUrl.PathAndQuery;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string GetPostUrl(BlogPost post)
+        => $"/@{Uri.EscapeDataString(post.Author)}/{Uri.EscapeDataString(post.Slug)}";
+
+    private string GetLoginHref()
+    {
+        var requestedReturnUrl = !string.IsNullOrWhiteSpace(ReturnUrl)
+            ? ReturnUrl
+            : $"/edit/{Slug}";
+
+        var returnUrl = TryNormalizeRelativeReturnUrl(requestedReturnUrl, out var safeReturnUrl)
+            ? safeReturnUrl
+            : $"/edit/{Slug}";
+
+        return $"/login?returnUrl={Uri.EscapeDataString(returnUrl)}";
+    }
+}
+
+

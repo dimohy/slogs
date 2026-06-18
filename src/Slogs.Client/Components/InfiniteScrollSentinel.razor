@@ -1,0 +1,79 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@if (Visible)
+{
+    <div @ref="sentinel" class="mt-4 flex min-h-12 items-center justify-center" aria-live="polite">
+        @if (IsLoading)
+        {
+            <span class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-500">@LoadingText</span>
+        }
+        else if (!HasMore && ShowDoneText)
+        {
+            <span class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-500">@DoneText</span>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public bool Visible { get; set; } = true;
+    [Parameter] public bool HasMore { get; set; }
+    [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public EventCallback OnLoadMore { get; set; }
+    [Parameter] public string LoadingText { get; set; } = "불러오는 중...";
+    [Parameter] public string DoneText { get; set; } = "모든 항목을 불러왔습니다.";
+    [Parameter] public bool ShowDoneText { get; set; }
+
+    private ElementReference sentinel;
+    private DotNetObjectReference<InfiniteScrollSentinel>? selfReference;
+    private bool observerAttached;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!Visible)
+        {
+            observerAttached = false;
+            return;
+        }
+
+        if (observerAttached)
+        {
+            return;
+        }
+
+        selfReference ??= DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("slogsInfiniteScroll.observe", sentinel, selfReference);
+        observerAttached = true;
+    }
+
+    [JSInvokable]
+    public async Task<bool> LoadMorePostsAsync()
+    {
+        if (!Visible || !HasMore || IsLoading || !OnLoadMore.HasDelegate)
+        {
+            return false;
+        }
+
+        await OnLoadMore.InvokeAsync();
+        return true;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (observerAttached)
+            {
+                await JS.InvokeVoidAsync("slogsInfiniteScroll.unobserve", sentinel);
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+
+        selfReference?.Dispose();
+    }
+}

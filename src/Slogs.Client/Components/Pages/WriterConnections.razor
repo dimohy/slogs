@@ -1,0 +1,261 @@
+@page "/@{Writer}/followers"
+@page "/@{Writer}/following"
+@inject SlogsApiClient ApiClient
+@inject SlogsAuthState AuthState
+@inject NavigationManager Navigation
+
+<PageTitle>@($"{Writer} - {(IsFollowersView ? "팔로워" : "팔로잉")}")</PageTitle>
+<SeoHead Title="@($"{Writer} {(IsFollowersView ? "팔로워" : "팔로잉")} | slogs")"
+         Description="@($"{Writer} 슬로거의 {(IsFollowersView ? "팔로워" : "팔로잉")} 목록입니다.")"
+         NoIndex="true" />
+
+@if (!isWriterKnown)
+{
+    <p class="mt-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">해당 작성자를 찾을 수 없습니다.</p>
+}
+else
+{
+    <h1 class="text-2xl font-bold text-slate-900">@Writer 님의 @(IsFollowersView ? "팔로워" : "팔로잉")</h1>
+
+    <div class="mt-2 flex flex-wrap gap-2">
+        <a class="@GetTabClass(true)" href="@GetFollowersPath()">팔로워 (@followerCount)</a>
+        <a class="@GetTabClass(false)" href="@GetFollowingPath()">팔로잉 (@followingCount)</a>
+    </div>
+
+    <p class="mt-2 text-sm text-slate-500">@($"{totalCount}명")</p>
+
+    <section class="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+        @if (!users.Any())
+        {
+            <p class="text-sm text-slate-500">표시할 항목이 없습니다.</p>
+        }
+        else
+        {
+            @foreach (var user in users)
+            {
+                <article class="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3 last:mb-0 last:border-b-0 last:pb-0">
+                    <a class="font-semibold text-slate-900 hover:underline" href="@($"/@{Uri.EscapeDataString(user)}")">@user</a>
+
+                    @if (CurrentUser is not null && !user.Equals(CurrentUserName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        <button class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 @(IsBusy(user) ? "cursor-wait opacity-60" : "")"
+                                disabled="@IsBusy(user)"
+                                type="button"
+                                @onclick="() => ToggleFollowAsync(user)">
+                            @(IsFollowingUser(user) ? "팔로우 해제" : "팔로우")
+                        </button>
+                    }
+                    else if (CurrentUser is not null)
+                    {
+                        <span class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">(내 프로필)</span>
+                    }
+                </article>
+            }
+        }
+    </section>
+}
+
+<InfiniteScrollSentinel Visible="@(isWriterKnown && users.Count > 0)"
+                        HasMore="@HasMoreUsers"
+                        IsLoading="@isLoadingMoreUsers"
+                        OnLoadMore="LoadMoreUsersAsync"
+                        ShowDoneText="@(allUsers.Count > PageSize)"
+                        DoneText="모든 사용자를 불러왔습니다." />
+
+@code {
+    private const int PageSize = 20;
+
+    [Parameter] public string Writer { get; set; } = string.Empty;
+
+    private IReadOnlyList<string> users = Array.Empty<string>();
+    private IReadOnlyList<string> allUsers = Array.Empty<string>();
+    private HashSet<string> followingByCurrent = [];
+    private HashSet<string> busyUsers = [];
+    private int totalCount;
+    private int totalPages;
+    private int followerCount;
+    private int followingCount;
+    private bool isWriterKnown;
+    private bool isLoadingMoreUsers;
+    private string currentStateKey = string.Empty;
+    private bool HasMoreUsers => users.Count < allUsers.Count;
+
+    [PersistentState]
+    public WriterConnectionsPageState? PrerenderedState { get; set; }
+
+    private bool IsFollowersView
+    {
+        get
+        {
+            var path = new Uri(Navigation.Uri).AbsolutePath;
+            return path.EndsWith("/followers", StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    private string CurrentUserName => AuthState.CurrentUser?.UserName ?? string.Empty;
+    private AuthUser? CurrentUser => AuthState.CurrentUser;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await AuthState.EnsureInitializedAsync();
+        currentStateKey = PageStateKeyBuilder.FromNavigation(Navigation);
+        if (TryRestorePrerenderedState(currentStateKey))
+        {
+            return;
+        }
+
+        await LoadConnectionsAsync();
+        CapturePrerenderedState(currentStateKey);
+    }
+
+    private async Task LoadConnectionsAsync(int minimumVisibleCount = PageSize)
+    {
+        isWriterKnown = await ApiClient.IsKnownUserAsync(Writer);
+        if (!isWriterKnown)
+        {
+
+            users = Array.Empty<string>();
+            allUsers = Array.Empty<string>();
+            totalCount = 0;
+            totalPages = 0;
+            followerCount = 0;
+            followingCount = 0;
+            followingByCurrent = [];
+            isLoadingMoreUsers = false;
+            return;
+        }
+
+        var source = IsFollowersView
+            ? await ApiClient.GetFollowersAsync(Writer)
+            : await ApiClient.GetFollowingAsync(Writer);
+        allUsers = source.OrderBy(x => x).ToList();
+
+        totalCount = allUsers.Count;
+        totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)PageSize);
+        users = allUsers.Take(Math.Min(allUsers.Count, Math.Max(PageSize, minimumVisibleCount))).ToList();
+        isLoadingMoreUsers = false;
+
+        followerCount = (await ApiClient.GetFollowerCountAsync(Writer));
+        followingCount = (await ApiClient.GetFollowingAsync(Writer)).Count;
+
+        followingByCurrent = CurrentUser is null
+            ? []
+            : (await ApiClient.GetFollowingAsync(CurrentUserName)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private Task LoadMoreUsersAsync()
+    {
+        if (isLoadingMoreUsers || !HasMoreUsers)
+        {
+            return Task.CompletedTask;
+        }
+
+        isLoadingMoreUsers = true;
+        try
+        {
+            users = allUsers.Take(Math.Min(allUsers.Count, users.Count + PageSize)).ToList();
+            CapturePrerenderedState(currentStateKey);
+        }
+        finally
+        {
+            isLoadingMoreUsers = false;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private string GetFollowersPath() => $"/@{Uri.EscapeDataString(Writer)}/followers";
+
+    private string GetFollowingPath() => $"/@{Uri.EscapeDataString(Writer)}/following";
+
+    private string GetLoginReturnUrl()
+    {
+        var uri = new Uri(Navigation.Uri);
+        var returnUrl = string.IsNullOrWhiteSpace(uri.Query) ? uri.AbsolutePath : uri.PathAndQuery;
+        return $"/login?returnUrl={Uri.EscapeDataString(returnUrl)}";
+    }
+
+    private string GetTabClass(bool followersTab)
+    {
+        var isActive = IsFollowersView == followersTab;
+        return isActive
+            ? "rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white"
+            : "rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100";
+    }
+
+    private bool IsBusy(string userName) => busyUsers.Contains(userName);
+
+    private bool IsFollowingUser(string userName) => followingByCurrent.Contains(userName);
+
+    private async Task ToggleFollowAsync(string targetUser)
+    {
+        if (CurrentUser is null)
+        {
+            Navigation.NavigateTo(GetLoginReturnUrl());
+            return;
+        }
+
+        if (busyUsers.Contains(targetUser))
+        {
+            return;
+        }
+
+        busyUsers.Add(targetUser);
+        try
+        {
+            var isNowFollowing = await ApiClient.ToggleFollowAsync(CurrentUserName, targetUser);
+            if (isNowFollowing)
+            {
+                followingByCurrent.Add(targetUser);
+            }
+            else
+            {
+                followingByCurrent.Remove(targetUser);
+            }
+
+            await LoadConnectionsAsync(Math.Max(users.Count, PageSize));
+            CapturePrerenderedState(currentStateKey);
+        }
+        finally
+        {
+            busyUsers.Remove(targetUser);
+        }
+    }
+
+    private bool TryRestorePrerenderedState(string stateKey)
+    {
+        if (PrerenderedState?.StateKey != stateKey)
+        {
+            return false;
+        }
+
+        users = PrerenderedState.Users;
+        allUsers = PrerenderedState.AllUsers;
+        followingByCurrent = PrerenderedState.FollowingByCurrent.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        totalCount = PrerenderedState.TotalCount;
+        totalPages = PrerenderedState.TotalPages;
+        followerCount = PrerenderedState.FollowerCount;
+        followingCount = PrerenderedState.FollowingCount;
+        isWriterKnown = PrerenderedState.IsWriterKnown;
+        isLoadingMoreUsers = false;
+        return true;
+    }
+
+    private void CapturePrerenderedState(string stateKey)
+    {
+        PrerenderedState = new WriterConnectionsPageState
+        {
+            StateKey = stateKey,
+            Users = users.ToList(),
+            AllUsers = allUsers.ToList(),
+            FollowingByCurrent = followingByCurrent.ToList(),
+            TotalCount = totalCount,
+            TotalPages = totalPages,
+            FollowerCount = followerCount,
+            FollowingCount = followingCount,
+            IsWriterKnown = isWriterKnown
+        };
+    }
+}
+
+

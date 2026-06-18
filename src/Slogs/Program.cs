@@ -8,7 +8,12 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+    .AddInteractiveServerComponents()
+    .AddInteractiveWebAssemblyComponents();
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.TypeInfoResolverChain.Insert(0, SlogsJsonSerializerContext.Default);
+});
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -19,6 +24,31 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.LogoutPath = "/auth/logout";
         options.AccessDeniedPath = "/login";
         options.SlidingExpiration = true;
+        options.Events = new CookieAuthenticationEvents
+        {
+            OnRedirectToLogin = context =>
+            {
+                if (context.Request.Path.StartsWithSegments("/api"))
+                {
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    return Task.CompletedTask;
+                }
+
+                context.Response.Redirect(context.RedirectUri);
+                return Task.CompletedTask;
+            },
+            OnRedirectToAccessDenied = context =>
+            {
+                if (context.Request.Path.StartsWithSegments("/api"))
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    return Task.CompletedTask;
+                }
+
+                context.Response.Redirect(context.RedirectUri);
+                return Task.CompletedTask;
+            }
+        };
     });
 builder.Services.AddAuthorization();
 var connectionString = builder.Configuration.GetConnectionString("SlogsDatabase")
@@ -26,11 +56,30 @@ var connectionString = builder.Configuration.GetConnectionString("SlogsDatabase"
 builder.Services.AddDbContextFactory<SlogsDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddScoped<BlogService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<ISlogsApiBackend, ServerSlogsApiBackend>();
+builder.Services.AddScoped<SlogsAuthState>();
+builder.Services.AddHttpClient<SlogsApiClient>((serviceProvider, httpClient) =>
+{
+    var request = serviceProvider.GetRequiredService<IHttpContextAccessor>().HttpContext?.Request;
+    httpClient.BaseAddress = request is null
+        ? new Uri("https://localhost:5000/")
+        : new Uri(GetRequestBaseUri(request));
+
+    var cookieHeader = request?.Headers.Cookie.ToString();
+    if (!string.IsNullOrWhiteSpace(cookieHeader))
+    {
+        httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Cookie", cookieHeader);
+    }
+});
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment())
+{
+    app.UseWebAssemblyDebugging();
+}
+else
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
@@ -42,6 +91,8 @@ app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
+
+app.MapSlogsApi();
 
 app.MapPost("/auth/login", async (HttpContext httpContext, AuthService authService) =>
 {
@@ -134,25 +185,25 @@ app.MapPost("/editor/images", async (HttpContext httpContext, IWebHostEnvironmen
 
     if (!httpContext.Request.HasFormContentType)
     {
-        return Results.BadRequest(new { error = "이미지 파일을 찾을 수 없습니다." });
+        return Results.BadRequest(new ApiErrorResponse("이미지 파일을 찾을 수 없습니다."));
     }
 
     var form = await httpContext.Request.ReadFormAsync();
     var file = form.Files.GetFile("image");
     if (file is null)
     {
-        return Results.BadRequest(new { error = "이미지 파일을 찾을 수 없습니다." });
+        return Results.BadRequest(new ApiErrorResponse("이미지 파일을 찾을 수 없습니다."));
     }
 
     var extension = GetSafeImageExtension(file.FileName, file.ContentType);
     if (extension is null)
     {
-        return Results.BadRequest(new { error = "PNG, JPG, GIF, WebP 이미지만 업로드할 수 있습니다." });
+        return Results.BadRequest(new ApiErrorResponse("PNG, JPG, GIF, WebP 이미지만 업로드할 수 있습니다."));
     }
 
     if (file.Length <= 0 || file.Length > maxImageBytes)
     {
-        return Results.BadRequest(new { error = "이미지는 5MB 이하만 업로드할 수 있습니다." });
+        return Results.BadRequest(new ApiErrorResponse("이미지는 5MB 이하만 업로드할 수 있습니다."));
     }
 
     var webRoot = environment.WebRootPath;
@@ -174,22 +225,20 @@ app.MapPost("/editor/images", async (HttpContext httpContext, IWebHostEnvironmen
         await source.CopyToAsync(target);
     }
 
-    return Results.Ok(new
-    {
-        url = $"/uploads/{fileName}",
-        altText = string.IsNullOrWhiteSpace(baseName) ? "image" : baseName
-    });
+    return Results.Ok(new EditorImageResponse(
+        $"/uploads/{fileName}",
+        string.IsNullOrWhiteSpace(baseName) ? "image" : baseName));
 }).DisableAntiforgery();
 
 app.MapGet("/robots.txt", (HttpContext httpContext) =>
 {
-    var baseUri = SeoMetadata.RequestBaseUri(httpContext.Request);
+    var baseUri = GetRequestBaseUri(httpContext.Request);
     return Results.Text(SeoMetadata.BuildRobotsTxt(baseUri), "text/plain; charset=utf-8");
 });
 
 app.MapGet("/sitemap.xml", async (HttpContext httpContext, BlogService blogService, AuthService authService) =>
 {
-    var baseUri = SeoMetadata.RequestBaseUri(httpContext.Request);
+    var baseUri = GetRequestBaseUri(httpContext.Request);
     var posts = await blogService.GetLatestAsync(500);
     var tags = await blogService.GetTagCloudAsync(200);
     var series = await blogService.GetSeriesCloudAsync(200);
@@ -235,9 +284,14 @@ app.MapGet("/sitemap.xml", async (HttpContext httpContext, BlogService blogServi
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+    .AddInteractiveServerRenderMode()
+    .AddInteractiveWebAssemblyRenderMode()
+    .AddAdditionalAssemblies(typeof(Slogs.Components.Routes).Assembly);
 
-await SlogsDbInitializer.InitializeAsync(app.Services);
+if (!app.Configuration.GetValue("Slogs:SkipDbInitializer", false))
+{
+    await SlogsDbInitializer.InitializeAsync(app.Services);
+}
 
 app.Run();
 
@@ -261,6 +315,24 @@ static string NormalizeLocalReturnUrl(string? returnUrl, string fallback)
     }
 
     return fallback;
+}
+
+static string GetRequestBaseUri(HttpRequest request)
+{
+    var scheme = request.Headers["X-Forwarded-Proto"].FirstOrDefault();
+    if (string.IsNullOrWhiteSpace(scheme))
+    {
+        scheme = request.Scheme;
+    }
+
+    var host = request.Headers["X-Forwarded-Host"].FirstOrDefault();
+    if (string.IsNullOrWhiteSpace(host))
+    {
+        host = request.Host.Value;
+    }
+
+    var pathBase = request.PathBase.HasValue ? request.PathBase.Value : string.Empty;
+    return $"{scheme}://{host}{pathBase}/";
 }
 
 static string? GetSafeImageExtension(string fileName, string? contentType)

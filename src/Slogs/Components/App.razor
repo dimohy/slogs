@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="@Assets["css/tailwind.css"]" />
     <link rel="stylesheet" href="@Assets["app.css"]" />
     <link rel="stylesheet" href="@Assets["Slogs.styles.css"]" />
+    <link rel="preconnect" href="https://images.unsplash.com" crossorigin />
+    <link rel="dns-prefetch" href="https://images.unsplash.com" />
     <ImportMap />
     <link rel="icon" type="image/svg+xml" sizes="any" href="@Assets["favicon.svg"]" />
     <link rel="icon" type="image/x-icon" sizes="16x16 32x32 48x48" href="@Assets["favicon.ico"]" />
@@ -19,11 +21,11 @@
     <link rel="apple-touch-icon" href="@Assets["favicon.svg"]" />
     <link rel="mask-icon" href="@Assets["favicon.svg"]" color="#0f3d34" />
     <link rel="manifest" href="@Assets["site.webmanifest"]" />
-    <HeadOutlet @rendermode="InteractiveServer" />
+    <HeadOutlet @rendermode="InteractiveAuto" />
 </head>
 
 <body class="bg-slate-100">
-    <Routes @rendermode="InteractiveServer" />
+    <Routes @rendermode="InteractiveAuto" />
     <script src="@Assets["_framework/blazor.web.js"]"></script>
     <script src="@Assets["app.js"]"></script>
 </body>

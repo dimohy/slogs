@@ -1,0 +1,282 @@
+@page "/me/bookmarks"
+@inject SlogsAuthState AuthState
+@inject SlogsApiClient ApiClient
+@inject NavigationManager Navigation
+<PageTitle>내 북마크</PageTitle>
+<SeoHead Title="내 북마크 | slogs" Description="내가 북마크한 slogs 글을 확인합니다." NoIndex="true" />
+
+@if (CurrentUser is null)
+{
+    <p class="rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">로그인이 필요합니다. <a class="font-semibold underline" href="@GetLoginHref()">로그인</a>해 주세요.</p>
+}
+else
+{
+    <div class="border-b border-slate-200 pb-4">
+        <h1 class="text-2xl font-bold text-slate-900">내 북마크</h1>
+        <p class="mt-1 text-sm text-slate-500">저장한 글을 다시 확인합니다.</p>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(message))
+    {
+        <p class="mt-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">@message</p>
+    }
+
+    <section class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+        @if (!bookmarks.Any())
+        {
+            <div class="grid min-h-64 place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center md:col-span-2">
+                <div class="max-w-sm">
+                    <p class="text-sm font-semibold text-slate-500">북마크한 글이 없습니다.</p>
+                    <h2 class="mt-2 text-xl font-bold text-slate-900">다시 보고 싶은 글을 저장해 보세요.</h2>
+                    <a class="mt-5 inline-flex rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                       href="/">글 둘러보기</a>
+                </div>
+            </div>
+        }
+        else
+        {
+            for (var index = 0; index < bookmarks.Count; index++)
+            {
+                var post = bookmarks[index];
+                <article class="clickable-post-card rounded-2xl border border-slate-200 bg-white p-4"
+                         data-card-click-href="@GetPostUrl(post)"
+                         tabindex="0"
+                         role="link"
+                         aria-label="@($"{post.Title} 상세 보기")">
+                    <PostCardImage Post="post" PostUrl="@GetPostUrl(post)" Priority="@IsPriorityCardImage(index)" />
+                    <a class="mb-2 block text-xl font-bold text-slate-900 hover:underline" href="@GetPostUrl(post)">@post.Title</a>
+                    <div class="flex flex-wrap items-center gap-1 text-sm text-slate-500">
+                        <a class="hover:underline" href="@($"/@{Uri.EscapeDataString(post.Author)}")">@post.Author</a>
+                        <span>·</span>
+                        <span>@FormatDate(post.PublishedAt)</span>
+                        <span>·</span>
+                        <span>@post.ReadTimeMinutes 분</span>
+                        <span>·</span>
+                        <span>@post.LikeCount 개 좋아요</span>
+                        <span>·</span>
+                        <span>@post.CommentCount 개 댓글</span>
+                        <span>·</span>
+                        <span>@post.ViewCount 회 조회</span>
+                        @if (post.Series.Count > 0)
+                        {
+                            <span>·</span>
+                            @foreach (var series in post.Series)
+                            {
+                                <a class="hover:underline" href="@($"/series/{Uri.EscapeDataString(series)}")">시리즈: @series</a>
+                            }
+                        }
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(post.Summary))
+                    {
+                        <p class="mt-2 text-sm text-slate-700">@Shorten(post.Summary, 140)</p>
+                    }
+                    <div class="mt-2 flex flex-wrap gap-2">
+                        @foreach (var tag in post.Tags)
+                        {
+                            <a class="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-900 hover:bg-sky-100"
+                               href="@($"/tag/{Uri.EscapeDataString(tag)}")">#@tag</a>
+                        }
+                    </div>
+
+                    <div class="mt-3">
+                        <button class="rounded-full border border-rose-300 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                disabled="@(!string.IsNullOrWhiteSpace(pendingRemoveSlug) && pendingRemoveSlug == post.Slug)"
+                                type="button" @onclick="() => ToggleBookmark(post.Slug)">
+                            @((!string.IsNullOrWhiteSpace(pendingRemoveSlug) && pendingRemoveSlug == post.Slug) ? "해제 중..." : "북마크 해제")
+                        </button>
+                    </div>
+                </article>
+            }
+        }
+    </section>
+
+    <InfiniteScrollSentinel Visible="@(bookmarks.Count > 0)"
+                            HasMore="@HasMoreBookmarks"
+                            IsLoading="@isLoadingMoreBookmarks"
+                            OnLoadMore="LoadMoreBookmarksAsync"
+                            ShowDoneText="@(allBookmarks.Count > PageSize)"
+                            DoneText="모든 북마크를 불러왔습니다." />
+}
+
+@code {
+    private const int PageSize = 6;
+
+    private AuthUser? CurrentUser => AuthState.CurrentUser;
+    private IReadOnlyList<BlogPost> bookmarks = Array.Empty<BlogPost>();
+    private IReadOnlyList<BlogPost> allBookmarks = Array.Empty<BlogPost>();
+    private int totalCount;
+    private int totalPages;
+    private bool isLoadingMoreBookmarks;
+    private string pendingRemoveSlug = string.Empty;
+    private string message = string.Empty;
+    private string currentStateKey = string.Empty;
+    private bool HasMoreBookmarks => bookmarks.Count < allBookmarks.Count;
+
+    [PersistentState]
+    public ListPageState<BlogPost>? PrerenderedState { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthState.EnsureInitializedAsync();
+        if (CurrentUser is null)
+        {
+
+            Navigation.NavigateTo(GetLoginHref());
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await AuthState.EnsureInitializedAsync();
+        message = string.Empty;
+
+        if (CurrentUser is null)
+        {
+            pendingRemoveSlug = string.Empty;
+            return;
+        }
+
+        currentStateKey = PageStateKeyBuilder.FromNavigation(Navigation);
+        if (TryRestorePrerenderedState(currentStateKey))
+        {
+            return;
+        }
+
+        await LoadBookmarksAsync();
+        CapturePrerenderedState(currentStateKey);
+    }
+
+    private async Task ToggleBookmark(string slug)
+    {
+        message = string.Empty;
+
+        if (CurrentUser is null)
+        {
+            message = "로그인이 필요합니다.";
+            Navigation.NavigateTo(GetLoginHref());
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(pendingRemoveSlug))
+        {
+            return;
+        }
+
+        pendingRemoveSlug = slug;
+        StateHasChanged();
+
+        try
+        {
+            var wasBookmarked = bookmarks.Any(x => x.Slug.Equals(slug, StringComparison.OrdinalIgnoreCase));
+            var newState = await ApiClient.ToggleBookmarkAsync(slug, CurrentUser.UserName);
+            await LoadBookmarksAsync(Math.Max(bookmarks.Count, PageSize));
+            CapturePrerenderedState(currentStateKey);
+
+            message = (wasBookmarked && !newState)
+                ? "북마크가 해제되었습니다."
+                : (!wasBookmarked && newState)
+                    ? "북마크가 추가되었습니다."
+                    : "북마크 변경에 실패했습니다.";
+        }
+        finally
+        {
+            pendingRemoveSlug = string.Empty;
+        }
+    }
+
+    private async Task LoadBookmarksAsync(int minimumVisibleCount = PageSize)
+    {
+        if (CurrentUser is null)
+        {
+            return;
+        }
+
+        allBookmarks = await ApiClient.GetBookmarkedPostsAsync(CurrentUser.UserName);
+        totalCount = allBookmarks.Count;
+        totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)PageSize);
+        bookmarks = allBookmarks.Take(Math.Min(allBookmarks.Count, Math.Max(PageSize, minimumVisibleCount))).ToList();
+        isLoadingMoreBookmarks = false;
+    }
+
+    private Task LoadMoreBookmarksAsync()
+    {
+        if (isLoadingMoreBookmarks || !HasMoreBookmarks)
+        {
+            return Task.CompletedTask;
+        }
+
+        isLoadingMoreBookmarks = true;
+        try
+        {
+            bookmarks = allBookmarks.Take(Math.Min(allBookmarks.Count, bookmarks.Count + PageSize)).ToList();
+            CapturePrerenderedState(currentStateKey);
+        }
+        finally
+        {
+            isLoadingMoreBookmarks = false;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private string GetLoginHref()
+    {
+        var pathWithQuery = GetCurrentPathWithQuery();
+        return $"/login?returnUrl={Uri.EscapeDataString(pathWithQuery)}";
+    }
+
+    private string GetCurrentPathWithQuery()
+    {
+        var uri = new Uri(Navigation.Uri);
+        return string.IsNullOrWhiteSpace(uri.Query) ? uri.AbsolutePath : uri.PathAndQuery;
+    }
+
+    private static string GetPostUrl(BlogPost post)
+        => $"/@{Uri.EscapeDataString(post.Author)}/{Uri.EscapeDataString(post.Slug)}";
+
+    private static bool IsPriorityCardImage(int index) => index < 2;
+
+    private static string FormatDate(DateTime dateTime) => dateTime.ToLocalTime().ToString("yyyy.MM.dd");
+
+    private static string Shorten(string text, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        return text.Length <= maxLength ? text : text[..maxLength] + "...";
+    }
+
+    private bool TryRestorePrerenderedState(string stateKey)
+    {
+        if (PrerenderedState?.StateKey != stateKey)
+        {
+            return false;
+        }
+
+        bookmarks = PrerenderedState.Items;
+        allBookmarks = PrerenderedState.AllItems;
+        totalCount = PrerenderedState.TotalCount;
+        totalPages = PrerenderedState.TotalPages;
+        message = PrerenderedState.Message ?? string.Empty;
+        isLoadingMoreBookmarks = false;
+        return true;
+    }
+
+    private void CapturePrerenderedState(string stateKey)
+    {
+        PrerenderedState = new ListPageState<BlogPost>
+        {
+            StateKey = stateKey,
+            Items = bookmarks.ToList(),
+            AllItems = allBookmarks.ToList(),
+            TotalCount = totalCount,
+            TotalPages = totalPages,
+            Message = message
+        };
+    }
+
+}
+
+

@@ -1,0 +1,48 @@
+@if (image is not null)
+{
+    <a class="post-card-media mb-3 block overflow-hidden rounded-xl border border-slate-200 bg-slate-100"
+       href="@PostUrl"
+       aria-label="@($"{Post.Title} 대표 이미지로 상세 보기")">
+        <img src="@image.Url"
+             alt="@GetAltText()"
+             loading="@LoadingMode"
+             decoding="@DecodingMode"
+             fetchpriority="@FetchPriority" />
+    </a>
+}
+
+@code {
+    [Parameter, EditorRequired] public BlogPost Post { get; set; } = default!;
+
+    [Parameter, EditorRequired] public string PostUrl { get; set; } = string.Empty;
+
+    [Parameter] public bool Priority { get; set; }
+
+    private MarkdownImage? image;
+    private string LoadingMode => Priority ? "eager" : "lazy";
+    private string DecodingMode => Priority ? "sync" : "async";
+    private string FetchPriority => Priority ? "high" : "auto";
+
+    protected override void OnParametersSet()
+    {
+        image = GetThumbnailImage() ?? MarkdownRenderer.FindFirstImage(Post.Body);
+    }
+
+    private MarkdownImage? GetThumbnailImage()
+    {
+        var thumbnailUrl = MarkdownRenderer.NormalizeImageUrl(Post.ThumbnailUrl);
+        return string.IsNullOrWhiteSpace(thumbnailUrl)
+            ? null
+            : new MarkdownImage(thumbnailUrl, Post.Title);
+    }
+
+    private string GetAltText()
+    {
+        if (!string.IsNullOrWhiteSpace(image?.AltText))
+        {
+            return image.AltText;
+        }
+
+        return string.IsNullOrWhiteSpace(Post.Title) ? "포스트 이미지" : Post.Title;
+    }
+}

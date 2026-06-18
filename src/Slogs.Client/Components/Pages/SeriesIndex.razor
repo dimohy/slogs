@@ -1,0 +1,222 @@
+@page "/series"
+@inject SlogsApiClient ApiClient
+@inject NavigationManager Navigation
+
+<PageTitle>시리즈</PageTitle>
+<SeoHead Title="시리즈 | slogs"
+         Description="slogs의 시리즈 목록을 탐색하고 이어지는 글 묶음을 확인합니다."
+         CanonicalPath="/series"
+         NoIndex="@(!string.IsNullOrWhiteSpace(Query))"
+         JsonLd="@(SeoMetadata.CollectionPageJsonLd(Navigation.BaseUri, "/series", "slogs 시리즈", "slogs의 시리즈 목록을 탐색하고 이어지는 글 묶음을 확인합니다."))" />
+
+<h1 class="text-2xl font-bold text-slate-900">시리즈</h1>
+<p class="mb-3 text-sm text-slate-500">시리즈 목록에서 시리즈를 선택해 보세요.</p>
+
+<div class="mb-4 flex flex-wrap gap-2">
+    <input class="min-w-0 flex-1 rounded-full border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900"
+           value="@searchText"
+           @oninput="HandleSearchInputChanged"
+           @onkeydown="HandleSearchKeyDown"
+           placeholder="시리즈 검색"
+           aria-label="시리즈 검색어 입력" />
+    <a class="rounded-full border border-slate-300 bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+       href="@GetSearchResultHref()">
+        검색
+    </a>
+    @if (!string.IsNullOrWhiteSpace(Query))
+    {
+        <a class="rounded-full border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+           href="@GetListQuery(Sort)">
+            검색 초기화
+        </a>
+    }
+</div>
+
+<div class="mb-4 flex flex-wrap gap-2">
+    <a class="@GetSortChipClass(null)" href="@GetListQuery(null)">인기</a>
+    <a class="@GetSortChipClass("name")" href='@GetListQuery("name")'>이름순</a>
+</div>
+
+<section class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        @if (serieses.Count == 0)
+        {
+        <p class="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+            @GetEmptyMessage()
+        </p>
+    }
+    else
+    {
+        @foreach (var item in serieses)
+        {
+            <a class="group rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
+               href="@($"/series/{Uri.EscapeDataString(item.Series)}")">
+                @item.Series
+                <span class="ml-2 text-xs text-slate-500 transition group-hover:text-slate-200">(@item.Count)</span>
+            </a>
+        }
+    }
+</section>
+
+<InfiniteScrollSentinel Visible="@(serieses.Count > 0)"
+                        HasMore="@HasMoreSeries"
+                        IsLoading="@isLoadingMoreSeries"
+                        OnLoadMore="LoadMoreSeriesAsync"
+                        ShowDoneText="@(allSeries.Count > PageSize)"
+                        DoneText="모든 시리즈를 불러왔습니다." />
+
+@code {
+    private const int PageSize = 12;
+
+    [SupplyParameterFromQuery(Name = "sort")] public string? Sort { get; set; }
+    [SupplyParameterFromQuery(Name = "q")] public string? Query { get; set; }
+
+    private IReadOnlyList<SeriesSummary> serieses = [];
+    private IReadOnlyList<SeriesSummary> allSeries = [];
+    private int totalPages;
+    private bool isLoadingMoreSeries;
+    private string searchText = string.Empty;
+    private string? normalizedSort;
+    private string currentStateKey = string.Empty;
+    private bool HasMoreSeries => serieses.Count < allSeries.Count;
+
+    [PersistentState]
+    public ListPageState<SeriesSummary>? PrerenderedState { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        searchText = Query ?? string.Empty;
+        normalizedSort = ListQueryUrlBuilder.NormalizeSortValue(Sort, "popular", "name");
+        currentStateKey = PageStateKeyBuilder.FromNavigation(Navigation);
+        if (TryRestorePrerenderedState(currentStateKey))
+        {
+            return;
+        }
+
+        await LoadSeriesAsync();
+        CapturePrerenderedState(currentStateKey);
+    }
+
+    private async Task LoadSeriesAsync()
+    {
+        var loadedSeries = (await ApiClient.GetSeriesCloudAsync(200))
+            .Select(x => new SeriesSummary(x.Series, x.Count))
+            .ToList();
+
+        if (!string.IsNullOrWhiteSpace(Query))
+        {
+            var normalized = Query.Trim();
+            loadedSeries = [.. loadedSeries.Where(x => x.Series.Contains(normalized, StringComparison.OrdinalIgnoreCase))];
+        }
+
+        allSeries = normalizedSort switch
+        {
+            "name" => loadedSeries.OrderBy(x => x.Series, StringComparer.OrdinalIgnoreCase).ToList(),
+            _ => loadedSeries.OrderByDescending(x => x.Count).ThenBy(x => x.Series, StringComparer.OrdinalIgnoreCase).ToList()
+        };
+
+        totalPages = allSeries.Count == 0 ? 0 : (int)Math.Ceiling(allSeries.Count / (double)PageSize);
+        serieses = allSeries.Take(PageSize).ToList();
+        isLoadingMoreSeries = false;
+    }
+
+    private Task LoadMoreSeriesAsync()
+    {
+        if (isLoadingMoreSeries || !HasMoreSeries)
+        {
+            return Task.CompletedTask;
+        }
+
+        isLoadingMoreSeries = true;
+        try
+        {
+            serieses = allSeries.Take(Math.Min(allSeries.Count, serieses.Count + PageSize)).ToList();
+            CapturePrerenderedState(currentStateKey);
+        }
+        finally
+        {
+            isLoadingMoreSeries = false;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private string GetEmptyMessage()
+    {
+        if (!string.IsNullOrWhiteSpace(Query))
+        {
+            return $"\"{Query.Trim()}\" 검색 결과가 없습니다.";
+        }
+
+        return "등록된 시리즈가 아직 없습니다.";
+    }
+
+    private string GetListQuery(string? sort)
+    {
+        return BuildListQuery(sort: sort, query: Query);
+    }
+
+    private string GetSearchResultHref()
+    {
+        return BuildListQuery(sort: normalizedSort, query: searchText);
+    }
+
+    private string BuildListQuery(string? sort = null, string? query = null, int? page = null)
+    {
+        var normalizedSortValue = ListQueryUrlBuilder.NormalizeSortValue(sort, "popular", "name") ?? normalizedSort;
+        return ListQueryUrlBuilder.Build("/series", normalizedSortValue, query ?? Query, page ?? 1, totalPages);
+    }
+
+    private string GetSortChipClass(string? sort)
+    {
+        var target = (sort ?? string.Empty).Trim().ToLowerInvariant();
+        var current = string.IsNullOrWhiteSpace(normalizedSort) ? "popular" : normalizedSort!;
+        var isActive = (target == "popular" ? string.IsNullOrWhiteSpace(current) || current == "popular" : current == target);
+
+        return isActive
+            ? "rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white"
+            : "rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100";
+    }
+
+    private void HandleSearchInputChanged(ChangeEventArgs e)
+    {
+        searchText = e?.Value?.ToString() ?? string.Empty;
+    }
+
+    private void HandleSearchKeyDown(KeyboardEventArgs e)
+    {
+        if (string.Equals(e.Key, "Enter", StringComparison.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo(GetSearchResultHref());
+        }
+    }
+
+    private bool TryRestorePrerenderedState(string stateKey)
+    {
+        if (PrerenderedState?.StateKey != stateKey)
+        {
+            return false;
+        }
+
+        serieses = PrerenderedState.Items;
+        allSeries = PrerenderedState.AllItems;
+        totalPages = PrerenderedState.TotalPages;
+        normalizedSort = PrerenderedState.NormalizedSort;
+        isLoadingMoreSeries = false;
+        return true;
+    }
+
+    private void CapturePrerenderedState(string stateKey)
+    {
+        PrerenderedState = new ListPageState<SeriesSummary>
+        {
+            StateKey = stateKey,
+            Items = serieses.ToList(),
+            AllItems = allSeries.ToList(),
+            TotalCount = allSeries.Count,
+            TotalPages = totalPages,
+            NormalizedSort = normalizedSort
+        };
+    }
+}
+
+

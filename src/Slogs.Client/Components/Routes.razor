@@ -1,0 +1,29 @@
+@inject SlogsAuthState AuthState
+
+<Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+</Router>
+
+@code {
+    [PersistentState]
+    public bool AuthStateWasInitialized { get; set; }
+
+    [PersistentState]
+    public AuthUser? PrerenderedUser { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthStateWasInitialized)
+        {
+            AuthState.Restore(PrerenderedUser);
+            return;
+        }
+
+        await AuthState.EnsureInitializedAsync();
+        AuthStateWasInitialized = AuthState.IsInitialized;
+        PrerenderedUser = AuthState.CurrentUser;
+    }
+}

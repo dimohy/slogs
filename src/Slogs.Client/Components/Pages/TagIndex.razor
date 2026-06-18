@@ -1,0 +1,222 @@
+@page "/tag"
+@inject SlogsApiClient ApiClient
+@inject NavigationManager Navigation
+
+<PageTitle>태그</PageTitle>
+<SeoHead Title="태그 | slogs"
+         Description="slogs의 태그를 탐색하고 관심 있는 개발 주제의 글을 찾습니다."
+         CanonicalPath="/tag"
+         NoIndex="@(!string.IsNullOrWhiteSpace(Query))"
+         JsonLd="@(SeoMetadata.CollectionPageJsonLd(Navigation.BaseUri, "/tag", "slogs 태그", "slogs의 태그를 탐색하고 관심 있는 개발 주제의 글을 찾습니다."))" />
+
+<h1 class="text-2xl font-bold text-slate-900">태그</h1>
+<p class="mb-3 text-sm text-slate-500">실제 태그 페이지로 이동하려면 원하는 태그를 눌러 주세요.</p>
+
+<div class="mb-4 flex flex-wrap gap-2">
+    <input class="min-w-0 flex-1 rounded-full border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900"
+           value="@searchText"
+           @oninput="HandleSearchInputChanged"
+           @onkeydown="HandleSearchKeyDown"
+           placeholder="태그 검색"
+           aria-label="태그 검색어 입력" />
+    <a class="rounded-full border border-slate-300 bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+       href="@GetSearchResultHref()">
+        검색
+    </a>
+    @if (!string.IsNullOrWhiteSpace(Query))
+    {
+        <a class="rounded-full border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+           href="@GetListQuery(Sort)">
+            검색 초기화
+        </a>
+    }
+</div>
+
+<div class="mb-4 flex flex-wrap gap-2">
+    <a class="@GetSortChipClass(null)" href="@GetListQuery(null)">인기</a>
+    <a class="@GetSortChipClass("name")" href='@GetListQuery("name")'>이름순</a>
+</div>
+
+<section class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        @if (tags.Count == 0)
+        {
+        <p class="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+            @GetEmptyMessage()
+        </p>
+    }
+    else
+    {
+        @foreach (var item in tags)
+        {
+            <a class="group rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
+               href="@($"/tag/{Uri.EscapeDataString(item.Tag)}")">
+                #@item.Tag
+                <span class="ml-2 text-xs text-slate-500 transition group-hover:text-slate-200">(@item.Count)</span>
+            </a>
+        }
+    }
+</section>
+
+<InfiniteScrollSentinel Visible="@(tags.Count > 0)"
+                        HasMore="@HasMoreTags"
+                        IsLoading="@isLoadingMoreTags"
+                        OnLoadMore="LoadMoreTagsAsync"
+                        ShowDoneText="@(allTags.Count > PageSize)"
+                        DoneText="모든 태그를 불러왔습니다." />
+
+@code {
+    private const int PageSize = 12;
+
+    [SupplyParameterFromQuery(Name = "sort")] public string? Sort { get; set; }
+    [SupplyParameterFromQuery(Name = "q")] public string? Query { get; set; }
+
+    private IReadOnlyList<TagSummary> tags = [];
+    private IReadOnlyList<TagSummary> allTags = [];
+    private int totalPages;
+    private bool isLoadingMoreTags;
+    private string searchText = string.Empty;
+    private string? normalizedSort;
+    private string currentStateKey = string.Empty;
+    private bool HasMoreTags => tags.Count < allTags.Count;
+
+    [PersistentState]
+    public ListPageState<TagSummary>? PrerenderedState { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        searchText = Query ?? string.Empty;
+        normalizedSort = ListQueryUrlBuilder.NormalizeSortValue(Sort, "popular", "name");
+        currentStateKey = PageStateKeyBuilder.FromNavigation(Navigation);
+        if (TryRestorePrerenderedState(currentStateKey))
+        {
+            return;
+        }
+
+        await LoadTagsAsync();
+        CapturePrerenderedState(currentStateKey);
+    }
+
+    private async Task LoadTagsAsync()
+    {
+        var loadedTags = (await ApiClient.GetTagCloudAsync(200))
+            .Select(x => new TagSummary(x.Tag, x.Count))
+            .ToList();
+
+        if (!string.IsNullOrWhiteSpace(Query))
+        {
+            var normalized = Query.Trim();
+            loadedTags = [.. loadedTags.Where(x => x.Tag.Contains(normalized, StringComparison.OrdinalIgnoreCase))];
+        }
+
+        allTags = normalizedSort switch
+        {
+            "name" => loadedTags.OrderBy(x => x.Tag, StringComparer.OrdinalIgnoreCase).ToList(),
+            _ => loadedTags.OrderByDescending(x => x.Count).ThenBy(x => x.Tag, StringComparer.OrdinalIgnoreCase).ToList()
+        };
+
+        totalPages = allTags.Count == 0 ? 0 : (int)Math.Ceiling(allTags.Count / 12d);
+        tags = allTags.Take(PageSize).ToList();
+        isLoadingMoreTags = false;
+    }
+
+    private Task LoadMoreTagsAsync()
+    {
+        if (isLoadingMoreTags || !HasMoreTags)
+        {
+            return Task.CompletedTask;
+        }
+
+        isLoadingMoreTags = true;
+        try
+        {
+            tags = allTags.Take(Math.Min(allTags.Count, tags.Count + PageSize)).ToList();
+            CapturePrerenderedState(currentStateKey);
+        }
+        finally
+        {
+            isLoadingMoreTags = false;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private string GetEmptyMessage()
+    {
+        if (!string.IsNullOrWhiteSpace(Query))
+        {
+            return $"\"{Query.Trim()}\" 검색 결과가 없습니다.";
+        }
+
+        return "등록된 태그가 아직 없습니다.";
+    }
+
+    private string GetListQuery(string? sort)
+    {
+        return BuildTagSeriesQuery(sort: sort, query: Query);
+    }
+
+    private string GetSearchResultHref()
+    {
+        return BuildTagSeriesQuery(sort: normalizedSort, query: searchText);
+    }
+
+    private string BuildTagSeriesQuery(string? sort = null, string? query = null, int? page = null)
+    {
+        var normalizedSortValue = ListQueryUrlBuilder.NormalizeSortValue(sort, "popular", "name") ?? normalizedSort;
+        return ListQueryUrlBuilder.Build("/tag", normalizedSortValue, query ?? Query, page ?? 1, totalPages);
+    }
+
+    private string GetSortChipClass(string? sort)
+    {
+        var target = (sort ?? string.Empty).Trim().ToLowerInvariant();
+        var current = string.IsNullOrWhiteSpace(normalizedSort) ? "popular" : normalizedSort!;
+        var isActive = (target == "popular" ? string.IsNullOrWhiteSpace(current) || current == "popular" : current == target);
+
+        return isActive
+            ? "rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white"
+            : "rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100";
+    }
+
+    private void HandleSearchInputChanged(ChangeEventArgs e)
+    {
+        searchText = e?.Value?.ToString() ?? string.Empty;
+    }
+
+    private void HandleSearchKeyDown(KeyboardEventArgs e)
+    {
+        if (string.Equals(e.Key, "Enter", StringComparison.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo(GetSearchResultHref());
+        }
+    }
+
+    private bool TryRestorePrerenderedState(string stateKey)
+    {
+        if (PrerenderedState?.StateKey != stateKey)
+        {
+            return false;
+        }
+
+        tags = PrerenderedState.Items;
+        allTags = PrerenderedState.AllItems;
+        totalPages = PrerenderedState.TotalPages;
+        normalizedSort = PrerenderedState.NormalizedSort;
+        isLoadingMoreTags = false;
+        return true;
+    }
+
+    private void CapturePrerenderedState(string stateKey)
+    {
+        PrerenderedState = new ListPageState<TagSummary>
+        {
+            StateKey = stateKey,
+            Items = tags.ToList(),
+            AllItems = allTags.ToList(),
+            TotalCount = allTags.Count,
+            TotalPages = totalPages,
+            NormalizedSort = normalizedSort
+        };
+    }
+}
+
+

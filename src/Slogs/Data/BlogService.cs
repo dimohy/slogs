@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 
@@ -776,7 +777,7 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
 
         try
         {
-            return JsonSerializer.Deserialize<List<string>>(json, JsonOptions) ?? [];
+            return JsonSerializer.Deserialize(json, GetJsonTypeInfo<List<string>>()) ?? [];
         }
         catch (JsonException)
         {
@@ -794,13 +795,19 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
 
     private static string ToJson(IEnumerable<string> values)
     {
-        return JsonSerializer.Serialize(
-            values
-                .Select(x => x.Trim())
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray(),
-            JsonOptions);
+        var normalizedValues = values
+            .Select(x => x.Trim())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return JsonSerializer.Serialize(normalizedValues, GetJsonTypeInfo<string[]>());
+    }
+
+    private static JsonTypeInfo<T> GetJsonTypeInfo<T>()
+    {
+        return (JsonTypeInfo<T>?)SlogsJsonSerializerContext.Default.GetTypeInfo(typeof(T))
+            ?? throw new InvalidOperationException($"JSON metadata for {typeof(T).FullName} is not registered.");
     }
 
     private static string NormalizeUser(string value)

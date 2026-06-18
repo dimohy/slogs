@@ -156,6 +156,8 @@ nav[aria-label="main menu"] a.bg-slate-900:hover {
 .post-card-media {
     aspect-ratio: 16 / 9;
     position: relative;
+    background: linear-gradient(110deg, #f1f5f0 8%, #ffffff 18%, #e8f0ea 33%);
+    background-size: 220% 100%;
 }
 
 .post-card-media img {
@@ -163,6 +165,8 @@ nav[aria-label="main menu"] a.bg-slate-900:hover {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    position: relative;
+    z-index: 1;
     transition: transform 0.18s ease, filter 0.18s ease;
 }
 
@@ -600,6 +604,146 @@ header.bg-white {
 
 .slogs-markdown-preview__runtime.vditor-reset {
     overflow: visible;
+}
+
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset {
+    color: inherit;
+    font: inherit;
+}
+
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset h1,
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset h2,
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset h3 {
+    margin: 1.2rem 0 0.5rem;
+    border: 0;
+    padding: 0;
+    color: #111827;
+    font-weight: 800;
+    line-height: 1.3;
+}
+
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset h1 {
+    font-size: 1.875rem;
+}
+
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset h2 {
+    font-size: 1.5rem;
+}
+
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset h3 {
+    font-size: 1.25rem;
+}
+
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset p {
+    margin: 0.6rem 0;
+    color: #26362d;
+    line-height: 1.75;
+}
+
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset a {
+    color: #047857;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+}
+
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset pre {
+    margin: 1rem 0;
+    overflow: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    background: #f8faf8;
+    color: #1f2937;
+    line-height: 1.6;
+    padding: 0.75rem 1rem;
+    white-space: pre;
+}
+
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset code {
+    border-radius: 0.375rem;
+    background: #dfe8df;
+    color: var(--theme-text);
+    font-size: 0.95em;
+    padding: 0.08rem 0.25rem;
+}
+
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset pre code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+}
+
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset ul,
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset ol {
+    margin: 0.5rem 0 0.5rem 1.25rem;
+    padding: 0;
+}
+
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset ul {
+    list-style: disc;
+}
+
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset ol {
+    list-style: decimal;
+}
+
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset li {
+    margin: 0.3rem 0;
+    line-height: 1.6;
+}
+
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset li > p {
+    margin: 0.25rem 0;
+}
+
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset input[type="checkbox"] {
+    margin-right: 0.45rem;
+    vertical-align: -0.1em;
+}
+
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset blockquote {
+    margin: 0.8rem 0;
+    border-left: 3px solid var(--theme-accent);
+    padding: 0.4rem 0.8rem;
+    color: #415247;
+}
+
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset table {
+    display: block;
+    width: 100%;
+    margin: 1rem 0;
+    overflow-x: auto;
+    border-collapse: collapse;
+}
+
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset th,
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset td {
+    border: 1px solid #d7e0d8;
+    padding: 0.55rem 0.7rem;
+    text-align: left;
+}
+
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset th {
+    background: #edf3ed;
+    color: #15231a;
+    font-weight: 800;
+}
+
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset tr:nth-child(even) td {
+    background: #f8faf8;
+}
+
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset img {
+    max-width: 100%;
+    height: auto;
+    margin: 1rem 0;
+    border-radius: 0.75rem;
+}
+
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset hr {
+    margin: 1.5rem 0;
+    border: 0;
+    border-top: 1px solid #d7e0d8;
 }
 
 .slogs-markdown-preview.is-rendered .slogs-markdown-preview__runtime {

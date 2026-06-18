@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using Microsoft.EntityFrameworkCore;
 
 namespace Slogs.Data;
@@ -211,7 +212,13 @@ public static class SlogsDbInitializer
 
     private static string ToJson(IEnumerable<string> values)
     {
-        return JsonSerializer.Serialize(values, JsonOptions);
+        return JsonSerializer.Serialize(values.ToArray(), GetJsonTypeInfo<string[]>());
+    }
+
+    private static JsonTypeInfo<T> GetJsonTypeInfo<T>()
+    {
+        return (JsonTypeInfo<T>?)SlogsJsonSerializerContext.Default.GetTypeInfo(typeof(T))
+            ?? throw new InvalidOperationException($"JSON metadata for {typeof(T).FullName} is not registered.");
     }
 
     private static string GetDefaultBio(string userName)

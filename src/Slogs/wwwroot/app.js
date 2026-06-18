@@ -74,6 +74,88 @@
     });
 })();
 
+window.slogsInfiniteScroll = (() => {
+    const registrations = new WeakMap();
+
+    const isNearViewport = (element) => {
+        if (!element?.getBoundingClientRect) {
+            return false;
+        }
+
+        const rect = element.getBoundingClientRect();
+        return rect.top <= window.innerHeight + 900 && rect.bottom >= -900;
+    };
+
+    const unobserve = (element) => {
+        const registration = registrations.get(element);
+        registration?.observer?.disconnect();
+        if (registration?.scrollListener) {
+            window.removeEventListener("scroll", registration.scrollListener);
+            window.removeEventListener("resize", registration.scrollListener);
+        }
+
+        registrations.delete(element);
+    };
+
+    const observe = (element, dotNetReference) => {
+        if (!element || !dotNetReference) {
+            return;
+        }
+
+        unobserve(element);
+
+        let pending = false;
+        const trigger = () => {
+            if (pending || !isNearViewport(element)) {
+                return;
+            }
+
+            pending = true;
+            let loadedMore = false;
+            dotNetReference.invokeMethodAsync("LoadMorePostsAsync")
+                .then((result) => {
+                    loadedMore = result === true;
+                })
+                .catch(() => {
+                    loadedMore = false;
+                })
+                .finally(() => {
+                    pending = false;
+                    if (loadedMore && isNearViewport(element)) {
+                        window.setTimeout(trigger, 120);
+                    }
+                });
+        };
+
+        if (window.IntersectionObserver) {
+            const observer = new IntersectionObserver((entries) => {
+                if (entries.some((entry) => entry.isIntersecting)) {
+                    trigger();
+                }
+            }, {
+                rootMargin: "900px 0px",
+                threshold: 0
+            });
+
+            observer.observe(element);
+            registrations.set(element, { observer });
+            trigger();
+            return;
+        }
+
+        const scrollListener = () => trigger();
+        window.addEventListener("scroll", scrollListener, { passive: true });
+        window.addEventListener("resize", scrollListener);
+        registrations.set(element, { scrollListener });
+        trigger();
+    };
+
+    return {
+        observe,
+        unobserve
+    };
+})();
+
 window.slogsVditorRuntime = (() => {
     const version = "3.11.2";
     const cdn = `https://unpkg.com/vditor@${version}`;
@@ -667,6 +749,38 @@ window.slogsMarkdownEditor = (() => {
         init,
         setValue,
         dispose
+    };
+})();
+
+window.slogsAuthApi = (() => {
+    const postJson = async (url, payload = {}) => {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            credentials: "same-origin",
+            body: JSON.stringify(payload)
+        });
+
+        let body = null;
+        try {
+            body = await response.json();
+        } catch {
+        }
+
+        return {
+            Ok: response.ok,
+            Status: response.status,
+            Error: body?.error ?? null,
+            ReturnUrl: body?.returnUrl ?? null
+        };
+    };
+
+    return {
+        login: (request) => postJson("/api/auth/login", request),
+        register: (request) => postJson("/api/auth/register", request),
+        logout: () => postJson("/api/auth/logout")
     };
 })();
 
