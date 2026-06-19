@@ -182,6 +182,7 @@ services:
       ConnectionStrings__SlogsDatabase: Host=postgres;Port=5432;Database=slogs;Username=slogs;Password=${SLOGS_DB_PASSWORD}
       Authentication__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
       Authentication__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
+      Slogs__PublicBaseUrl: https://__DOMAIN__
     ports:
       - "127.0.0.1:__APP_PORT__:8080"
     volumes:
@@ -191,6 +192,7 @@ services:
 $compose = $composeTemplate.
     Replace("__REMOTE_UID__", $remoteUid).
     Replace("__REMOTE_GID__", $remoteGid).
+    Replace("__DOMAIN__", $Domain).
     Replace("__APP_PORT__", [string]$AppPort)
 Send-RemoteContent $compose "$RemoteRoot/compose.yml"
 

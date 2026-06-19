@@ -13,6 +13,7 @@ using System.Security.Claims;
 var builder = WebApplication.CreateBuilder(args);
 const string GooglePictureClaim = "urn:google:picture";
 const string ExternalLoginScheme = "slogs.external";
+const string DefaultProductionPublicBaseUrl = "https://slogs.dev/";
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -42,6 +43,7 @@ var authenticationBuilder = builder.Services.AddAuthentication(CookieAuthenticat
         options.LoginPath = "/login";
         options.LogoutPath = "/auth/logout";
         options.AccessDeniedPath = "/login";
+        options.ExpireTimeSpan = SlogsAuthentication.PersistentSessionLifetime;
         options.SlidingExpiration = true;
         options.Events = new CookieAuthenticationEvents
         {
@@ -139,6 +141,20 @@ builder.Services.AddHttpClient<SlogsApiClient>((serviceProvider, httpClient) =>
 var app = builder.Build();
 
 app.UseForwardedHeaders();
+var publicBaseUri = GetConfiguredPublicBaseUri(app.Configuration)
+    ?? (app.Environment.IsProduction() ? new Uri(DefaultProductionPublicBaseUrl) : null);
+if (publicBaseUri is not null)
+{
+    app.Logger.LogInformation("Using public base URL {PublicBaseUrl}.", publicBaseUri);
+    app.Use((httpContext, next) =>
+    {
+        httpContext.Request.Scheme = publicBaseUri.Scheme;
+        httpContext.Request.Host = ToHostString(publicBaseUri);
+        httpContext.Request.PathBase = ToPathBase(publicBaseUri);
+
+        return next(httpContext);
+    });
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -205,9 +221,7 @@ app.MapPost("/auth/login", async (HttpContext httpContext, AuthService authServi
         return Results.Redirect(BuildAuthRedirect("/login", returnUrl, "invalid"));
     }
 
-    await httpContext.SignInAsync(
-        CookieAuthenticationDefaults.AuthenticationScheme,
-        SlogsAuthentication.CreatePrincipal(user));
+    await SlogsAuthentication.SignInPersistentAsync(httpContext, user);
 
     return Results.Redirect(returnUrl);
 }).DisableAntiforgery();
@@ -244,9 +258,7 @@ app.MapPost("/auth/register", async (HttpContext httpContext, AuthService authSe
     try
     {
         var user = await authService.RegisterAsync(userName, displayName, password);
-        await httpContext.SignInAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme,
-            SlogsAuthentication.CreatePrincipal(user));
+        await SlogsAuthentication.SignInPersistentAsync(httpContext, user);
 
         return Results.Redirect(returnUrl);
     }
@@ -291,9 +303,7 @@ app.MapGet("/auth/google/confirm", async (HttpContext httpContext, AuthService a
     if (existingUser is not null)
     {
         await httpContext.SignOutAsync(ExternalLoginScheme);
-        await httpContext.SignInAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme,
-            SlogsAuthentication.CreatePrincipal(existingUser));
+        await SlogsAuthentication.SignInPersistentAsync(httpContext, existingUser);
         return Results.Redirect(returnUrl);
     }
 
@@ -341,9 +351,7 @@ app.MapPost("/auth/google/confirm", async (HttpContext httpContext, AuthService 
             requestedUserName);
 
         await httpContext.SignOutAsync(ExternalLoginScheme);
-        await httpContext.SignInAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme,
-            SlogsAuthentication.CreatePrincipal(user));
+        await SlogsAuthentication.SignInPersistentAsync(httpContext, user);
         return Results.Redirect(returnUrl);
     }
     catch (InvalidOperationException ex)
@@ -427,15 +435,15 @@ app.MapPost("/editor/images", async (HttpContext httpContext, IWebHostEnvironmen
         string.IsNullOrWhiteSpace(baseName) ? "image" : baseName));
 }).DisableAntiforgery();
 
-app.MapGet("/robots.txt", (HttpContext httpContext) =>
+app.MapGet("/robots.txt", () =>
 {
-    var baseUri = GetRequestBaseUri(httpContext.Request);
-    return Results.Text(SeoMetadata.BuildRobotsTxt(baseUri), "text/plain; charset=utf-8");
+    return Results.Text(SeoMetadata.BuildRobotsTxt(DefaultProductionPublicBaseUrl), "text/plain; charset=utf-8");
 });
 
-app.MapGet("/sitemap.xml", async (HttpContext httpContext, BlogService blogService, AuthService authService) =>
+app.MapGet("/sitemap.xml", async (
+    BlogService blogService,
+    AuthService authService) =>
 {
-    var baseUri = GetRequestBaseUri(httpContext.Request);
     var posts = await blogService.GetLatestAsync(500);
     var tags = await blogService.GetTagCloudAsync(200);
     var series = await blogService.GetSeriesCloudAsync(200);
@@ -476,7 +484,7 @@ app.MapGet("/sitemap.xml", async (HttpContext httpContext, BlogService blogServi
             "weekly",
             0.8m)));
 
-    return Results.Text(SeoMetadata.BuildSitemapXml(baseUri, entries), "application/xml; charset=utf-8");
+    return Results.Text(SeoMetadata.BuildSitemapXml(DefaultProductionPublicBaseUrl, entries), "application/xml; charset=utf-8");
 });
 
 app.MapStaticAssets();
@@ -618,20 +626,53 @@ static string NormalizeLocalReturnUrl(string? returnUrl, string fallback)
 
 static string GetRequestBaseUri(HttpRequest request)
 {
-    var scheme = request.Headers["X-Forwarded-Proto"].FirstOrDefault();
-    if (string.IsNullOrWhiteSpace(scheme))
-    {
-        scheme = request.Scheme;
-    }
-
-    var host = request.Headers["X-Forwarded-Host"].FirstOrDefault();
-    if (string.IsNullOrWhiteSpace(host))
-    {
-        host = request.Host.Value;
-    }
-
-    var pathBase = request.PathBase.HasValue ? request.PathBase.Value : string.Empty;
+    var scheme = IsHttpScheme(request.Scheme) ? request.Scheme : Uri.UriSchemeHttp;
+    var host = request.Host.HasValue ? request.Host.ToUriComponent() : "localhost";
+    var pathBase = request.PathBase.HasValue ? request.PathBase.ToUriComponent().TrimEnd('/') : string.Empty;
     return $"{scheme}://{host}{pathBase}/";
+}
+
+static Uri? GetConfiguredPublicBaseUri(IConfiguration configuration)
+{
+    var value = configuration["Slogs:PublicBaseUrl"];
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        value = Environment.GetEnvironmentVariable("Slogs__PublicBaseUrl");
+    }
+
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        return null;
+    }
+
+    if (!Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
+        || !IsHttpScheme(uri.Scheme)
+        || string.IsNullOrWhiteSpace(uri.Host))
+    {
+        throw new InvalidOperationException("Slogs:PublicBaseUrl must be an absolute http or https URL.");
+    }
+
+    var builder = new UriBuilder(uri)
+    {
+        Query = string.Empty,
+        Fragment = string.Empty,
+        Path = string.IsNullOrWhiteSpace(uri.AbsolutePath) ? "/" : $"{uri.AbsolutePath.TrimEnd('/')}/"
+    };
+
+    return builder.Uri;
+}
+
+static bool IsHttpScheme(string? scheme)
+    => string.Equals(scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
+
+static HostString ToHostString(Uri uri)
+    => uri.IsDefaultPort ? new HostString(uri.Host) : new HostString(uri.Host, uri.Port);
+
+static PathString ToPathBase(Uri uri)
+{
+    var path = uri.AbsolutePath.TrimEnd('/');
+    return string.IsNullOrEmpty(path) ? PathString.Empty : PathString.FromUriComponent(path);
 }
 
 static string? GetSafeImageExtension(string fileName, string? contentType)

@@ -74,6 +74,78 @@
     });
 })();
 
+window.slogsMobileHeader = (() => {
+    const collapsedClass = "slogs-mobile-header-collapsed";
+    const mediaQuery = window.matchMedia("(max-width: 1279px)");
+    let initialized = false;
+    let lastScrollY = 0;
+    let ticking = false;
+
+    const getScrollY = () => Math.max(0, window.scrollY || window.pageYOffset || 0);
+
+    const isMobileMenuOpen = () => Boolean(document.querySelector(".slogs-mobile-menu-drawer.is-open"));
+
+    const setCollapsed = (collapsed) => {
+        document.body.classList.toggle(collapsedClass, collapsed);
+    };
+
+    const update = () => {
+        ticking = false;
+        const header = document.querySelector("[data-slogs-mobile-header]");
+        const currentY = getScrollY();
+
+        if (!header || !mediaQuery.matches || isMobileMenuOpen()) {
+            setCollapsed(false);
+            lastScrollY = currentY;
+            return;
+        }
+
+        const delta = currentY - lastScrollY;
+        if (currentY < 64) {
+            setCollapsed(false);
+        } else if (delta > 8) {
+            setCollapsed(true);
+        } else if (delta < -8) {
+            setCollapsed(false);
+        }
+
+        lastScrollY = currentY;
+    };
+
+    const requestUpdate = () => {
+        if (ticking) {
+            return;
+        }
+
+        ticking = true;
+        window.requestAnimationFrame(update);
+    };
+
+    const init = () => {
+        if (initialized) {
+            requestUpdate();
+            return;
+        }
+
+        initialized = true;
+        lastScrollY = getScrollY();
+        window.addEventListener("scroll", requestUpdate, { passive: true });
+        window.addEventListener("resize", requestUpdate);
+        mediaQuery.addEventListener?.("change", requestUpdate);
+        requestUpdate();
+    };
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", init, { once: true });
+    } else {
+        init();
+    }
+
+    return {
+        init
+    };
+})();
+
 window.slogsInfiniteScroll = (() => {
     const registrations = new WeakMap();
 

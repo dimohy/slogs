@@ -414,10 +414,16 @@ header.bg-white {
 
 .slogs-app-header {
     position: sticky;
+    transition:
+        background-color 0.18s ease,
+        border-color 0.18s ease,
+        box-shadow 0.18s ease,
+        backdrop-filter 0.18s ease;
 }
 
 .slogs-app-header__inner {
     padding-right: 1rem;
+    transition: min-height 0.18s ease, padding 0.18s ease;
 }
 
 .slogs-brand {
@@ -447,6 +453,16 @@ header.bg-white {
 
 .slogs-header-actions {
     justify-content: flex-end;
+}
+
+.slogs-brand,
+.slogs-header-search,
+.slogs-header-actions > a,
+.slogs-header-actions > .relative {
+    transition:
+        opacity 0.16s ease,
+        transform 0.16s ease,
+        visibility 0.16s ease;
 }
 
 .slogs-desktop-sidebar {
@@ -536,6 +552,13 @@ header.bg-white {
         flex: 0 0 auto;
         align-items: center;
         justify-content: center;
+        transition:
+            opacity 0.18s ease,
+            transform 0.18s ease,
+            background-color 0.18s ease,
+            border-color 0.18s ease,
+            box-shadow 0.18s ease,
+            backdrop-filter 0.18s ease;
     }
 
     .slogs-header-search {
@@ -615,6 +638,52 @@ header.bg-white {
         background: transparent;
         box-shadow: none;
         padding: 0;
+    }
+
+    body.slogs-mobile-header-collapsed .slogs-app-header {
+        border-color: transparent;
+        background-color: transparent;
+        box-shadow: none;
+        backdrop-filter: none;
+        pointer-events: none;
+    }
+
+    body.slogs-mobile-header-collapsed .slogs-app-header__inner {
+        pointer-events: none;
+    }
+
+    body.slogs-mobile-header-collapsed .slogs-brand,
+    body.slogs-mobile-header-collapsed .slogs-header-search,
+    body.slogs-mobile-header-collapsed .slogs-header-actions > a,
+    body.slogs-mobile-header-collapsed .slogs-header-actions > .relative {
+        visibility: hidden;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(-0.75rem);
+    }
+
+    body.slogs-mobile-header-collapsed .slogs-header-actions {
+        display: block;
+        width: auto;
+        pointer-events: none;
+    }
+
+    body.slogs-mobile-header-collapsed .slogs-mobile-menu-toggle {
+        position: fixed;
+        top: max(0.75rem, env(safe-area-inset-top));
+        right: 0.85rem;
+        z-index: 45;
+        pointer-events: auto;
+        border-color: rgba(71, 85, 105, 0.22);
+        background-color: rgba(255, 255, 255, 0.58);
+        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+        color: #1f2937;
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+    }
+
+    body.slogs-mobile-header-collapsed .slogs-mobile-menu-toggle:hover {
+        background-color: rgba(255, 255, 255, 0.78);
     }
 }
 

@@ -29,9 +29,7 @@ public static class SlogsApiEndpoints
                 return Results.Unauthorized();
             }
 
-            await httpContext.SignInAsync(
-                CookieAuthenticationDefaults.AuthenticationScheme,
-                SlogsAuthentication.CreatePrincipal(user));
+            await SlogsAuthentication.SignInPersistentAsync(httpContext, user);
 
             return Results.Ok(new AuthResponse(user, returnUrl));
         });
@@ -62,9 +60,7 @@ public static class SlogsApiEndpoints
             try
             {
                 var user = await authService.RegisterAsync(request.UserName, request.DisplayName, request.Password);
-                await httpContext.SignInAsync(
-                    CookieAuthenticationDefaults.AuthenticationScheme,
-                    SlogsAuthentication.CreatePrincipal(user));
+                await SlogsAuthentication.SignInPersistentAsync(httpContext, user);
 
                 return Results.Ok(new AuthResponse(user, returnUrl));
             }
@@ -91,9 +87,7 @@ public static class SlogsApiEndpoints
                     request.ProfileImageUrl,
                     request.Bio);
 
-                await httpContext.SignInAsync(
-                    CookieAuthenticationDefaults.AuthenticationScheme,
-                    SlogsAuthentication.CreatePrincipal(updatedUser));
+                await SlogsAuthentication.SignInPersistentAsync(httpContext, updatedUser);
 
                 return Results.Ok(new AuthResponse(updatedUser, "/me"));
             }

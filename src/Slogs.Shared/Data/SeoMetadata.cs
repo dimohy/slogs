@@ -21,7 +21,8 @@ public static class SeoMetadata
 
     public static string AbsoluteUrl(string baseUri, string? pathOrUrl)
     {
-        if (Uri.TryCreate(pathOrUrl, UriKind.Absolute, out var absolute))
+        if (Uri.TryCreate(pathOrUrl, UriKind.Absolute, out var absolute)
+            && IsHttpUrl(absolute))
         {
             return absolute.ToString();
         }
@@ -32,6 +33,10 @@ public static class SeoMetadata
             : pathOrUrl.TrimStart('/');
         return new Uri(baseAddress, relative).ToString();
     }
+
+    private static bool IsHttpUrl(Uri uri)
+        => string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
 
     public static string BuildRobotsTxt(string baseUri)
     {

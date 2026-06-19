@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace Slogs.Data;
@@ -9,6 +10,7 @@ public static class SlogsAuthentication
     private const string ProfileImageClaim = "slogs:profile-image";
     private const string BioClaim = "slogs:bio";
     private const string RegisteredAtClaim = "slogs:registered-at";
+    public static TimeSpan PersistentSessionLifetime { get; } = TimeSpan.FromDays(30);
 
     public static ClaimsPrincipal CreatePrincipal(AuthUser user)
     {
@@ -25,6 +27,19 @@ public static class SlogsAuthentication
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         return new ClaimsPrincipal(identity);
     }
+
+    public static Task SignInPersistentAsync(HttpContext httpContext, AuthUser user)
+        => httpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            CreatePrincipal(user),
+            CreatePersistentProperties());
+
+    public static AuthenticationProperties CreatePersistentProperties()
+        => new()
+        {
+            IsPersistent = true,
+            AllowRefresh = true
+        };
 
     public static AuthUser? TryCreateUser(ClaimsPrincipal? principal)
     {
