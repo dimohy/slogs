@@ -753,9 +753,9 @@ window.slogsMarkdownEditor = (() => {
 })();
 
 window.slogsAuthApi = (() => {
-    const postJson = async (url, payload = {}) => {
+    const sendJson = async (url, payload = {}, method = "POST") => {
         const response = await fetch(url, {
-            method: "POST",
+            method,
             headers: {
                 "Content-Type": "application/json"
             },
@@ -773,14 +773,16 @@ window.slogsAuthApi = (() => {
             Ok: response.ok,
             Status: response.status,
             Error: body?.error ?? null,
-            ReturnUrl: body?.returnUrl ?? null
+            ReturnUrl: body?.returnUrl ?? null,
+            User: body?.user ?? null
         };
     };
 
     return {
-        login: (request) => postJson("/api/auth/login", request),
-        register: (request) => postJson("/api/auth/register", request),
-        logout: () => postJson("/api/auth/logout")
+        login: (request) => sendJson("/api/auth/login", request),
+        register: (request) => sendJson("/api/auth/register", request),
+        profile: (request) => sendJson("/api/auth/profile", request, "PUT"),
+        logout: () => sendJson("/api/auth/logout")
     };
 })();
 

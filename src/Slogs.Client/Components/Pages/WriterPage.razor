@@ -55,12 +55,7 @@ else
                        href="@GetFollowersPath()">팔로워 @followerCount</a>
                     <a class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
                        href="@GetFollowingPath()">팔로잉 @followingCount</a>
-                    @if (IsCurrentUsersPage)
-                    {
-                        <a class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-                           href="/write">새 글 쓰기</a>
-                    }
-                    else if (CurrentUser is not null)
+                    @if (!IsCurrentUsersPage && CurrentUser is not null)
                     {
                         <button class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-wait disabled:opacity-60"
                                 disabled="@isFollowBusy"
@@ -120,12 +115,7 @@ else
             @if (featuredPost is null)
             {
                 <div class="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5">
-                    <p class="text-sm font-semibold text-slate-500">아직 대표로 보여줄 글이 없습니다.</p>
-                    @if (IsCurrentUsersPage)
-                    {
-                        <a class="mt-3 inline-flex rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-                           href="/write">첫 글 쓰기</a>
-                    }
+                    <p class="text-sm font-semibold text-slate-500">대표로 보여줄 글이 없습니다.</p>
                 </div>
             }
             else
@@ -135,15 +125,12 @@ else
                     <a class="block text-2xl font-black leading-tight text-slate-900 hover:underline"
                        href="@GetPostUrl(featuredPost)">@featuredPost.Title</a>
                     <p class="mt-2 text-sm leading-6 text-slate-700">@Shorten(featuredPost.Summary, 220)</p>
-                    <div class="mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-500">
-                        <span>@FormatDate(featuredPost.PublishedAt)</span>
-                        <span>·</span>
-                        <span>@featuredPost.ReadTimeMinutes 분</span>
-                        <span>·</span>
-                        <span>좋아요 @featuredPost.LikeCount</span>
-                        <span>·</span>
-                        <span>댓글 @featuredPost.CommentCount</span>
-                    </div>
+                    <PostMetaLine Post="featuredPost"
+                                  Class="mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-500"
+                                  ShowAuthor="false"
+                                  ShowLikes="true"
+                                  ShowComments="true"
+                                  ShowViews="false" />
                 </div>
             }
         </article>
@@ -212,12 +199,7 @@ else
             @if (!posts.Any())
             {
                 <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 md:col-span-2">
-                    <p class="text-sm font-semibold text-slate-500">아직 발행한 글이 없습니다.</p>
-                    @if (IsCurrentUsersPage)
-                    {
-                        <a class="mt-3 inline-flex rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-                           href="/write">새 글 쓰기</a>
-                    }
+                    <p class="text-sm font-semibold text-slate-500">발행한 글이 없습니다.</p>
                 </div>
             }
             else
@@ -232,23 +214,7 @@ else
                              aria-label="@($"{post.Title} 상세 보기")">
                         <PostCardImage Post="post" PostUrl="@GetPostUrl(post)" Priority="@IsPriorityCardImage(index)" />
                         <a class="mb-2 block text-xl font-bold text-slate-900 hover:underline" href="@GetPostUrl(post)">@post.Title</a>
-                        <div class="mb-2 flex flex-wrap items-center gap-1 text-sm text-slate-500">
-                            <span>@FormatDate(post.PublishedAt)</span>
-                            <span>·</span>
-                            <span>@post.ReadTimeMinutes 분</span>
-                            <span>·</span>
-                            <span>@post.CommentCount 개 댓글</span>
-                            <span>·</span>
-                            <span>@post.ViewCount 회 조회</span>
-                            @if (post.Series.Count > 0)
-                            {
-                                <span>·</span>
-                                @foreach (var series in post.Series)
-                                {
-                                    <a class="hover:underline" href="@($"/series/{Uri.EscapeDataString(series)}")">시리즈: @series</a>
-                                }
-                            }
-                        </div>
+                        <PostMetaLine Post="post" ShowAuthor="false" ShowComments="true" />
                         <p class="text-slate-700">@Shorten(post.Summary, 150)</p>
                         <div class="mt-2 flex flex-wrap gap-2">
                             @foreach (var tag in post.Tags)
@@ -258,20 +224,13 @@ else
                             }
                         </div>
 
-                        <div class="mt-3 flex flex-wrap gap-2">
-                            <button class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold transition hover:bg-slate-100 @(IsPostBusy(post.Slug, pendingLikeSlugs) ? "opacity-60" : "")"
-                                    disabled="@IsPostBusy(post.Slug, pendingLikeSlugs)"
-                                    @onclick="() => ToggleLikeAsync(post.Slug)">
-                                @((post.IsLikedBy(CurrentUserName) ? "좋아요 취소" : "좋아요")) (@post.LikeCount)
-                            </button>
-                            <button class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold transition hover:bg-slate-100 @(IsPostBusy(post.Slug, pendingBookmarkSlugs) ? "opacity-60" : "")"
-                                    disabled="@IsPostBusy(post.Slug, pendingBookmarkSlugs)"
-                                    @onclick="() => ToggleBookmarkAsync(post.Slug)">
-                                @(post.IsBookmarkedBy(CurrentUserName) ? "북마크 해제" : "북마크")
-                            </button>
-                            <a class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold transition hover:bg-slate-100"
-                               href="@GetPostCommentsUrl(post)">댓글 @post.CommentCount</a>
-                        </div>
+                        <PostActionBar Post="post"
+                                       CurrentUserName="@CurrentUserName"
+                                       CommentsUrl="@GetPostCommentsUrl(post)"
+                                       IsLikeBusy="@IsPostBusy(post.Slug, pendingLikeSlugs)"
+                                       IsBookmarkBusy="@IsPostBusy(post.Slug, pendingBookmarkSlugs)"
+                                       OnToggleLike="ToggleLikeAsync"
+                                       OnToggleBookmark="ToggleBookmarkAsync" />
                     </article>
                 }
             }
@@ -519,6 +478,7 @@ else
         {
             UserName = userName,
             DisplayName = string.IsNullOrWhiteSpace(writer) ? userName : writer,
+            Email = string.Empty,
             Bio = "slogs에서 글을 발행하는 슬로거입니다.",
             RegisteredAt = posts.OrderBy(x => x.PublishedAt).FirstOrDefault()?.PublishedAt ?? DateTime.UtcNow
         };
@@ -620,7 +580,7 @@ else
         return string.IsNullOrWhiteSpace(Writer) ? "슬로거" : Writer;
     }
 
-    private string GetSloggerAddress() => $"/@{GetSloggerUserName()}";
+    private string GetSloggerAddress() => $"@{GetSloggerUserName().TrimStart('@')}";
 
     private string GetSloggerBio()
     {

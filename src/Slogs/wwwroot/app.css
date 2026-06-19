@@ -153,6 +153,41 @@ nav[aria-label="main menu"] a.bg-slate-900:hover {
     outline-offset: 3px;
 }
 
+.slogs-post-action {
+    background-color: transparent;
+    border-color: var(--theme-border-strong);
+    color: #415247;
+}
+
+.slogs-post-action--idle {
+    background-color: transparent;
+    border-color: var(--theme-border-strong);
+    color: #415247;
+}
+
+.slogs-post-action--idle:hover {
+    background-color: #dce6dd;
+    color: #24372c;
+}
+
+.slogs-post-action--active {
+    background-color: var(--theme-accent-dark) !important;
+    border-color: var(--theme-accent-dark) !important;
+    color: #f8fafc !important;
+    box-shadow: 0 8px 18px rgba(15, 61, 52, 0.18);
+}
+
+.slogs-post-action--active:hover {
+    background-color: var(--theme-accent-hover) !important;
+    border-color: var(--theme-accent-hover) !important;
+    color: #f8fafc !important;
+}
+
+.slogs-post-action--active svg,
+.slogs-post-action--active span {
+    color: inherit !important;
+}
+
 .post-card-media {
     aspect-ratio: 16 / 9;
     position: relative;
@@ -414,6 +449,16 @@ header.bg-white {
     justify-content: flex-end;
 }
 
+.slogs-desktop-sidebar {
+    display: block;
+}
+
+.slogs-mobile-menu-toggle,
+.slogs-mobile-menu-backdrop,
+.slogs-mobile-menu-drawer {
+    display: none;
+}
+
 .slogs-reconnect-slot {
     position: absolute;
     top: 50%;
@@ -444,6 +489,165 @@ header.bg-white {
         right: 0.75rem;
         top: 0.25rem;
         transform: none;
+    }
+}
+
+@media (max-width: 1279px) {
+    .slogs-app-header__inner {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 0.65rem 0.75rem;
+        padding: 0.75rem 1rem;
+    }
+
+    .slogs-brand {
+        min-width: 0;
+        font-size: 1.35rem;
+    }
+
+    .slogs-brand__icon {
+        width: 2.25rem;
+        height: 2.25rem;
+    }
+
+    .slogs-header-actions {
+        grid-column: 2;
+        grid-row: 1;
+        flex: 0 1 auto;
+        justify-content: flex-end;
+        margin-left: 0;
+        margin-top: 0;
+        padding-top: 0;
+        gap: 0.4rem;
+    }
+
+    .slogs-header-actions > .relative > button {
+        max-width: 8rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .slogs-mobile-menu-toggle {
+        display: inline-flex;
+        width: 2.55rem;
+        height: 2.55rem;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .slogs-header-search {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        order: 0;
+        padding: 0.5rem 0.55rem 0.5rem 0.85rem;
+    }
+
+    .slogs-header-search input {
+        font-size: 0.92rem;
+    }
+
+    .slogs-header-search button {
+        padding: 0.35rem 0.85rem;
+    }
+
+    .slogs-desktop-sidebar {
+        display: none;
+    }
+
+    .slogs-page-shell {
+        display: block;
+        padding-top: 0.75rem;
+    }
+
+    .slogs-page-shell > main {
+        width: 100%;
+    }
+
+    .slogs-mobile-menu-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 35;
+        border: 0;
+        background: rgba(15, 32, 28, 0.28);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.18s ease;
+    }
+
+    .slogs-mobile-menu-backdrop.is-open {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .slogs-mobile-menu-drawer {
+        display: block;
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 40;
+        width: min(22rem, calc(100vw - 2.75rem));
+        transform: translateX(-105%);
+        transition: transform 0.22s ease;
+        pointer-events: none;
+    }
+
+    .slogs-mobile-menu-drawer.is-open {
+        transform: translateX(0);
+        pointer-events: auto;
+    }
+
+    .slogs-mobile-menu-panel {
+        height: 100%;
+        overflow-y: auto;
+        border-right: 1px solid var(--theme-border);
+        background: var(--theme-surface);
+        box-shadow: 18px 0 42px rgba(35, 48, 39, 0.18);
+        padding: 1rem;
+    }
+
+    .slogs-mobile-menu-panel nav[aria-label="main menu"] {
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+        padding: 0;
+    }
+}
+
+@media (max-width: 520px) {
+    .slogs-app-header__inner {
+        gap: 0.6rem;
+        padding: 0.7rem 0.85rem;
+    }
+
+    .slogs-brand {
+        gap: 0.45rem;
+        font-size: 1.22rem;
+    }
+
+    .slogs-brand__icon {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 0.55rem;
+    }
+
+    .slogs-header-actions > a,
+    .slogs-header-actions > .relative > button {
+        padding: 0.45rem 0.75rem;
+        font-size: 0.82rem;
+    }
+
+    .slogs-header-actions > .relative > button {
+        max-width: 5.75rem;
+    }
+
+    .slogs-mobile-menu-toggle {
+        width: 2.35rem;
+        height: 2.35rem;
     }
 }
 

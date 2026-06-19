@@ -1,0 +1,247 @@
+@inject SlogsAuthState AuthState
+@inject SlogsApiClient ApiClient
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+@if (CurrentUser is not null)
+{
+    <section class="rounded-2xl border border-slate-200 bg-white p-5">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div class="max-w-2xl">
+                <p class="text-xs font-bold uppercase text-slate-500">MCP 설정</p>
+                <h2 class="mt-1 text-xl font-black text-slate-900">Slogs MCP 연결</h2>
+                <p class="mt-2 text-sm leading-6 text-slate-600">HTTP MCP 클라이언트에 엔드포인트와 Bearer 토큰을 등록하면 이 계정의 LLM Wiki 도구와 Slogs 글쓰기 도구를 사용할 수 있습니다.</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                        type="button"
+                        @onclick="CopyEndpointAsync">엔드포인트 복사</button>
+                <button class="rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                        type="button"
+                        @onclick="CopySetupConfigAsync">설정 복사</button>
+            </div>
+        </div>
+
+        <div class="mt-4 grid gap-3 lg:grid-cols-2">
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <p class="text-xs font-bold uppercase text-slate-500">Endpoint</p>
+                <p class="mt-2 break-all rounded-lg bg-white px-3 py-2 font-mono text-xs text-slate-800">@McpEndpoint</p>
+                <p class="mt-3 text-xs font-bold uppercase text-slate-500">Authorization Header</p>
+                <p class="mt-2 break-all rounded-lg bg-white px-3 py-2 font-mono text-xs text-slate-800">@SetupAuthorizationHeader</p>
+            </div>
+
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <p class="text-xs font-bold uppercase text-slate-500">Client Config Example</p>
+                    @if (!string.IsNullOrWhiteSpace(copySetupMessage))
+                    {
+                        <span class="text-xs font-semibold text-emerald-700">@copySetupMessage</span>
+                    }
+                </div>
+                <pre class="mt-2 overflow-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100"><code>@SetupConfigJson</code></pre>
+            </div>
+        </div>
+    </section>
+
+    <section class="rounded-2xl border border-slate-200 bg-white p-5">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+                <p class="text-xs font-bold uppercase text-slate-500">Slogs MCP</p>
+                <h2 class="mt-1 text-xl font-black text-slate-900">Slogs MCP 토큰</h2>
+            </div>
+            <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">@McpEndpoint</span>
+        </div>
+
+        <div class="mt-4 flex flex-col gap-2 sm:flex-row">
+            <input class="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-500"
+                   placeholder="토큰 이름"
+                   @bind="tokenName"
+                   @bind:event="oninput" />
+            <button class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                    type="button"
+                    disabled="@isCreatingToken"
+                    @onclick="CreateTokenAsync">
+                @(isCreatingToken ? "생성 중..." : "토큰 생성")
+            </button>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(message))
+        {
+            <p class="mt-4 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">@message</p>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <p class="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">@errorMessage</p>
+        }
+
+        @if (createdToken is not null)
+        {
+            <div class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <p class="text-sm font-semibold text-emerald-950">새 토큰</p>
+                    <button class="rounded-full border border-emerald-300 px-3 py-1 text-xs font-semibold text-emerald-900 transition hover:bg-emerald-100"
+                            type="button"
+                            @onclick="CopyCreatedTokenAsync">복사</button>
+                </div>
+                <p class="mt-2 break-all rounded-lg bg-white px-3 py-2 font-mono text-xs text-slate-800">@createdToken.Token</p>
+                @if (!string.IsNullOrWhiteSpace(copyTokenMessage))
+                {
+                    <p class="mt-2 text-xs font-semibold text-emerald-900">@copyTokenMessage</p>
+                }
+            </div>
+        }
+
+        <div class="mt-4 space-y-2">
+            @if (tokens.Count == 0)
+            {
+                <p class="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">등록된 Slogs MCP 토큰이 없습니다.</p>
+            }
+            else
+            {
+                @foreach (var token in tokens)
+                {
+                    <div class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 px-3 py-2">
+                        <div class="min-w-0">
+                            <p class="truncate text-sm font-semibold text-slate-900">@token.Name</p>
+                            <p class="text-xs text-slate-500">@token.TokenPrefix... · @FormatDateTime(token.CreatedAt)@GetTokenStatus(token)</p>
+                        </div>
+                        @if (!token.IsRevoked)
+                        {
+                            <button class="rounded-full border border-rose-300 px-3 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-50"
+                                    type="button"
+                                    @onclick="() => RevokeTokenAsync(token.Id)">폐기</button>
+                        }
+                    </div>
+                }
+            }
+        </div>
+    </section>
+}
+
+@code {
+    private AuthUser? CurrentUser => AuthState.CurrentUser;
+    private string McpEndpoint => new Uri(new Uri(Navigation.BaseUri), "mcp").ToString();
+    private string SetupAuthorizationHeader => $"Authorization: Bearer {SetupTokenValue}";
+    private string SetupTokenValue => createdToken?.Token ?? "<Slogs MCP 토큰>";
+    private string SetupConfigJson => string.Join(Environment.NewLine, [
+        "{",
+        "  \"mcpServers\": {",
+        "    \"slogs\": {",
+        "      \"type\": \"http\",",
+        $"      \"url\": \"{McpEndpoint}\",",
+        "      \"headers\": {",
+        $"        \"Authorization\": \"Bearer {SetupTokenValue}\"",
+        "      }",
+        "    }",
+        "  }",
+        "}"
+    ]);
+
+    private IReadOnlyList<LlmWikiTokenResponse> tokens = [];
+    private LlmWikiTokenCreatedResponse? createdToken;
+    private string tokenName = "Codex Slogs MCP";
+    private string message = string.Empty;
+    private string errorMessage = string.Empty;
+    private string copyTokenMessage = string.Empty;
+    private string copySetupMessage = string.Empty;
+    private bool isCreatingToken;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthState.EnsureInitializedAsync();
+        await LoadTokensAsync();
+    }
+
+    private async Task LoadTokensAsync()
+    {
+        if (CurrentUser is null)
+        {
+            return;
+        }
+
+        tokens = await ApiClient.GetLlmWikiTokensAsync(CurrentUser.UserName);
+    }
+
+    private async Task CreateTokenAsync()
+    {
+        if (CurrentUser is null || isCreatingToken)
+        {
+            return;
+        }
+
+        ClearMessages();
+        isCreatingToken = true;
+        try
+        {
+            createdToken = await ApiClient.CreateLlmWikiTokenAsync(CurrentUser.UserName, tokenName);
+            await LoadTokensAsync();
+            message = "Slogs MCP 토큰이 생성되었습니다.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isCreatingToken = false;
+        }
+    }
+
+    private async Task CopyCreatedTokenAsync()
+    {
+        if (createdToken is null)
+        {
+            return;
+        }
+
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", createdToken.Token);
+        copyTokenMessage = "복사되었습니다.";
+    }
+
+    private async Task CopyEndpointAsync()
+    {
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", McpEndpoint);
+        copySetupMessage = "엔드포인트가 복사되었습니다.";
+    }
+
+    private async Task CopySetupConfigAsync()
+    {
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", SetupConfigJson);
+        copySetupMessage = "설정이 복사되었습니다.";
+    }
+
+    private async Task RevokeTokenAsync(Guid tokenId)
+    {
+        if (CurrentUser is null)
+        {
+            return;
+        }
+
+        ClearMessages();
+        var revoked = await ApiClient.RevokeLlmWikiTokenAsync(CurrentUser.UserName, tokenId);
+        await LoadTokensAsync();
+        message = revoked ? "토큰이 폐기되었습니다." : "폐기할 토큰을 찾지 못했습니다.";
+    }
+
+    private void ClearMessages()
+    {
+        message = string.Empty;
+        errorMessage = string.Empty;
+        copyTokenMessage = string.Empty;
+        copySetupMessage = string.Empty;
+    }
+
+    private static string FormatDateTime(DateTime dateTime)
+        => dateTime.ToLocalTime().ToString("yyyy.MM.dd HH:mm");
+
+    private static string GetTokenStatus(LlmWikiTokenResponse token)
+    {
+        if (token.IsRevoked)
+        {
+            return " · 폐기됨";
+        }
+
+        return token.LastUsedAt is null ? string.Empty : $" · 마지막 사용 {FormatDateTime(token.LastUsedAt.Value)}";
+    }
+}

@@ -17,6 +17,7 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
         var records = await db.Posts
             .AsNoTracking()
             .Include(x => x.Comments)
+            .Where(x => !x.IsDraft)
             .OrderByDescending(x => x.PublishedAt)
             .Take(count)
             .ToListAsync();
@@ -51,28 +52,37 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
         return filtered;
     }
 
-    public async Task<BlogPost?> GetBySlugAsync(string slug)
+    public async Task<BlogPost?> GetBySlugAsync(string slug, string? viewerUserName = null)
     {
         await using var db = await dbFactory.CreateDbContextAsync();
         var record = await FindPostBySlugAsync(db, slug, tracking: false, includeComments: true);
-        return record is null ? null : ToModel(record);
-    }
-
-    public async Task<BlogPost?> GetBySlugForReadAsync(string slug)
-    {
-        await using var db = await dbFactory.CreateDbContextAsync();
-        var record = await FindPostBySlugAsync(db, slug, tracking: true, includeComments: true);
-        if (record is null)
+        if (record is null || !CanViewPost(record, viewerUserName))
         {
             return null;
         }
 
-        record.ViewCount += 1;
-        await db.SaveChangesAsync();
+        return record is null ? null : ToModel(record);
+    }
+
+    public async Task<BlogPost?> GetBySlugForReadAsync(string slug, string? viewerUserName = null)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var record = await FindPostBySlugAsync(db, slug, tracking: true, includeComments: true);
+        if (record is null || !CanViewPost(record, viewerUserName))
+        {
+            return null;
+        }
+
+        if (!record.IsDraft)
+        {
+            record.ViewCount += 1;
+            await db.SaveChangesAsync();
+        }
+
         return ToModel(record);
     }
 
-    public async Task<BlogPost?> UpdatePostAsync(string slug, string userName, string title, string summary, string body, string tags, string? series, string? thumbnailUrl = null)
+    public async Task<BlogPost?> UpdatePostAsync(string slug, string userName, string title, string summary, string body, string tags, string? series, string? thumbnailUrl = null, bool? isDraft = null)
     {
         var user = NormalizeUser(userName);
         if (string.IsNullOrWhiteSpace(user))
@@ -103,12 +113,21 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
 
         post.Title = finalTitle;
         post.Summary = finalSummary;
-        post.ThumbnailUrl = NormalizeOptionalUrl(thumbnailUrl);
+        post.ThumbnailUrl = ResolveRepresentativeImageUrl(thumbnailUrl, finalBody);
         post.Body = finalBody;
         post.TagsJson = ToJson(parsedTags);
         post.SeriesJson = ToJson(ParseSeries(series));
         post.UpdatedAt = DateTime.UtcNow;
         post.ReadTimeMinutes = Math.Max(1, (int)Math.Ceiling(finalBody.Length / 250.0));
+        if (isDraft.HasValue)
+        {
+            var wasDraft = post.IsDraft;
+            post.IsDraft = isDraft.Value;
+            if (wasDraft && !post.IsDraft)
+            {
+                post.PublishedAt = DateTime.UtcNow;
+            }
+        }
 
         await db.SaveChangesAsync();
         return ToModel(post);
@@ -215,7 +234,28 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
             .AsNoTracking()
             .Include(x => x.Comments)
             .Where(p => p.Author == normalized)
+            .Where(p => !p.IsDraft)
             .OrderByDescending(x => x.PublishedAt)
+            .ToListAsync();
+
+        return records.Select(ToModel).ToList();
+    }
+
+    public async Task<IReadOnlyList<BlogPost>> GetManageByAuthorAsync(string author)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var normalized = NormalizeUser(author);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return Array.Empty<BlogPost>();
+        }
+
+        var records = await db.Posts
+            .AsNoTracking()
+            .Include(x => x.Comments)
+            .Where(p => p.Author == normalized)
+            .OrderByDescending(x => x.UpdatedAt)
+            .ThenByDescending(x => x.PublishedAt)
             .ToListAsync();
 
         return records.Select(ToModel).ToList();
@@ -357,7 +397,7 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
         return ParseTags(tags).ToList();
     }
 
-    public async Task<BlogPost> CreatePostAsync(string title, string author, string summary, string body, string tags, string? series, string? thumbnailUrl = null)
+    public async Task<BlogPost> CreatePostAsync(string title, string author, string summary, string body, string tags, string? series, string? thumbnailUrl = null, bool isDraft = false)
     {
         await using var db = await dbFactory.CreateDbContextAsync();
         var finalTitle = string.IsNullOrWhiteSpace(title) ? "제목 없음" : title.Trim();
@@ -381,10 +421,11 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
             Title = finalTitle,
             Author = finalAuthor,
             Summary = finalSummary,
-            ThumbnailUrl = NormalizeOptionalUrl(thumbnailUrl),
+            ThumbnailUrl = ResolveRepresentativeImageUrl(thumbnailUrl, finalBody),
             Body = finalBody,
             PublishedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
+            IsDraft = isDraft,
             Slug = CreateUniqueSlug(finalTitle, slugs),
             ReadTimeMinutes = Math.Max(1, (int)Math.Ceiling(finalBody.Length / 250.0)),
             TagsJson = ToJson(parsedTags),
@@ -406,7 +447,7 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
 
         await using var db = await dbFactory.CreateDbContextAsync();
         var post = await FindPostBySlugAsync(db, slug, tracking: true, includeComments: false);
-        if (post is null)
+        if (post is null || post.IsDraft)
         {
             return false;
         }
@@ -433,7 +474,7 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
 
         await using var db = await dbFactory.CreateDbContextAsync();
         var post = await FindPostBySlugAsync(db, slug, tracking: true, includeComments: false);
-        if (post is null)
+        if (post is null || post.IsDraft)
         {
             return false;
         }
@@ -485,7 +526,7 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
 
         await using var db = await dbFactory.CreateDbContextAsync();
         var post = await FindPostBySlugAsync(db, slug, tracking: true, includeComments: true);
-        if (post is null)
+        if (post is null || post.IsDraft)
         {
             return null;
         }
@@ -601,10 +642,15 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
             .ToList();
     }
 
-    private async Task<List<BlogPost>> LoadPostModelsAsync(bool includeComments = true)
+    private async Task<List<BlogPost>> LoadPostModelsAsync(bool includeComments = true, bool publishedOnly = true)
     {
         await using var db = await dbFactory.CreateDbContextAsync();
         IQueryable<PostRecord> query = db.Posts.AsNoTracking();
+        if (publishedOnly)
+        {
+            query = query.Where(x => !x.IsDraft);
+        }
+
         if (includeComments)
         {
             query = query.Include(x => x.Comments);
@@ -650,6 +696,7 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
             Body = record.Body,
             PublishedAt = record.PublishedAt,
             UpdatedAt = record.UpdatedAt,
+            IsDraft = record.IsDraft,
             ReadTimeMinutes = record.ReadTimeMinutes,
             ViewCount = record.ViewCount,
             Tags = DeserializeList(record.TagsJson),
@@ -729,6 +776,17 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
             && (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp)
             ? (trimmed.Length <= 500 ? trimmed : trimmed[..500])
             : string.Empty;
+    }
+
+    private static string ResolveRepresentativeImageUrl(string? explicitUrl, string body)
+    {
+        var normalizedUrl = NormalizeOptionalUrl(explicitUrl);
+        if (!string.IsNullOrWhiteSpace(normalizedUrl))
+        {
+            return normalizedUrl;
+        }
+
+        return NormalizeOptionalUrl(MarkdownRenderer.FindFirstImage(body)?.Url);
     }
 
     private static string CreateUniqueSlug(string title, IReadOnlyCollection<string> existingSlugs)
@@ -812,4 +870,8 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
 
     private static string NormalizeUser(string value)
         => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToLowerInvariant();
+
+    private static bool CanViewPost(PostRecord post, string? viewerUserName)
+        => !post.IsDraft
+            || post.Author.Equals(NormalizeUser(viewerUserName ?? string.Empty), StringComparison.OrdinalIgnoreCase);
 }

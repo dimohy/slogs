@@ -36,9 +36,6 @@ else
             <div class="grid min-h-64 place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center md:col-span-2">
                 <div class="max-w-sm">
                     <p class="text-sm font-semibold text-slate-500">좋아요한 글이 없습니다.</p>
-                    <h2 class="mt-2 text-xl font-bold text-slate-900">마음에 드는 글을 표시해 보세요.</h2>
-                    <a class="mt-5 inline-flex rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-                       href="/">글 둘러보기</a>
                 </div>
             </div>
         }
@@ -54,27 +51,7 @@ else
                          aria-label="@($"{post.Title} 상세 보기")">
                     <PostCardImage Post="post" PostUrl="@GetPostUrl(post)" Priority="@IsPriorityCardImage(index)" />
                     <a class="mb-2 block text-xl font-bold text-slate-900 hover:underline" href="@GetPostUrl(post)">@post.Title</a>
-                    <div class="flex flex-wrap items-center gap-1 text-sm text-slate-500">
-                        <a class="hover:underline" href="@($"/@{Uri.EscapeDataString(post.Author)}")">@post.Author</a>
-                        <span>·</span>
-                        <span>@FormatDate(post.PublishedAt)</span>
-                        <span>·</span>
-                        <span>@post.ReadTimeMinutes 분</span>
-                        <span>·</span>
-                        <span>@post.LikeCount 개 좋아요</span>
-                        <span>·</span>
-                        <span>@post.CommentCount 개 댓글</span>
-                        <span>·</span>
-                        <span>@post.ViewCount 회 조회</span>
-                        @if (post.Series.Count > 0)
-                        {
-                            <span>·</span>
-                            @foreach (var series in post.Series)
-                            {
-                                <a class="hover:underline" href="@($"/series/{Uri.EscapeDataString(series)}")">시리즈: @series</a>
-                            }
-                        }
-                    </div>
+                    <PostMetaLine Post="post" Class="flex flex-wrap items-center gap-2 text-sm text-slate-500" ShowLikes="true" ShowComments="true" />
                     @if (!string.IsNullOrWhiteSpace(post.Summary))
                     {
                         <p class="mt-2 text-sm text-slate-700">@Shorten(post.Summary, 140)</p>

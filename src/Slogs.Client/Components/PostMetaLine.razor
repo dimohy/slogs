@@ -1,0 +1,79 @@
+<div class="@Class">
+    @if (ShowAuthor)
+    {
+        <a class="font-semibold text-slate-800 hover:underline"
+           href="@GetAuthorUrl(Post.Author)">@FormatUserName(Post.Author)</a>
+    }
+    @if (ShowDate)
+    {
+        <span class="inline-flex items-center gap-1">
+            <SlogsIcon Name="calendar" Class="h-3.5 w-3.5" />
+            <span>@FormatDate(Post.PublishedAt)</span>
+        </span>
+    }
+    @if (ShowReadTime)
+    {
+        <span class="inline-flex items-center gap-1">
+            <SlogsIcon Name="clock" Class="h-3.5 w-3.5" />
+            <span>@Post.ReadTimeMinutes 분</span>
+        </span>
+    }
+    @if (ShowLikes)
+    {
+        <span class="inline-flex items-center gap-1">
+            <SlogsIcon Name="heart" Class="h-3.5 w-3.5" />
+            <span>@Post.LikeCount</span>
+        </span>
+    }
+    @if (ShowComments)
+    {
+        <span class="inline-flex items-center gap-1">
+            <SlogsIcon Name="message-circle" Class="h-3.5 w-3.5" />
+            <span>@Post.CommentCount</span>
+        </span>
+    }
+    @if (ShowViews)
+    {
+        <span class="inline-flex items-center gap-1">
+            <SlogsIcon Name="eye" Class="h-3.5 w-3.5" />
+            <span>@Post.ViewCount</span>
+        </span>
+    }
+    @if (ShowSeries && Post.Series.Count > 0)
+    {
+        @foreach (var series in Post.Series)
+        {
+            <a class="rounded-full border border-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+               href="@($"/series/{Uri.EscapeDataString(series)}")">시리즈: @series</a>
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public BlogPost Post { get; set; } = default!;
+
+    [Parameter] public string Class { get; set; } = "mb-2 flex flex-wrap items-center gap-2 text-sm text-slate-500";
+
+    [Parameter] public bool ShowAuthor { get; set; } = true;
+
+    [Parameter] public bool ShowDate { get; set; } = true;
+
+    [Parameter] public bool ShowReadTime { get; set; } = true;
+
+    [Parameter] public bool ShowLikes { get; set; }
+
+    [Parameter] public bool ShowComments { get; set; }
+
+    [Parameter] public bool ShowViews { get; set; } = true;
+
+    [Parameter] public bool ShowSeries { get; set; } = true;
+
+    private static string GetAuthorUrl(string author)
+        => $"/@{Uri.EscapeDataString(author)}";
+
+    private static string FormatUserName(string userName)
+        => string.IsNullOrWhiteSpace(userName) ? "@unknown" : $"@{userName.Trim().TrimStart('@')}";
+
+    private static string FormatDate(DateTime dateTime)
+        => dateTime.ToLocalTime().ToString("yyyy.MM.dd");
+}

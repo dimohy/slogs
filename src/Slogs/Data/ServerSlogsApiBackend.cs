@@ -3,10 +3,19 @@ namespace Slogs.Data;
 public sealed class ServerSlogsApiBackend(
     BlogService blogService,
     AuthService authService,
+    LlmWikiService llmWikiService,
     IHttpContextAccessor httpContextAccessor) : ISlogsApiBackend
 {
     public Task<AuthUser?> GetCurrentUserAsync()
         => Task.FromResult(GetCurrentUser());
+
+    public Task<AuthUser> UpdateProfileAsync(string userName, ProfileUpdateRequest request)
+        => authService.UpdateProfileAsync(
+            ResolveUserName(userName),
+            request.DisplayName,
+            request.Email,
+            request.ProfileImageUrl,
+            request.Bio);
 
     public Task<IReadOnlyList<BlogPost>> GetLatestAsync(int count)
         => blogService.GetLatestAsync(count);
@@ -15,13 +24,13 @@ public sealed class ServerSlogsApiBackend(
         => blogService.SearchPostsAsync(query);
 
     public Task<BlogPost?> GetBySlugAsync(string slug)
-        => blogService.GetBySlugAsync(slug);
+        => blogService.GetBySlugAsync(slug, GetCurrentUser()?.UserName);
 
     public Task<BlogPost?> GetBySlugForReadAsync(string slug)
-        => blogService.GetBySlugForReadAsync(slug);
+        => blogService.GetBySlugForReadAsync(slug, GetCurrentUser()?.UserName);
 
-    public Task<BlogPost?> UpdatePostAsync(string slug, string userName, string title, string summary, string body, string tags, string? series, string? thumbnailUrl = null)
-        => blogService.UpdatePostAsync(slug, ResolveUserName(userName), title, summary, body, tags, series, thumbnailUrl);
+    public Task<BlogPost?> UpdatePostAsync(string slug, string userName, string title, string summary, string body, string tags, string? series, string? thumbnailUrl = null, bool? isDraft = null)
+        => blogService.UpdatePostAsync(slug, ResolveUserName(userName), title, summary, body, tags, series, thumbnailUrl, isDraft);
 
     public Task<bool> DeletePostAsync(string slug, string userName)
         => blogService.DeletePostAsync(slug, ResolveUserName(userName));
@@ -34,6 +43,9 @@ public sealed class ServerSlogsApiBackend(
 
     public Task<IReadOnlyList<BlogPost>> GetByTagAsync(string tag)
         => blogService.GetByTagAsync(tag);
+
+    public Task<IReadOnlyList<BlogPost>> GetMyPostsAsync(string userName)
+        => blogService.GetManageByAuthorAsync(ResolveUserName(userName));
 
     public Task<IReadOnlyList<BlogPost>> GetByAuthorAsync(string author)
         => blogService.GetByAuthorAsync(author);
@@ -65,8 +77,8 @@ public sealed class ServerSlogsApiBackend(
     public Task<IReadOnlyList<BlogPost>> GetBySeriesAsync(string series)
         => blogService.GetBySeriesAsync(series);
 
-    public Task<BlogPost> CreatePostAsync(string title, string author, string summary, string body, string tags, string? series, string? thumbnailUrl = null)
-        => blogService.CreatePostAsync(title, ResolveUserName(author), summary, body, tags, series, thumbnailUrl);
+    public Task<BlogPost> CreatePostAsync(string title, string author, string summary, string body, string tags, string? series, string? thumbnailUrl = null, bool isDraft = false)
+        => blogService.CreatePostAsync(title, ResolveUserName(author), summary, body, tags, series, thumbnailUrl, isDraft);
 
     public Task<bool> ToggleLikeAsync(string slug, string userName)
         => blogService.ToggleLikeAsync(slug, ResolveUserName(userName));
@@ -120,6 +132,30 @@ public sealed class ServerSlogsApiBackend(
 
     public Task<int> GetFollowerCountAsync(string targetUser)
         => authService.GetFollowerCountAsync(targetUser);
+
+    public Task<IReadOnlyList<LlmWikiSearchResult>> SearchLlmWikiAsync(string userName, string? query, int limit)
+        => llmWikiService.SearchAsync(ResolveUserName(userName), query, limit);
+
+    public Task<LlmWikiEntryResponse?> GetLlmWikiEntryAsync(string userName, string idOrSlug)
+        => llmWikiService.GetEntryAsync(ResolveUserName(userName), idOrSlug);
+
+    public Task<LlmWikiEntryResponse> RememberLlmWikiAsync(string userName, LlmWikiRememberRequest request)
+        => llmWikiService.RememberAsync(ResolveUserName(userName), request);
+
+    public Task<LlmWikiEntryResponse?> UpdateLlmWikiAsync(string userName, string idOrSlug, LlmWikiUpdateRequest request)
+        => llmWikiService.UpdateAsync(ResolveUserName(userName), idOrSlug, request);
+
+    public Task<string> GetLlmWikiLlmsTextAsync(string userName, int limit)
+        => llmWikiService.BuildLlmsTextAsync(ResolveUserName(userName), limit);
+
+    public Task<IReadOnlyList<LlmWikiTokenResponse>> GetLlmWikiTokensAsync(string userName)
+        => llmWikiService.GetTokensAsync(ResolveUserName(userName));
+
+    public Task<LlmWikiTokenCreatedResponse> CreateLlmWikiTokenAsync(string userName, string? name)
+        => llmWikiService.CreateTokenAsync(ResolveUserName(userName), name);
+
+    public Task<bool> RevokeLlmWikiTokenAsync(string userName, Guid tokenId)
+        => llmWikiService.RevokeTokenAsync(ResolveUserName(userName), tokenId);
 
     private string ResolveUserName(string fallback)
         => GetCurrentUser()?.UserName ?? fallback;

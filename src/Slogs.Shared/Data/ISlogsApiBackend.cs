@@ -3,15 +3,17 @@ namespace Slogs.Data;
 public interface ISlogsApiBackend
 {
     Task<AuthUser?> GetCurrentUserAsync();
+    Task<AuthUser> UpdateProfileAsync(string userName, ProfileUpdateRequest request);
     Task<IReadOnlyList<BlogPost>> GetLatestAsync(int count);
     Task<IReadOnlyList<BlogPost>> SearchPostsAsync(string? query);
     Task<BlogPost?> GetBySlugAsync(string slug);
     Task<BlogPost?> GetBySlugForReadAsync(string slug);
-    Task<BlogPost?> UpdatePostAsync(string slug, string userName, string title, string summary, string body, string tags, string? series, string? thumbnailUrl = null);
+    Task<BlogPost?> UpdatePostAsync(string slug, string userName, string title, string summary, string body, string tags, string? series, string? thumbnailUrl = null, bool? isDraft = null);
     Task<bool> DeletePostAsync(string slug, string userName);
     Task<IReadOnlyList<BlogPost>> GetRelatedPostsAsync(string slug, int maxCount);
     Task<(BlogPost? Previous, BlogPost? Next)> GetAdjacentPostsAsync(string slug);
     Task<IReadOnlyList<BlogPost>> GetByTagAsync(string tag);
+    Task<IReadOnlyList<BlogPost>> GetMyPostsAsync(string userName);
     Task<IReadOnlyList<BlogPost>> GetByAuthorAsync(string author);
     Task<IReadOnlyList<BlogPost>> GetByAuthorsAsync(IEnumerable<string> authors);
     Task<IReadOnlyList<string>> GetTrendingTagsAsync(int topCount);
@@ -22,7 +24,7 @@ public interface ISlogsApiBackend
     Task<IReadOnlyList<(string Series, int Count, int LikeCount)>> GetSeriesByAuthorAsync(string author, int topCount);
     Task<IReadOnlyList<string>> GetSeriesAsync(int topCount);
     Task<IReadOnlyList<BlogPost>> GetBySeriesAsync(string series);
-    Task<BlogPost> CreatePostAsync(string title, string author, string summary, string body, string tags, string? series, string? thumbnailUrl = null);
+    Task<BlogPost> CreatePostAsync(string title, string author, string summary, string body, string tags, string? series, string? thumbnailUrl = null, bool isDraft = false);
     Task<bool> ToggleLikeAsync(string slug, string userName);
     Task<bool> ToggleBookmarkAsync(string slug, string userName);
     Task<IReadOnlyList<BlogPost>> GetLikedPostsAsync(string userName);
@@ -38,4 +40,12 @@ public interface ISlogsApiBackend
     Task<IReadOnlyList<string>> GetFollowingAsync(string followerUser);
     Task<IReadOnlyList<string>> GetFollowersAsync(string targetUser);
     Task<int> GetFollowerCountAsync(string targetUser);
+    Task<IReadOnlyList<LlmWikiSearchResult>> SearchLlmWikiAsync(string userName, string? query, int limit);
+    Task<LlmWikiEntryResponse?> GetLlmWikiEntryAsync(string userName, string idOrSlug);
+    Task<LlmWikiEntryResponse> RememberLlmWikiAsync(string userName, LlmWikiRememberRequest request);
+    Task<LlmWikiEntryResponse?> UpdateLlmWikiAsync(string userName, string idOrSlug, LlmWikiUpdateRequest request);
+    Task<string> GetLlmWikiLlmsTextAsync(string userName, int limit);
+    Task<IReadOnlyList<LlmWikiTokenResponse>> GetLlmWikiTokensAsync(string userName);
+    Task<LlmWikiTokenCreatedResponse> CreateLlmWikiTokenAsync(string userName, string? name);
+    Task<bool> RevokeLlmWikiTokenAsync(string userName, Guid tokenId);
 }

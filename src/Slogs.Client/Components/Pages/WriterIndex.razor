@@ -50,7 +50,7 @@
         {
             <a class="group rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
                href="@($"/@{Uri.EscapeDataString(item.Author)}")">
-                @item.Author
+                @FormatUserName(item.Author)
                 <span class="ml-2 text-xs text-slate-500 transition group-hover:text-slate-200">(@item.Count)</span>
             </a>
         }
@@ -217,6 +217,9 @@
             NormalizedSort = normalizedSort
         };
     }
+
+    private static string FormatUserName(string userName)
+        => string.IsNullOrWhiteSpace(userName) ? "@unknown" : $"@{userName.Trim().TrimStart('@')}";
 }
 
 

@@ -1,0 +1,45 @@
+@page "/me/settings"
+@inject SlogsAuthState AuthState
+@inject NavigationManager Navigation
+
+<PageTitle>설정</PageTitle>
+<SeoHead Title="설정 | slogs" Description="Slogs 계정, 프로필, Slogs MCP 연결을 설정합니다." NoIndex="true" />
+
+@if (CurrentUser is null)
+{
+    <p class="rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">로그인이 필요합니다. <a class="font-semibold underline" href="@GetLoginHref()">로그인</a>해 주세요.</p>
+}
+else
+{
+    <section class="space-y-5">
+        <div class="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-900">설정</h1>
+                <p class="mt-1 text-sm text-slate-500">@CurrentUser.DisplayName 님의 계정과 Slogs MCP 연결을 관리합니다.</p>
+            </div>
+        </div>
+
+        <ProfileSettingsForm />
+        <LlmWikiMcpSettings />
+    </section>
+}
+
+@code {
+    private AuthUser? CurrentUser => AuthState.CurrentUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthState.EnsureInitializedAsync();
+        if (CurrentUser is null)
+        {
+            Navigation.NavigateTo(GetLoginHref());
+        }
+    }
+
+    private string GetLoginHref()
+    {
+        var uri = new Uri(Navigation.Uri);
+        var safeReturn = string.IsNullOrWhiteSpace(uri.Query) ? uri.AbsolutePath : uri.PathAndQuery;
+        return $"/login?returnUrl={Uri.EscapeDataString(safeReturn)}";
+    }
+}

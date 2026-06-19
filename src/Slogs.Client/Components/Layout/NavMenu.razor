@@ -1,40 +1,39 @@
 @implements IDisposable
 @inject NavigationManager Navigation
 
-<nav class="rounded-xl border border-slate-200 bg-slate-50 p-3" aria-label="main menu">
+<nav class="rounded-xl border border-slate-200 bg-slate-50 p-3" aria-label="main menu" @onclick="NotifyNavigateAsync">
     <div class="mb-3 text-xs font-bold uppercase tracking-wide text-slate-500">메뉴</div>
     <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
              ActiveClass="bg-slate-900 text-white" href="/" Match="NavLinkMatch.All">홈</NavLink>
 
-    @if (ShowDiscoveryLinks)
+    @if (ShowMyMenu)
     {
-        <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
-                 ActiveClass="bg-slate-900 text-white" href="@GetFeaturedTagPath()" Match="NavLinkMatch.All">추천 태그</NavLink>
-        <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
-                 ActiveClass="bg-slate-900 text-white" href="/tag" Match="NavLinkMatch.All">전체 태그</NavLink>
-        <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
-                 ActiveClass="bg-slate-900 text-white" href="/writer" Match="NavLinkMatch.All">작성자</NavLink>
-        <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
-                 ActiveClass="bg-slate-900 text-white" href="/series" Match="NavLinkMatch.All">전체 시리즈</NavLink>
-    }
-
-    @if (ShowPersonalLinks)
-    {
-        <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
-                 ActiveClass="bg-slate-900 text-white" href="/feed" Match="NavLinkMatch.All">팔로우 피드</NavLink>
+        <div class="mt-4 mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">내 메뉴</div>
         <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
                  ActiveClass="bg-slate-900 text-white" href="/me" Match="NavLinkMatch.All">내 글</NavLink>
         <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
-                 ActiveClass="bg-slate-900 text-white" href="/me/bookmarks" Match="NavLinkMatch.All">내 북마크</NavLink>
+                 ActiveClass="bg-slate-900 text-white" href="/me/llm-wiki" Match="NavLinkMatch.All">LLM Wiki</NavLink>
         <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
-                 ActiveClass="bg-slate-900 text-white" href="/me/likes" Match="NavLinkMatch.All">내 좋아요</NavLink>
+                 ActiveClass="bg-slate-900 text-white" href="/me/bookmarks" Match="NavLinkMatch.All">북마크</NavLink>
+        <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
+                 ActiveClass="bg-slate-900 text-white" href="/me/likes" Match="NavLinkMatch.All">좋아요</NavLink>
     }
+
+    <div class="mt-4 mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">전체 메뉴</div>
+    <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
+             ActiveClass="bg-slate-900 text-white" href="@GetFeaturedTagPath()" Match="NavLinkMatch.All">추천 태그</NavLink>
+    <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
+             ActiveClass="bg-slate-900 text-white" href="/tag" Match="NavLinkMatch.All">전체 태그</NavLink>
+    <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
+             ActiveClass="bg-slate-900 text-white" href="/writer" Match="NavLinkMatch.All">작성자</NavLink>
+    <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
+             ActiveClass="bg-slate-900 text-white" href="/series" Match="NavLinkMatch.All">전체 시리즈</NavLink>
 
     <div class="mt-4 mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">@TagSectionTitle</div>
 
     @if (trendingTags.Length == 0)
     {
-        <p class="text-sm text-slate-500">태그가 준비 중입니다.</p>
+        <p class="text-sm text-slate-500">@TagEmptyText</p>
     }
     else
     {
@@ -45,23 +44,20 @@
         }
     }
 
-    @if (ShouldShowSeriesSection)
+    <div class="mt-4 mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">@SeriesSectionTitle</div>
+    @if (serieses.Length == 0)
     {
-        <div class="mt-4 mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">@SeriesSectionTitle</div>
-        @if (serieses.Length == 0)
+        <p class="text-sm text-slate-500">@SeriesEmptyText</p>
+    }
+    else
+    {
+        foreach (var series in serieses)
         {
-            <p class="text-sm text-slate-500">@EmptySeriesMessage</p>
-        }
-        else
-        {
-            foreach (var series in serieses)
-            {
-                <a class="mb-2 mr-2 inline-block rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-sm font-semibold text-slate-700 transition hover:bg-slate-900 hover:text-white"
-                   data-side-series="@series.Series"
-                   data-series-like-count="@series.LikeCount"
-                   data-series-post-count="@series.Count"
-                   href="@($"/series/{Uri.EscapeDataString(series.Series)}")">@series.Series</a>
-            }
+            <a class="mb-2 mr-2 inline-block rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-sm font-semibold text-slate-700 transition hover:bg-slate-900 hover:text-white"
+               data-side-series="@series.Series"
+               data-series-like-count="@series.LikeCount"
+               data-series-post-count="@series.Count"
+               href="@($"/series/{Uri.EscapeDataString(series.Series)}")">@series.Series</a>
         }
     }
 </nav>
@@ -70,51 +66,54 @@
     [Inject] private SlogsApiClient ApiClient { get; set; } = default!;
     [Inject] private SlogsAuthState AuthState { get; set; } = default!;
 
+    [Parameter] public EventCallback OnNavigate { get; set; }
+
     private string[] trendingTags = [];
     private (string Series, int Count, int LikeCount)[] serieses = [];
+    private string featuredTagPath = "/tag";
     private bool isLoaded;
 
-    [PersistentState]
     public SideMenuState? PrerenderedState { get; set; }
 
-    private string GetFeaturedTagPath() => trendingTags.Length > 0
-        ? $"/tag/{Uri.EscapeDataString(trendingTags[0])}"
-        : "/tag";
+    private string GetFeaturedTagPath() => featuredTagPath;
 
     private AuthUser? CurrentUser => AuthState.CurrentUser;
 
-    private bool IsSloggerContext => CurrentPath.StartsWith("/@", StringComparison.Ordinal);
+    private bool ShowMyMenu => CurrentUser is not null && (IsMyAccountPath || IsCurrentUserPublicPath);
 
-    private bool ShowDiscoveryLinks => !IsSloggerContext;
+    private bool IsMyAccountPath
+        => CurrentPath.Equals("/me", StringComparison.OrdinalIgnoreCase)
+            || CurrentPath.StartsWith("/me/", StringComparison.OrdinalIgnoreCase);
 
-    private bool ShowPersonalLinks => CurrentUser is not null && IsSloggerContext;
-
-    private string TagSectionTitle => IsSloggerContext ? "태그" : "인기 태그";
-
-    private bool ShouldShowSeriesSection => ShowDiscoveryLinks || IsSloggerContext;
-
-    private string SeriesSectionTitle => IsSloggerContext ? "시리즈" : "인기 시리즈";
-
-    private string EmptySeriesMessage => IsSloggerContext ? "작성한 시리즈가 없습니다." : "시리즈가 없습니다.";
-
-    private string CurrentSloggerUserName
+    private bool IsCurrentUserPublicPath
     {
         get
         {
-            if (!IsSloggerContext)
+            if (CurrentUser is null)
             {
-                return string.Empty;
+                return false;
             }
 
             var firstSegment = CurrentPath.Split('/', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
             if (string.IsNullOrWhiteSpace(firstSegment) || !firstSegment.StartsWith("@", StringComparison.Ordinal))
             {
-                return string.Empty;
+                return false;
             }
 
-            return Uri.UnescapeDataString(firstSegment[1..]).Trim().ToLowerInvariant();
+            var userName = Uri.UnescapeDataString(firstSegment[1..]);
+            return userName.Equals(CurrentUser.UserName, StringComparison.OrdinalIgnoreCase);
         }
     }
+
+    private bool IsPersonalSideContext => ShowMyMenu;
+
+    private string TagSectionTitle => IsPersonalSideContext ? "내 태그" : "인기 태그";
+
+    private string SeriesSectionTitle => IsPersonalSideContext ? "내 시리즈" : "인기 시리즈";
+
+    private string TagEmptyText => IsPersonalSideContext ? "내 태그가 없습니다." : "태그가 준비 중입니다.";
+
+    private string SeriesEmptyText => IsPersonalSideContext ? "내 시리즈가 없습니다." : "시리즈가 없습니다.";
 
     private string CurrentPath
     {
@@ -133,17 +132,13 @@
         AuthState.AuthStateChanged += OnAuthStateChanged;
         Navigation.LocationChanged += OnLocationChanged;
 
+        await AuthState.EnsureInitializedAsync();
+
         var stateKey = BuildStateKey();
         var restoredPrerenderedState = TryRestorePrerenderedState(stateKey);
         if (restoredPrerenderedState)
         {
             isLoaded = true;
-        }
-
-        await AuthState.EnsureInitializedAsync();
-
-        if (restoredPrerenderedState)
-        {
             await InvokeAsync(StateHasChanged);
             return;
         }
@@ -159,9 +154,14 @@
         Navigation.LocationChanged -= OnLocationChanged;
     }
 
+    private Task NotifyNavigateAsync()
+        => OnNavigate.HasDelegate
+            ? OnNavigate.InvokeAsync()
+            : Task.CompletedTask;
+
     private void OnAuthStateChanged()
     {
-        _ = InvokeAsync(StateHasChanged);
+        _ = RefreshSideMenuAsync();
     }
 
     private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
@@ -177,15 +177,27 @@
         }
 
         await LoadSideMenuDataAsync();
+        CapturePrerenderedState(BuildStateKey());
         await InvokeAsync(StateHasChanged);
     }
 
     private async Task LoadSideMenuDataAsync()
     {
-        trendingTags = (await ApiClient.GetTrendingTagsAsync(8)).ToArray();
-        serieses = IsSloggerContext
-            ? (await ApiClient.GetSeriesByAuthorAsync(CurrentSloggerUserName, 8)).ToArray()
-            : (await ApiClient.GetPopularSeriesAsync(8)).ToArray();
+        var globalTags = await ApiClient.GetTrendingTagsAsync(IsPersonalSideContext ? 1 : 8);
+        featuredTagPath = globalTags.Count > 0
+            ? $"/tag/{Uri.EscapeDataString(globalTags[0])}"
+            : "/tag";
+
+        if (IsPersonalSideContext && CurrentUser is not null)
+        {
+            var myPosts = await ApiClient.GetByAuthorAsync(CurrentUser.UserName);
+            trendingTags = BuildPersonalTags(myPosts, 8).ToArray();
+            serieses = BuildPersonalSerieses(myPosts, 8).ToArray();
+            return;
+        }
+
+        trendingTags = globalTags.ToArray();
+        serieses = (await ApiClient.GetPopularSeriesAsync(8)).ToArray();
     }
 
     private bool TryRestorePrerenderedState(string stateKey)
@@ -196,6 +208,9 @@
         }
 
         trendingTags = PrerenderedState.TrendingTags.ToArray();
+        featuredTagPath = string.IsNullOrWhiteSpace(PrerenderedState.FeaturedTagPath)
+            ? "/tag"
+            : PrerenderedState.FeaturedTagPath;
         serieses = PrerenderedState.Serieses
             .Select(x => (x.Series, x.Count, x.LikeCount))
             .ToArray();
@@ -207,6 +222,7 @@
         PrerenderedState = new SideMenuState
         {
             StateKey = stateKey,
+            FeaturedTagPath = featuredTagPath,
             TrendingTags = trendingTags.ToList(),
             Serieses = serieses
                 .Select(x => new SeriesSummary(x.Series, x.Count, x.LikeCount))
@@ -214,9 +230,34 @@
         };
     }
 
+    private static IReadOnlyList<string> BuildPersonalTags(IEnumerable<BlogPost> posts, int topCount)
+        => posts
+            .SelectMany(x => x.Tags)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .GroupBy(x => x.Trim(), StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(x => x.Count())
+            .ThenBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
+            .Take(topCount)
+            .Select(x => x.Key)
+            .ToList();
+
+    private static IReadOnlyList<(string Series, int Count, int LikeCount)> BuildPersonalSerieses(IEnumerable<BlogPost> posts, int topCount)
+        => posts
+            .SelectMany(post => post.Series
+                .Where(series => !string.IsNullOrWhiteSpace(series))
+                .Select(series => (Series: series.Trim(), LikeCount: post.LikeCount)))
+            .GroupBy(x => x.Series, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(x => x.Count())
+            .ThenByDescending(x => x.Sum(item => item.LikeCount))
+            .ThenBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
+            .Take(topCount)
+            .Select(x => (Series: x.Key, Count: x.Count(), LikeCount: x.Sum(item => item.LikeCount)))
+            .ToList();
+
     private string BuildStateKey()
         => string.Join('|', [
             CurrentPath,
-            CurrentSloggerUserName
+            CurrentUser?.UserName ?? "anonymous",
+            IsPersonalSideContext ? "personal" : "global"
         ]);
 }

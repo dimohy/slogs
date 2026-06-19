@@ -21,7 +21,13 @@ else if (!CanEditPost)
 }
 else
 {
-    <h1 class="text-2xl font-bold text-slate-900">글 수정</h1>
+    <div class="flex flex-wrap items-center gap-2">
+        <h1 class="text-2xl font-bold text-slate-900">글 수정</h1>
+        @if (post.IsDraft)
+        {
+            <span class="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">임시저장</span>
+        }
+    </div>
 
     <div class="mt-4 grid gap-3">
         <label class="text-sm font-semibold text-slate-700" for="edit-title">제목</label>
@@ -36,15 +42,32 @@ else
         <label class="text-sm font-semibold text-slate-700" for="edit-series">시리즈</label>
         <input id="edit-series" class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="series" />
 
+        <RepresentativeImageField InputId="edit-representative-image" @bind-Value="thumbnailUrl" FallbackMarkdown="@body" />
+
         <label class="text-sm font-semibold text-slate-700">본문</label>
         <MarkdownEditor @bind-Value="body" Placeholder="Markdown으로 본문을 수정하세요." />
 
         <div class="flex flex-wrap gap-2">
-            <button class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                    @onclick="Save" disabled="@isSaving">
-                @((isSaving) ? "저장 중..." : "수정 저장")
-            </button>
-        <button class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-100"
+            @if (post.IsDraft)
+            {
+                <button class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        type="button" @onclick="SaveDraft" disabled="@isSaving">
+                    @((isSaving && savingAction == "draft") ? "임시저장 중..." : "임시저장")
+                </button>
+                <button class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        type="button" @onclick="Publish" disabled="@isSaving">
+                    @((isSaving && savingAction == "publish") ? "게시 중..." : "게시")
+                </button>
+            }
+            else
+            {
+                <button class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        type="button" @onclick="SavePublished" disabled="@isSaving">
+                    @((isSaving && savingAction == "publish") ? "저장 중..." : "수정 저장")
+                </button>
+            }
+            <button class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-100"
+                    type="button"
                     @onclick="Cancel">
                 취소
             </button>
@@ -80,12 +103,14 @@ else
 
     private BlogPost? post;
     private bool isSaving;
+    private string savingAction = string.Empty;
     private string errorMessage = string.Empty;
     private string title = string.Empty;
     private string summary = string.Empty;
     private string body = string.Empty;
     private string tags = string.Empty;
     private string series = string.Empty;
+    private string thumbnailUrl = string.Empty;
     private IReadOnlyList<string> ParsedTags => ApiClient.ParseTagsForDisplay(tags);
 
     private AuthUser? CurrentUser => AuthState.CurrentUser;
@@ -121,9 +146,16 @@ else
         body = post.Body;
         tags = string.Join(", ", post.Tags);
         series = string.Join(", ", post.Series);
+        thumbnailUrl = post.ThumbnailUrl;
     }
 
-    private async Task Save()
+    private Task SaveDraft() => SaveAsync(isDraft: true);
+
+    private Task Publish() => SaveAsync(isDraft: false);
+
+    private Task SavePublished() => SaveAsync(isDraft: false);
+
+    private async Task SaveAsync(bool isDraft)
     {
         errorMessage = string.Empty;
 
@@ -133,9 +165,15 @@ else
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(body))
+        if (!isDraft && (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(body)))
         {
             errorMessage = "제목과 본문은 필수입니다.";
+            return;
+        }
+
+        if (isDraft && string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(body))
+        {
+            errorMessage = "임시저장할 제목이나 본문을 입력해 주세요.";
             return;
         }
 
@@ -145,15 +183,17 @@ else
         }
 
         isSaving = true;
+        savingAction = isDraft ? "draft" : "publish";
         BlogPost? updatedPost;
 
         try
         {
-            updatedPost = await ApiClient.UpdatePostAsync(post.Slug, CurrentUser.UserName, title, summary, body, tags, series);
+            updatedPost = await ApiClient.UpdatePostAsync(post.Slug, CurrentUser.UserName, title, summary, body, tags, series, thumbnailUrl, isDraft: isDraft);
         }
         finally
         {
             isSaving = false;
+            savingAction = string.Empty;
         }
 
         if (updatedPost is null)
@@ -162,14 +202,14 @@ else
             return;
         }
 
-        Navigation.NavigateTo(GetReturnDestination(GetPostUrl(updatedPost)));
+        Navigation.NavigateTo(GetReturnDestination(GetPostDestination(updatedPost)));
     }
 
     private void Cancel()
     {
         var destination = GetReturnDestination(post is null
             ? "/me"
-            : GetPostUrl(post));
+            : (post.IsDraft ? "/me" : GetPostUrl(post)));
         Navigation.NavigateTo(destination);
     }
 
@@ -217,6 +257,9 @@ else
 
     private static string GetPostUrl(BlogPost post)
         => $"/@{Uri.EscapeDataString(post.Author)}/{Uri.EscapeDataString(post.Slug)}";
+
+    private static string GetPostDestination(BlogPost post)
+        => post.IsDraft ? $"/edit/{Uri.EscapeDataString(post.Slug)}" : GetPostUrl(post);
 
     private string GetLoginHref()
     {

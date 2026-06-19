@@ -34,7 +34,7 @@ else
             @foreach (var user in users)
             {
                 <article class="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3 last:mb-0 last:border-b-0 last:pb-0">
-                    <a class="font-semibold text-slate-900 hover:underline" href="@($"/@{Uri.EscapeDataString(user)}")">@user</a>
+                    <a class="font-semibold text-slate-900 hover:underline" href="@($"/@{Uri.EscapeDataString(user)}")">@FormatUserName(user)</a>
 
                     @if (CurrentUser is not null && !user.Equals(CurrentUserName, StringComparison.OrdinalIgnoreCase))
                     {
@@ -256,6 +256,9 @@ else
             IsWriterKnown = isWriterKnown
         };
     }
+
+    private static string FormatUserName(string userName)
+        => string.IsNullOrWhiteSpace(userName) ? "@unknown" : $"@{userName.Trim().TrimStart('@')}";
 }
 
 

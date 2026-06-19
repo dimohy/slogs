@@ -1,0 +1,146 @@
+@inject SlogsApiClient ApiClient
+
+<div class="rounded-2xl border border-slate-200 bg-white p-4">
+    <div class="flex flex-col gap-3 md:flex-row md:items-start">
+        <div class="representative-image-preview h-32 w-full shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100 md:w-52">
+            @if (!string.IsNullOrWhiteSpace(PreviewUrl))
+            {
+                <img class="h-full w-full object-cover"
+                     src="@PreviewUrl"
+                     alt="@PreviewAltText"
+                     loading="lazy"
+                     decoding="async" />
+            }
+            else
+            {
+                <div class="flex h-full w-full items-center justify-center text-slate-400">
+                    <SlogsIcon Name="image" Class="h-8 w-8" />
+                </div>
+            }
+        </div>
+
+        <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <label class="text-sm font-semibold text-slate-700" for="@InputId">대표 이미지</label>
+                @if (!string.IsNullOrWhiteSpace(FallbackUrl) && string.IsNullOrWhiteSpace(Value))
+                {
+                    <span class="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-500">본문 첫 이미지 사용</span>
+                }
+            </div>
+
+            <div class="mt-2 grid gap-2">
+                <div>
+                    <label class="@UploadButtonClass" for="@FileInputId">
+                        <SlogsIcon Name="image" Class="h-4 w-4" />
+                        <span>@(isUploading ? "업로드 중..." : "이미지 업로드")</span>
+                    </label>
+                    <InputFile id="@FileInputId"
+                               class="sr-only"
+                               OnChange="UploadAsync"
+                               accept="image/png,image/jpeg,image/gif,image/webp"
+                               disabled="@isUploading" />
+                </div>
+                <input id="@InputId"
+                       class="rounded-2xl border border-slate-300 px-3 py-2 text-sm"
+                       value="@Value"
+                       placeholder="이미지 URL 또는 업로드 결과"
+                       @oninput="OnUrlChanged" />
+            </div>
+
+            <p class="mt-2 text-xs text-slate-500">비워두면 본문에 들어간 첫 번째 이미지가 대표 이미지가 됩니다.</p>
+            @if (!string.IsNullOrWhiteSpace(statusMessage))
+            {
+                <p class="@StatusClass">@statusMessage</p>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private const long MaxImageBytes = 5 * 1024 * 1024;
+
+    [Parameter] public string InputId { get; set; } = "representative-image";
+
+    [Parameter] public string Value { get; set; } = string.Empty;
+
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+
+    [Parameter] public string FallbackMarkdown { get; set; } = string.Empty;
+
+    private bool isUploading;
+    private string statusMessage = string.Empty;
+    private bool isErrorStatus;
+
+    private MarkdownImage? FallbackImage => MarkdownRenderer.FindFirstImage(FallbackMarkdown);
+
+    private string? FallbackUrl => FallbackImage?.Url;
+
+    private string? PreviewUrl => !string.IsNullOrWhiteSpace(MarkdownRenderer.NormalizeImageUrl(Value))
+        ? MarkdownRenderer.NormalizeImageUrl(Value)
+        : FallbackUrl;
+
+    private string PreviewAltText => !string.IsNullOrWhiteSpace(Value)
+        ? "대표 이미지 미리보기"
+        : string.IsNullOrWhiteSpace(FallbackImage?.AltText) ? "본문 첫 이미지 미리보기" : FallbackImage.AltText;
+
+    private string StatusClass => isErrorStatus
+        ? "mt-2 text-xs font-semibold text-red-700"
+        : "mt-2 text-xs font-semibold text-emerald-700";
+
+    private string FileInputId => $"{InputId}-file";
+
+    private string UploadButtonClass => isUploading
+        ? "inline-flex cursor-wait items-center gap-2 rounded-full border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-500 opacity-70"
+        : "inline-flex cursor-pointer items-center gap-2 rounded-full border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100";
+
+    private async Task OnUrlChanged(ChangeEventArgs e)
+    {
+        statusMessage = string.Empty;
+        isErrorStatus = false;
+        await ValueChanged.InvokeAsync(e.Value?.ToString() ?? string.Empty);
+    }
+
+    private async Task UploadAsync(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        statusMessage = string.Empty;
+        isErrorStatus = false;
+
+        if (file is null)
+        {
+            return;
+        }
+
+        if (file.Size <= 0 || file.Size > MaxImageBytes)
+        {
+            statusMessage = "이미지는 5MB 이하만 업로드할 수 있습니다.";
+            isErrorStatus = true;
+            return;
+        }
+
+        isUploading = true;
+        try
+        {
+            await using var stream = file.OpenReadStream(MaxImageBytes);
+            var result = await ApiClient.UploadEditorImageAsync(stream, file.Name, file.ContentType);
+            if (result is null || string.IsNullOrWhiteSpace(result.Url))
+            {
+                statusMessage = "이미지 업로드에 실패했습니다.";
+                isErrorStatus = true;
+                return;
+            }
+
+            await ValueChanged.InvokeAsync(result.Url);
+            statusMessage = "대표 이미지가 업로드되었습니다.";
+        }
+        catch (Exception ex)
+        {
+            statusMessage = string.IsNullOrWhiteSpace(ex.Message) ? "이미지 업로드에 실패했습니다." : ex.Message;
+            isErrorStatus = true;
+        }
+        finally
+        {
+            isUploading = false;
+        }
+    }
+}

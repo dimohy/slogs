@@ -26,13 +26,23 @@ else
         <label class="text-sm font-semibold text-slate-700" for="write-series">시리즈</label>
         <input id="write-series" class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="series" placeholder="시리즈명 입력(선택)" />
 
+        <RepresentativeImageField InputId="write-representative-image" @bind-Value="thumbnailUrl" FallbackMarkdown="@body" />
+
         <label class="text-sm font-semibold text-slate-700">본문</label>
         <MarkdownEditor @bind-Value="body" Placeholder="Markdown으로 본문을 작성하세요." />
 
-        <button class="w-fit rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                @onclick="Publish" disabled="@isSaving">@((isSaving) ? "발행 중..." : "발행")</button>
-        <button class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-                type="button" @onclick="Cancel">취소</button>
+        <div class="flex flex-wrap gap-2">
+            <button class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    type="button" @onclick="SaveDraft" disabled="@isSaving">
+                @((isSaving && savingAction == "draft") ? "임시저장 중..." : "임시저장")
+            </button>
+            <button class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                    type="button" @onclick="Publish" disabled="@isSaving">
+                @((isSaving && savingAction == "publish") ? "게시 중..." : "게시")
+            </button>
+            <button class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                    type="button" @onclick="Cancel">취소</button>
+        </div>
 
         @if (!string.IsNullOrWhiteSpace(errorMessage))
         {
@@ -63,8 +73,10 @@ else
     private string summary = string.Empty;
     private string tags = "blazor, csharp";
     private string series = string.Empty;
+    private string thumbnailUrl = string.Empty;
     private string body = "# 제목을 써주세요\n\n본문 내용을 Markdown 형식으로 작성할 수 있습니다.";
     private bool isSaving;
+    private string savingAction = string.Empty;
     private string errorMessage = string.Empty;
     private IReadOnlyList<string> ParsedTags => ApiClient.ParseTagsForDisplay(tags);
     [SupplyParameterFromQuery(Name = "returnUrl")] public string? ReturnUrl { get; set; }
@@ -81,7 +93,11 @@ else
         }
     }
 
-    private async Task Publish()
+    private Task SaveDraft() => SaveAsync(isDraft: true);
+
+    private Task Publish() => SaveAsync(isDraft: false);
+
+    private async Task SaveAsync(bool isDraft)
     {
         errorMessage = string.Empty;
 
@@ -91,9 +107,15 @@ else
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(body))
+        if (!isDraft && (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(body)))
         {
             errorMessage = "제목과 본문은 필수입니다.";
+            return;
+        }
+
+        if (isDraft && string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(body))
+        {
+            errorMessage = "임시저장할 제목이나 본문을 입력해 주세요.";
             return;
         }
 
@@ -103,14 +125,17 @@ else
         }
 
         isSaving = true;
+        savingAction = isDraft ? "draft" : "publish";
         try
         {
-            var post = await ApiClient.CreatePostAsync(title, CurrentUser.UserName, summary, body, tags, series);
-            Navigation.NavigateTo(GetReturnDestination(GetPostUrl(post)));
+            var post = await ApiClient.CreatePostAsync(title, CurrentUser.UserName, summary, body, tags, series, thumbnailUrl, isDraft: isDraft);
+            var fallback = isDraft ? $"/edit/{Uri.EscapeDataString(post.Slug)}" : GetPostUrl(post);
+            Navigation.NavigateTo(GetReturnDestination(fallback));
         }
         finally
         {
             isSaving = false;
+            savingAction = string.Empty;
         }
     }
 

@@ -3,14 +3,9 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
-using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.Mapping;
 
 #pragma warning disable 219, 612, 618
 #nullable disable
@@ -40,48 +35,6 @@ namespace Slogs.Data.CompiledModels
                 valueGenerated: ValueGenerated.OnAdd,
                 afterSaveBehavior: PropertySaveBehavior.Throw,
                 sentinel: new Guid("00000000-0000-0000-0000-000000000000"));
-            id.SetGetter(
-                Guid (CommentRecord instance) => CommentRecordUnsafeAccessors.Id(instance),
-                bool (CommentRecord instance) => CommentRecordUnsafeAccessors.Id(instance) == new Guid("00000000-0000-0000-0000-000000000000"));
-            id.SetSetter(
-                CommentRecord (CommentRecord instance, Guid value) =>
-                {
-                    CommentRecordUnsafeAccessors.Id(instance) = value;
-                    return instance;
-                });
-            id.SetMaterializationSetter(
-                CommentRecord (CommentRecord instance, Guid value) =>
-                {
-                    CommentRecordUnsafeAccessors.Id(instance) = value;
-                    return instance;
-                });
-            id.SetAccessors(
-                Guid (IInternalEntry entry) => (entry.FlaggedAsStoreGenerated(0) ? entry.ReadStoreGeneratedValue<Guid>(0) : (entry.FlaggedAsTemporary(0) && CommentRecordUnsafeAccessors.Id(((CommentRecord)(entry.Entity))) == new Guid("00000000-0000-0000-0000-000000000000") ? entry.ReadTemporaryValue<Guid>(0) : CommentRecordUnsafeAccessors.Id(((CommentRecord)(entry.Entity))))),
-                Guid (IInternalEntry entry) => CommentRecordUnsafeAccessors.Id(((CommentRecord)(entry.Entity))),
-                Guid (IInternalEntry entry) => entry.ReadOriginalValue<Guid>(id, 0),
-                Guid (IInternalEntry entry) => ((InternalEntityEntry)entry).ReadRelationshipSnapshotValue<Guid>(id, 0));
-            id.SetPropertyIndexes(
-                index: 0,
-                originalValueIndex: 0,
-                shadowIndex: -1,
-                relationshipIndex: 0,
-                storeGenerationIndex: 0);
-            id.TypeMapping = GuidTypeMapping.Default.Clone(
-                comparer: new ValueComparer<Guid>(
-                    bool (Guid v1, Guid v2) => v1 == v2,
-                    int (Guid v) => ((object)v).GetHashCode(),
-                    Guid (Guid v) => v),
-                keyComparer: new ValueComparer<Guid>(
-                    bool (Guid v1, Guid v2) => v1 == v2,
-                    int (Guid v) => ((object)v).GetHashCode(),
-                    Guid (Guid v) => v),
-                providerValueComparer: new ValueComparer<Guid>(
-                    bool (Guid v1, Guid v2) => v1 == v2,
-                    int (Guid v) => ((object)v).GetHashCode(),
-                    Guid (Guid v) => v),
-                mappingInfo: new RelationalTypeMappingInfo(
-                    storeTypeName: "uuid"));
-            id.SetCurrentValueComparer(new EntryCurrentValueComparer<Guid>(id));
             id.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
 
             var author = runtimeEntityType.AddProperty(
@@ -90,497 +43,106 @@ namespace Slogs.Data.CompiledModels
                 propertyInfo: typeof(CommentRecord).GetProperty("Author", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
                 fieldInfo: typeof(CommentRecord).GetField("<Author>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
                 maxLength: 80);
-            author.SetGetter(
-                string (CommentRecord instance) => CommentRecordUnsafeAccessors.Author(instance),
-                bool (CommentRecord instance) => CommentRecordUnsafeAccessors.Author(instance) == null);
-            author.SetSetter(
-                CommentRecord (CommentRecord instance, string value) =>
-                {
-                    CommentRecordUnsafeAccessors.Author(instance) = value;
-                    return instance;
-                });
-            author.SetMaterializationSetter(
-                CommentRecord (CommentRecord instance, string value) =>
-                {
-                    CommentRecordUnsafeAccessors.Author(instance) = value;
-                    return instance;
-                });
-            author.SetAccessors(
-                string (IInternalEntry entry) => CommentRecordUnsafeAccessors.Author(((CommentRecord)(entry.Entity))),
-                string (IInternalEntry entry) => CommentRecordUnsafeAccessors.Author(((CommentRecord)(entry.Entity))),
-                string (IInternalEntry entry) => entry.ReadOriginalValue<string>(author, 1),
-                string (IInternalEntry entry) => entry.GetCurrentValue<string>(author));
-            author.SetPropertyIndexes(
-                index: 1,
-                originalValueIndex: 1,
-                shadowIndex: -1,
-                relationshipIndex: -1,
-                storeGenerationIndex: -1);
-            author.TypeMapping = NpgsqlStringTypeMapping.Default.Clone(
-                comparer: new ValueComparer<string>(
-                    bool (string v1, string v2) => v1 == v2,
-                    int (string v) => ((object)v).GetHashCode(),
-                    string (string v) => v),
-                keyComparer: new ValueComparer<string>(
-                    bool (string v1, string v2) => v1 == v2,
-                    int (string v) => ((object)v).GetHashCode(),
-                    string (string v) => v),
-                providerValueComparer: new ValueComparer<string>(
-                    bool (string v1, string v2) => v1 == v2,
-                    int (string v) => ((object)v).GetHashCode(),
-                    string (string v) => v),
-                mappingInfo: new RelationalTypeMappingInfo(
-                    storeTypeName: "character varying(80)",
-                    size: 80));
-            author.TypeMapping = ((NpgsqlStringTypeMapping)author.TypeMapping).Clone(npgsqlDbType: NpgsqlTypes.NpgsqlDbType.Varchar);
-        author.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
+            author.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
 
-        var authorNormalized = runtimeEntityType.AddProperty(
-            "AuthorNormalized",
-            typeof(string),
-            propertyInfo: typeof(CommentRecord).GetProperty("AuthorNormalized", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
-            fieldInfo: typeof(CommentRecord).GetField("<AuthorNormalized>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
-            maxLength: 80);
-        authorNormalized.SetGetter(
-            string (CommentRecord instance) => CommentRecordUnsafeAccessors.AuthorNormalized(instance),
-            bool (CommentRecord instance) => CommentRecordUnsafeAccessors.AuthorNormalized(instance) == null);
-        authorNormalized.SetSetter(
-            CommentRecord (CommentRecord instance, string value) =>
-            {
-                CommentRecordUnsafeAccessors.AuthorNormalized(instance) = value;
-                return instance;
-            });
-        authorNormalized.SetMaterializationSetter(
-            CommentRecord (CommentRecord instance, string value) =>
-            {
-                CommentRecordUnsafeAccessors.AuthorNormalized(instance) = value;
-                return instance;
-            });
-        authorNormalized.SetAccessors(
-            string (IInternalEntry entry) => CommentRecordUnsafeAccessors.AuthorNormalized(((CommentRecord)(entry.Entity))),
-            string (IInternalEntry entry) => CommentRecordUnsafeAccessors.AuthorNormalized(((CommentRecord)(entry.Entity))),
-            string (IInternalEntry entry) => entry.ReadOriginalValue<string>(authorNormalized, 2),
-            string (IInternalEntry entry) => entry.GetCurrentValue<string>(authorNormalized));
-        authorNormalized.SetPropertyIndexes(
-            index: 2,
-            originalValueIndex: 2,
-            shadowIndex: -1,
-            relationshipIndex: -1,
-            storeGenerationIndex: -1);
-        authorNormalized.TypeMapping = NpgsqlStringTypeMapping.Default.Clone(
-            comparer: new ValueComparer<string>(
-                bool (string v1, string v2) => v1 == v2,
-                int (string v) => ((object)v).GetHashCode(),
-                string (string v) => v),
-            keyComparer: new ValueComparer<string>(
-                bool (string v1, string v2) => v1 == v2,
-                int (string v) => ((object)v).GetHashCode(),
-                string (string v) => v),
-            providerValueComparer: new ValueComparer<string>(
-                bool (string v1, string v2) => v1 == v2,
-                int (string v) => ((object)v).GetHashCode(),
-                string (string v) => v),
-            mappingInfo: new RelationalTypeMappingInfo(
-                storeTypeName: "character varying(80)",
-                size: 80));
-        authorNormalized.TypeMapping = ((NpgsqlStringTypeMapping)authorNormalized.TypeMapping).Clone(npgsqlDbType: NpgsqlTypes.NpgsqlDbType.Varchar);
-    authorNormalized.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
+            var authorNormalized = runtimeEntityType.AddProperty(
+                "AuthorNormalized",
+                typeof(string),
+                propertyInfo: typeof(CommentRecord).GetProperty("AuthorNormalized", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(CommentRecord).GetField("<AuthorNormalized>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                maxLength: 80);
+            authorNormalized.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
 
-    var content = runtimeEntityType.AddProperty(
-        "Content",
-        typeof(string),
-        propertyInfo: typeof(CommentRecord).GetProperty("Content", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
-        fieldInfo: typeof(CommentRecord).GetField("<Content>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
-        maxLength: 1000);
-    content.SetGetter(
-        string (CommentRecord instance) => CommentRecordUnsafeAccessors.Content(instance),
-        bool (CommentRecord instance) => CommentRecordUnsafeAccessors.Content(instance) == null);
-    content.SetSetter(
-        CommentRecord (CommentRecord instance, string value) =>
+            var content = runtimeEntityType.AddProperty(
+                "Content",
+                typeof(string),
+                propertyInfo: typeof(CommentRecord).GetProperty("Content", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(CommentRecord).GetField("<Content>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                maxLength: 1000);
+            content.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
+
+            var createdAt = runtimeEntityType.AddProperty(
+                "CreatedAt",
+                typeof(DateTime),
+                propertyInfo: typeof(CommentRecord).GetProperty("CreatedAt", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(CommentRecord).GetField("<CreatedAt>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                sentinel: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
+            createdAt.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
+
+            var parentCommentId = runtimeEntityType.AddProperty(
+                "ParentCommentId",
+                typeof(Guid?),
+                propertyInfo: typeof(CommentRecord).GetProperty("ParentCommentId", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(CommentRecord).GetField("<ParentCommentId>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                nullable: true);
+            parentCommentId.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
+
+            var postId = runtimeEntityType.AddProperty(
+                "PostId",
+                typeof(Guid),
+                propertyInfo: typeof(CommentRecord).GetProperty("PostId", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(CommentRecord).GetField("<PostId>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                sentinel: new Guid("00000000-0000-0000-0000-000000000000"));
+            postId.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
+
+            var updatedAt = runtimeEntityType.AddProperty(
+                "UpdatedAt",
+                typeof(DateTime),
+                propertyInfo: typeof(CommentRecord).GetProperty("UpdatedAt", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(CommentRecord).GetField("<UpdatedAt>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                sentinel: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
+            updatedAt.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
+
+            var key = runtimeEntityType.AddKey(
+                new[] { id });
+            runtimeEntityType.SetPrimaryKey(key);
+
+            var index = runtimeEntityType.AddIndex(
+                new[] { parentCommentId });
+
+            var index0 = runtimeEntityType.AddIndex(
+                new[] { postId });
+
+            return runtimeEntityType;
+        }
+
+        public static RuntimeForeignKey CreateForeignKey1(RuntimeEntityType declaringEntityType, RuntimeEntityType principalEntityType)
         {
-            CommentRecordUnsafeAccessors.Content(instance) = value;
-            return instance;
-        });
-    content.SetMaterializationSetter(
-        CommentRecord (CommentRecord instance, string value) =>
+            var runtimeForeignKey = declaringEntityType.AddForeignKey(new[] { declaringEntityType.FindProperty("PostId") },
+                principalEntityType.FindKey(new[] { principalEntityType.FindProperty("Id") }),
+                principalEntityType,
+                deleteBehavior: DeleteBehavior.Cascade,
+                required: true);
+
+            var post = declaringEntityType.AddNavigation("Post",
+                runtimeForeignKey,
+                onDependent: true,
+                typeof(PostRecord),
+                propertyInfo: typeof(CommentRecord).GetProperty("Post", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(CommentRecord).GetField("<Post>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly));
+
+            var comments = principalEntityType.AddNavigation("Comments",
+                runtimeForeignKey,
+                onDependent: false,
+                typeof(List<CommentRecord>),
+                propertyInfo: typeof(PostRecord).GetProperty("Comments", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(PostRecord).GetField("<Comments>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly));
+
+            return runtimeForeignKey;
+        }
+
+        public static void CreateAnnotations(RuntimeEntityType runtimeEntityType)
         {
-            CommentRecordUnsafeAccessors.Content(instance) = value;
-            return instance;
-        });
-    content.SetAccessors(
-        string (IInternalEntry entry) => CommentRecordUnsafeAccessors.Content(((CommentRecord)(entry.Entity))),
-        string (IInternalEntry entry) => CommentRecordUnsafeAccessors.Content(((CommentRecord)(entry.Entity))),
-        string (IInternalEntry entry) => entry.ReadOriginalValue<string>(content, 3),
-        string (IInternalEntry entry) => entry.GetCurrentValue<string>(content));
-    content.SetPropertyIndexes(
-        index: 3,
-        originalValueIndex: 3,
-        shadowIndex: -1,
-        relationshipIndex: -1,
-        storeGenerationIndex: -1);
-    content.TypeMapping = NpgsqlStringTypeMapping.Default.Clone(
-        comparer: new ValueComparer<string>(
-            bool (string v1, string v2) => v1 == v2,
-            int (string v) => ((object)v).GetHashCode(),
-            string (string v) => v),
-        keyComparer: new ValueComparer<string>(
-            bool (string v1, string v2) => v1 == v2,
-            int (string v) => ((object)v).GetHashCode(),
-            string (string v) => v),
-        providerValueComparer: new ValueComparer<string>(
-            bool (string v1, string v2) => v1 == v2,
-            int (string v) => ((object)v).GetHashCode(),
-            string (string v) => v),
-        mappingInfo: new RelationalTypeMappingInfo(
-            storeTypeName: "character varying(1000)",
-            size: 1000));
-    content.TypeMapping = ((NpgsqlStringTypeMapping)content.TypeMapping).Clone(npgsqlDbType: NpgsqlTypes.NpgsqlDbType.Varchar);
-content.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
+            runtimeEntityType.AddAnnotation("Relational:FunctionName", null);
+            runtimeEntityType.AddAnnotation("Relational:Schema", null);
+            runtimeEntityType.AddAnnotation("Relational:SqlQuery", null);
+            runtimeEntityType.AddAnnotation("Relational:TableName", "Comments");
+            runtimeEntityType.AddAnnotation("Relational:ViewName", null);
+            runtimeEntityType.AddAnnotation("Relational:ViewSchema", null);
 
-var createdAt = runtimeEntityType.AddProperty(
-    "CreatedAt",
-    typeof(DateTime),
-    propertyInfo: typeof(CommentRecord).GetProperty("CreatedAt", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
-    fieldInfo: typeof(CommentRecord).GetField("<CreatedAt>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
-    sentinel: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
-createdAt.SetGetter(
-    DateTime (CommentRecord instance) => CommentRecordUnsafeAccessors.CreatedAt(instance),
-    bool (CommentRecord instance) => CommentRecordUnsafeAccessors.CreatedAt(instance) == default(DateTime));
-createdAt.SetSetter(
-    CommentRecord (CommentRecord instance, DateTime value) =>
-    {
-        CommentRecordUnsafeAccessors.CreatedAt(instance) = value;
-        return instance;
-    });
-createdAt.SetMaterializationSetter(
-    CommentRecord (CommentRecord instance, DateTime value) =>
-    {
-        CommentRecordUnsafeAccessors.CreatedAt(instance) = value;
-        return instance;
-    });
-createdAt.SetAccessors(
-    DateTime (IInternalEntry entry) => CommentRecordUnsafeAccessors.CreatedAt(((CommentRecord)(entry.Entity))),
-    DateTime (IInternalEntry entry) => CommentRecordUnsafeAccessors.CreatedAt(((CommentRecord)(entry.Entity))),
-    DateTime (IInternalEntry entry) => entry.ReadOriginalValue<DateTime>(createdAt, 4),
-    DateTime (IInternalEntry entry) => entry.GetCurrentValue<DateTime>(createdAt));
-createdAt.SetPropertyIndexes(
-    index: 4,
-    originalValueIndex: 4,
-    shadowIndex: -1,
-    relationshipIndex: -1,
-    storeGenerationIndex: -1);
-createdAt.TypeMapping = NpgsqlTimestampTzTypeMapping.Default.Clone(
-    comparer: new ValueComparer<DateTime>(
-        bool (DateTime v1, DateTime v2) => v1.Equals(v2),
-        int (DateTime v) => ((object)v).GetHashCode(),
-        DateTime (DateTime v) => v),
-    keyComparer: new ValueComparer<DateTime>(
-        bool (DateTime v1, DateTime v2) => v1.Equals(v2),
-        int (DateTime v) => ((object)v).GetHashCode(),
-        DateTime (DateTime v) => v),
-    providerValueComparer: new ValueComparer<DateTime>(
-        bool (DateTime v1, DateTime v2) => v1.Equals(v2),
-        int (DateTime v) => ((object)v).GetHashCode(),
-        DateTime (DateTime v) => v));
-createdAt.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
+            Customize(runtimeEntityType);
+        }
 
-var parentCommentId = runtimeEntityType.AddProperty(
-    "ParentCommentId",
-    typeof(Guid?),
-    propertyInfo: typeof(CommentRecord).GetProperty("ParentCommentId", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
-    fieldInfo: typeof(CommentRecord).GetField("<ParentCommentId>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
-    nullable: true);
-parentCommentId.SetGetter(
-    Guid? (CommentRecord instance) => CommentRecordUnsafeAccessors.ParentCommentId(instance),
-    bool (CommentRecord instance) => !(CommentRecordUnsafeAccessors.ParentCommentId(instance).HasValue));
-parentCommentId.SetSetter(
-    CommentRecord (CommentRecord instance, Guid? value) =>
-    {
-        CommentRecordUnsafeAccessors.ParentCommentId(instance) = value;
-        return instance;
-    });
-parentCommentId.SetMaterializationSetter(
-    CommentRecord (CommentRecord instance, Guid? value) =>
-    {
-        CommentRecordUnsafeAccessors.ParentCommentId(instance) = value;
-        return instance;
-    });
-parentCommentId.SetAccessors(
-    Guid? (IInternalEntry entry) => CommentRecordUnsafeAccessors.ParentCommentId(((CommentRecord)(entry.Entity))),
-    Guid? (IInternalEntry entry) => CommentRecordUnsafeAccessors.ParentCommentId(((CommentRecord)(entry.Entity))),
-    Guid? (IInternalEntry entry) => entry.ReadOriginalValue<Guid?>(parentCommentId, 5),
-    Guid? (IInternalEntry entry) => entry.GetCurrentValue<Guid?>(parentCommentId));
-parentCommentId.SetPropertyIndexes(
-    index: 5,
-    originalValueIndex: 5,
-    shadowIndex: -1,
-    relationshipIndex: -1,
-    storeGenerationIndex: -1);
-parentCommentId.TypeMapping = GuidTypeMapping.Default.Clone(
-    comparer: new ValueComparer<Guid>(
-        bool (Guid v1, Guid v2) => v1 == v2,
-        int (Guid v) => ((object)v).GetHashCode(),
-        Guid (Guid v) => v),
-    keyComparer: new ValueComparer<Guid>(
-        bool (Guid v1, Guid v2) => v1 == v2,
-        int (Guid v) => ((object)v).GetHashCode(),
-        Guid (Guid v) => v),
-    providerValueComparer: new ValueComparer<Guid>(
-        bool (Guid v1, Guid v2) => v1 == v2,
-        int (Guid v) => ((object)v).GetHashCode(),
-        Guid (Guid v) => v),
-    mappingInfo: new RelationalTypeMappingInfo(
-        storeTypeName: "uuid"));
-parentCommentId.SetComparer(new NullableValueComparer<Guid>(parentCommentId.TypeMapping.Comparer));
-parentCommentId.SetKeyComparer(new NullableValueComparer<Guid>(parentCommentId.TypeMapping.KeyComparer));
-parentCommentId.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
-
-var postId = runtimeEntityType.AddProperty(
-    "PostId",
-    typeof(Guid),
-    propertyInfo: typeof(CommentRecord).GetProperty("PostId", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
-    fieldInfo: typeof(CommentRecord).GetField("<PostId>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
-    sentinel: new Guid("00000000-0000-0000-0000-000000000000"));
-postId.SetGetter(
-    Guid (CommentRecord instance) => CommentRecordUnsafeAccessors.PostId(instance),
-    bool (CommentRecord instance) => CommentRecordUnsafeAccessors.PostId(instance) == new Guid("00000000-0000-0000-0000-000000000000"));
-postId.SetSetter(
-    CommentRecord (CommentRecord instance, Guid value) =>
-    {
-        CommentRecordUnsafeAccessors.PostId(instance) = value;
-        return instance;
-    });
-postId.SetMaterializationSetter(
-    CommentRecord (CommentRecord instance, Guid value) =>
-    {
-        CommentRecordUnsafeAccessors.PostId(instance) = value;
-        return instance;
-    });
-postId.SetAccessors(
-    Guid (IInternalEntry entry) => (entry.FlaggedAsStoreGenerated(6) ? entry.ReadStoreGeneratedValue<Guid>(1) : (entry.FlaggedAsTemporary(6) && CommentRecordUnsafeAccessors.PostId(((CommentRecord)(entry.Entity))) == new Guid("00000000-0000-0000-0000-000000000000") ? entry.ReadTemporaryValue<Guid>(1) : CommentRecordUnsafeAccessors.PostId(((CommentRecord)(entry.Entity))))),
-    Guid (IInternalEntry entry) => CommentRecordUnsafeAccessors.PostId(((CommentRecord)(entry.Entity))),
-    Guid (IInternalEntry entry) => entry.ReadOriginalValue<Guid>(postId, 6),
-    Guid (IInternalEntry entry) => ((InternalEntityEntry)entry).ReadRelationshipSnapshotValue<Guid>(postId, 1));
-postId.SetPropertyIndexes(
-    index: 6,
-    originalValueIndex: 6,
-    shadowIndex: -1,
-    relationshipIndex: 1,
-    storeGenerationIndex: 1);
-postId.TypeMapping = GuidTypeMapping.Default.Clone(
-    comparer: new ValueComparer<Guid>(
-        bool (Guid v1, Guid v2) => v1 == v2,
-        int (Guid v) => ((object)v).GetHashCode(),
-        Guid (Guid v) => v),
-    keyComparer: new ValueComparer<Guid>(
-        bool (Guid v1, Guid v2) => v1 == v2,
-        int (Guid v) => ((object)v).GetHashCode(),
-        Guid (Guid v) => v),
-    providerValueComparer: new ValueComparer<Guid>(
-        bool (Guid v1, Guid v2) => v1 == v2,
-        int (Guid v) => ((object)v).GetHashCode(),
-        Guid (Guid v) => v),
-    mappingInfo: new RelationalTypeMappingInfo(
-        storeTypeName: "uuid"));
-postId.SetCurrentValueComparer(new EntryCurrentValueComparer<Guid>(postId));
-postId.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
-
-var updatedAt = runtimeEntityType.AddProperty(
-    "UpdatedAt",
-    typeof(DateTime),
-    propertyInfo: typeof(CommentRecord).GetProperty("UpdatedAt", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
-    fieldInfo: typeof(CommentRecord).GetField("<UpdatedAt>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
-    sentinel: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
-updatedAt.SetGetter(
-    DateTime (CommentRecord instance) => CommentRecordUnsafeAccessors.UpdatedAt(instance),
-    bool (CommentRecord instance) => CommentRecordUnsafeAccessors.UpdatedAt(instance) == default(DateTime));
-updatedAt.SetSetter(
-    CommentRecord (CommentRecord instance, DateTime value) =>
-    {
-        CommentRecordUnsafeAccessors.UpdatedAt(instance) = value;
-        return instance;
-    });
-updatedAt.SetMaterializationSetter(
-    CommentRecord (CommentRecord instance, DateTime value) =>
-    {
-        CommentRecordUnsafeAccessors.UpdatedAt(instance) = value;
-        return instance;
-    });
-updatedAt.SetAccessors(
-    DateTime (IInternalEntry entry) => CommentRecordUnsafeAccessors.UpdatedAt(((CommentRecord)(entry.Entity))),
-    DateTime (IInternalEntry entry) => CommentRecordUnsafeAccessors.UpdatedAt(((CommentRecord)(entry.Entity))),
-    DateTime (IInternalEntry entry) => entry.ReadOriginalValue<DateTime>(updatedAt, 7),
-    DateTime (IInternalEntry entry) => entry.GetCurrentValue<DateTime>(updatedAt));
-updatedAt.SetPropertyIndexes(
-    index: 7,
-    originalValueIndex: 7,
-    shadowIndex: -1,
-    relationshipIndex: -1,
-    storeGenerationIndex: -1);
-updatedAt.TypeMapping = NpgsqlTimestampTzTypeMapping.Default.Clone(
-    comparer: new ValueComparer<DateTime>(
-        bool (DateTime v1, DateTime v2) => v1.Equals(v2),
-        int (DateTime v) => ((object)v).GetHashCode(),
-        DateTime (DateTime v) => v),
-    keyComparer: new ValueComparer<DateTime>(
-        bool (DateTime v1, DateTime v2) => v1.Equals(v2),
-        int (DateTime v) => ((object)v).GetHashCode(),
-        DateTime (DateTime v) => v),
-    providerValueComparer: new ValueComparer<DateTime>(
-        bool (DateTime v1, DateTime v2) => v1.Equals(v2),
-        int (DateTime v) => ((object)v).GetHashCode(),
-        DateTime (DateTime v) => v));
-updatedAt.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
-
-var key = runtimeEntityType.AddKey(
-    new[] { id });
-runtimeEntityType.SetPrimaryKey(key);
-
-var index = runtimeEntityType.AddIndex(
-    new[] { parentCommentId });
-
-var index0 = runtimeEntityType.AddIndex(
-    new[] { postId });
-
-return runtimeEntityType;
-}
-
-public static RuntimeForeignKey CreateForeignKey1(RuntimeEntityType declaringEntityType, RuntimeEntityType principalEntityType)
-{
-    var runtimeForeignKey = declaringEntityType.AddForeignKey(new[] { declaringEntityType.FindProperty("PostId") },
-        principalEntityType.FindKey(new[] { principalEntityType.FindProperty("Id") }),
-        principalEntityType,
-        deleteBehavior: DeleteBehavior.Cascade,
-        required: true);
-
-    var post = declaringEntityType.AddNavigation("Post",
-        runtimeForeignKey,
-        onDependent: true,
-        typeof(PostRecord),
-        propertyInfo: typeof(CommentRecord).GetProperty("Post", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
-        fieldInfo: typeof(CommentRecord).GetField("<Post>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly));
-
-    post.SetGetter(
-        PostRecord (CommentRecord instance) => CommentRecordUnsafeAccessors.Post(instance),
-        bool (CommentRecord instance) => CommentRecordUnsafeAccessors.Post(instance) == null);
-    post.SetSetter(
-        CommentRecord (CommentRecord instance, PostRecord value) =>
-        {
-            CommentRecordUnsafeAccessors.Post(instance) = value;
-            return instance;
-        });
-    post.SetMaterializationSetter(
-        CommentRecord (CommentRecord instance, PostRecord value) =>
-        {
-            CommentRecordUnsafeAccessors.Post(instance) = value;
-            return instance;
-        });
-    post.SetAccessors(
-        PostRecord (IInternalEntry entry) => CommentRecordUnsafeAccessors.Post(((CommentRecord)(entry.Entity))),
-        PostRecord (IInternalEntry entry) => CommentRecordUnsafeAccessors.Post(((CommentRecord)(entry.Entity))),
-        null,
-        PostRecord (IInternalEntry entry) => entry.GetCurrentValue<PostRecord>(post));
-    post.SetPropertyIndexes(
-        index: 0,
-        originalValueIndex: -1,
-        shadowIndex: -1,
-        relationshipIndex: 2,
-        storeGenerationIndex: -1);
-    var comments = principalEntityType.AddNavigation("Comments",
-        runtimeForeignKey,
-        onDependent: false,
-        typeof(List<CommentRecord>),
-        propertyInfo: typeof(PostRecord).GetProperty("Comments", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
-        fieldInfo: typeof(PostRecord).GetField("<Comments>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly));
-
-    comments.SetGetter(
-        List<CommentRecord> (PostRecord instance) => PostRecordUnsafeAccessors.Comments(instance),
-        bool (PostRecord instance) => PostRecordUnsafeAccessors.Comments(instance) == null);
-    comments.SetSetter(
-        PostRecord (PostRecord instance, List<CommentRecord> value) =>
-        {
-            PostRecordUnsafeAccessors.Comments(instance) = value;
-            return instance;
-        });
-    comments.SetMaterializationSetter(
-        PostRecord (PostRecord instance, List<CommentRecord> value) =>
-        {
-            PostRecordUnsafeAccessors.Comments(instance) = value;
-            return instance;
-        });
-    comments.SetAccessors(
-        List<CommentRecord> (IInternalEntry entry) => PostRecordUnsafeAccessors.Comments(((PostRecord)(entry.Entity))),
-        List<CommentRecord> (IInternalEntry entry) => PostRecordUnsafeAccessors.Comments(((PostRecord)(entry.Entity))),
-        null,
-        List<CommentRecord> (IInternalEntry entry) => entry.GetCurrentValue<List<CommentRecord>>(comments));
-    comments.SetPropertyIndexes(
-        index: 0,
-        originalValueIndex: -1,
-        shadowIndex: -1,
-        relationshipIndex: 1,
-        storeGenerationIndex: -1);
-    comments.SetCollectionAccessor<PostRecord, List<CommentRecord>, CommentRecord>(
-        List<CommentRecord> (PostRecord entity) => PostRecordUnsafeAccessors.Comments(entity),
-        (PostRecord entity, List<CommentRecord> collection) => PostRecordUnsafeAccessors.Comments(entity) = ((List<CommentRecord>)collection),
-        (PostRecord entity, List<CommentRecord> collection) => PostRecordUnsafeAccessors.Comments(entity) = ((List<CommentRecord>)collection),
-        List<CommentRecord> (PostRecord entity, Action<PostRecord, List<CommentRecord>> setter) => ClrCollectionAccessorFactory.CreateAndSet<PostRecord, List<CommentRecord>, List<CommentRecord>>(entity, setter),
-        List<CommentRecord> () => new List<CommentRecord>());
-    return runtimeForeignKey;
-}
-
-public static void CreateAnnotations(RuntimeEntityType runtimeEntityType)
-{
-    var id = runtimeEntityType.FindProperty("Id");
-    var author = runtimeEntityType.FindProperty("Author");
-    var authorNormalized = runtimeEntityType.FindProperty("AuthorNormalized");
-    var content = runtimeEntityType.FindProperty("Content");
-    var createdAt = runtimeEntityType.FindProperty("CreatedAt");
-    var parentCommentId = runtimeEntityType.FindProperty("ParentCommentId");
-    var postId = runtimeEntityType.FindProperty("PostId");
-    var updatedAt = runtimeEntityType.FindProperty("UpdatedAt");
-    var key = runtimeEntityType.FindKey(new[] { id });
-    key.SetPrincipalKeyValueFactory(KeyValueFactoryFactory.CreateSimpleNonNullableFactory<Guid>(key));
-    key.SetIdentityMapFactory(IdentityMapFactoryFactory.CreateFactory<Guid>(key));
-    var post = runtimeEntityType.FindNavigation("Post");
-    runtimeEntityType.SetOriginalValuesFactory(
-        ISnapshot (IInternalEntry source) =>
-        {
-            var structuralType = ((CommentRecord)(source.Entity));
-            return ((ISnapshot)(new Snapshot<Guid, string, string, string, DateTime, Guid?, Guid, DateTime>(((ValueComparer<Guid>)(((IProperty)id).GetValueComparer())).Snapshot(source.GetCurrentValue<Guid>(id)), (source.GetCurrentValue<string>(author) == null ? null : ((ValueComparer<string>)(((IProperty)author).GetValueComparer())).Snapshot(source.GetCurrentValue<string>(author))), (source.GetCurrentValue<string>(authorNormalized) == null ? null : ((ValueComparer<string>)(((IProperty)authorNormalized).GetValueComparer())).Snapshot(source.GetCurrentValue<string>(authorNormalized))), (source.GetCurrentValue<string>(content) == null ? null : ((ValueComparer<string>)(((IProperty)content).GetValueComparer())).Snapshot(source.GetCurrentValue<string>(content))), ((ValueComparer<DateTime>)(((IProperty)createdAt).GetValueComparer())).Snapshot(source.GetCurrentValue<DateTime>(createdAt)), (source.GetCurrentValue<Guid?>(parentCommentId) == null ? null : ((ValueComparer<Guid?>)(((IProperty)parentCommentId).GetValueComparer())).Snapshot(source.GetCurrentValue<Guid?>(parentCommentId))), ((ValueComparer<Guid>)(((IProperty)postId).GetValueComparer())).Snapshot(source.GetCurrentValue<Guid>(postId)), ((ValueComparer<DateTime>)(((IProperty)updatedAt).GetValueComparer())).Snapshot(source.GetCurrentValue<DateTime>(updatedAt)))));
-        });
-    runtimeEntityType.SetStoreGeneratedValuesFactory(
-        ISnapshot () => ((ISnapshot)(new Snapshot<Guid, Guid>(((ValueComparer<Guid>)(((IProperty)id).GetValueComparer())).Snapshot(default(Guid)), ((ValueComparer<Guid>)(((IProperty)postId).GetValueComparer())).Snapshot(default(Guid))))));
-    runtimeEntityType.SetTemporaryValuesFactory(
-        ISnapshot (IInternalEntry source) => ((ISnapshot)(new Snapshot<Guid, Guid>(default(Guid), default(Guid)))));
-    runtimeEntityType.SetShadowValuesFactory(
-        ISnapshot (IDictionary<string, object> source) => Snapshot.Empty);
-    runtimeEntityType.SetEmptyShadowValuesFactory(
-        ISnapshot () => Snapshot.Empty);
-    runtimeEntityType.SetRelationshipSnapshotFactory(
-        ISnapshot (IInternalEntry source) =>
-        {
-            var structuralType = ((CommentRecord)(source.Entity));
-            return ((ISnapshot)(new Snapshot<Guid, Guid, object>(((ValueComparer<Guid>)(((IProperty)id).GetKeyValueComparer())).Snapshot(source.GetCurrentValue<Guid>(id)), ((ValueComparer<Guid>)(((IProperty)postId).GetKeyValueComparer())).Snapshot(source.GetCurrentValue<Guid>(postId)), source.GetCurrentValue<PostRecord>(post))));
-        });
-    runtimeEntityType.SetCounts(new PropertyCounts(
-        propertyCount: 8,
-        navigationCount: 1,
-        complexPropertyCount: 0,
-        complexCollectionCount: 0,
-        originalValueCount: 8,
-        shadowCount: 0,
-        relationshipCount: 3,
-        storeGeneratedCount: 2));
-    runtimeEntityType.AddAnnotation("Relational:FunctionName", null);
-    runtimeEntityType.AddAnnotation("Relational:Schema", null);
-    runtimeEntityType.AddAnnotation("Relational:SqlQuery", null);
-    runtimeEntityType.AddAnnotation("Relational:TableName", "Comments");
-    runtimeEntityType.AddAnnotation("Relational:ViewName", null);
-    runtimeEntityType.AddAnnotation("Relational:ViewSchema", null);
-
-    Customize(runtimeEntityType);
-}
-
-static partial void Customize(RuntimeEntityType runtimeEntityType);
-}
+        static partial void Customize(RuntimeEntityType runtimeEntityType);
+    }
 }

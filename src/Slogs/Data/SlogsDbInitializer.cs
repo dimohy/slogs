@@ -27,9 +27,119 @@ public static class SlogsDbInitializer
         await db.Database.ExecuteSqlRawAsync(
             "ALTER TABLE \"Posts\" ADD COLUMN IF NOT EXISTS \"ThumbnailUrl\" character varying(500) NOT NULL DEFAULT '';");
         await db.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE \"Posts\" ADD COLUMN IF NOT EXISTS \"IsDraft\" boolean NOT NULL DEFAULT FALSE;");
+        await db.Database.ExecuteSqlRawAsync(
             "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"ProfileImageUrl\" character varying(500) NOT NULL DEFAULT '';");
         await db.Database.ExecuteSqlRawAsync(
             "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"Bio\" character varying(280) NOT NULL DEFAULT '';");
+        await db.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"Email\" character varying(320) NOT NULL DEFAULT '';");
+        await db.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"ProfileUpdatedAt\" timestamp with time zone NULL;");
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "ExternalLogins" (
+                "Provider" character varying(40) NOT NULL,
+                "ProviderUserId" character varying(200) NOT NULL,
+                "UserName" character varying(80) NOT NULL,
+                "Email" character varying(320) NOT NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "LastLoginAt" timestamp with time zone NOT NULL,
+                CONSTRAINT "PK_ExternalLogins" PRIMARY KEY ("Provider", "ProviderUserId")
+            );
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_ExternalLogins_UserName"
+            ON "ExternalLogins" ("UserName");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_ExternalLogins_Provider_Email"
+            ON "ExternalLogins" ("Provider", "Email");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            UPDATE "Users" AS u
+            SET "Email" = latest."Email"
+            FROM (
+                SELECT DISTINCT ON ("UserName") "UserName", "Email"
+                FROM "ExternalLogins"
+                WHERE COALESCE("Email", '') <> ''
+                ORDER BY "UserName", "LastLoginAt" DESC
+            ) AS latest
+            WHERE u."UserName" = latest."UserName"
+                AND u."ProfileUpdatedAt" IS NULL
+                AND COALESCE(u."Email", '') = '';
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "LlmWikiEntries" (
+                "Id" uuid NOT NULL,
+                "OwnerUserName" character varying(80) NOT NULL,
+                "Slug" character varying(160) NOT NULL,
+                "Title" character varying(200) NOT NULL,
+                "Summary" character varying(500) NOT NULL,
+                "Content" text NOT NULL,
+                "SourcePrompt" text NOT NULL,
+                "TagsJson" jsonb NOT NULL DEFAULT '[]'::jsonb,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "UpdatedAt" timestamp with time zone NOT NULL,
+                "LastAccessedAt" timestamp with time zone NULL,
+                "AccessCount" integer NOT NULL DEFAULT 0,
+                CONSTRAINT "PK_LlmWikiEntries" PRIMARY KEY ("Id")
+            );
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "LlmWikiMcpTokens" (
+                "Id" uuid NOT NULL,
+                "OwnerUserName" character varying(80) NOT NULL,
+                "Name" character varying(120) NOT NULL,
+                "TokenHash" character varying(128) NOT NULL,
+                "TokenPrefix" character varying(32) NOT NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "LastUsedAt" timestamp with time zone NULL,
+                "RevokedAt" timestamp with time zone NULL,
+                CONSTRAINT "PK_LlmWikiMcpTokens" PRIMARY KEY ("Id")
+            );
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE "LlmWikiEntries"
+            ADD COLUMN IF NOT EXISTS "SearchVector" tsvector
+            GENERATED ALWAYS AS (
+                setweight(to_tsvector('simple', coalesce("Title", '')), 'A') ||
+                setweight(to_tsvector('simple', coalesce("Summary", '')), 'B') ||
+                setweight(to_tsvector('simple', coalesce("SourcePrompt", '')), 'B') ||
+                setweight(to_tsvector('simple', coalesce("Content", '')), 'C')
+            ) STORED;
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_LlmWikiEntries_OwnerUserName_Slug"
+            ON "LlmWikiEntries" ("OwnerUserName", "Slug");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiEntries_OwnerUserName_UpdatedAt"
+            ON "LlmWikiEntries" ("OwnerUserName", "UpdatedAt" DESC);
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiEntries_SearchVector"
+            ON "LlmWikiEntries" USING GIN ("SearchVector");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_LlmWikiMcpTokens_TokenHash"
+            ON "LlmWikiMcpTokens" ("TokenHash");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiMcpTokens_OwnerUserName"
+            ON "LlmWikiMcpTokens" ("OwnerUserName");
+            """);
     }
 
     private static async Task SeedUsersAsync(SlogsDbContext db)
@@ -62,6 +172,7 @@ public static class SlogsDbInitializer
             {
                 UserName = userName,
                 DisplayName = displayName,
+                Email = string.Empty,
                 Password = password,
                 ProfileImageUrl = string.Empty,
                 Bio = GetDefaultBio(userName),
@@ -85,7 +196,7 @@ public static class SlogsDbInitializer
                 changed = true;
             }
 
-            if (string.IsNullOrWhiteSpace(user.Bio))
+            if (string.IsNullOrWhiteSpace(user.Bio) && user.ProfileUpdatedAt is null)
             {
                 user.Bio = GetDefaultBio(user.UserName);
                 changed = true;

@@ -32,6 +32,7 @@ public sealed class SlogsAuthState(SlogsApiClient apiClient)
     {
         currentUser = user;
         isInitialized = true;
+        AuthStateChanged?.Invoke();
     }
 
     public Task LogoutAsync()

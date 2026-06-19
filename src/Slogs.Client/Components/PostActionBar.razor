@@ -1,0 +1,73 @@
+<div class="@Class">
+    <button class="@GetActionClass(IsLiked)"
+            title="좋아요"
+            aria-label="@GetLikeLabel()"
+            disabled="@IsLikeBusy"
+            type="button"
+            @onclick="ToggleLikeAsync">
+        <SlogsIcon Name="heart" Filled="@IsLiked" Class="h-4 w-4" />
+        <span class="min-w-4 text-center tabular-nums">@Post.LikeCount</span>
+        <span class="sr-only">좋아요</span>
+    </button>
+    <button class="@GetActionClass(IsBookmarked)"
+            title="북마크"
+            aria-label="@GetBookmarkLabel()"
+            disabled="@IsBookmarkBusy"
+            type="button"
+            @onclick="ToggleBookmarkAsync">
+        <SlogsIcon Name="bookmark" Filled="@IsBookmarked" Class="h-4 w-4" />
+        <span class="sr-only">북마크</span>
+    </button>
+    <a class="@GetLinkClass()"
+       title="댓글"
+       aria-label="@($"{Post.CommentCount}개 댓글 보기")"
+       href="@CommentsUrl">
+        <SlogsIcon Name="message-circle" Class="h-4 w-4" />
+        <span class="min-w-4 text-center tabular-nums">@Post.CommentCount</span>
+        <span class="sr-only">댓글</span>
+    </a>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public BlogPost Post { get; set; } = default!;
+
+    [Parameter] public string CurrentUserName { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired] public string CommentsUrl { get; set; } = string.Empty;
+
+    [Parameter] public bool IsLikeBusy { get; set; }
+
+    [Parameter] public bool IsBookmarkBusy { get; set; }
+
+    [Parameter] public EventCallback<string> OnToggleLike { get; set; }
+
+    [Parameter] public EventCallback<string> OnToggleBookmark { get; set; }
+
+    [Parameter] public string Class { get; set; } = "mt-3 flex flex-wrap gap-2";
+
+    private bool IsLiked => Post.IsLikedBy(CurrentUserName);
+
+    private bool IsBookmarked => Post.IsBookmarkedBy(CurrentUserName);
+
+    private Task ToggleLikeAsync() => OnToggleLike.InvokeAsync(Post.Slug);
+
+    private Task ToggleBookmarkAsync() => OnToggleBookmark.InvokeAsync(Post.Slug);
+
+    private string GetLikeLabel()
+        => IsLiked ? $"좋아요 취소, 현재 {Post.LikeCount}개" : $"좋아요, 현재 {Post.LikeCount}개";
+
+    private string GetBookmarkLabel()
+        => IsBookmarked ? "북마크 해제" : "북마크";
+
+    private static string GetActionClass(bool active)
+    {
+        var stateClass = active
+            ? "slogs-post-action--active"
+            : "slogs-post-action--idle";
+
+        return $"slogs-post-action inline-flex h-9 min-w-9 items-center justify-center gap-1.5 rounded-full border px-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 {stateClass}";
+    }
+
+    private static string GetLinkClass()
+        => "slogs-post-action slogs-post-action--idle inline-flex h-9 min-w-9 items-center justify-center gap-1.5 rounded-full border px-3 text-sm font-semibold transition";
+}

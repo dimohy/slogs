@@ -6,9 +6,11 @@ public sealed record AuthRequest(string UserName, string Password, string? Retur
 
 public sealed record RegisterRequest(string UserName, string DisplayName, string Password, string ConfirmPassword, string? ReturnUrl);
 
+public sealed record ProfileUpdateRequest(string DisplayName, string? Email, string? ProfileImageUrl, string? Bio);
+
 public sealed record AuthResponse(AuthUser User, string ReturnUrl);
 
-public sealed record PostUpsertRequest(string Title, string Summary, string Body, string Tags, string? Series, string? ThumbnailUrl);
+public sealed record PostUpsertRequest(string Title, string Summary, string Body, string Tags, string? Series, string? ThumbnailUrl, bool? IsDraft = null);
 
 public sealed record AuthorsRequest(IReadOnlyList<string> Authors);
 
@@ -25,6 +27,38 @@ public sealed record ActionStateResponse(bool Active);
 public sealed record UpdateStateResponse(bool Updated);
 
 public sealed record EditorImageResponse(string Url, string AltText);
+
+public sealed record LlmWikiRememberRequest(string Prompt, string? Content, string? Title, string? Tags);
+
+public sealed record LlmWikiUpdateRequest(string Prompt, string? Content, string? Title, string? Tags);
+
+public sealed record LlmWikiEntryResponse(
+    Guid Id,
+    string Slug,
+    string Title,
+    string Summary,
+    string Content,
+    string SourcePrompt,
+    IReadOnlyList<string> Tags,
+    DateTime CreatedAt,
+    DateTime UpdatedAt,
+    DateTime? LastAccessedAt,
+    int AccessCount);
+
+public sealed record LlmWikiSearchResult(
+    Guid Id,
+    string Slug,
+    string Title,
+    string Summary,
+    IReadOnlyList<string> Tags,
+    DateTime UpdatedAt,
+    int AccessCount);
+
+public sealed record LlmWikiTokenCreateRequest(string Name);
+
+public sealed record LlmWikiTokenResponse(Guid Id, string Name, string TokenPrefix, DateTime CreatedAt, DateTime? LastUsedAt, bool IsRevoked);
+
+public sealed record LlmWikiTokenCreatedResponse(Guid Id, string Name, string TokenPrefix, string Token, DateTime CreatedAt);
 
 public sealed record TagSummary(string Tag, int Count);
 
@@ -172,6 +206,8 @@ public sealed class PostDetailsPageState
 public sealed class SideMenuState
 {
     public string StateKey { get; set; } = string.Empty;
+
+    public string FeaturedTagPath { get; set; } = "/tag";
 
     public List<string> TrendingTags { get; set; } = [];
 

@@ -1,0 +1,208 @@
+@page "/me/llm-wiki"
+@inject SlogsAuthState AuthState
+@inject SlogsApiClient ApiClient
+@inject NavigationManager Navigation
+
+<PageTitle>LLM Wiki</PageTitle>
+<SeoHead Title="LLM Wiki | slogs" Description="개인 LLM Wiki를 검색하고 읽습니다." NoIndex="true" />
+
+@if (CurrentUser is null)
+{
+    <p class="rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">로그인이 필요합니다. <a class="font-semibold underline" href="@GetLoginHref()">로그인</a>해 주세요.</p>
+}
+else
+{
+    <section class="space-y-5">
+        <div class="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-900">LLM Wiki</h1>
+                <p class="mt-1 text-sm text-slate-500">@CurrentUser.DisplayName 님의 LLM Wiki입니다.</p>
+            </div>
+        </div>
+
+        <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <h2 class="text-lg font-bold text-slate-900">검색</h2>
+                <div class="flex min-w-0 flex-1 gap-2 md:max-w-lg">
+                    <input class="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-500"
+                           placeholder="검색어"
+                           @bind="searchQuery"
+                           @bind:event="oninput"
+                           @onkeydown="HandleSearchKeyDown" />
+                    <button class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                            type="button"
+                            disabled="@isSearching"
+                            @onclick="SearchEntriesAsync">
+                        @(isSearching ? "검색 중..." : "검색")
+                    </button>
+                </div>
+            </div>
+
+            <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-5">
+                <div class="space-y-2 xl:col-span-2">
+                    @if (results.Count == 0)
+                    {
+                        <p class="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">저장된 LLM Wiki가 없습니다.</p>
+                    }
+                    else
+                    {
+                        @foreach (var result in results)
+                        {
+                            <button class="block w-full rounded-xl border border-slate-200 px-3 py-3 text-left transition hover:bg-slate-50"
+                                    type="button"
+                                    @onclick="() => SelectEntryAsync(result)">
+                                <span class="block text-sm font-bold text-slate-900">@result.Title</span>
+                                <span class="mt-1 block text-xs text-slate-500">@FormatDateTime(result.UpdatedAt) · @($"{result.AccessCount}회 열람")</span>
+                                @if (!string.IsNullOrWhiteSpace(result.Summary))
+                                {
+                                    <span class="mt-2 block text-sm text-slate-700">@Shorten(result.Summary, 140)</span>
+                                }
+                                @if (result.Tags.Count > 0)
+                                {
+                                    <span class="mt-2 flex flex-wrap gap-1">
+                                        @foreach (var tag in result.Tags)
+                                        {
+                                            <span class="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-900">#@tag</span>
+                                        }
+                                    </span>
+                                }
+                            </button>
+                        }
+                    }
+                </div>
+
+                <article class="min-h-80 rounded-xl border border-slate-200 bg-slate-50 p-4 xl:col-span-3">
+                    @if (selectedEntry is null)
+                    {
+                        <div class="grid h-full min-h-64 place-items-center text-center text-sm text-slate-500">선택된 LLM Wiki가 없습니다.</div>
+                    }
+                    else
+                    {
+                        <div class="space-y-3">
+                            <div>
+                                <h3 class="text-xl font-bold text-slate-900">@selectedEntry.Title</h3>
+                                <p class="mt-1 text-xs text-slate-500">@FormatDateTime(selectedEntry.UpdatedAt)</p>
+                            </div>
+                            @if (selectedEntry.Tags.Count > 0)
+                            {
+                                <div class="flex flex-wrap gap-1">
+                                    @foreach (var tag in selectedEntry.Tags)
+                                    {
+                                        <span class="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-900">#@tag</span>
+                                    }
+                                </div>
+                            }
+                            <div>
+                                <p class="text-xs font-bold uppercase text-slate-500">Prompt</p>
+                                <pre class="mt-1 whitespace-pre-wrap break-words rounded-lg bg-white p-3 text-sm text-slate-800">@selectedEntry.SourcePrompt</pre>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(selectedEntry.Content))
+                            {
+                                <div>
+                                    <p class="text-xs font-bold uppercase text-slate-500">Content</p>
+                                    <pre class="mt-1 whitespace-pre-wrap break-words rounded-lg bg-white p-3 text-sm text-slate-800">@selectedEntry.Content</pre>
+                                </div>
+                            }
+                        </div>
+                    }
+                </article>
+            </div>
+        </section>
+    </section>
+}
+
+@code {
+    private AuthUser? CurrentUser => AuthState.CurrentUser;
+    private IReadOnlyList<LlmWikiSearchResult> results = [];
+    private LlmWikiEntryResponse? selectedEntry;
+    private string searchQuery = string.Empty;
+    private bool isLoading;
+    private bool isSearching;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthState.EnsureInitializedAsync();
+        if (CurrentUser is null)
+        {
+            Navigation.NavigateTo(GetLoginHref());
+            return;
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        if (CurrentUser is null || isLoading)
+        {
+            return;
+        }
+
+        isLoading = true;
+        try
+        {
+            results = await ApiClient.SearchLlmWikiAsync(CurrentUser.UserName, searchQuery, 20);
+            selectedEntry = null;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SearchEntriesAsync()
+    {
+        if (CurrentUser is null || isSearching)
+        {
+            return;
+        }
+
+        isSearching = true;
+        try
+        {
+            results = await ApiClient.SearchLlmWikiAsync(CurrentUser.UserName, searchQuery, 20);
+        }
+        finally
+        {
+            isSearching = false;
+        }
+    }
+
+    private async Task SelectEntryAsync(LlmWikiSearchResult result)
+    {
+        if (CurrentUser is null)
+        {
+            return;
+        }
+
+        selectedEntry = await ApiClient.GetLlmWikiEntryAsync(CurrentUser.UserName, result.Id.ToString());
+    }
+
+    private async Task HandleSearchKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SearchEntriesAsync();
+        }
+    }
+
+    private string GetLoginHref()
+    {
+        var uri = new Uri(Navigation.Uri);
+        var safeReturn = string.IsNullOrWhiteSpace(uri.Query) ? uri.AbsolutePath : uri.PathAndQuery;
+        return $"/login?returnUrl={Uri.EscapeDataString(safeReturn)}";
+    }
+
+    private static string FormatDateTime(DateTime dateTime)
+        => dateTime.ToLocalTime().ToString("yyyy.MM.dd HH:mm");
+
+    private static string Shorten(string text, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        return text.Length <= maxLength ? text : text[..maxLength] + "...";
+    }
+}

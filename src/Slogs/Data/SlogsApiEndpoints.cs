@@ -74,6 +74,35 @@ public static class SlogsApiEndpoints
             }
         });
 
+        api.MapPut("/auth/profile", async (HttpContext httpContext, AuthService authService, ProfileUpdateRequest request) =>
+        {
+            var currentUser = GetCurrentUser(httpContext);
+            if (currentUser is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            try
+            {
+                var updatedUser = await authService.UpdateProfileAsync(
+                    currentUser.UserName,
+                    request.DisplayName,
+                    request.Email,
+                    request.ProfileImageUrl,
+                    request.Bio);
+
+                await httpContext.SignInAsync(
+                    CookieAuthenticationDefaults.AuthenticationScheme,
+                    SlogsAuthentication.CreatePrincipal(updatedUser));
+
+                return Results.Ok(new AuthResponse(updatedUser, "/me"));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        });
+
         api.MapPost("/auth/logout", async (HttpContext httpContext, AuthService authService) =>
         {
             await authService.LogoutAsync();
@@ -105,14 +134,15 @@ public static class SlogsApiEndpoints
                 request.Body,
                 request.Tags,
                 request.Series,
-                request.ThumbnailUrl);
+                request.ThumbnailUrl,
+                request.IsDraft.GetValueOrDefault(false));
 
             return Results.Created($"/api/posts/{Uri.EscapeDataString(post.Slug)}", post);
         });
 
-        api.MapGet("/posts/{slug}/read", async (BlogService blogService, string slug) =>
+        api.MapGet("/posts/{slug}/read", async (HttpContext httpContext, BlogService blogService, string slug) =>
         {
-            var post = await blogService.GetBySlugForReadAsync(slug);
+            var post = await blogService.GetBySlugForReadAsync(slug, GetCurrentUser(httpContext)?.UserName);
             return post is null ? Results.NotFound() : Results.Ok(post);
         });
 
@@ -125,9 +155,9 @@ public static class SlogsApiEndpoints
             return Results.Ok(new AdjacentPostsResponse(adjacent.Previous, adjacent.Next));
         });
 
-        api.MapGet("/posts/{slug}", async (BlogService blogService, string slug) =>
+        api.MapGet("/posts/{slug}", async (HttpContext httpContext, BlogService blogService, string slug) =>
         {
-            var post = await blogService.GetBySlugAsync(slug);
+            var post = await blogService.GetBySlugAsync(slug, GetCurrentUser(httpContext)?.UserName);
             return post is null ? Results.NotFound() : Results.Ok(post);
         });
 
@@ -147,7 +177,8 @@ public static class SlogsApiEndpoints
                 request.Body,
                 request.Tags,
                 request.Series,
-                request.ThumbnailUrl);
+                request.ThumbnailUrl,
+                request.IsDraft);
 
             return post is null ? Results.NotFound() : Results.Ok(post);
         });
@@ -329,6 +360,147 @@ public static class SlogsApiEndpoints
             return user is null
                 ? Results.Unauthorized()
                 : Results.Ok(await blogService.GetBookmarkedPostsAsync(user.UserName));
+        });
+
+        api.MapGet("/me/posts", async (HttpContext httpContext, BlogService blogService) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            return user is null
+                ? Results.Unauthorized()
+                : Results.Ok(await blogService.GetManageByAuthorAsync(user.UserName));
+        });
+
+        api.MapGet("/llm-wiki/entries", async (
+            HttpContext httpContext,
+            LlmWikiService llmWikiService,
+            string? q,
+            int? limit,
+            CancellationToken cancellationToken) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            return user is null
+                ? Results.Unauthorized()
+                : Results.Ok(await llmWikiService.SearchAsync(
+                    user.UserName,
+                    q,
+                    NormalizeCount(limit, 20, 100),
+                    cancellationToken));
+        });
+
+        api.MapPost("/llm-wiki/entries", async (
+            HttpContext httpContext,
+            LlmWikiService llmWikiService,
+            LlmWikiRememberRequest request,
+            CancellationToken cancellationToken) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            if (user is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            try
+            {
+                var entry = await llmWikiService.RememberAsync(user.UserName, request, cancellationToken);
+                return Results.Created($"/api/llm-wiki/entries/{entry.Id}", entry);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        });
+
+        api.MapGet("/llm-wiki/entries/{idOrSlug}", async (
+            HttpContext httpContext,
+            LlmWikiService llmWikiService,
+            string idOrSlug,
+            CancellationToken cancellationToken) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            if (user is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var entry = await llmWikiService.GetEntryAsync(user.UserName, idOrSlug, cancellationToken);
+            return entry is null ? Results.NotFound() : Results.Ok(entry);
+        });
+
+        api.MapPut("/llm-wiki/entries/{idOrSlug}", async (
+            HttpContext httpContext,
+            LlmWikiService llmWikiService,
+            string idOrSlug,
+            LlmWikiUpdateRequest request,
+            CancellationToken cancellationToken) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            if (user is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            try
+            {
+                var entry = await llmWikiService.UpdateAsync(user.UserName, idOrSlug, request, cancellationToken);
+                return entry is null ? Results.NotFound() : Results.Ok(entry);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        });
+
+        api.MapGet("/llm-wiki/llms.txt", async (
+            HttpContext httpContext,
+            LlmWikiService llmWikiService,
+            int? limit,
+            CancellationToken cancellationToken) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            return user is null
+                ? Results.Unauthorized()
+                : Results.Text(
+                    await llmWikiService.BuildLlmsTextAsync(user.UserName, NormalizeCount(limit, 50, 200), cancellationToken),
+                    "text/markdown; charset=utf-8");
+        });
+
+        api.MapGet("/llm-wiki/tokens", async (
+            HttpContext httpContext,
+            LlmWikiService llmWikiService,
+            CancellationToken cancellationToken) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            return user is null
+                ? Results.Unauthorized()
+                : Results.Ok(await llmWikiService.GetTokensAsync(user.UserName, cancellationToken));
+        });
+
+        api.MapPost("/llm-wiki/tokens", async (
+            HttpContext httpContext,
+            LlmWikiService llmWikiService,
+            LlmWikiTokenCreateRequest request,
+            CancellationToken cancellationToken) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            return user is null
+                ? Results.Unauthorized()
+                : Results.Ok(await llmWikiService.CreateTokenAsync(user.UserName, request.Name, cancellationToken));
+        });
+
+        api.MapDelete("/llm-wiki/tokens/{tokenId:guid}", async (
+            HttpContext httpContext,
+            LlmWikiService llmWikiService,
+            Guid tokenId,
+            CancellationToken cancellationToken) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            if (user is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var revoked = await llmWikiService.RevokeTokenAsync(user.UserName, tokenId, cancellationToken);
+            return revoked ? Results.NoContent() : Results.NotFound();
         });
 
         return app;

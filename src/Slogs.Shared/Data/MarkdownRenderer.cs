@@ -69,20 +69,20 @@ public static class MarkdownRenderer
             return string.Empty;
         }
 
-        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var absoluteUri))
-        {
-            return string.Equals(absoluteUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(absoluteUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
-                ? trimmed
-                : string.Empty;
-        }
-
         if (trimmed.StartsWith("/", StringComparison.Ordinal)
             || trimmed.StartsWith("./", StringComparison.Ordinal)
             || trimmed.StartsWith("../", StringComparison.Ordinal)
             || !trimmed.Contains(':', StringComparison.Ordinal))
         {
             return trimmed;
+        }
+
+        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var absoluteUri))
+        {
+            return string.Equals(absoluteUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(absoluteUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
+                ? trimmed
+                : string.Empty;
         }
 
         return string.Empty;

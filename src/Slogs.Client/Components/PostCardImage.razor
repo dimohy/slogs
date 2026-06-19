@@ -1,4 +1,6 @@
-@if (image is not null)
+@inject SlogsApiClient ApiClient
+
+@if (!imageFailed && image is not null)
 {
     <a class="post-card-media mb-3 block overflow-hidden rounded-xl border border-slate-200 bg-slate-100"
        href="@PostUrl"
@@ -7,7 +9,8 @@
              alt="@GetAltText()"
              loading="@LoadingMode"
              decoding="@DecodingMode"
-             fetchpriority="@FetchPriority" />
+             fetchpriority="@FetchPriority"
+             @onerror="HandleImageError" />
     </a>
 }
 
@@ -19,14 +22,52 @@
     [Parameter] public bool Priority { get; set; }
 
     private MarkdownImage? image;
+    private bool imageFailed;
+    private bool triedHydratingPost;
+    private string? hydratedSlug;
     private string LoadingMode => Priority ? "eager" : "lazy";
     private string DecodingMode => Priority ? "sync" : "async";
     private string FetchPriority => Priority ? "high" : "auto";
 
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
-        image = GetThumbnailImage() ?? MarkdownRenderer.FindFirstImage(Post.Body);
+        if (!string.Equals(hydratedSlug, Post.Slug, StringComparison.Ordinal))
+        {
+            hydratedSlug = Post.Slug;
+            triedHydratingPost = false;
+        }
+
+        SetImage(GetRepresentativeImage());
+
+        if (image is not null || triedHydratingPost || string.IsNullOrWhiteSpace(Post.Slug))
+        {
+            return;
+        }
+
+        triedHydratingPost = true;
+        var fullPost = await ApiClient.GetBySlugAsync(Post.Slug);
+        if (fullPost is null)
+        {
+            return;
+        }
+
+        Post.ThumbnailUrl = fullPost.ThumbnailUrl;
+        Post.Body = fullPost.Body;
+        SetImage(GetRepresentativeImage());
     }
+
+    private void SetImage(MarkdownImage? nextImage)
+    {
+        if (!string.Equals(image?.Url, nextImage?.Url, StringComparison.Ordinal))
+        {
+            imageFailed = false;
+        }
+
+        image = nextImage;
+    }
+
+    private MarkdownImage? GetRepresentativeImage()
+        => GetThumbnailImage() ?? MarkdownRenderer.FindFirstImage(Post.Body);
 
     private MarkdownImage? GetThumbnailImage()
     {
@@ -44,5 +85,10 @@
         }
 
         return string.IsNullOrWhiteSpace(Post.Title) ? "포스트 이미지" : Post.Title;
+    }
+
+    private void HandleImageError()
+    {
+        imageFailed = true;
     }
 }

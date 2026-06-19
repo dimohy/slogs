@@ -22,7 +22,8 @@ else
              Tags="@post.Tags"
              PublishedAt="@post.PublishedAt"
              UpdatedAt="@post.UpdatedAt"
-             JsonLd="@(SeoMetadata.BlogPostingJsonLd(Navigation.BaseUri, post, GetPostUrl(post), GetPostSeoImageUrl(post)))" />
+             NoIndex="@post.IsDraft"
+             JsonLd="@(post.IsDraft ? null : SeoMetadata.BlogPostingJsonLd(Navigation.BaseUri, post, GetPostUrl(post), GetPostSeoImageUrl(post)))" />
 }
 
 @if (post is null)
@@ -35,7 +36,13 @@ else
 else
 {
     <article class="rounded-2xl border border-slate-200 bg-white p-4">
-        <h1 class="text-2xl font-bold text-slate-900">@post.Title</h1>
+        <div class="flex flex-wrap items-center gap-2">
+            <h1 class="text-2xl font-bold text-slate-900">@post.Title</h1>
+            @if (post.IsDraft)
+            {
+                <span class="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">임시저장</span>
+            }
+        </div>
         <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
             <a class="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 hover:bg-slate-100" href="/">홈</a>
             <a class="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 hover:bg-slate-100" href="@GetPostAuthorUrl()">작성자 페이지</a>
@@ -53,16 +60,30 @@ else
             }
         </div>
 
-        <div class="mt-2 flex flex-wrap items-center gap-1 text-sm text-slate-500">
+        <div class="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-500">
             <a class="font-semibold text-slate-800 hover:underline"
-               href="@($"/@{Uri.EscapeDataString(post.Author)}")">@post.Author</a>
-            <span>·</span>
+               href="@($"/@{Uri.EscapeDataString(post.Author)}")">@FormatUserName(post.Author)</a>
             <span>@($"{authorFollowerCount}명 팔로워")</span>
-            <span>@FormatDate(post.PublishedAt)</span>
-            <span>·</span>
-            <span>@post.ReadTimeMinutes 분</span>
-            <span>·</span>
-            <span>@post.ViewCount 회 조회</span>
+            @if (post.IsDraft)
+            {
+                <span>임시저장</span>
+                <span>수정 @FormatDateTime(post.UpdatedAt)</span>
+            }
+            else
+            {
+                <span class="inline-flex items-center gap-1">
+                    <SlogsIcon Name="calendar" Class="h-3.5 w-3.5" />
+                    <span>@FormatDate(post.PublishedAt)</span>
+                </span>
+            }
+            <span class="inline-flex items-center gap-1">
+                <SlogsIcon Name="clock" Class="h-3.5 w-3.5" />
+                <span>@post.ReadTimeMinutes 분</span>
+            </span>
+            <span class="inline-flex items-center gap-1">
+                <SlogsIcon Name="eye" Class="h-3.5 w-3.5" />
+                <span>@post.ViewCount</span>
+            </span>
             @if (CanFollowAuthor)
             {
                 <button class="ml-2 rounded-full border border-slate-300 px-3 py-1 text-sm font-semibold transition hover:bg-slate-100 @(isWriterFollowBusy ? "cursor-wait opacity-60" : "")"
@@ -78,7 +99,6 @@ else
             }
             @if (post.UpdatedAt > post.PublishedAt.AddMinutes(1))
             {
-                <span>·</span>
                 <span>수정 @FormatDateTime(post.UpdatedAt)</span>
             }
         </div>
@@ -96,17 +116,17 @@ else
         <MarkdownPreview Value="@post.Body" Class="mt-4" />
 
         <div class="mt-4 flex flex-wrap gap-2">
-            <button class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold transition hover:bg-slate-100"
-                    disabled="@isLikeBusy"
-                    @onclick="ToggleLike">
-                @((isLikeBusy) ? "좋아요 처리 중..." : ((post.IsLikedBy(CurrentUserName) ? "좋아요 취소" : "좋아요"))) (@post.LikeCount)
-            </button>
-            <button class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold transition hover:bg-slate-100"
-                    disabled="@isBookmarkBusy"
-                    @onclick="ToggleBookmark">
-                @((isBookmarkBusy) ? "북마크 처리 중..." : (post.IsBookmarkedBy(CurrentUserName) ? "북마크 해제" : "북마크"))
-            </button>
-            <a class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold transition hover:bg-slate-100" href="#comments">댓글 보기 @post.CommentCount</a>
+            @if (!post.IsDraft)
+            {
+                <PostActionBar Post="post"
+                               CurrentUserName="@CurrentUserName"
+                               CommentsUrl="#comments"
+                               IsLikeBusy="@isLikeBusy"
+                               IsBookmarkBusy="@isBookmarkBusy"
+                               OnToggleLike="ToggleLikeFromActionBar"
+                               OnToggleBookmark="ToggleBookmarkFromActionBar"
+                               Class="flex flex-wrap gap-2" />
+            }
 
             @if (CanEditCurrentPost)
             {
@@ -156,11 +176,7 @@ else
                      aria-label="@($"{item.Title} 상세 보기")">
                 <PostCardImage Post="item" PostUrl="@GetPostUrl(item)" Priority="@IsPriorityCardImage(index)" />
                 <a class="mb-2 block text-base font-bold text-slate-800 hover:underline" href="@GetPostUrl(item)">@item.Title</a>
-                <div class="flex flex-wrap items-center gap-1 text-sm text-slate-500">
-                    <a class="hover:underline" href="@GetWriterUrl(item.Author)">@item.Author</a>
-                    <span>·</span>
-                    <span>@FormatDate(item.PublishedAt)</span>
-                </div>
+                <PostMetaLine Post="item" Class="flex flex-wrap items-center gap-2 text-sm text-slate-500" ShowReadTime="false" ShowViews="false" ShowSeries="false" />
             </article>
                 }
             </div>
@@ -189,7 +205,7 @@ else
                     <a class="mt-2 block text-lg font-bold text-slate-900 transition hover:underline" href="@GetPostUrl(previousPost)">
                         @previousPost.Title
                     </a>
-                    <a class="mt-1 block text-sm text-slate-500 hover:underline" href="@GetWriterUrl(previousPost.Author)">@previousPost.Author</a>
+                    <a class="mt-1 block text-sm text-slate-500 hover:underline" href="@GetWriterUrl(previousPost.Author)">@FormatUserName(previousPost.Author)</a>
                 }
             </article>
 
@@ -208,7 +224,7 @@ else
                     <a class="mt-2 block text-lg font-bold text-slate-900 transition hover:underline" href="@GetPostUrl(nextPost)">
                         @nextPost.Title
                     </a>
-                    <a class="mt-1 block text-sm text-slate-500 hover:underline" href="@GetWriterUrl(nextPost.Author)">@nextPost.Author</a>
+                    <a class="mt-1 block text-sm text-slate-500 hover:underline" href="@GetWriterUrl(nextPost.Author)">@FormatUserName(nextPost.Author)</a>
                 }
             </article>
         </section>
@@ -258,7 +274,7 @@ else
                 {
                     <article class="rounded-xl border-t border-slate-200 pt-2">
                         <div class="flex flex-wrap items-center gap-1 text-sm text-slate-500">
-                            <a class="hover:underline" href="@GetCommentAuthorUrl(comment)">@comment.Author</a>
+                            <a class="hover:underline" href="@GetCommentAuthorUrl(comment)">@FormatUserName(comment.Author)</a>
                             <span>·</span>
                             <span>@FormatDateTime(comment.CreatedAt)</span>
                             @if (CurrentUser is not null)
@@ -332,7 +348,7 @@ else
                     @if (replyingToCommentId == comment.Id)
                     {
                         <div class="mt-2 rounded-2xl border border-slate-300 bg-slate-50 p-3">
-                            <p class="mb-1 text-xs text-slate-500">[@comment.Author]에 대한 답글</p>
+                            <p class="mb-1 text-xs text-slate-500">[@FormatUserName(comment.Author)]에 대한 답글</p>
                             <div class="text-right text-xs text-slate-500">@($"{replyComment?.Length ?? 0}/1000")</div>
                             <textarea class="min-h-20 w-full rounded-xl border border-slate-300 p-3 text-sm"
                                       disabled="@isCommentSaving"
@@ -356,7 +372,7 @@ else
                     {
                         <article class="ml-6 rounded-xl border-l-2 border-slate-200 pl-3 pt-2">
                             <div class="flex flex-wrap items-center gap-1 text-sm text-slate-500">
-                                <a class="hover:underline" href="@GetCommentAuthorUrl(reply)">@reply.Author</a>
+                                <a class="hover:underline" href="@GetCommentAuthorUrl(reply)">@FormatUserName(reply.Author)</a>
                                 <span>·</span>
                                 <span>@FormatDateTime(reply.CreatedAt)</span>
                             @if (CanDeleteComment(reply))
@@ -672,6 +688,19 @@ else
         }
 
         loadedPostSlug = post.Slug;
+        if (post.IsDraft)
+        {
+            relatedPosts = Array.Empty<BlogPost>();
+            previousPost = null;
+            nextPost = null;
+            authorFollowerCount = await ApiClient.GetFollowerCountAsync(post.Author);
+            isFollowingAuthor = false;
+            message = string.Empty;
+            LoadCommentPage();
+            CapturePrerenderedState(currentStateKey);
+            return;
+        }
+
         relatedPosts = await ApiClient.GetRelatedPostsAsync(Slug, 3);
         var adjacent = await ApiClient.GetAdjacentPostsAsync(Slug);
         previousPost = adjacent.Previous;
@@ -707,6 +736,12 @@ else
             return;
         }
 
+        if (post.IsDraft)
+        {
+            message = "임시저장 글은 게시 후 좋아요를 사용할 수 있습니다.";
+            return;
+        }
+
         if (isLikeBusy)
         {
             message = "좋아요가 처리 중입니다. 잠시 후 다시 시도해 주세요.";
@@ -735,6 +770,9 @@ else
         }
     }
 
+    private Task ToggleLikeFromActionBar(string _)
+        => ToggleLike();
+
     private async Task ToggleBookmark()
     {
         message = string.Empty;
@@ -748,6 +786,12 @@ else
         if (post is null)
         {
             message = "요청한 글을 찾을 수 없습니다.";
+            return;
+        }
+
+        if (post.IsDraft)
+        {
+            message = "임시저장 글은 게시 후 북마크를 사용할 수 있습니다.";
             return;
         }
 
@@ -778,6 +822,9 @@ else
             isBookmarkBusy = false;
         }
     }
+
+    private Task ToggleBookmarkFromActionBar(string _)
+        => ToggleBookmark();
 
     private async Task SubmitComment()
     {
@@ -1031,6 +1078,9 @@ else
 
     private static string GetWriterUrl(string author)
         => $"/@{Uri.EscapeDataString(author)}";
+
+    private static string FormatUserName(string userName)
+        => string.IsNullOrWhiteSpace(userName) ? "@unknown" : $"@{userName.Trim().TrimStart('@')}";
 
     private static string GetCommentAuthorUrl(BlogComment comment)
         => GetWriterUrl(string.IsNullOrWhiteSpace(comment.AuthorNormalized) ? comment.Author : comment.AuthorNormalized);

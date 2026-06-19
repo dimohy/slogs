@@ -23,6 +23,8 @@ public sealed class BlogPost
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    public bool IsDraft { get; set; }
+
     public int ReadTimeMinutes { get; set; }
 
     public int ViewCount { get; set; }

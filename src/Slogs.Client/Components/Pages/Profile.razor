@@ -2,6 +2,7 @@
 @inject SlogsAuthState AuthState
 @inject SlogsApiClient ApiClient
 @inject NavigationManager Navigation
+
 <PageTitle>내 글</PageTitle>
 <SeoHead Title="내 글 | slogs" Description="내가 작성한 slogs 글을 관리합니다." NoIndex="true" />
 
@@ -14,17 +15,13 @@ else
     <section class="space-y-4">
         <div class="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4">
             <div>
-                <h1 class="text-2xl font-bold text-slate-900">내가 쓴 글</h1>
+                <h1 class="text-2xl font-bold text-slate-900">내 글</h1>
                 <p class="mt-1 text-sm text-slate-500">@CurrentUser.DisplayName 님이 작성한 글을 관리합니다.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 @if (totalCount > 0)
                 {
                     <span class="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600">@($"{totalCount}개 글")</span>
-                }
-                @if (myPosts.Any())
-                {
-                    <a class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800" href="/write">새 글 쓰기</a>
                 }
             </div>
         </div>
@@ -39,10 +36,7 @@ else
             {
                 <div class="grid min-h-64 place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center md:col-span-2">
                     <div class="max-w-sm">
-                        <p class="text-sm font-semibold text-slate-500">아직 발행한 글이 없습니다.</p>
-                        <h2 class="mt-2 text-xl font-bold text-slate-900">첫 글을 작성해 보세요.</h2>
-                        <a class="mt-5 inline-flex rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-                           href="/write">새 글 쓰기</a>
+                        <p class="text-sm font-semibold text-slate-500">저장한 글이 없습니다.</p>
                     </div>
                 </div>
             }
@@ -55,27 +49,45 @@ else
                              data-card-click-href="@GetPostUrl(post)"
                              tabindex="0"
                              role="link"
-                             aria-label="@($"{post.Title} 상세 보기")">
+                             aria-label="@GetPostCardAriaLabel(post)">
                         <PostCardImage Post="post" PostUrl="@GetPostUrl(post)" Priority="@IsPriorityCardImage(index)" />
                         <a class="mb-2 block text-xl font-bold text-slate-900 hover:underline" href="@GetPostUrl(post)">@post.Title</a>
-                        <div class="flex flex-wrap items-center gap-1 text-sm text-slate-500">
-                            <a class="hover:underline" href="@($"/@{Uri.EscapeDataString(post.Author)}")">@post.Author</a>
-                            <span>·</span>
-                            <span>@FormatDate(post.PublishedAt)</span>
-                            <span>·</span>
-                            <span>@post.ReadTimeMinutes 분</span>
-                            <span>·</span>
-                            <span>@post.LikeCount 개 좋아요</span>
-                            <span>·</span>
-                            <span>@post.CommentCount 개 댓글</span>
-                            <span>·</span>
-                            <span>@post.ViewCount 회 조회</span>
+                        <div class="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+                            <a class="font-semibold text-slate-800 hover:underline" href="@($"/@{Uri.EscapeDataString(post.Author)}")">@FormatUserName(post.Author)</a>
+                            @if (post.IsDraft)
+                            {
+                                <span class="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">임시저장</span>
+                                <span>수정 @FormatDate(post.UpdatedAt)</span>
+                            }
+                            else
+                            {
+                                <span class="inline-flex items-center gap-1">
+                                    <SlogsIcon Name="calendar" Class="h-3.5 w-3.5" />
+                                    <span>@FormatDate(post.PublishedAt)</span>
+                                </span>
+                            }
+                            <span class="inline-flex items-center gap-1">
+                                <SlogsIcon Name="clock" Class="h-3.5 w-3.5" />
+                                <span>@post.ReadTimeMinutes 분</span>
+                            </span>
+                            <span class="inline-flex items-center gap-1">
+                                <SlogsIcon Name="heart" Class="h-3.5 w-3.5" />
+                                <span>@post.LikeCount</span>
+                            </span>
+                            <span class="inline-flex items-center gap-1">
+                                <SlogsIcon Name="message-circle" Class="h-3.5 w-3.5" />
+                                <span>@post.CommentCount</span>
+                            </span>
+                            <span class="inline-flex items-center gap-1">
+                                <SlogsIcon Name="eye" Class="h-3.5 w-3.5" />
+                                <span>@post.ViewCount</span>
+                            </span>
                             @if (post.Series.Count > 0)
                             {
-                                <span>·</span>
                                 @foreach (var series in post.Series)
                                 {
-                                    <a class="hover:underline" href="@($"/series/{Uri.EscapeDataString(series)}")">시리즈: @series</a>
+                                    <a class="rounded-full border border-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                                       href="@($"/series/{Uri.EscapeDataString(series)}")">시리즈: @series</a>
                                 }
                             }
                         </div>
@@ -87,8 +99,15 @@ else
                         <div class="mt-2 flex flex-wrap gap-2">
                             @foreach (var tag in post.Tags)
                             {
-                                <a class="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-900 hover:bg-sky-100"
-                                   href="@($"/tag/{Uri.EscapeDataString(tag)}")">#@tag</a>
+                                @if (post.IsDraft)
+                                {
+                                    <span class="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600">#@tag</span>
+                                }
+                                else
+                                {
+                                    <a class="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-900 hover:bg-sky-100"
+                                       href="@($"/tag/{Uri.EscapeDataString(tag)}")">#@tag</a>
+                                }
                             }
                         </div>
 
@@ -156,7 +175,6 @@ else
         await AuthState.EnsureInitializedAsync();
         if (CurrentUser is null)
         {
-
             Navigation.NavigateTo(GetLoginHref());
         }
     }
@@ -191,7 +209,7 @@ else
             return;
         }
 
-        allPosts = await ApiClient.GetByAuthorAsync(CurrentUser.UserName);
+        allPosts = await ApiClient.GetMyPostsAsync(CurrentUser.UserName);
         totalCount = allPosts.Count;
         totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)PageSize);
         myPosts = allPosts.Take(Math.Min(allPosts.Count, Math.Max(PageSize, minimumVisibleCount))).ToList();
@@ -302,11 +320,19 @@ else
     }
 
     private static string GetPostUrl(BlogPost post)
-        => $"/@{Uri.EscapeDataString(post.Author)}/{Uri.EscapeDataString(post.Slug)}";
+        => post.IsDraft
+            ? $"/edit/{Uri.EscapeDataString(post.Slug)}"
+            : $"/@{Uri.EscapeDataString(post.Author)}/{Uri.EscapeDataString(post.Slug)}";
+
+    private static string GetPostCardAriaLabel(BlogPost post)
+        => post.IsDraft ? $"{post.Title} 편집" : $"{post.Title} 상세 보기";
 
     private static bool IsPriorityCardImage(int index) => index < 2;
 
     private static string FormatDate(DateTime dateTime) => dateTime.ToLocalTime().ToString("yyyy.MM.dd");
+
+    private static string FormatUserName(string userName)
+        => string.IsNullOrWhiteSpace(userName) ? "@unknown" : $"@{userName.Trim().TrimStart('@')}";
 
     private static string Shorten(string text, int maxLength)
     {
@@ -346,7 +372,4 @@ else
             Message = message
         };
     }
-
 }
-
-

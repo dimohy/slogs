@@ -1,0 +1,256 @@
+@inject SlogsAuthState AuthState
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+@if (CurrentUser is not null)
+{
+    <section class="rounded-2xl border border-slate-200 bg-white p-5">
+        <form class="grid gap-5"
+              @onsubmit="SaveProfileAsync"
+              @onsubmit:preventDefault>
+            <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div class="flex items-center gap-4">
+                    <div class="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 text-2xl font-black text-slate-700">
+                        @if (!string.IsNullOrWhiteSpace(profileImageUrl))
+                        {
+                            <img class="h-full w-full object-cover"
+                                 src="@profileImageUrl"
+                                 alt="@($"{profileDisplayName} 프로필 이미지")"
+                                 loading="lazy"
+                                 decoding="async" />
+                        }
+                        else
+                        {
+                            <span>@GetProfileInitial()</span>
+                        }
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-slate-500">계정</p>
+                        <h2 class="mt-1 text-xl font-black text-slate-900">프로필 설정</h2>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">@GetProfileAddress()</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid gap-3 md:grid-cols-2">
+                <div class="grid gap-1 text-sm font-semibold text-slate-700">
+                    공개 주소
+                    <p class="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">@GetProfileAddress()</p>
+                </div>
+
+                <label class="grid gap-1 text-sm font-semibold text-slate-700" for="profile-display-name">
+                    표시 이름
+                    <input id="profile-display-name"
+                           class="rounded-2xl border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900"
+                           maxlength="80"
+                           autocomplete="name"
+                           @bind="profileDisplayName"
+                           @bind:event="oninput" />
+                </label>
+
+                <label class="grid gap-1 text-sm font-semibold text-slate-700" for="profile-email">
+                    이메일
+                    <input id="profile-email"
+                           class="rounded-2xl border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900"
+                           type="email"
+                           maxlength="320"
+                           autocomplete="email"
+                           @bind="profileEmail"
+                           @bind:event="oninput" />
+                </label>
+
+                <label class="grid gap-1 text-sm font-semibold text-slate-700 md:col-span-2" for="profile-image-url">
+                    프로필 이미지 URL
+                    <input id="profile-image-url"
+                           class="rounded-2xl border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900"
+                           maxlength="500"
+                           autocomplete="url"
+                           @bind="profileImageUrl"
+                           @bind:event="oninput" />
+                </label>
+
+                <label class="grid gap-1 text-sm font-semibold text-slate-700 md:col-span-2" for="profile-bio">
+                    소개
+                    <textarea id="profile-bio"
+                              class="min-h-28 rounded-2xl border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900"
+                              maxlength="280"
+                              @bind="profileBio"
+                              @bind:event="oninput"></textarea>
+                </label>
+            </div>
+
+            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <p class="text-xs font-semibold text-slate-500">@($"{profileBio.Length}/280")</p>
+                <button class="w-fit rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-wait disabled:opacity-60"
+                        type="submit"
+                        disabled="@isSavingProfile">
+                    @(isSavingProfile ? "저장 중..." : "프로필 저장")
+                </button>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(profileMessage))
+            {
+                <p class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">@profileMessage</p>
+            }
+            @if (!string.IsNullOrWhiteSpace(profileError))
+            {
+                <p class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">@profileError</p>
+            }
+        </form>
+    </section>
+}
+
+@code {
+    private AuthUser? CurrentUser => AuthState.CurrentUser;
+    private string profileDisplayName = string.Empty;
+    private string profileEmail = string.Empty;
+    private string profileImageUrl = string.Empty;
+    private string profileBio = string.Empty;
+    private string profileMessage = string.Empty;
+    private string profileError = string.Empty;
+    private string profileFormUserName = string.Empty;
+    private bool isSavingProfile;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthState.EnsureInitializedAsync();
+        if (CurrentUser is not null)
+        {
+            InitializeProfileForm(CurrentUser, force: true);
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (CurrentUser is not null)
+        {
+            InitializeProfileForm(CurrentUser);
+        }
+    }
+
+    private async Task SaveProfileAsync()
+    {
+        if (CurrentUser is null || isSavingProfile)
+        {
+            return;
+        }
+
+        profileMessage = string.Empty;
+        profileError = ValidateProfileForm();
+        if (!string.IsNullOrWhiteSpace(profileError))
+        {
+            return;
+        }
+
+        isSavingProfile = true;
+        try
+        {
+            var result = await JS.InvokeAsync<ProfileApiResult>(
+                "slogsAuthApi.profile",
+                new
+                {
+                    displayName = profileDisplayName,
+                    email = profileEmail,
+                    profileImageUrl,
+                    bio = profileBio
+                });
+
+            if (result.Ok && result.User is not null)
+            {
+                AuthState.Restore(result.User);
+                InitializeProfileForm(result.User, force: true);
+                profileMessage = "프로필이 저장되었습니다.";
+                return;
+            }
+
+            profileError = MapProfileError(result.Error, result.Status == 401 ? "로그인이 필요합니다." : "프로필 저장에 실패했습니다.");
+        }
+        finally
+        {
+            isSavingProfile = false;
+        }
+    }
+
+    private void InitializeProfileForm(AuthUser user, bool force = false)
+    {
+        if (!force && profileFormUserName.Equals(user.UserName, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        profileFormUserName = user.UserName;
+        profileDisplayName = user.DisplayName;
+        profileEmail = user.Email;
+        profileImageUrl = user.ProfileImageUrl;
+        profileBio = user.Bio;
+    }
+
+    private string ValidateProfileForm()
+    {
+        if (string.IsNullOrWhiteSpace(profileDisplayName))
+        {
+            return "표시 이름을 입력해 주세요.";
+        }
+
+        if (profileDisplayName.Trim().Length > 80)
+        {
+            return "표시 이름은 80자 이하여야 합니다.";
+        }
+
+        if (profileEmail.Trim().Length > 320)
+        {
+            return "이메일은 320자 이하여야 합니다.";
+        }
+
+        if (!string.IsNullOrWhiteSpace(profileImageUrl) && profileImageUrl.Trim().Length > 500)
+        {
+            return "프로필 이미지 URL은 500자 이하여야 합니다.";
+        }
+
+        if (profileBio.Trim().Length > 280)
+        {
+            return "소개는 280자 이하여야 합니다.";
+        }
+
+        return string.Empty;
+    }
+
+    private string GetProfileAddress()
+        => string.IsNullOrWhiteSpace(CurrentUser?.UserName) ? "@" : $"@{CurrentUser.UserName}";
+
+    private string GetProfileInitial()
+    {
+        var source = string.IsNullOrWhiteSpace(profileDisplayName)
+            ? CurrentUser?.UserName ?? "S"
+            : profileDisplayName;
+
+        return source[..Math.Min(1, source.Length)].ToUpperInvariant();
+    }
+
+    private static string MapProfileError(string? error, string fallback)
+    {
+        return error switch
+        {
+            "profileDisplayNameRequired" => "표시 이름을 입력해 주세요.",
+            "profileDisplayNameLength" => "표시 이름은 80자 이하여야 합니다.",
+            "profileEmailLength" => "이메일은 320자 이하여야 합니다.",
+            "profileEmailInvalid" => "올바른 이메일을 입력해 주세요.",
+            "profileImageUrlLength" => "프로필 이미지 URL은 500자 이하여야 합니다.",
+            "profileImageUrlInvalid" => "프로필 이미지 URL은 http, https 또는 /uploads 경로여야 합니다.",
+            "profileBioLength" => "소개는 280자 이하여야 합니다.",
+            "profileUserNotFound" => "계정을 찾을 수 없습니다.",
+            _ => fallback
+        };
+    }
+
+    private sealed class ProfileApiResult
+    {
+        public bool Ok { get; set; }
+
+        public int Status { get; set; }
+
+        public string? Error { get; set; }
+
+        public AuthUser? User { get; set; }
+    }
+}

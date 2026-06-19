@@ -13,6 +13,9 @@ namespace Slogs.Data.CompiledModels
         [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "<Id>k__BackingField")]
         public static extern ref Guid Id(PostRecord @this);
 
+        [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "<IsDraft>k__BackingField")]
+        public static extern ref bool IsDraft(PostRecord @this);
+
         [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "<Author>k__BackingField")]
         public static extern ref string Author(PostRecord @this);
 

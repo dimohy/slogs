@@ -16,6 +16,7 @@ public static class SlogsAuthentication
         {
             new(ClaimTypes.NameIdentifier, user.UserName),
             new(ClaimTypes.Name, user.DisplayName),
+            new(ClaimTypes.Email, user.Email),
             new(ProfileImageClaim, user.ProfileImageUrl),
             new(BioClaim, user.Bio),
             new(RegisteredAtClaim, user.RegisteredAt.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture))
@@ -54,6 +55,7 @@ public static class SlogsAuthentication
         {
             UserName = userName,
             DisplayName = principal.FindFirstValue(ClaimTypes.Name) ?? userName,
+            Email = principal.FindFirstValue(ClaimTypes.Email) ?? string.Empty,
             ProfileImageUrl = principal.FindFirstValue(ProfileImageClaim) ?? string.Empty,
             Bio = principal.FindFirstValue(BioClaim) ?? string.Empty,
             RegisteredAt = registeredAt

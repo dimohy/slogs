@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
+using System.Net.Mail;
 
 namespace Slogs.Data;
 
@@ -69,6 +71,7 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
         {
             UserName = normalized,
             DisplayName = string.IsNullOrWhiteSpace(displayName) ? userName.Trim() : displayName.Trim(),
+            Email = string.Empty,
             Password = password,
             ProfileImageUrl = string.Empty,
             Bio = "slogs에서 새 글을 준비 중인 작성자입니다.",
@@ -79,6 +82,160 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
         await db.SaveChangesAsync();
 
         CurrentUser = ToModel(newUser);
+        AuthStateChanged?.Invoke();
+        return CurrentUser;
+    }
+
+    public async Task<AuthUser?> LoginExternalAsync(
+        string provider,
+        string providerUserId,
+        string? email,
+        string? displayName,
+        string? profileImageUrl)
+    {
+        var normalizedProvider = NormalizeProvider(provider);
+        var normalizedProviderUserId = providerUserId.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedProvider) || string.IsNullOrWhiteSpace(normalizedProviderUserId))
+        {
+            throw new InvalidOperationException("externalLoginInvalid");
+        }
+
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var externalLogin = await db.ExternalLogins.FindAsync(normalizedProvider, normalizedProviderUserId);
+        if (externalLogin is null)
+        {
+            return null;
+        }
+
+        var now = DateTime.UtcNow;
+        var normalizedEmail = email?.Trim().ToLowerInvariant() ?? string.Empty;
+        var finalDisplayName = NormalizeDisplayName(displayName, normalizedEmail);
+        var finalProfileImageUrl = profileImageUrl?.Trim() ?? string.Empty;
+
+        externalLogin.Email = normalizedEmail;
+        externalLogin.LastLoginAt = now;
+
+        var existingUser = await db.Users.FirstOrDefaultAsync(x => x.UserName == externalLogin.UserName)
+            ?? await RecreateExternalUserAsync(db, externalLogin.UserName, normalizedEmail, finalDisplayName, finalProfileImageUrl, now);
+        RefreshExternalProfile(existingUser, normalizedEmail, finalDisplayName, finalProfileImageUrl);
+
+        await db.SaveChangesAsync();
+        CurrentUser = ToModel(existingUser);
+        AuthStateChanged?.Invoke();
+        return CurrentUser;
+    }
+
+    public async Task<string> CreateExternalUserNameCandidateAsync(string provider, string? email, string? displayName)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        return await CreateUniqueExternalUserNameAsync(
+            db,
+            NormalizeProvider(provider),
+            email?.Trim().ToLowerInvariant() ?? string.Empty,
+            NormalizeDisplayName(displayName, email?.Trim().ToLowerInvariant() ?? string.Empty));
+    }
+
+    public async Task<AuthUser> CreateConfirmedExternalLoginAsync(
+        string provider,
+        string providerUserId,
+        string? email,
+        string? displayName,
+        string? profileImageUrl,
+        string requestedUserName)
+    {
+        var normalizedProvider = NormalizeProvider(provider);
+        var normalizedProviderUserId = providerUserId.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedProvider) || string.IsNullOrWhiteSpace(normalizedProviderUserId))
+        {
+            throw new InvalidOperationException("externalLoginInvalid");
+        }
+
+        var userName = NormalizeProfileUserName(requestedUserName, string.Empty);
+        var normalizedEmail = email?.Trim().ToLowerInvariant() ?? string.Empty;
+        var finalDisplayName = NormalizeDisplayName(displayName, normalizedEmail);
+        var finalProfileImageUrl = profileImageUrl?.Trim() ?? string.Empty;
+
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var externalLogin = await db.ExternalLogins.FindAsync(normalizedProvider, normalizedProviderUserId);
+        if (externalLogin is not null)
+        {
+            return await LoginExternalAsync(provider, providerUserId, email, displayName, profileImageUrl)
+                ?? throw new InvalidOperationException("externalLoginInvalid");
+        }
+
+        if (await db.Users.AsNoTracking().AnyAsync(x => x.UserName == userName))
+        {
+            throw new InvalidOperationException("externalUserNameTaken");
+        }
+
+        var now = DateTime.UtcNow;
+        var newUser = new UserRecord
+        {
+            UserName = userName,
+            DisplayName = finalDisplayName,
+            Email = normalizedEmail,
+            Password = string.Empty,
+            ProfileImageUrl = finalProfileImageUrl,
+            Bio = $"{GetProviderDisplayName(normalizedProvider)} 계정으로 가입한 슬로거입니다.",
+            RegisteredAt = now
+        };
+
+        db.Users.Add(newUser);
+        db.ExternalLogins.Add(new ExternalLoginRecord
+        {
+            Provider = normalizedProvider,
+            ProviderUserId = normalizedProviderUserId,
+            UserName = userName,
+            Email = normalizedEmail,
+            CreatedAt = now,
+            LastLoginAt = now
+        });
+
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            throw new InvalidOperationException("externalUserNameTaken", ex);
+        }
+
+        CurrentUser = ToModel(newUser);
+        AuthStateChanged?.Invoke();
+        return CurrentUser;
+    }
+
+    public async Task<AuthUser> UpdateProfileAsync(
+        string userName,
+        string displayName,
+        string? email,
+        string? profileImageUrl,
+        string? bio)
+    {
+        var normalizedUserName = NormalizeUser(userName);
+        if (string.IsNullOrWhiteSpace(normalizedUserName))
+        {
+            throw new InvalidOperationException("profileUserRequired");
+        }
+
+        var normalizedDisplayName = NormalizeProfileDisplayName(displayName);
+        var normalizedEmail = NormalizeProfileEmail(email);
+        var normalizedProfileImageUrl = NormalizeProfileImageUrl(profileImageUrl);
+        var normalizedBio = NormalizeProfileBio(bio);
+
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var user = await db.Users.FirstOrDefaultAsync(x => x.UserName == normalizedUserName)
+            ?? throw new InvalidOperationException("profileUserNotFound");
+
+        user.DisplayName = normalizedDisplayName;
+        user.Email = normalizedEmail;
+        user.ProfileImageUrl = normalizedProfileImageUrl;
+        user.Bio = normalizedBio;
+        user.ProfileUpdatedAt = DateTime.UtcNow;
+
+        await db.SaveChangesAsync();
+
+        CurrentUser = ToModel(user);
         AuthStateChanged?.Invoke();
         return CurrentUser;
     }
@@ -253,12 +410,253 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
         {
             UserName = record.UserName,
             DisplayName = record.DisplayName,
+            Email = record.Email,
             Password = record.Password,
             ProfileImageUrl = record.ProfileImageUrl,
             Bio = record.Bio,
             RegisteredAt = record.RegisteredAt
         };
     }
+
+    private static async Task<UserRecord> RecreateExternalUserAsync(
+        SlogsDbContext db,
+        string userName,
+        string email,
+        string displayName,
+        string profileImageUrl,
+        DateTime now)
+    {
+        var recreatedUser = new UserRecord
+        {
+            UserName = userName,
+            DisplayName = displayName,
+            Email = email,
+            Password = string.Empty,
+            ProfileImageUrl = profileImageUrl,
+            Bio = "외부 로그인 계정으로 가입한 슬로거입니다.",
+            RegisteredAt = now
+        };
+
+        db.Users.Add(recreatedUser);
+        await db.SaveChangesAsync();
+        return recreatedUser;
+    }
+
+    private static void RefreshExternalProfile(UserRecord user, string email, string displayName, string profileImageUrl)
+    {
+        if (user.ProfileUpdatedAt is not null)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(email))
+        {
+            user.Email = email;
+        }
+
+        if (!string.IsNullOrWhiteSpace(displayName))
+        {
+            user.DisplayName = displayName;
+        }
+
+        if (!string.IsNullOrWhiteSpace(profileImageUrl))
+        {
+            user.ProfileImageUrl = profileImageUrl;
+        }
+
+        if (string.IsNullOrWhiteSpace(user.Bio))
+        {
+            user.Bio = "외부 로그인 계정으로 가입한 슬로거입니다.";
+        }
+    }
+
+    private static async Task<string> CreateUniqueExternalUserNameAsync(
+        SlogsDbContext db,
+        string provider,
+        string email,
+        string displayName)
+    {
+        var baseName = CreateExternalUserNameBase(provider, email, displayName);
+        var candidate = baseName;
+        var suffix = 2;
+
+        while (await db.Users.AsNoTracking().AnyAsync(x => x.UserName == candidate))
+        {
+            candidate = $"{baseName}-{suffix++}";
+        }
+
+        return candidate;
+    }
+
+    private static string CreateExternalUserNameBase(string provider, string email, string displayName)
+    {
+        var source = email;
+        var atIndex = source.IndexOf('@', StringComparison.Ordinal);
+        if (atIndex > 0)
+        {
+            source = source[..atIndex];
+        }
+
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            source = displayName;
+        }
+
+        var normalized = new string(source
+            .Trim()
+            .ToLowerInvariant()
+            .Select(character => char.IsAsciiLetterOrDigit(character) ? character : '-')
+            .ToArray());
+        normalized = string.Join('-', normalized.Split('-', StringSplitOptions.RemoveEmptyEntries));
+
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            normalized = provider;
+        }
+
+        return normalized.Length <= 50 ? normalized : normalized[..50].Trim('-');
+    }
+
+    private static string NormalizeProvider(string value)
+        => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToLowerInvariant();
+
+    private static string NormalizeDisplayName(string? displayName, string email)
+    {
+        if (!string.IsNullOrWhiteSpace(displayName))
+        {
+            var trimmedDisplayName = displayName.Trim();
+            return trimmedDisplayName.Length <= 80 ? trimmedDisplayName : trimmedDisplayName[..80];
+        }
+
+        if (!string.IsNullOrWhiteSpace(email))
+        {
+            var atIndex = email.IndexOf('@', StringComparison.Ordinal);
+            var localPart = atIndex > 0 ? email[..atIndex] : email;
+            return string.IsNullOrWhiteSpace(localPart) ? "Google 사용자" : localPart;
+        }
+
+        return "Google 사용자";
+    }
+
+    private static string NormalizeProfileUserName(string? userName, string fallbackUserName)
+    {
+        var rawUserName = string.IsNullOrWhiteSpace(userName) ? fallbackUserName : userName.Trim();
+        if (rawUserName.StartsWith("/@", StringComparison.Ordinal))
+        {
+            rawUserName = rawUserName[2..];
+        }
+        else if (rawUserName.StartsWith('@'))
+        {
+            rawUserName = rawUserName[1..];
+        }
+
+        var normalized = NormalizeUser(rawUserName);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            throw new InvalidOperationException("profileUserNameRequired");
+        }
+
+        if (normalized.Length > 80)
+        {
+            throw new InvalidOperationException("profileUserNameLength");
+        }
+
+        if (!char.IsAsciiLetterOrDigit(normalized[0]) || normalized.Any(character => !IsProfileUserNameCharacter(character)))
+        {
+            throw new InvalidOperationException("profileUserNameInvalid");
+        }
+
+        return normalized;
+    }
+
+    private static bool IsProfileUserNameCharacter(char character)
+        => char.IsAsciiLetterOrDigit(character) || character is '-' or '_' or '.';
+
+    private static string NormalizeProfileDisplayName(string displayName)
+    {
+        var normalized = displayName.Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            throw new InvalidOperationException("profileDisplayNameRequired");
+        }
+
+        if (normalized.Length > 80)
+        {
+            throw new InvalidOperationException("profileDisplayNameLength");
+        }
+
+        return normalized;
+    }
+
+    private static string NormalizeProfileEmail(string? email)
+    {
+        var normalized = email?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return string.Empty;
+        }
+
+        if (normalized.Length > 320)
+        {
+            throw new InvalidOperationException("profileEmailLength");
+        }
+
+        try
+        {
+            var parsed = new MailAddress(normalized);
+            if (!parsed.Address.Equals(normalized, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("profileEmailInvalid");
+            }
+        }
+        catch (FormatException)
+        {
+            throw new InvalidOperationException("profileEmailInvalid");
+        }
+
+        return normalized.ToLowerInvariant();
+    }
+
+    private static string NormalizeProfileImageUrl(string? profileImageUrl)
+    {
+        var normalized = profileImageUrl?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return string.Empty;
+        }
+
+        if (normalized.Length > 500)
+        {
+            throw new InvalidOperationException("profileImageUrlLength");
+        }
+
+        if (normalized.StartsWith('/', StringComparison.Ordinal))
+        {
+            return normalized;
+        }
+
+        if (!Uri.TryCreate(normalized, UriKind.Absolute, out var parsed)
+            || parsed.Scheme is not ("http" or "https"))
+        {
+            throw new InvalidOperationException("profileImageUrlInvalid");
+        }
+
+        return normalized;
+    }
+
+    private static string NormalizeProfileBio(string? bio)
+    {
+        var normalized = bio?.Trim() ?? string.Empty;
+        if (normalized.Length > 280)
+        {
+            throw new InvalidOperationException("profileBioLength");
+        }
+
+        return normalized;
+    }
+
+    private static string GetProviderDisplayName(string provider)
+        => provider.Equals("google", StringComparison.OrdinalIgnoreCase) ? "Google" : provider;
 
     private static string NormalizeUser(string value)
         => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToLowerInvariant();

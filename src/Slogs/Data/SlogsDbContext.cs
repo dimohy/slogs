@@ -12,6 +12,12 @@ public sealed class SlogsDbContext(DbContextOptions<SlogsDbContext> options) : D
 
     public DbSet<FollowRecord> Follows => Set<FollowRecord>();
 
+    public DbSet<ExternalLoginRecord> ExternalLogins => Set<ExternalLoginRecord>();
+
+    public DbSet<LlmWikiEntryRecord> LlmWikiEntries => Set<LlmWikiEntryRecord>();
+
+    public DbSet<LlmWikiMcpTokenRecord> LlmWikiMcpTokens => Set<LlmWikiMcpTokenRecord>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<PostRecord>(entity =>
@@ -24,6 +30,7 @@ public sealed class SlogsDbContext(DbContextOptions<SlogsDbContext> options) : D
             entity.Property(x => x.Author).HasMaxLength(80);
             entity.Property(x => x.Summary).HasMaxLength(500);
             entity.Property(x => x.ThumbnailUrl).HasMaxLength(500);
+            entity.Property(x => x.IsDraft).HasDefaultValue(false);
             entity.Property(x => x.TagsJson).HasColumnType("jsonb");
             entity.Property(x => x.SeriesJson).HasColumnType("jsonb");
             entity.Property(x => x.LikedByJson).HasColumnType("jsonb");
@@ -49,6 +56,7 @@ public sealed class SlogsDbContext(DbContextOptions<SlogsDbContext> options) : D
             entity.HasKey(x => x.UserName);
             entity.Property(x => x.UserName).HasMaxLength(80);
             entity.Property(x => x.DisplayName).HasMaxLength(80);
+            entity.Property(x => x.Email).HasMaxLength(320);
             entity.Property(x => x.Password).HasMaxLength(200);
             entity.Property(x => x.ProfileImageUrl).HasMaxLength(500);
             entity.Property(x => x.Bio).HasMaxLength(280);
@@ -66,6 +74,53 @@ public sealed class SlogsDbContext(DbContextOptions<SlogsDbContext> options) : D
             entity.HasOne<UserRecord>()
                 .WithMany()
                 .HasForeignKey(x => x.TargetUserName)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ExternalLoginRecord>(entity =>
+        {
+            entity.HasKey(x => new { x.Provider, x.ProviderUserId });
+            entity.HasIndex(x => x.UserName);
+            entity.HasIndex(x => new { x.Provider, x.Email });
+            entity.Property(x => x.Provider).HasMaxLength(40);
+            entity.Property(x => x.ProviderUserId).HasMaxLength(200);
+            entity.Property(x => x.UserName).HasMaxLength(80);
+            entity.Property(x => x.Email).HasMaxLength(320);
+            entity.HasOne<UserRecord>()
+                .WithMany()
+                .HasForeignKey(x => x.UserName)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LlmWikiEntryRecord>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OwnerUserName, x.Slug }).IsUnique();
+            entity.HasIndex(x => x.OwnerUserName);
+            entity.HasIndex(x => x.UpdatedAt);
+            entity.Property(x => x.OwnerUserName).HasMaxLength(80);
+            entity.Property(x => x.Slug).HasMaxLength(160);
+            entity.Property(x => x.Title).HasMaxLength(200);
+            entity.Property(x => x.Summary).HasMaxLength(500);
+            entity.Property(x => x.TagsJson).HasColumnType("jsonb");
+            entity.HasOne<UserRecord>()
+                .WithMany()
+                .HasForeignKey(x => x.OwnerUserName)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LlmWikiMcpTokenRecord>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.TokenHash).IsUnique();
+            entity.HasIndex(x => x.OwnerUserName);
+            entity.Property(x => x.OwnerUserName).HasMaxLength(80);
+            entity.Property(x => x.Name).HasMaxLength(120);
+            entity.Property(x => x.TokenHash).HasMaxLength(128);
+            entity.Property(x => x.TokenPrefix).HasMaxLength(32);
+            entity.HasOne<UserRecord>()
+                .WithMany()
+                .HasForeignKey(x => x.OwnerUserName)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }
@@ -90,6 +145,8 @@ public sealed class PostRecord
     public DateTime PublishedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    public bool IsDraft { get; set; }
 
     public int ReadTimeMinutes { get; set; }
 
@@ -133,6 +190,8 @@ public sealed class UserRecord
 
     public string DisplayName { get; set; } = string.Empty;
 
+    public string Email { get; set; } = string.Empty;
+
     public string Password { get; set; } = string.Empty;
 
     public string ProfileImageUrl { get; set; } = string.Empty;
@@ -140,6 +199,8 @@ public sealed class UserRecord
     public string Bio { get; set; } = string.Empty;
 
     public DateTime RegisteredAt { get; set; } = DateTime.UtcNow;
+
+    public DateTime? ProfileUpdatedAt { get; set; }
 }
 
 public sealed class FollowRecord
@@ -149,4 +210,65 @@ public sealed class FollowRecord
     public string TargetUserName { get; set; } = string.Empty;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public sealed class ExternalLoginRecord
+{
+    public string Provider { get; set; } = string.Empty;
+
+    public string ProviderUserId { get; set; } = string.Empty;
+
+    public string UserName { get; set; } = string.Empty;
+
+    public string Email { get; set; } = string.Empty;
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public DateTime LastLoginAt { get; set; } = DateTime.UtcNow;
+}
+
+public sealed class LlmWikiEntryRecord
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public string OwnerUserName { get; set; } = string.Empty;
+
+    public string Slug { get; set; } = string.Empty;
+
+    public string Title { get; set; } = string.Empty;
+
+    public string Summary { get; set; } = string.Empty;
+
+    public string Content { get; set; } = string.Empty;
+
+    public string SourcePrompt { get; set; } = string.Empty;
+
+    public string TagsJson { get; set; } = "[]";
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    public DateTime? LastAccessedAt { get; set; }
+
+    public int AccessCount { get; set; }
+}
+
+public sealed class LlmWikiMcpTokenRecord
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public string OwnerUserName { get; set; } = string.Empty;
+
+    public string Name { get; set; } = string.Empty;
+
+    public string TokenHash { get; set; } = string.Empty;
+
+    public string TokenPrefix { get; set; } = string.Empty;
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public DateTime? LastUsedAt { get; set; }
+
+    public DateTime? RevokedAt { get; set; }
 }
