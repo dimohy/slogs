@@ -29,8 +29,8 @@ public sealed class ServerSlogsApiBackend(
     public Task<BlogPost?> GetBySlugForReadAsync(string slug)
         => blogService.GetBySlugForReadAsync(slug, GetCurrentUser()?.UserName);
 
-    public Task<BlogPost?> UpdatePostAsync(string slug, string userName, string title, string summary, string body, string tags, string? series, string? thumbnailUrl = null, bool? isDraft = null)
-        => blogService.UpdatePostAsync(slug, ResolveUserName(userName), title, summary, body, tags, series, thumbnailUrl, isDraft);
+    public Task<BlogPost?> UpdatePostAsync(string slug, string userName, string title, string summary, string body, string tags, string? series, string? thumbnailUrl = null, bool? isDraft = null, string? newSlug = null)
+        => blogService.UpdatePostAsync(slug, ResolveUserName(userName), title, summary, body, tags, series, thumbnailUrl, isDraft, newSlug);
 
     public Task<bool> DeletePostAsync(string slug, string userName)
         => blogService.DeletePostAsync(slug, ResolveUserName(userName));
@@ -40,6 +40,9 @@ public sealed class ServerSlogsApiBackend(
 
     public Task<(BlogPost? Previous, BlogPost? Next)> GetAdjacentPostsAsync(string slug)
         => blogService.GetAdjacentPostsAsync(slug);
+
+    public Task<IReadOnlyList<PostRevisionResponse>> GetPostRevisionsAsync(string slug)
+        => blogService.GetPostRevisionsAsync(slug, GetCurrentUser()?.UserName);
 
     public Task<IReadOnlyList<BlogPost>> GetByTagAsync(string tag)
         => blogService.GetByTagAsync(tag);
@@ -77,8 +80,8 @@ public sealed class ServerSlogsApiBackend(
     public Task<IReadOnlyList<BlogPost>> GetBySeriesAsync(string series)
         => blogService.GetBySeriesAsync(series);
 
-    public Task<BlogPost> CreatePostAsync(string title, string author, string summary, string body, string tags, string? series, string? thumbnailUrl = null, bool isDraft = false)
-        => blogService.CreatePostAsync(title, ResolveUserName(author), summary, body, tags, series, thumbnailUrl, isDraft);
+    public Task<BlogPost> CreatePostAsync(string title, string author, string summary, string body, string tags, string? series, string? thumbnailUrl = null, bool isDraft = false, string? slug = null)
+        => blogService.CreatePostAsync(title, ResolveUserName(author), summary, body, tags, series, thumbnailUrl, isDraft, slug);
 
     public Task<bool> ToggleLikeAsync(string slug, string userName)
         => blogService.ToggleLikeAsync(slug, ResolveUserName(userName));
@@ -104,10 +107,10 @@ public sealed class ServerSlogsApiBackend(
     }
 
     public Task<bool> RemoveCommentAsync(string slug, Guid commentId, string userName)
-        => blogService.RemoveCommentAsync(slug, commentId, ResolveUserName(userName));
+        => blogService.RemoveCommentAsync(slug, commentId, ResolveUserName(userName), GetCurrentUser()?.IsAdmin == true);
 
     public Task<bool> UpdateCommentAsync(string slug, Guid commentId, string userName, string content)
-        => blogService.UpdateCommentAsync(slug, commentId, ResolveUserName(userName), content);
+        => blogService.UpdateCommentAsync(slug, commentId, ResolveUserName(userName), content, GetCurrentUser()?.IsAdmin == true);
 
     public Task<bool> ToggleFollowAsync(string followerUser, string targetUser)
         => authService.ToggleFollowAsync(ResolveUserName(followerUser), targetUser);
@@ -133,8 +136,17 @@ public sealed class ServerSlogsApiBackend(
     public Task<int> GetFollowerCountAsync(string targetUser)
         => authService.GetFollowerCountAsync(targetUser);
 
-    public Task<IReadOnlyList<LlmWikiSearchResult>> SearchLlmWikiAsync(string userName, string? query, int limit)
-        => llmWikiService.SearchAsync(ResolveUserName(userName), query, limit);
+    public Task<IReadOnlyList<LlmWikiSearchResult>> SearchLlmWikiAsync(
+        string userName,
+        string? query,
+        int limit,
+        int offset = 0,
+        int minRelevancePercent = 50,
+        string? categoryPath = null)
+        => llmWikiService.SearchAsync(ResolveUserName(userName), query, limit, offset, minRelevancePercent, categoryPath);
+
+    public Task<IReadOnlyList<LlmWikiCategorySummary>> GetLlmWikiCategoriesAsync(string userName)
+        => llmWikiService.GetCategoriesAsync(ResolveUserName(userName));
 
     public Task<LlmWikiEntryResponse?> GetLlmWikiEntryAsync(string userName, string idOrSlug)
         => llmWikiService.GetEntryAsync(ResolveUserName(userName), idOrSlug);

@@ -1,13 +1,12 @@
-using System.Globalization;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
-using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 
 namespace Slogs.Data;
 
-public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
+public sealed class BlogService(
+    IDbContextFactory<SlogsDbContext> dbFactory,
+    PostImageService postImageService)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -82,7 +81,7 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
         return ToModel(record);
     }
 
-    public async Task<BlogPost?> UpdatePostAsync(string slug, string userName, string title, string summary, string body, string tags, string? series, string? thumbnailUrl = null, bool? isDraft = null)
+    public async Task<BlogPost?> UpdatePostAsync(string slug, string userName, string title, string summary, string body, string tags, string? series, string? thumbnailUrl = null, bool? isDraft = null, string? newSlug = null)
     {
         var user = NormalizeUser(userName);
         if (string.IsNullOrWhiteSpace(user))
@@ -91,7 +90,7 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
         }
 
         await using var db = await dbFactory.CreateDbContextAsync();
-        var post = await FindPostBySlugAsync(db, slug, tracking: true, includeComments: true);
+        var post = await FindPostBySlugAsync(db, slug, tracking: true, includeComments: true, includeRevisions: true);
         if (post is null || !post.Author.Equals(user, StringComparison.OrdinalIgnoreCase))
         {
             return null;
@@ -105,31 +104,46 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
             : summary.Trim();
         var finalBody = string.IsNullOrWhiteSpace(body) ? "내용이 없습니다." : body.Trim();
         var parsedTags = ParseTags(tags).Take(5).ToList();
+        var parsedSeries = ParseSeries(series);
+        var now = DateTime.UtcNow;
 
-        if (parsedTags.Count == 0)
+        if (!post.IsDraft)
         {
-            parsedTags.Add("general");
+            if (isDraft == true)
+            {
+                return null;
+            }
+
+            EnsureBaselineRevision(db, post);
+            ApplyPostContent(post, finalTitle, finalSummary, finalBody, parsedTags, parsedSeries, thumbnailUrl, now);
+            var nextRevisionNumber = post.Revisions.Select(x => x.RevisionNumber).DefaultIfEmpty(0).Max() + 1;
+            db.PostRevisions.Add(CreateRevisionRecord(post, nextRevisionNumber, now));
+            await db.SaveChangesAsync();
+            await postImageService.SyncPostImagesAsync(user, post.Id, finalBody);
+            return ToModel(post);
         }
 
-        post.Title = finalTitle;
-        post.Summary = finalSummary;
-        post.ThumbnailUrl = ResolveRepresentativeImageUrl(thumbnailUrl, finalBody);
-        post.Body = finalBody;
-        post.TagsJson = ToJson(parsedTags);
-        post.SeriesJson = ToJson(ParseSeries(series));
-        post.UpdatedAt = DateTime.UtcNow;
-        post.ReadTimeMinutes = Math.Max(1, (int)Math.Ceiling(finalBody.Length / 250.0));
-        if (isDraft.HasValue)
+        if (!string.IsNullOrWhiteSpace(newSlug))
         {
-            var wasDraft = post.IsDraft;
-            post.IsDraft = isDraft.Value;
-            if (wasDraft && !post.IsDraft)
-            {
-                post.PublishedAt = DateTime.UtcNow;
-            }
+            var slugs = await db.Posts
+                .AsNoTracking()
+                .Where(x => x.Id != post.Id)
+                .Select(x => x.Slug)
+                .ToListAsync();
+            post.Slug = CreateUniqueSlug(newSlug, slugs);
+        }
+
+        ApplyPostContent(post, finalTitle, finalSummary, finalBody, parsedTags, parsedSeries, thumbnailUrl, now);
+        if (isDraft.HasValue && !isDraft.Value)
+        {
+            post.IsDraft = false;
+            post.PublishedAt = now;
+            var nextRevisionNumber = post.Revisions.Select(x => x.RevisionNumber).DefaultIfEmpty(0).Max() + 1;
+            db.PostRevisions.Add(CreateRevisionRecord(post, nextRevisionNumber, now));
         }
 
         await db.SaveChangesAsync();
+        await postImageService.SyncPostImagesAsync(user, post.Id, finalBody);
         return ToModel(post);
     }
 
@@ -148,6 +162,7 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
             return false;
         }
 
+        await postImageService.DeletePostImagesAsync(user, post.Id, post.Body);
         db.Posts.Remove(post);
         await db.SaveChangesAsync();
         return true;
@@ -214,6 +229,39 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
         var previous = index + 1 < ordered.Length ? ordered[index + 1] : null;
         var next = index - 1 >= 0 ? ordered[index - 1] : null;
         return (previous, next);
+    }
+
+    public async Task<IReadOnlyList<PostRevisionResponse>> GetPostRevisionsAsync(string slug, string? viewerUserName = null)
+    {
+        if (string.IsNullOrWhiteSpace(slug))
+        {
+            return Array.Empty<PostRevisionResponse>();
+        }
+
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var record = await FindPostBySlugAsync(db, slug, tracking: false, includeComments: false, includeRevisions: true);
+        if (record is null || !CanViewPost(record, viewerUserName) || record.IsDraft)
+        {
+            return Array.Empty<PostRevisionResponse>();
+        }
+
+        var revisions = record.Revisions
+            .OrderBy(x => x.RevisionNumber)
+            .ToList();
+        if (revisions.Count == 0)
+        {
+            revisions.Add(CreateRevisionRecord(record, 1, record.PublishedAt));
+        }
+
+        var result = new List<PostRevisionResponse>();
+        PostRevisionRecord? previous = null;
+        foreach (var revision in revisions)
+        {
+            result.Add(ToRevisionResponse(revision, previous));
+            previous = revision;
+        }
+
+        return result;
     }
 
     public async Task<IReadOnlyList<BlogPost>> GetByTagAsync(string tag)
@@ -397,7 +445,7 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
         return ParseTags(tags).ToList();
     }
 
-    public async Task<BlogPost> CreatePostAsync(string title, string author, string summary, string body, string tags, string? series, string? thumbnailUrl = null, bool isDraft = false)
+    public async Task<BlogPost> CreatePostAsync(string title, string author, string summary, string body, string tags, string? series, string? thumbnailUrl = null, bool isDraft = false, string? slug = null)
     {
         await using var db = await dbFactory.CreateDbContextAsync();
         var finalTitle = string.IsNullOrWhiteSpace(title) ? "제목 없음" : title.Trim();
@@ -409,11 +457,8 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
             : summary.Trim();
         var finalBody = string.IsNullOrWhiteSpace(body) ? "내용이 없습니다." : body.Trim();
         var parsedTags = ParseTags(tags).Take(5).ToList();
-
-        if (parsedTags.Count == 0)
-        {
-            parsedTags.Add("general");
-        }
+        var parsedSeries = ParseSeries(series);
+        var now = DateTime.UtcNow;
 
         var slugs = await db.Posts.AsNoTracking().Select(x => x.Slug).ToListAsync();
         var newPost = new PostRecord
@@ -423,17 +468,23 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
             Summary = finalSummary,
             ThumbnailUrl = ResolveRepresentativeImageUrl(thumbnailUrl, finalBody),
             Body = finalBody,
-            PublishedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
+            PublishedAt = now,
+            UpdatedAt = now,
             IsDraft = isDraft,
-            Slug = CreateUniqueSlug(finalTitle, slugs),
+            Slug = CreateUniqueSlug(string.IsNullOrWhiteSpace(slug) ? finalTitle : slug, slugs),
             ReadTimeMinutes = Math.Max(1, (int)Math.Ceiling(finalBody.Length / 250.0)),
             TagsJson = ToJson(parsedTags),
-            SeriesJson = ToJson(ParseSeries(series))
+            SeriesJson = ToJson(parsedSeries)
         };
 
         db.Posts.Add(newPost);
+        if (!isDraft)
+        {
+            db.PostRevisions.Add(CreateRevisionRecord(newPost, 1, now));
+        }
+
         await db.SaveChangesAsync();
+        await postImageService.SyncPostImagesAsync(finalAuthor, newPost.Id, finalBody);
         return ToModel(newPost);
     }
 
@@ -553,7 +604,7 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
         return ToModel(comment);
     }
 
-    public async Task<bool> RemoveCommentAsync(string slug, Guid commentId, string userName)
+    public async Task<bool> RemoveCommentAsync(string slug, Guid commentId, string userName, bool isAdmin = false)
     {
         var normalizedUser = NormalizeUser(userName);
         if (string.IsNullOrWhiteSpace(normalizedUser))
@@ -569,7 +620,7 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
         }
 
         var comment = post.Comments.FirstOrDefault(c => c.Id == commentId);
-        if (comment is null || !CanDeleteComment(comment, normalizedUser))
+        if (comment is null || !CanDeleteComment(comment, normalizedUser, isAdmin))
         {
             return false;
         }
@@ -594,7 +645,7 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
         return true;
     }
 
-    public async Task<bool> UpdateCommentAsync(string slug, Guid commentId, string userName, string content)
+    public async Task<bool> UpdateCommentAsync(string slug, Guid commentId, string userName, string content, bool isAdmin = false)
     {
         var normalizedUser = NormalizeUser(userName);
         if (string.IsNullOrWhiteSpace(normalizedUser) || string.IsNullOrWhiteSpace(content))
@@ -610,7 +661,7 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
         }
 
         var comment = post.Comments.FirstOrDefault(c => c.Id == commentId);
-        if (comment is null || !CanDeleteComment(comment, normalizedUser))
+        if (comment is null || !CanDeleteComment(comment, normalizedUser, isAdmin))
         {
             return false;
         }
@@ -660,7 +711,12 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
         return records.Select(ToModel).ToList();
     }
 
-    private static Task<PostRecord?> FindPostBySlugAsync(SlogsDbContext db, string slug, bool tracking, bool includeComments)
+    private static Task<PostRecord?> FindPostBySlugAsync(
+        SlogsDbContext db,
+        string slug,
+        bool tracking,
+        bool includeComments,
+        bool includeRevisions = false)
     {
         var normalizedSlug = slug.Trim().ToLowerInvariant();
         IQueryable<PostRecord> query = tracking ? db.Posts : db.Posts.AsNoTracking();
@@ -669,12 +725,17 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
             query = query.Include(x => x.Comments);
         }
 
+        if (includeRevisions)
+        {
+            query = query.Include(x => x.Revisions);
+        }
+
         return query.FirstOrDefaultAsync(x => x.Slug == normalizedSlug);
     }
 
-    private static bool CanDeleteComment(CommentRecord comment, string normalizedUser)
+    private static bool CanDeleteComment(CommentRecord comment, string normalizedUser, bool isAdmin)
     {
-        return string.Equals(normalizedUser, "admin", StringComparison.OrdinalIgnoreCase)
+        return isAdmin
             || string.Equals(
                 string.IsNullOrWhiteSpace(comment.AuthorNormalized)
                     ? NormalizeUser(comment.Author)
@@ -709,6 +770,108 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
                 .ToList()
         };
     }
+
+    private static PostRevisionResponse ToRevisionResponse(PostRevisionRecord record, PostRevisionRecord? previous)
+    {
+        return new PostRevisionResponse(
+            record.RevisionNumber,
+            record.CreatedAt,
+            record.Title,
+            record.Summary,
+            record.Body,
+            DeserializeList(record.TagsJson),
+            DeserializeList(record.SeriesJson),
+            record.ThumbnailUrl,
+            GetChangedFields(record, previous));
+    }
+
+    private static IReadOnlyList<string> GetChangedFields(PostRevisionRecord current, PostRevisionRecord? previous)
+    {
+        if (previous is null)
+        {
+            return ["초기 게시"];
+        }
+
+        var changed = new List<string>();
+        if (!string.Equals(current.Title, previous.Title, StringComparison.Ordinal))
+        {
+            changed.Add("제목");
+        }
+
+        if (!string.Equals(current.Summary, previous.Summary, StringComparison.Ordinal))
+        {
+            changed.Add("요약");
+        }
+
+        if (!string.Equals(current.Body, previous.Body, StringComparison.Ordinal))
+        {
+            changed.Add("본문");
+        }
+
+        if (!string.Equals(current.TagsJson, previous.TagsJson, StringComparison.Ordinal))
+        {
+            changed.Add("태그");
+        }
+
+        if (!string.Equals(current.SeriesJson, previous.SeriesJson, StringComparison.Ordinal))
+        {
+            changed.Add("시리즈");
+        }
+
+        if (!string.Equals(current.ThumbnailUrl, previous.ThumbnailUrl, StringComparison.Ordinal))
+        {
+            changed.Add("대표 이미지");
+        }
+
+        return changed.Count == 0 ? ["변경 없음"] : changed;
+    }
+
+    private static void ApplyPostContent(
+        PostRecord post,
+        string title,
+        string summary,
+        string body,
+        IReadOnlyList<string> tags,
+        IReadOnlyList<string> series,
+        string? thumbnailUrl,
+        DateTime updatedAt)
+    {
+        post.Title = title;
+        post.Summary = summary;
+        post.ThumbnailUrl = ResolveRepresentativeImageUrl(thumbnailUrl, body);
+        post.Body = body;
+        post.TagsJson = ToJson(tags);
+        post.SeriesJson = ToJson(series);
+        post.UpdatedAt = updatedAt;
+        post.ReadTimeMinutes = Math.Max(1, (int)Math.Ceiling(body.Length / 250.0));
+    }
+
+    private static void EnsureBaselineRevision(SlogsDbContext db, PostRecord post)
+    {
+        if (post.Revisions.Count > 0)
+        {
+            return;
+        }
+
+        var baseline = CreateRevisionRecord(post, 1, post.PublishedAt);
+        db.PostRevisions.Add(baseline);
+        post.Revisions.Add(baseline);
+    }
+
+    private static PostRevisionRecord CreateRevisionRecord(PostRecord post, int revisionNumber, DateTime createdAt)
+        => new()
+        {
+            PostId = post.Id,
+            RevisionNumber = revisionNumber,
+            Title = post.Title,
+            Summary = post.Summary,
+            ThumbnailUrl = post.ThumbnailUrl,
+            Body = post.Body,
+            TagsJson = post.TagsJson,
+            SeriesJson = post.SeriesJson,
+            CreatedAt = createdAt,
+            Author = post.Author
+        };
 
     private static BlogComment ToModel(CommentRecord record)
     {
@@ -783,47 +946,34 @@ public sealed class BlogService(IDbContextFactory<SlogsDbContext> dbFactory)
         var normalizedUrl = NormalizeOptionalUrl(explicitUrl);
         if (!string.IsNullOrWhiteSpace(normalizedUrl))
         {
-            return normalizedUrl;
+            var normalizedUploadUrl = EditorImageStorage.NormalizeUploadUrl(normalizedUrl);
+            if (string.IsNullOrWhiteSpace(normalizedUploadUrl)
+                || PostImageService.ExtractReferencedUploadUrls(body).Contains(normalizedUploadUrl, StringComparer.Ordinal))
+            {
+                return normalizedUrl;
+            }
         }
 
         return NormalizeOptionalUrl(MarkdownRenderer.FindFirstImage(body)?.Url);
     }
 
-    private static string CreateUniqueSlug(string title, IReadOnlyCollection<string> existingSlugs)
+    private static string CreateUniqueSlug(string value, IReadOnlyCollection<string> existingSlugs)
     {
-        var baseSlug = CreateSlug(title);
+        var baseSlug = SlugGenerator.Normalize(value);
         var slug = baseSlug;
         var index = 2;
 
         while (existingSlugs.Any(p => p.Equals(slug, StringComparison.OrdinalIgnoreCase)))
         {
-            slug = $"{baseSlug}-{index}";
+            var suffix = $"-{index}";
+            var safeBaseSlug = baseSlug.Length + suffix.Length > SlugGenerator.MaxLength
+                ? baseSlug[..(SlugGenerator.MaxLength - suffix.Length)].Trim('-')
+                : baseSlug;
+            slug = SlugGenerator.Normalize($"{safeBaseSlug}{suffix}");
             index++;
         }
 
         return slug;
-    }
-
-    private static string CreateSlug(string title)
-    {
-        var normalized = title.ToLowerInvariant().Normalize(NormalizationForm.FormD);
-        var builder = new StringBuilder();
-
-        foreach (var c in normalized)
-        {
-            var category = CharUnicodeInfo.GetUnicodeCategory(c);
-            if (category == UnicodeCategory.NonSpacingMark)
-            {
-                continue;
-            }
-
-            builder.Append(c);
-        }
-
-        var ascii = builder.ToString();
-        ascii = Regex.Replace(ascii, "[^a-z0-9\\s-]", string.Empty);
-        ascii = Regex.Replace(ascii, "[\\s-]+", "-").Trim('-');
-        return string.IsNullOrWhiteSpace(ascii) ? "post" : ascii;
     }
 
     private static List<string> DeserializeList(string? json)

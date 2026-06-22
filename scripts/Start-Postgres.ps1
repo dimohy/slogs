@@ -6,6 +6,7 @@ $database = 'slogs'
 $user = 'slogs'
 $password = 'slogs_dev_password'
 $port = '54329'
+$image = 'docker.io/pgvector/pgvector:pg16'
 
 $podman = Get-Command podman -ErrorAction SilentlyContinue
 if (-not $podman) {
@@ -24,6 +25,14 @@ if ($LASTEXITCODE -ne 0) {
 
 podman container exists $container 2>$null
 if ($LASTEXITCODE -eq 0) {
+    $currentImage = podman inspect $container --format '{{.Config.Image}}'
+    if ($currentImage -ne $image) {
+        podman rm -f $container | Out-Null
+    }
+}
+
+podman container exists $container 2>$null
+if ($LASTEXITCODE -eq 0) {
     $state = podman inspect $container --format '{{.State.Status}}'
     if ($state -ne 'running') {
         podman start $container | Out-Null
@@ -35,7 +44,7 @@ if ($LASTEXITCODE -eq 0) {
         -e POSTGRES_PASSWORD=$password `
         -p "${port}:5432" `
         -v "${volume}:/var/lib/postgresql/data" `
-        docker.io/library/postgres:16 | Out-Null
+        $image | Out-Null
 }
 
 $ready = $false

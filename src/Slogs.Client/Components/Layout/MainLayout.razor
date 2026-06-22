@@ -37,38 +37,50 @@
                 else
                 {
                     <a class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
+                       href="/me">내 글</a>
+                    <a class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
                        href="/write">글쓰기</a>
-                    <div class="relative">
-                        <button class="rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
-                                type="button"
-                                aria-haspopup="menu"
-                                aria-expanded="@isAccountMenuOpen"
-                                @onclick="ToggleAccountMenu">
+                    <details class="slogs-account-menu relative">
+                        <summary class="list-none rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-200">
                             @CurrentUser.DisplayName
-                        </button>
-                        @if (isAccountMenuOpen)
-                        {
-                            <button class="fixed inset-0 z-30 cursor-default bg-transparent"
-                                    type="button"
-                                    aria-label="계정 메뉴 닫기"
-                                    @onclick="CloseAccountMenu"></button>
-                            <div class="absolute right-0 z-40 mt-2 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
-                                 role="menu">
-                                <a class="block px-4 py-2 font-semibold text-slate-800 transition hover:bg-slate-100"
-                                   href="@GetCurrentUserPath()"
-                                   role="menuitem"
-                                   @onclick="CloseAccountMenu">@GetCurrentUserMenuText()</a>
-                                <a class="block px-4 py-2 text-slate-700 transition hover:bg-slate-100"
-                                   href="/me/settings"
-                                   role="menuitem"
-                                   @onclick="CloseAccountMenu">설정</a>
+                        </summary>
+                        <div class="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
+                             role="menu">
+                            @if (CurrentUser.IsAdminMode)
+                            {
+                                <div class="border-b border-slate-100 px-4 py-2 text-xs leading-5 text-slate-500">
+                                    <span class="block font-bold text-slate-800">관리자 모드</span>
+                                    <span class="block">@($"원래 사용자 @{CurrentUser.AdminModeSourceUserName}")</span>
+                                </div>
+                            }
+                            <a class="block px-4 py-2 font-semibold text-slate-800 transition hover:bg-slate-100"
+                               href="@GetCurrentUserPath()"
+                               role="menuitem"
+                               @onclick="CloseAccountMenuAsync">@GetCurrentUserMenuText()</a>
+                            @if (CurrentUser.CanSwitchToAdminMode)
+                            {
                                 <button class="block w-full px-4 py-2 text-left text-slate-700 transition hover:bg-slate-100"
                                         type="button"
                                         role="menuitem"
-                                        @onclick="Logout">로그아웃</button>
-                            </div>
-                        }
-                    </div>
+                                        @onclick="EnterAdminMode">어드민 전환</button>
+                            }
+                            @if (CurrentUser.CanExitAdminMode)
+                            {
+                                <button class="block w-full px-4 py-2 text-left text-slate-700 transition hover:bg-slate-100"
+                                        type="button"
+                                        role="menuitem"
+                                        @onclick="ExitAdminMode">일반 모드로 전환</button>
+                            }
+                            <a class="block px-4 py-2 text-slate-700 transition hover:bg-slate-100"
+                               href="/me/settings"
+                               role="menuitem"
+                               @onclick="CloseAccountMenuAsync">설정</a>
+                            <button class="block w-full px-4 py-2 text-left text-slate-700 transition hover:bg-slate-100"
+                                    type="button"
+                                    role="menuitem"
+                                    @onclick="Logout">로그아웃</button>
+                        </div>
+                    </details>
                 }
                 <button class="slogs-mobile-menu-toggle rounded-full border border-slate-300 bg-white p-2 text-slate-800 transition hover:bg-slate-100"
                         type="button"
@@ -128,7 +140,6 @@
 
 @code {
     private string searchTerm = string.Empty;
-    private bool isAccountMenuOpen;
     private bool isMobileMenuOpen;
 
     private AuthUser? CurrentUser => AuthState.CurrentUser;
@@ -139,6 +150,27 @@
         Navigation.LocationChanged += OnLocationChanged;
         searchTerm = GetSearchTermFromCurrentUrl();
         await AuthState.EnsureInitializedAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        try
+        {
+            await JS.InvokeVoidAsync("slogsInteractivity.markReady");
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit can be gone during refresh/navigation.
+        }
+        catch (InvalidOperationException)
+        {
+            // Static rendering can run before browser JS interop is available.
+        }
     }
 
     public void Dispose()
@@ -155,25 +187,12 @@
     private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
     {
         searchTerm = GetSearchTermFromCurrentUrl();
-        CloseAccountMenu();
         CloseMobileMenu();
         InvokeAsync(StateHasChanged);
     }
 
-    private void ToggleAccountMenu()
-    {
-        CloseMobileMenu();
-        isAccountMenuOpen = !isAccountMenuOpen;
-    }
-
-    private void CloseAccountMenu()
-    {
-        isAccountMenuOpen = false;
-    }
-
     private void ToggleMobileMenu()
     {
-        CloseAccountMenu();
         isMobileMenuOpen = !isMobileMenuOpen;
     }
 
@@ -194,10 +213,48 @@
 
     private async Task Logout()
     {
-        CloseAccountMenu();
+        await CloseAccountMenuAsync();
         await JS.InvokeAsync<AuthApiResult>("slogsAuthApi.logout");
         await AuthState.LogoutAsync();
         Navigation.NavigateTo("/", forceLoad: true);
+    }
+
+    private async Task EnterAdminMode()
+    {
+        await CloseAccountMenuAsync();
+        var result = await JS.InvokeAsync<AuthApiResult>("slogsAuthApi.enterAdminMode");
+        if (result.Ok)
+        {
+            await AuthState.RefreshAsync();
+            Navigation.NavigateTo(GetCurrentPathWithQuery(), forceLoad: true);
+        }
+    }
+
+    private async Task ExitAdminMode()
+    {
+        await CloseAccountMenuAsync();
+        var result = await JS.InvokeAsync<AuthApiResult>("slogsAuthApi.exitAdminMode");
+        if (result.Ok)
+        {
+            await AuthState.RefreshAsync();
+            Navigation.NavigateTo(GetCurrentPathWithQuery(), forceLoad: true);
+        }
+    }
+
+    private async Task CloseAccountMenuAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("slogsAccountMenu.closeAll");
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit can be gone during navigation.
+        }
+        catch (InvalidOperationException)
+        {
+            // Static rendering can run before browser JS interop is available.
+        }
     }
 
     private string GetCurrentUserPath()
@@ -211,7 +268,7 @@
     {
         return CurrentUser is null
             ? "@"
-            : $"@{CurrentUser.UserName}";
+            : $"@{CurrentUser.UserName} 홈";
     }
 
     private string GetLoginHref()
@@ -425,5 +482,9 @@
     private sealed class AuthApiResult
     {
         public bool Ok { get; set; }
+        public int Status { get; set; }
+        public string? Error { get; set; }
+        public string? ReturnUrl { get; set; }
+        public AuthUser? User { get; set; }
     }
 }

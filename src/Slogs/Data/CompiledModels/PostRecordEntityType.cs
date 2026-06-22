@@ -20,7 +20,7 @@ namespace Slogs.Data.CompiledModels
                 typeof(PostRecord),
                 baseEntityType,
                 propertyCount: 16,
-                navigationCount: 1,
+                navigationCount: 2,
                 unnamedIndexCount: 2,
                 keyCount: 1);
 
@@ -33,15 +33,6 @@ namespace Slogs.Data.CompiledModels
                 afterSaveBehavior: PropertySaveBehavior.Throw,
                 sentinel: new Guid("00000000-0000-0000-0000-000000000000"));
             id.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
-
-            var isDraft = runtimeEntityType.AddProperty(
-                "IsDraft",
-                typeof(bool),
-                propertyInfo: typeof(PostRecord).GetProperty("IsDraft", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
-                fieldInfo: typeof(PostRecord).GetField("<IsDraft>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
-                sentinel: false);
-            isDraft.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
-            isDraft.AddAnnotation("Relational:DefaultValue", false);
 
             var author = runtimeEntityType.AddProperty(
                 "Author",
@@ -65,6 +56,16 @@ namespace Slogs.Data.CompiledModels
                 fieldInfo: typeof(PostRecord).GetField("<BookmarkedByJson>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly));
             bookmarkedByJson.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
             bookmarkedByJson.AddAnnotation("Relational:ColumnType", "jsonb");
+
+            var isDraft = runtimeEntityType.AddProperty(
+                "IsDraft",
+                typeof(bool),
+                propertyInfo: typeof(PostRecord).GetProperty("IsDraft", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(PostRecord).GetField("<IsDraft>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                valueGenerated: ValueGenerated.OnAdd,
+                sentinel: false);
+            isDraft.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
+            isDraft.AddAnnotation("Relational:DefaultValue", false);
 
             var likedByJson = runtimeEntityType.AddProperty(
                 "LikedByJson",

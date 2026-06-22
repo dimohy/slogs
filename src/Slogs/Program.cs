@@ -17,7 +17,8 @@ const string DefaultProductionPublicBaseUrl = "https://slogs.dev/";
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+    .AddInteractiveServerComponents()
+    .AddInteractiveWebAssemblyComponents();
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.TypeInfoResolverChain.Insert(0, SlogsJsonSerializerContext.Default);
@@ -117,6 +118,9 @@ var connectionString = builder.Configuration.GetConnectionString("SlogsDatabase"
 builder.Services.AddDbContextFactory<SlogsDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddScoped<BlogService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<EditorImageStorage>();
+builder.Services.AddScoped<PostImageService>();
+builder.Services.AddHttpClient<EmbeddingGemmaService>();
 builder.Services.AddScoped<LlmWikiService>();
 builder.Services.AddScoped<ISlogsApiBackend, ServerSlogsApiBackend>();
 builder.Services.AddScoped<SlogsAuthState>();
@@ -379,11 +383,13 @@ app.MapPost("/auth/logout", async (HttpContext httpContext, AuthService authServ
     return Results.Redirect(returnUrl);
 }).DisableAntiforgery();
 
-app.MapPost("/editor/images", async (HttpContext httpContext, IWebHostEnvironment environment) =>
+app.MapPost("/editor/images", async (
+    HttpContext httpContext,
+    EditorImageStorage imageStorage,
+    PostImageService postImageService) =>
 {
-    const long maxImageBytes = 5 * 1024 * 1024;
-
-    if (httpContext.User.Identity?.IsAuthenticated != true)
+    var user = SlogsAuthentication.TryCreateUser(httpContext.User);
+    if (user is null)
     {
         return Results.Unauthorized();
     }
@@ -400,44 +406,60 @@ app.MapPost("/editor/images", async (HttpContext httpContext, IWebHostEnvironmen
         return Results.BadRequest(new ApiErrorResponse("이미지 파일을 찾을 수 없습니다."));
     }
 
-    var extension = GetSafeImageExtension(file.FileName, file.ContentType);
-    if (extension is null)
+    try
     {
-        return Results.BadRequest(new ApiErrorResponse("PNG, JPG, GIF, WebP 이미지만 업로드할 수 있습니다."));
-    }
+        await using var source = file.OpenReadStream();
+        var response = await imageStorage.SaveAsync(
+            source,
+            file.FileName,
+            file.ContentType,
+            file.Length,
+            httpContext.RequestAborted);
+        await postImageService.RegisterUploadAsync(user.UserName, response.Url, httpContext.RequestAborted);
 
-    if (file.Length <= 0 || file.Length > maxImageBytes)
+        return Results.Ok(response);
+    }
+    catch (InvalidOperationException ex)
     {
-        return Results.BadRequest(new ApiErrorResponse("이미지는 5MB 이하만 업로드할 수 있습니다."));
+        return Results.BadRequest(new ApiErrorResponse(ex.Message));
     }
-
-    var webRoot = environment.WebRootPath;
-    if (string.IsNullOrWhiteSpace(webRoot))
-    {
-        webRoot = Path.Combine(environment.ContentRootPath, "wwwroot");
-    }
-
-    var uploadRoot = Path.Combine(webRoot, "uploads");
-    Directory.CreateDirectory(uploadRoot);
-
-    var baseName = SanitizeFileBaseName(Path.GetFileNameWithoutExtension(file.FileName));
-    var fileName = $"{DateTime.UtcNow:yyyyMMddHHmmssfff}-{baseName}-{Guid.NewGuid():N}{extension}";
-    var targetPath = Path.Combine(uploadRoot, fileName);
-
-    await using (var source = file.OpenReadStream())
-    await using (var target = File.Create(targetPath))
-    {
-        await source.CopyToAsync(target);
-    }
-
-    return Results.Ok(new EditorImageResponse(
-        $"/uploads/{fileName}",
-        string.IsNullOrWhiteSpace(baseName) ? "image" : baseName));
 }).DisableAntiforgery();
 
 app.MapGet("/robots.txt", () =>
 {
     return Results.Text(SeoMetadata.BuildRobotsTxt(DefaultProductionPublicBaseUrl), "text/plain; charset=utf-8");
+});
+
+app.MapGet(SlogsMcpPolicyPrompt.PublicPath, (HttpContext httpContext) =>
+{
+    httpContext.Response.Headers.CacheControl = "no-cache";
+    return Results.Text(
+        SlogsMcpPolicyPrompt.BuildKoreanMarkdown(),
+        "text/markdown; charset=utf-8");
+});
+
+app.MapGet(SlogsMcpPolicyPrompt.KoreanPublicPath, (HttpContext httpContext) =>
+{
+    httpContext.Response.Headers.CacheControl = "no-cache";
+    return Results.Text(
+        SlogsMcpPolicyPrompt.BuildKoreanMarkdown(),
+        "text/markdown; charset=utf-8");
+});
+
+app.MapGet(SlogsMcpPolicyPrompt.EnglishPublicPath, (HttpContext httpContext) =>
+{
+    httpContext.Response.Headers.CacheControl = "no-cache";
+    return Results.Text(
+        SlogsMcpPolicyPrompt.BuildEnglishMarkdown(),
+        "text/markdown; charset=utf-8");
+});
+
+app.MapGet(SlogsMcpPolicyPrompt.VersionPath, (HttpContext httpContext) =>
+{
+    httpContext.Response.Headers.CacheControl = "no-cache";
+    return Results.Text(
+        SlogsMcpPolicyPrompt.BuildVersionText(),
+        "text/plain; charset=utf-8");
 });
 
 app.MapGet("/sitemap.xml", async (
@@ -490,6 +512,7 @@ app.MapGet("/sitemap.xml", async (
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
+    .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(Slogs.Components.Routes).Assembly);
 
 if (!app.Configuration.GetValue("Slogs:SkipDbInitializer", false))
@@ -673,45 +696,6 @@ static PathString ToPathBase(Uri uri)
 {
     var path = uri.AbsolutePath.TrimEnd('/');
     return string.IsNullOrEmpty(path) ? PathString.Empty : PathString.FromUriComponent(path);
-}
-
-static string? GetSafeImageExtension(string fileName, string? contentType)
-{
-    var extension = Path.GetExtension(fileName).ToLowerInvariant();
-    return contentType?.ToLowerInvariant() switch
-    {
-        "image/png" => ".png",
-        "image/jpeg" => extension == ".jpeg" ? ".jpeg" : ".jpg",
-        "image/gif" => ".gif",
-        "image/webp" => ".webp",
-        _ => extension is ".png" or ".jpg" or ".jpeg" or ".gif" or ".webp" ? extension : null
-    };
-}
-
-static string SanitizeFileBaseName(string value)
-{
-    var source = string.IsNullOrWhiteSpace(value) ? "image" : value.Trim();
-    Span<char> buffer = stackalloc char[Math.Min(source.Length, 32)];
-    var length = 0;
-
-    foreach (var character in source)
-    {
-        if (length >= buffer.Length)
-        {
-            break;
-        }
-
-        if (char.IsAsciiLetterOrDigit(character))
-        {
-            buffer[length++] = char.ToLowerInvariant(character);
-        }
-        else if (character is '-' or '_')
-        {
-            buffer[length++] = character;
-        }
-    }
-
-    return length == 0 ? "image" : new string(buffer[..length]);
 }
 
 static bool TryGetBearerToken(HttpRequest request, out string token)

@@ -10,7 +10,18 @@ public sealed record ProfileUpdateRequest(string DisplayName, string? Email, str
 
 public sealed record AuthResponse(AuthUser User, string ReturnUrl);
 
-public sealed record PostUpsertRequest(string Title, string Summary, string Body, string Tags, string? Series, string? ThumbnailUrl, bool? IsDraft = null);
+public sealed record PostUpsertRequest(string Title, string Summary, string Body, string Tags, string? Series, string? ThumbnailUrl, bool? IsDraft = null, string? Slug = null);
+
+public sealed record PostRevisionResponse(
+    int RevisionNumber,
+    DateTime CreatedAt,
+    string Title,
+    string Summary,
+    string Body,
+    IReadOnlyList<string> Tags,
+    IReadOnlyList<string> Series,
+    string ThumbnailUrl,
+    IReadOnlyList<string> ChangedFields);
 
 public sealed record AuthorsRequest(IReadOnlyList<string> Authors);
 
@@ -28,9 +39,9 @@ public sealed record UpdateStateResponse(bool Updated);
 
 public sealed record EditorImageResponse(string Url, string AltText);
 
-public sealed record LlmWikiRememberRequest(string Prompt, string? Content, string? Title, string? Tags);
+public sealed record LlmWikiRememberRequest(string Prompt, string? Content, string? Title, string? Tags, string? CategoryPath = null);
 
-public sealed record LlmWikiUpdateRequest(string Prompt, string? Content, string? Title, string? Tags);
+public sealed record LlmWikiUpdateRequest(string Prompt, string? Content, string? Title, string? Tags, string? CategoryPath = null);
 
 public sealed record LlmWikiEntryResponse(
     Guid Id,
@@ -40,6 +51,8 @@ public sealed record LlmWikiEntryResponse(
     string Content,
     string SourcePrompt,
     IReadOnlyList<string> Tags,
+    string CategoryPath,
+    int CategoryDepth,
     DateTime CreatedAt,
     DateTime UpdatedAt,
     DateTime? LastAccessedAt,
@@ -51,8 +64,13 @@ public sealed record LlmWikiSearchResult(
     string Title,
     string Summary,
     IReadOnlyList<string> Tags,
+    string CategoryPath,
+    int CategoryDepth,
     DateTime UpdatedAt,
-    int AccessCount);
+    int AccessCount,
+    int? RelevancePercent = null);
+
+public sealed record LlmWikiCategorySummary(string CategoryPath, int CategoryDepth, int Count, DateTime UpdatedAt);
 
 public sealed record LlmWikiTokenCreateRequest(string Name);
 
@@ -183,6 +201,8 @@ public sealed class PostDetailsPageState
     public BlogPost? PreviousPost { get; set; }
 
     public BlogPost? NextPost { get; set; }
+
+    public List<PostRevisionResponse> Revisions { get; set; } = [];
 
     public List<BlogComment> TopLevelComments { get; set; } = [];
 

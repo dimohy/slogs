@@ -7,10 +7,10 @@ public sealed record MarkdownImage(string Url, string AltText);
 
 public static class MarkdownRenderer
 {
-    private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder()
-        .UseAdvancedExtensions()
-        .DisableHtml()
-        .Build();
+    private static readonly Lazy<MarkdownPipeline> Pipeline = new(() => new MarkdownPipelineBuilder()
+            .UseAdvancedExtensions()
+            .DisableHtml()
+            .Build());
 
     public static string Render(string? markdown)
     {
@@ -19,25 +19,24 @@ public static class MarkdownRenderer
             return "<p class=\"text-slate-500\">내용이 없습니다.</p>";
         }
 
-        return Markdown.ToHtml(markdown, Pipeline);
+        return Markdown.ToHtml(markdown, Pipeline.Value);
     }
 
     public static MarkdownImage? FindFirstImage(string? markdown)
+        => FindImages(markdown).FirstOrDefault();
+
+    public static IReadOnlyList<MarkdownImage> FindImages(string? markdown)
     {
         if (string.IsNullOrWhiteSpace(markdown))
         {
-            return null;
+            return [];
         }
 
-        var markdownImage = FindMarkdownImage(markdown);
-        var htmlImage = FindHtmlImage(markdown);
-        return (markdownImage, htmlImage) switch
-        {
-            ({ } markdownResult, { } html) => markdownResult.Index <= html.Index ? markdownResult.Image : html.Image,
-            ({ } markdownResult, null) => markdownResult.Image,
-            (null, { } html) => html.Image,
-            _ => null
-        };
+        return FindMarkdownImages(markdown)
+            .Concat(FindHtmlImages(markdown))
+            .OrderBy(x => x.Index)
+            .Select(x => x.Image)
+            .ToList();
     }
 
     private static MarkdownImage? CreateImage(string url, string altText)
@@ -88,15 +87,16 @@ public static class MarkdownRenderer
         return string.Empty;
     }
 
-    private static (int Index, MarkdownImage Image)? FindMarkdownImage(string source)
+    private static IReadOnlyList<(int Index, MarkdownImage Image)> FindMarkdownImages(string source)
     {
+        var images = new List<(int Index, MarkdownImage Image)>();
         var searchStart = 0;
         while (searchStart < source.Length)
         {
             var imageStart = source.IndexOf("![", searchStart, StringComparison.Ordinal);
             if (imageStart < 0)
             {
-                return null;
+                return images;
             }
 
             var altEnd = source.IndexOf(']', imageStart + 2);
@@ -131,13 +131,13 @@ public static class MarkdownRenderer
             var image = CreateImage(url, source[(imageStart + 2)..altEnd]);
             if (image is not null)
             {
-                return (imageStart, image);
+                images.Add((imageStart, image));
             }
 
             searchStart = imageStart + 2;
         }
 
-        return null;
+        return images;
     }
 
     private static int FindMarkdownImageUrlEnd(string source, int urlStart)
@@ -168,21 +168,22 @@ public static class MarkdownRenderer
         return -1;
     }
 
-    private static (int Index, MarkdownImage Image)? FindHtmlImage(string source)
+    private static IReadOnlyList<(int Index, MarkdownImage Image)> FindHtmlImages(string source)
     {
+        var images = new List<(int Index, MarkdownImage Image)>();
         var searchStart = 0;
         while (searchStart < source.Length)
         {
             var tagStart = source.IndexOf("<img", searchStart, StringComparison.OrdinalIgnoreCase);
             if (tagStart < 0)
             {
-                return null;
+                return images;
             }
 
             var tagEnd = source.IndexOf('>', tagStart + 4);
             if (tagEnd < 0)
             {
-                return null;
+                return images;
             }
 
             var tag = source[tagStart..(tagEnd + 1)];
@@ -190,13 +191,13 @@ public static class MarkdownRenderer
             var image = CreateImage(src, ReadHtmlAttribute(tag, "alt"));
             if (image is not null)
             {
-                return (tagStart, image);
+                images.Add((tagStart, image));
             }
 
             searchStart = tagEnd + 1;
         }
 
-        return null;
+        return images;
     }
 
     private static string ReadHtmlAttribute(string tag, string attributeName)

@@ -137,6 +137,18 @@ nav[aria-label="main menu"] a.bg-slate-900:hover {
     color: #f8fafc !important;
 }
 
+.slogs-account-menu > summary {
+    cursor: pointer;
+}
+
+.slogs-account-menu > summary::-webkit-details-marker {
+    display: none;
+}
+
+.slogs-account-menu > summary::marker {
+    content: "";
+}
+
 .clickable-post-card[data-card-click-href] {
     cursor: pointer;
     transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease, background-color 0.16s ease;
@@ -215,7 +227,7 @@ nav[aria-label="main menu"] a.bg-slate-900:hover {
 }
 
 .slogger-hero__cover {
-    min-height: 9.25rem;
+    min-height: 4.25rem;
     background:
         linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 45%),
         linear-gradient(135deg, #0f3d34 0%, #143d37 58%, #0b2f2a 100%);
@@ -223,6 +235,7 @@ nav[aria-label="main menu"] a.bg-slate-900:hover {
 
 .slogger-hero__body {
     padding: 0 1.25rem 1.25rem;
+    margin-top: -2.35rem;
 }
 
 .slogger-hero__header {
@@ -244,7 +257,7 @@ nav[aria-label="main menu"] a.bg-slate-900:hover {
     width: 8.25rem;
     height: 8.25rem;
     flex: 0 0 auto;
-    margin-top: -4.25rem;
+    margin-top: 0;
     place-items: center;
     overflow: hidden;
     border: 4px solid var(--theme-surface);
@@ -273,19 +286,11 @@ nav[aria-label="main menu"] a.bg-slate-900:hover {
 
 .slogger-hero__copy {
     min-width: 0;
-    padding-top: 1.35rem;
-}
-
-.slogger-hero__eyebrow {
-    margin: 0;
-    color: var(--theme-text-muted);
-    font-size: 0.78rem;
-    font-weight: 800;
-    line-height: 1.2;
+    padding-top: 1.55rem;
 }
 
 .slogger-hero__name {
-    margin: 0.35rem 0 0;
+    margin: 0;
     overflow-wrap: anywhere;
     color: var(--theme-text);
     font-size: 2.5rem;
@@ -308,18 +313,23 @@ nav[aria-label="main menu"] a.bg-slate-900:hover {
     flex-wrap: wrap;
     justify-content: flex-end;
     gap: 0.5rem;
-    padding-top: 1.35rem;
+    padding-top: 1.55rem;
 }
 
 @media (min-width: 768px) {
     .slogger-hero__body {
         padding: 0 1.75rem 1.75rem;
+        margin-top: -2.6rem;
     }
 }
 
 @media (max-width: 767px) {
     .slogger-hero__cover {
-        min-height: 7.75rem;
+        min-height: 4rem;
+    }
+
+    .slogger-hero__body {
+        margin-top: -2rem;
     }
 
     .slogger-hero__header {
@@ -334,7 +344,6 @@ nav[aria-label="main menu"] a.bg-slate-900:hover {
     .slogger-hero__avatar {
         width: 6.6rem;
         height: 6.6rem;
-        margin-top: -3.35rem;
         border-radius: 1.05rem;
     }
 
@@ -343,7 +352,7 @@ nav[aria-label="main menu"] a.bg-slate-900:hover {
     }
 
     .slogger-hero__copy {
-        padding-top: 0.95rem;
+        padding-top: 1.1rem;
     }
 
     .slogger-hero__name {
@@ -359,11 +368,12 @@ nav[aria-label="main menu"] a.bg-slate-900:hover {
 
 @media (max-width: 420px) {
     .slogger-hero__identity {
-        flex-direction: column;
+        flex-direction: row;
+        align-items: flex-start;
     }
 
     .slogger-hero__copy {
-        padding-top: 0;
+        padding-top: 0.75rem;
     }
 }
 
@@ -402,6 +412,24 @@ h1[tabindex="-1"]:focus {
     top: 0.55rem;
     right: 0.75rem;
     cursor: pointer;
+}
+
+body.slogs-interactivity-pending button:not(#components-reconnect-button):not(#components-resume-button),
+body.slogs-interactivity-restoring button:not(#components-reconnect-button):not(#components-resume-button),
+body.slogs-interactivity-pending input,
+body.slogs-interactivity-restoring input,
+body.slogs-interactivity-pending textarea,
+body.slogs-interactivity-restoring textarea,
+body.slogs-interactivity-pending select,
+body.slogs-interactivity-restoring select,
+body.slogs-interactivity-pending [role="button"],
+body.slogs-interactivity-restoring [role="button"] {
+    cursor: wait;
+}
+
+body.slogs-interactivity-pending button:not(#components-reconnect-button):not(#components-resume-button),
+body.slogs-interactivity-restoring button:not(#components-reconnect-button):not(#components-resume-button) {
+    opacity: 0.72;
 }
 
 .rounded-2xl.border.bg-white {

@@ -20,9 +20,9 @@ namespace Slogs.Data.CompiledModels
                 "Slogs.Data.LlmWikiEntryRecord",
                 typeof(LlmWikiEntryRecord),
                 baseEntityType,
-                propertyCount: 12,
+                propertyCount: 14,
                 foreignKeyCount: 1,
-                unnamedIndexCount: 3,
+                unnamedIndexCount: 4,
                 keyCount: 1);
 
             var id = runtimeEntityType.AddProperty(
@@ -42,6 +42,22 @@ namespace Slogs.Data.CompiledModels
                 fieldInfo: typeof(LlmWikiEntryRecord).GetField("<AccessCount>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
                 sentinel: 0);
             accessCount.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
+
+            var categoryDepth = runtimeEntityType.AddProperty(
+                "CategoryDepth",
+                typeof(int),
+                propertyInfo: typeof(LlmWikiEntryRecord).GetProperty("CategoryDepth", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(LlmWikiEntryRecord).GetField("<CategoryDepth>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                sentinel: 0);
+            categoryDepth.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
+
+            var categoryPath = runtimeEntityType.AddProperty(
+                "CategoryPath",
+                typeof(string),
+                propertyInfo: typeof(LlmWikiEntryRecord).GetProperty("CategoryPath", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(LlmWikiEntryRecord).GetField("<CategoryPath>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                maxLength: 240);
+            categoryPath.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
 
             var content = runtimeEntityType.AddProperty(
                 "Content",
@@ -134,6 +150,9 @@ namespace Slogs.Data.CompiledModels
             var index1 = runtimeEntityType.AddIndex(
                 new[] { ownerUserName, slug },
                 unique: true);
+
+            var index2 = runtimeEntityType.AddIndex(
+                new[] { ownerUserName, categoryPath, updatedAt });
 
             return runtimeEntityType;
         }

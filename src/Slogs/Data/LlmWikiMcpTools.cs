@@ -13,12 +13,13 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         [Description("The durable user prompt, preference, decision, or instruction to remember as a new entry.")] string prompt,
         [Description("Optional answer, implementation result, or extra context to store with the prompt.")] string? content = null,
         [Description("Optional short title. If omitted, Slogs derives it from the prompt.")] string? title = null,
-        [Description("Optional comma-separated tags such as preference, api, ux, or release.")] string? tags = null)
+        [Description("Optional comma-separated tags such as preference, api, ux, or release.")] string? tags = null,
+        [Description("Strongly recommended hierarchical category path such as project/domain/topic. Example: slogs/llm-wiki/graphrag. Do not omit it when the project or topic is known.")] string? categoryPath = null)
     {
         var user = RequireUser();
         var entry = await llmWikiService.RememberAsync(
             user.UserName,
-            new LlmWikiRememberRequest(prompt, content, title, tags));
+            new LlmWikiRememberRequest(prompt, content, title, tags, categoryPath));
 
         return LlmWikiService.FormatEntryMarkdown(entry);
     }
@@ -26,40 +27,12 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
     [McpServerTool(Name = "llm_wiki_instructions")]
     [Description("Read the operating policy for using this user's Slogs LLM Wiki. Call this once after connecting and follow it before storing or recalling memories.")]
     public string GetInstructions()
-        => """
-        # Slogs LLM Wiki Agent Instructions
-
-        You are the decision-maker for this user's LLM Wiki. Slogs stores, searches, reads, and updates memories, but Slogs does not decide what should be remembered.
-
-        ## Default workflow
-
-        1. When the user provides a durable preference, project rule, deployment fact, account-specific convention, recurring workflow, or an implementation decision, call `llm_wiki_capture` or `llm_wiki_find_related` first.
-        2. If a related entry exists, call `llm_wiki_read` before changing anything.
-        3. If the new information refines an existing entry, compose a complete merged replacement and call `llm_wiki_merge`.
-        4. If the new information corrects an existing entry, compose the corrected replacement and call `llm_wiki_update`.
-        5. If no existing entry fits, call `llm_wiki_remember`.
-        6. When the user asks to remember, recall, continue previous work, apply a preference, or asks "what did we decide", call `llm_wiki_recall`, `llm_wiki_search`, or `llm_wiki_recent`.
-
-        ## Store
-
-        Store durable knowledge, not raw chat logs. Prefer concise, reusable memory:
-        - user preferences and judgment criteria
-        - project-specific commands and paths
-        - deployment and environment facts
-        - decisions that should affect future work
-        - restart points after interrupted work
-
-        Do not store secrets, API keys, passwords, one-time codes, private tokens, full logs, or temporary noise.
-
-        ## Merge
-
-        Existing memories should stay coherent. Do not create duplicate entries when a related entry can be updated. `llm_wiki_merge` and `llm_wiki_update` replace the entry with text you provide, so read the existing entry first and send the final merged wording.
-        """;
+        => SlogsMcpPolicyPrompt.BuildMarkdown();
 
     [McpServerTool(Name = "llm_wiki_capture")]
-    [Description("Start here when considering whether to remember a prompt or coding result. This does not store anything; it returns related memories and tells the agent whether to read, merge, update, or remember.")]
+    [Description("Start here when considering whether to remember a prompt or coding result. This does not store anything; it returns related memories and storage criteria for read, merge, update, or remember decisions.")]
     public async Task<string> CaptureAsync(
-        [Description("The current user prompt, durable preference, decision, coding request, or workflow fact being considered for memory.")] string prompt,
+        [Description("The current user prompt, durable preference, decision, coding request, tacit workflow knowledge, or workflow fact being considered for memory.")] string prompt,
         [Description("Optional answer, implementation result, or extra context from the current turn.")] string? content = null,
         [Description("Optional comma-separated tags to help search related memory.")] string? tags = null,
         [Description("Maximum number of related entries to return.")] int limit = 5)
@@ -75,8 +48,11 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         builder.AppendLine();
         builder.AppendLine("Next action:");
         builder.AppendLine("- If a related entry below matches, call `llm_wiki_read`, compose the final merged wording, then call `llm_wiki_merge` or `llm_wiki_update`.");
-        builder.AppendLine("- If none match and the information is durable, call `llm_wiki_remember`.");
-        builder.AppendLine("- If this is one-time or sensitive information, do not store it.");
+        builder.AppendLine("- Choose an explicit `categoryPath` such as `project/domain/topic` before remember, merge, or update when the project/topic is known.");
+        builder.AppendLine("- If none match and the information is durable tacit knowledge, call `llm_wiki_remember` with that `categoryPath`.");
+        builder.AppendLine("- Durable tacit knowledge means future LLMs can use it to document, automate, reproduce, or make decisions: corrected terminology, judgment criteria, repeatable workflows, operating rules, verified root causes, restart points, hidden prerequisites, or runbook-worthy command flows.");
+        builder.AppendLine("- Do not store sensitive information, one-time logs, temporary execution traces, unverified speculation, simple facts recoverable from current files, or intermediate state that only matters in this turn.");
+        builder.AppendLine("- Avoid interrupting the user for routine memory choices; ask only when sensitivity or scope is genuinely ambiguous.");
         builder.AppendLine();
         builder.Append(FormatRelatedResults(results));
         return builder.ToString();
@@ -94,23 +70,25 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
     }
 
     [McpServerTool(Name = "llm_wiki_search")]
-    [Description("Search the authenticated user's LLM Wiki with PostgreSQL full text search.")]
+    [Description("Search the authenticated user's LLM Wiki with GraphRAG relevance and optional hierarchical category filtering.")]
     public async Task<string> SearchAsync(
         [Description("Search terms. Leave empty to return recent entries.")] string? query = null,
-        [Description("Maximum number of entries to return.")] int limit = 10)
+        [Description("Maximum number of entries to return.")] int limit = 10,
+        [Description("Optional hierarchical category path. Matching includes descendants.")] string? categoryPath = null)
     {
         var user = RequireUser();
-        var results = await llmWikiService.SearchAsync(user.UserName, query, limit);
+        var results = await llmWikiService.SearchAsync(user.UserName, query, limit, categoryPath: categoryPath);
         return LlmWikiService.FormatSearchResultsMarkdown(results);
     }
 
     [McpServerTool(Name = "llm_wiki_recent")]
     [Description("List recent LLM Wiki entries for the authenticated user.")]
     public async Task<string> RecentAsync(
-        [Description("Maximum number of recent entries to return.")] int limit = 10)
+        [Description("Maximum number of recent entries to return.")] int limit = 10,
+        [Description("Optional hierarchical category path. Matching includes descendants.")] string? categoryPath = null)
     {
         var user = RequireUser();
-        var results = await llmWikiService.SearchAsync(user.UserName, null, limit);
+        var results = await llmWikiService.SearchAsync(user.UserName, null, limit, categoryPath: categoryPath);
         return LlmWikiService.FormatSearchResultsMarkdown(results);
     }
 
@@ -133,13 +111,14 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         [Description("Complete corrected Source Prompt text to store. This replaces the previous Source Prompt.")] string prompt,
         [Description("Optional complete corrected Content text. Omit to keep existing content; pass an empty string to clear it.")] string? content = null,
         [Description("Optional corrected title. Omit to keep the current title.")] string? title = null,
-        [Description("Optional corrected comma-separated tags. Omit to keep current tags; pass an empty string to clear them.")] string? tags = null)
+        [Description("Optional corrected comma-separated tags. Omit to keep current tags; pass an empty string to clear them.")] string? tags = null,
+        [Description("Corrected hierarchical category path. Pass it when the current category is vague or the project/topic is known. Omit only to keep the existing category.")] string? categoryPath = null)
     {
         var user = RequireUser();
         var entry = await llmWikiService.UpdateAsync(
             user.UserName,
             idOrSlug,
-            new LlmWikiUpdateRequest(prompt, content, title, tags));
+            new LlmWikiUpdateRequest(prompt, content, title, tags, categoryPath));
 
         return entry is null
             ? "LLM Wiki entry not found for this user."
@@ -153,13 +132,14 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         [Description("Complete merged Source Prompt text. The agent must combine old and new knowledge before sending this.")] string mergedPrompt,
         [Description("Optional complete merged Content text. Omit to keep existing content; pass an empty string to clear it.")] string? mergedContent = null,
         [Description("Optional merged title. Omit to keep the current title.")] string? title = null,
-        [Description("Optional merged comma-separated tags. Omit to keep current tags; pass an empty string to clear them.")] string? tags = null)
+        [Description("Optional merged comma-separated tags. Omit to keep current tags; pass an empty string to clear them.")] string? tags = null,
+        [Description("Merged hierarchical category path. Pass it when the merged memory should move into a clearer project/domain/topic path. Omit only to keep the existing category.")] string? categoryPath = null)
     {
         var user = RequireUser();
         var entry = await llmWikiService.UpdateAsync(
             user.UserName,
             idOrSlug,
-            new LlmWikiUpdateRequest(mergedPrompt, mergedContent, title, tags));
+            new LlmWikiUpdateRequest(mergedPrompt, mergedContent, title, tags, categoryPath));
 
         return entry is null
             ? "LLM Wiki entry not found for this user."
@@ -206,6 +186,28 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
     {
         var user = RequireUser();
         return await llmWikiService.BuildLlmsTextAsync(user.UserName, limit);
+    }
+
+    [McpServerTool(Name = "llm_wiki_categories")]
+    [Description("List the authenticated user's hierarchical LLM Wiki categories with counts and depth.")]
+    public async Task<string> CategoriesAsync()
+    {
+        var user = RequireUser();
+        var categories = await llmWikiService.GetCategoriesAsync(user.UserName);
+        if (categories.Count == 0)
+        {
+            return "No LLM Wiki categories.";
+        }
+
+        var builder = new StringBuilder();
+        builder.AppendLine("# LLM Wiki Categories");
+        builder.AppendLine();
+        foreach (var category in categories)
+        {
+            builder.AppendLine($"- {category.CategoryPath}: {category.Count} entries, depth {category.CategoryDepth}");
+        }
+
+        return builder.ToString();
     }
 
     private AuthUser RequireUser()

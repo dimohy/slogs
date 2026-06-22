@@ -17,17 +17,105 @@ public static class SlogsDbInitializer
         await db.Database.EnsureCreatedAsync();
         await EnsureSchemaAsync(db);
         await SeedUsersAsync(db);
+        await EnsureAdminAccountAsync(db);
         await EnsureUserProfileDefaultsAsync(db);
         await SeedPostsAsync(db);
         await EnsurePostThumbnailDefaultsAsync(db);
+        await EnsurePostRevisionBaselinesAsync(db);
     }
 
     private static async Task EnsureSchemaAsync(SlogsDbContext db)
     {
+        await db.Database.ExecuteSqlRawAsync("CREATE EXTENSION IF NOT EXISTS vector;");
         await db.Database.ExecuteSqlRawAsync(
             "ALTER TABLE \"Posts\" ADD COLUMN IF NOT EXISTS \"ThumbnailUrl\" character varying(500) NOT NULL DEFAULT '';");
         await db.Database.ExecuteSqlRawAsync(
             "ALTER TABLE \"Posts\" ADD COLUMN IF NOT EXISTS \"IsDraft\" boolean NOT NULL DEFAULT FALSE;");
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "PostRevisions" (
+                "Id" uuid NOT NULL,
+                "PostId" uuid NOT NULL,
+                "RevisionNumber" integer NOT NULL,
+                "Title" character varying(200) NOT NULL,
+                "Summary" character varying(500) NOT NULL,
+                "ThumbnailUrl" character varying(500) NOT NULL DEFAULT '',
+                "Body" text NOT NULL,
+                "TagsJson" jsonb NOT NULL DEFAULT '[]'::jsonb,
+                "SeriesJson" jsonb NOT NULL DEFAULT '[]'::jsonb,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "Author" character varying(80) NOT NULL,
+                CONSTRAINT "PK_PostRevisions" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_PostRevisions_Posts_PostId"
+                    FOREIGN KEY ("PostId") REFERENCES "Posts" ("Id") ON DELETE CASCADE
+            );
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_PostRevisions_PostId"
+            ON "PostRevisions" ("PostId");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_PostRevisions_PostId_RevisionNumber"
+            ON "PostRevisions" ("PostId", "RevisionNumber");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "PostImages" (
+                "Id" uuid NOT NULL,
+                "OwnerUserName" character varying(80) NOT NULL,
+                "PostId" uuid NULL,
+                "Url" character varying(500) NOT NULL,
+                "FileName" character varying(260) NOT NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "LastReferencedAt" timestamp with time zone NULL,
+                CONSTRAINT "PK_PostImages" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_PostImages_Users_OwnerUserName"
+                    FOREIGN KEY ("OwnerUserName") REFERENCES "Users" ("UserName") ON DELETE CASCADE,
+                CONSTRAINT "FK_PostImages_Posts_PostId"
+                    FOREIGN KEY ("PostId") REFERENCES "Posts" ("Id") ON DELETE CASCADE
+            );
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            DELETE FROM "PostImages" AS pi
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM "Users" AS u
+                WHERE u."UserName" = pi."OwnerUserName"
+            );
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname = 'FK_PostImages_Users_OwnerUserName'
+                ) THEN
+                    ALTER TABLE "PostImages"
+                    ADD CONSTRAINT "FK_PostImages_Users_OwnerUserName"
+                    FOREIGN KEY ("OwnerUserName") REFERENCES "Users" ("UserName") ON DELETE CASCADE;
+                END IF;
+            END $$;
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_PostImages_OwnerUserName_PostId"
+            ON "PostImages" ("OwnerUserName", "PostId");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_PostImages_PostId"
+            ON "PostImages" ("PostId");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_PostImages_Url"
+            ON "PostImages" ("Url");
+            """);
         await db.Database.ExecuteSqlRawAsync(
             "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"ProfileImageUrl\" character varying(500) NOT NULL DEFAULT '';");
         await db.Database.ExecuteSqlRawAsync(
@@ -83,6 +171,8 @@ public static class SlogsDbInitializer
                 "Content" text NOT NULL,
                 "SourcePrompt" text NOT NULL,
                 "TagsJson" jsonb NOT NULL DEFAULT '[]'::jsonb,
+                "CategoryPath" character varying(240) NOT NULL DEFAULT 'general',
+                "CategoryDepth" integer NOT NULL DEFAULT 1,
                 "CreatedAt" timestamp with time zone NOT NULL,
                 "UpdatedAt" timestamp with time zone NOT NULL,
                 "LastAccessedAt" timestamp with time zone NULL,
@@ -117,6 +207,77 @@ public static class SlogsDbInitializer
             """);
         await db.Database.ExecuteSqlRawAsync(
             """
+            ALTER TABLE "LlmWikiEntries"
+            ADD COLUMN IF NOT EXISTS "CategoryPath" character varying(240) NOT NULL DEFAULT 'general';
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE "LlmWikiEntries"
+            ADD COLUMN IF NOT EXISTS "CategoryDepth" integer NOT NULL DEFAULT 1;
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            UPDATE "LlmWikiEntries"
+            SET "CategoryPath" = COALESCE(
+                    (
+                        SELECT string_agg(token, '/' ORDER BY ord)
+                        FROM (
+                            SELECT
+                                ord,
+                                NULLIF(
+                                    trim(BOTH '-' FROM regexp_replace(lower(trim(value)), '[^0-9a-z가-힣_-]+', '-', 'g')),
+                                    ''
+                                ) AS token
+                            FROM jsonb_array_elements_text("TagsJson"::jsonb) WITH ORDINALITY AS tags(value, ord)
+                            ORDER BY ord
+                            LIMIT 3
+                        ) AS tag_tokens
+                        WHERE token IS NOT NULL
+                    ),
+                    'general'
+                )
+            WHERE "CategoryPath" = 'general'
+              AND jsonb_typeof("TagsJson"::jsonb) = 'array'
+              AND jsonb_array_length("TagsJson"::jsonb) > 0;
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            UPDATE "LlmWikiEntries"
+            SET "CategoryDepth" = cardinality(string_to_array(NULLIF("CategoryPath", ''), '/'))
+            WHERE "CategoryDepth" <= 1
+              AND "CategoryPath" <> '';
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "LlmWikiEntryEmbeddings" (
+                "EntryId" uuid NOT NULL,
+                "OwnerUserName" character varying(80) NOT NULL,
+                "Model" character varying(80) NOT NULL,
+                "Dimensions" integer NOT NULL,
+                "ContentHash" character varying(64) NOT NULL,
+                "Embedding" vector(768) NOT NULL,
+                "UpdatedAt" timestamp with time zone NOT NULL,
+                CONSTRAINT "PK_LlmWikiEntryEmbeddings" PRIMARY KEY ("EntryId"),
+                CONSTRAINT "FK_LlmWikiEntryEmbeddings_LlmWikiEntries_EntryId"
+                    FOREIGN KEY ("EntryId") REFERENCES "LlmWikiEntries" ("Id") ON DELETE CASCADE
+            );
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "LlmWikiEntryGraphNodes" (
+                "EntryId" uuid NOT NULL,
+                "OwnerUserName" character varying(80) NOT NULL,
+                "NodeKey" character varying(180) NOT NULL,
+                "NodeText" character varying(120) NOT NULL,
+                "NodeType" character varying(40) NOT NULL,
+                "Weight" double precision NOT NULL,
+                CONSTRAINT "PK_LlmWikiEntryGraphNodes" PRIMARY KEY ("EntryId", "NodeKey"),
+                CONSTRAINT "FK_LlmWikiEntryGraphNodes_LlmWikiEntries_EntryId"
+                    FOREIGN KEY ("EntryId") REFERENCES "LlmWikiEntries" ("Id") ON DELETE CASCADE
+            );
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
             CREATE UNIQUE INDEX IF NOT EXISTS "IX_LlmWikiEntries_OwnerUserName_Slug"
             ON "LlmWikiEntries" ("OwnerUserName", "Slug");
             """);
@@ -127,8 +288,34 @@ public static class SlogsDbInitializer
             """);
         await db.Database.ExecuteSqlRawAsync(
             """
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiEntries_OwnerUserName_CategoryPath_UpdatedAt"
+            ON "LlmWikiEntries" ("OwnerUserName", "CategoryPath", "UpdatedAt" DESC);
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
             CREATE INDEX IF NOT EXISTS "IX_LlmWikiEntries_SearchVector"
             ON "LlmWikiEntries" USING GIN ("SearchVector");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiEntryEmbeddings_Owner_Model_Dimensions"
+            ON "LlmWikiEntryEmbeddings" ("OwnerUserName", "Model", "Dimensions");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiEntryEmbeddings_Embedding_Hnsw"
+            ON "LlmWikiEntryEmbeddings"
+            USING hnsw ("Embedding" vector_cosine_ops);
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiEntryGraphNodes_Owner_NodeKey"
+            ON "LlmWikiEntryGraphNodes" ("OwnerUserName", "NodeKey");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiEntryGraphNodes_EntryId"
+            ON "LlmWikiEntryGraphNodes" ("EntryId");
             """);
         await db.Database.ExecuteSqlRawAsync(
             """
@@ -151,7 +338,7 @@ public static class SlogsDbInitializer
 
         var users = new[]
         {
-            ("admin", "관리자", "admin"),
+            ("admin", "관리자", string.Empty),
             ("guest", "손님", "guest"),
             ("devin", "devin", "devin"),
             ("junho", "junho", "junho"),
@@ -180,6 +367,34 @@ public static class SlogsDbInitializer
             });
         }
 
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task EnsureAdminAccountAsync(SlogsDbContext db)
+    {
+        var admin = await db.Users.FirstOrDefaultAsync(x => x.UserName == AuthUser.AdminUserName);
+        if (admin is null)
+        {
+            db.Users.Add(new UserRecord
+            {
+                UserName = AuthUser.AdminUserName,
+                DisplayName = "관리자",
+                Email = string.Empty,
+                Password = string.Empty,
+                ProfileImageUrl = string.Empty,
+                Bio = GetDefaultBio(AuthUser.AdminUserName),
+                RegisteredAt = DateTime.UtcNow
+            });
+            await db.SaveChangesAsync();
+            return;
+        }
+
+        if (string.IsNullOrEmpty(admin.Password))
+        {
+            return;
+        }
+
+        admin.Password = string.Empty;
         await db.SaveChangesAsync();
     }
 
@@ -300,6 +515,43 @@ public static class SlogsDbInitializer
             }
 
             post.ThumbnailUrl = GetDefaultThumbnailUrl(post.Slug);
+            changed = true;
+        }
+
+        if (changed)
+        {
+            await db.SaveChangesAsync();
+        }
+    }
+
+    private static async Task EnsurePostRevisionBaselinesAsync(SlogsDbContext db)
+    {
+        var posts = await db.Posts
+            .Include(x => x.Revisions)
+            .Where(x => !x.IsDraft)
+            .ToListAsync();
+        var changed = false;
+
+        foreach (var post in posts)
+        {
+            if (post.Revisions.Count > 0)
+            {
+                continue;
+            }
+
+            db.PostRevisions.Add(new PostRevisionRecord
+            {
+                PostId = post.Id,
+                RevisionNumber = 1,
+                Title = post.Title,
+                Summary = post.Summary,
+                ThumbnailUrl = post.ThumbnailUrl,
+                Body = post.Body,
+                TagsJson = post.TagsJson,
+                SeriesJson = post.SeriesJson,
+                CreatedAt = post.PublishedAt,
+                Author = post.Author
+            });
             changed = true;
         }
 

@@ -2,9 +2,12 @@
 
 <div class="@CssClass" data-markdown-preview-shell>
     <div id="@previewId" class="slogs-markdown-preview__runtime" data-markdown-preview data-card-click-ignore></div>
-    <div class="slogs-markdown-preview__fallback">
-        @((MarkupString)MarkdownRenderer.Render(Value))
-    </div>
+    @if (!OperatingSystem.IsBrowser())
+    {
+        <div class="slogs-markdown-preview__fallback">
+            @((MarkupString)MarkdownRenderer.Render(Value))
+        </div>
+    }
 </div>
 
 @code {
@@ -44,7 +47,9 @@
             return;
         }
 
-        var fallbackHtml = MarkdownRenderer.Render(normalizedValue);
+        var fallbackHtml = OperatingSystem.IsBrowser()
+            ? string.Empty
+            : MarkdownRenderer.Render(normalizedValue);
 
         try
         {

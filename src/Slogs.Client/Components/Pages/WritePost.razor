@@ -15,16 +15,33 @@ else
 
     <div class="mt-4 grid gap-3">
         <label class="text-sm font-semibold text-slate-700" for="write-title">제목</label>
-        <input id="write-title" class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="title" />
+        <input id="write-title" class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" value="@title" @oninput="OnTitleInput" placeholder="제목을 입력하세요" />
+
+        <label class="text-sm font-semibold text-slate-700" for="write-slug">주소 slug</label>
+        <div class="flex flex-col gap-2 sm:flex-row">
+            <input id="write-slug" class="min-w-0 flex-1 rounded-2xl border border-slate-300 px-3 py-2 text-sm" value="@slug" @oninput="OnSlugInput" placeholder="@SlugGenerator.Suggest(title)" />
+            <button class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                    type="button"
+                    @onclick="ResetSlugSuggestion">
+                제목으로 추천
+            </button>
+        </div>
+        <p class="break-all text-xs text-slate-500">@($"/@{CurrentUser.UserName}/{CurrentSlug}")</p>
 
         <label class="text-sm font-semibold text-slate-700" for="write-summary">요약</label>
-        <input id="write-summary" class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="summary" />
+        <input id="write-summary" class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="summary" placeholder="요약을 입력하세요" />
 
         <label class="text-sm font-semibold text-slate-700" for="write-tags">태그</label>
         <TagBadgeInput Id="write-tags" @bind-Value="tags" Placeholder="태그를 선택하거나 입력하세요" />
 
         <label class="text-sm font-semibold text-slate-700" for="write-series">시리즈</label>
-        <input id="write-series" class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="series" placeholder="시리즈명 입력(선택)" />
+        <input id="write-series" class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="series" list="write-series-options" placeholder="시리즈명 입력 또는 선택(선택)" />
+        <datalist id="write-series-options">
+            @foreach (var option in seriesOptions)
+            {
+                <option value="@option"></option>
+            }
+        </datalist>
 
         <RepresentativeImageField InputId="write-representative-image" @bind-Value="thumbnailUrl" FallbackMarkdown="@body" />
 
@@ -34,7 +51,7 @@ else
         <div class="flex flex-wrap gap-2">
             <button class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
                     type="button" @onclick="SaveDraft" disabled="@isSaving">
-                @((isSaving && savingAction == "draft") ? "임시저장 중..." : "임시저장")
+                @((isSaving && savingAction == "draft") ? "게시전 저장 중..." : "게시전 저장")
             </button>
             <button class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                     type="button" @onclick="Publish" disabled="@isSaving">
@@ -70,15 +87,19 @@ else
 
 @code {
     private string title = string.Empty;
+    private string slug = string.Empty;
+    private bool slugEdited;
     private string summary = string.Empty;
-    private string tags = "blazor, csharp";
+    private string tags = string.Empty;
     private string series = string.Empty;
     private string thumbnailUrl = string.Empty;
-    private string body = "# 제목을 써주세요\n\n본문 내용을 Markdown 형식으로 작성할 수 있습니다.";
+    private string body = string.Empty;
     private bool isSaving;
     private string savingAction = string.Empty;
     private string errorMessage = string.Empty;
+    private IReadOnlyList<string> seriesOptions = Array.Empty<string>();
     private IReadOnlyList<string> ParsedTags => ApiClient.ParseTagsForDisplay(tags);
+    private string CurrentSlug => SlugGenerator.Normalize(string.IsNullOrWhiteSpace(slug) ? title : slug);
     [SupplyParameterFromQuery(Name = "returnUrl")] public string? ReturnUrl { get; set; }
 
     private AuthUser? CurrentUser => AuthState.CurrentUser;
@@ -90,7 +111,10 @@ else
         {
 
             Navigation.NavigateTo(GetLoginHref());
+            return;
         }
+
+        seriesOptions = await ApiClient.GetSeriesAsync(50);
     }
 
     private Task SaveDraft() => SaveAsync(isDraft: true);
@@ -115,7 +139,7 @@ else
 
         if (isDraft && string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(body))
         {
-            errorMessage = "임시저장할 제목이나 본문을 입력해 주세요.";
+            errorMessage = "게시전 저장할 제목이나 본문을 입력해 주세요.";
             return;
         }
 
@@ -128,9 +152,15 @@ else
         savingAction = isDraft ? "draft" : "publish";
         try
         {
-            var post = await ApiClient.CreatePostAsync(title, CurrentUser.UserName, summary, body, tags, series, thumbnailUrl, isDraft: isDraft);
+            var post = await ApiClient.CreatePostAsync(title, CurrentUser.UserName, summary, body, tags, series, thumbnailUrl, isDraft: isDraft, slug: CurrentSlug);
             var fallback = isDraft ? $"/edit/{Uri.EscapeDataString(post.Slug)}" : GetPostUrl(post);
             Navigation.NavigateTo(GetReturnDestination(fallback));
+        }
+        catch (Exception)
+        {
+            errorMessage = isDraft
+                ? "게시전 저장에 실패했습니다. 잠시 후 다시 시도해 주세요."
+                : "게시에 실패했습니다. 잠시 후 다시 시도해 주세요.";
         }
         finally
         {
@@ -155,6 +185,27 @@ else
     private void Cancel()
     {
         Navigation.NavigateTo(GetReturnDestination("/me"));
+    }
+
+    private void OnTitleInput(ChangeEventArgs e)
+    {
+        title = e.Value?.ToString() ?? string.Empty;
+        if (!slugEdited)
+        {
+            slug = SlugGenerator.Suggest(title);
+        }
+    }
+
+    private void OnSlugInput(ChangeEventArgs e)
+    {
+        slugEdited = true;
+        slug = SlugGenerator.Normalize(e.Value?.ToString());
+    }
+
+    private void ResetSlugSuggestion()
+    {
+        slugEdited = false;
+        slug = SlugGenerator.Suggest(title);
     }
 
     private string GetReturnDestination(string fallback)

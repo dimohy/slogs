@@ -42,6 +42,11 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
 
         await using var db = await dbFactory.CreateDbContextAsync();
         var normalized = NormalizeUser(userName);
+        if (normalized.Equals(AuthUser.AdminUserName, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
         var matchedUser = await db.Users.AsNoTracking().FirstOrDefaultAsync(x => x.UserName == normalized);
         if (matchedUser is null || !matchedUser.Password.Equals(password.Trim(), StringComparison.Ordinal))
         {
@@ -60,6 +65,11 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
         if (string.IsNullOrWhiteSpace(normalized))
         {
             throw new InvalidOperationException("아이디를 입력해 주세요.");
+        }
+
+        if (normalized.Equals(AuthUser.AdminUserName, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("reservedUserName");
         }
 
         if (await db.Users.AnyAsync(x => x.UserName == normalized))
@@ -86,6 +96,41 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
         return CurrentUser;
     }
 
+    public async Task<AuthUser> EnterAdminModeAsync(AuthUser currentUser)
+    {
+        if (!currentUser.CanSwitchToAdminMode)
+        {
+            throw new InvalidOperationException("adminModeForbidden");
+        }
+
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var admin = await db.Users.AsNoTracking().FirstOrDefaultAsync(x => x.UserName == AuthUser.AdminUserName)
+            ?? throw new InvalidOperationException("adminUserNotFound");
+
+        var adminUser = ToModel(admin);
+        adminUser.IsAdminMode = true;
+        adminUser.AdminModeSourceUserName = currentUser.UserName;
+
+        CurrentUser = adminUser;
+        AuthStateChanged?.Invoke();
+        return adminUser;
+    }
+
+    public async Task<AuthUser> ExitAdminModeAsync(AuthUser currentUser)
+    {
+        if (!currentUser.CanExitAdminMode)
+        {
+            throw new InvalidOperationException("adminModeForbidden");
+        }
+
+        var sourceUser = await GetUserAsync(currentUser.AdminModeSourceUserName)
+            ?? throw new InvalidOperationException("adminModeSourceNotFound");
+
+        CurrentUser = sourceUser;
+        AuthStateChanged?.Invoke();
+        return sourceUser;
+    }
+
     public async Task<AuthUser?> LoginExternalAsync(
         string provider,
         string providerUserId,
@@ -103,6 +148,11 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
         await using var db = await dbFactory.CreateDbContextAsync();
         var externalLogin = await db.ExternalLogins.FindAsync(normalizedProvider, normalizedProviderUserId);
         if (externalLogin is null)
+        {
+            return null;
+        }
+
+        if (externalLogin.UserName.Equals(AuthUser.AdminUserName, StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
@@ -151,6 +201,11 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
         }
 
         var userName = NormalizeProfileUserName(requestedUserName, string.Empty);
+        if (userName.Equals(AuthUser.AdminUserName, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("externalUserNameTaken");
+        }
+
         var normalizedEmail = email?.Trim().ToLowerInvariant() ?? string.Empty;
         var finalDisplayName = NormalizeDisplayName(displayName, normalizedEmail);
         var finalProfileImageUrl = profileImageUrl?.Trim() ?? string.Empty;

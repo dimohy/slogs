@@ -1,4 +1,70 @@
 (() => {
+    if (window.__slogsInteractivityBound) {
+        return;
+    }
+
+    window.__slogsInteractivityBound = true;
+
+    const pendingClass = "slogs-interactivity-pending";
+    const restoringClass = "slogs-interactivity-restoring";
+    const readyClass = "slogs-interactivity-ready";
+    const guardedSelector = [
+        "button",
+        "form",
+        "input",
+        "textarea",
+        "select",
+        "[role='button']",
+        "[contenteditable='true']"
+    ].join(",");
+
+    const getElement = (target) => target instanceof Element ? target : target?.parentElement;
+
+    const isWaiting = () => document.body?.classList.contains(pendingClass)
+        || document.body?.classList.contains(restoringClass);
+
+    const isReconnectControl = (element) => Boolean(element?.closest("#components-reconnect-modal"));
+
+    const findGuardedElement = (target) => getElement(target)?.closest(guardedSelector);
+
+    const blockIfWaiting = (event) => {
+        if (!isWaiting()) {
+            return;
+        }
+
+        const guardedElement = findGuardedElement(event.target);
+        if (!guardedElement || isReconnectControl(guardedElement)) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+    };
+
+    document.addEventListener("pointerdown", blockIfWaiting, true);
+    document.addEventListener("click", blockIfWaiting, true);
+    document.addEventListener("submit", blockIfWaiting, true);
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Tab" || event.key === "Escape") {
+            return;
+        }
+
+        blockIfWaiting(event);
+    }, true);
+
+    window.slogsInteractivity = {
+        markReady: () => {
+            document.body?.classList.remove(pendingClass, restoringClass);
+            document.body?.classList.add(readyClass);
+        },
+        markConnecting: () => {
+            document.body?.classList.remove(readyClass);
+            document.body?.classList.add(restoringClass);
+        }
+    };
+})();
+
+(() => {
     if (window.__slogsCardClickBound) {
         return;
     }
@@ -72,6 +138,51 @@
         event.preventDefault();
         navigateToCard(card);
     });
+})();
+
+(() => {
+    if (window.__slogsAccountMenuBound) {
+        return;
+    }
+
+    window.__slogsAccountMenuBound = true;
+
+    const getElement = (target) => target instanceof Element ? target : target?.parentElement;
+
+    const closeAccountMenus = (exceptMenu) => {
+        document.querySelectorAll(".slogs-account-menu[open]").forEach((menu) => {
+            if (menu !== exceptMenu) {
+                menu.removeAttribute("open");
+            }
+        });
+    };
+
+    document.addEventListener("click", (event) => {
+        const element = getElement(event.target);
+        const selectedMenuItem = element?.closest(".slogs-account-menu [role='menuitem']");
+        if (selectedMenuItem) {
+            closeAccountMenus();
+            return;
+        }
+
+        const accountMenu = element?.closest(".slogs-account-menu");
+        if (accountMenu) {
+            closeAccountMenus(accountMenu);
+            return;
+        }
+
+        closeAccountMenus();
+    });
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+            closeAccountMenus();
+        }
+    });
+
+    window.slogsAccountMenu = {
+        closeAll: () => closeAccountMenus()
+    };
 })();
 
 window.slogsMobileHeader = (() => {
@@ -854,6 +965,8 @@ window.slogsAuthApi = (() => {
         login: (request) => sendJson("/api/auth/login", request),
         register: (request) => sendJson("/api/auth/register", request),
         profile: (request) => sendJson("/api/auth/profile", request, "PUT"),
+        enterAdminMode: () => sendJson("/api/auth/admin-mode/enter"),
+        exitAdminMode: () => sendJson("/api/auth/admin-mode/exit"),
         logout: () => sendJson("/api/auth/logout")
     };
 })();

@@ -104,6 +104,56 @@ public static class SlogsApiEndpoints
             return Results.Ok(new LogoutResponse(true));
         });
 
+        api.MapPost("/auth/admin-mode/enter", async (HttpContext httpContext, AuthService authService) =>
+        {
+            var currentUser = GetCurrentUser(httpContext);
+            if (currentUser is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!currentUser.CanSwitchToAdminMode)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            try
+            {
+                var adminUser = await authService.EnterAdminModeAsync(currentUser);
+                await SlogsAuthentication.SignInPersistentAsync(httpContext, adminUser);
+                return Results.Ok(new AuthResponse(adminUser, "/me"));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        });
+
+        api.MapPost("/auth/admin-mode/exit", async (HttpContext httpContext, AuthService authService) =>
+        {
+            var currentUser = GetCurrentUser(httpContext);
+            if (currentUser is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!currentUser.CanExitAdminMode)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            try
+            {
+                var sourceUser = await authService.ExitAdminModeAsync(currentUser);
+                await SlogsAuthentication.SignInPersistentAsync(httpContext, sourceUser);
+                return Results.Ok(new AuthResponse(sourceUser, "/me"));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        });
+
         api.MapGet("/posts/latest", async (BlogService blogService, int? count) =>
             Results.Ok(await blogService.GetLatestAsync(NormalizeCount(count, 15, 500))));
 
@@ -129,7 +179,8 @@ public static class SlogsApiEndpoints
                 request.Tags,
                 request.Series,
                 request.ThumbnailUrl,
-                request.IsDraft.GetValueOrDefault(false));
+                request.IsDraft.GetValueOrDefault(false),
+                request.Slug);
 
             return Results.Created($"/api/posts/{Uri.EscapeDataString(post.Slug)}", post);
         });
@@ -148,6 +199,9 @@ public static class SlogsApiEndpoints
             var adjacent = await blogService.GetAdjacentPostsAsync(slug);
             return Results.Ok(new AdjacentPostsResponse(adjacent.Previous, adjacent.Next));
         });
+
+        api.MapGet("/posts/{slug}/revisions", async (HttpContext httpContext, BlogService blogService, string slug) =>
+            Results.Ok(await blogService.GetPostRevisionsAsync(slug, GetCurrentUser(httpContext)?.UserName)));
 
         api.MapGet("/posts/{slug}", async (HttpContext httpContext, BlogService blogService, string slug) =>
         {
@@ -172,7 +226,8 @@ public static class SlogsApiEndpoints
                 request.Tags,
                 request.Series,
                 request.ThumbnailUrl,
-                request.IsDraft);
+                request.IsDraft,
+                request.Slug);
 
             return post is null ? Results.NotFound() : Results.Ok(post);
         });
@@ -244,7 +299,7 @@ public static class SlogsApiEndpoints
                 return Results.Unauthorized();
             }
 
-            var updated = await blogService.UpdateCommentAsync(slug, commentId, user.UserName, request.Content);
+            var updated = await blogService.UpdateCommentAsync(slug, commentId, user.UserName, request.Content, user.IsAdmin);
             return updated ? Results.Ok(new UpdateStateResponse(true)) : Results.NotFound();
         });
 
@@ -260,7 +315,7 @@ public static class SlogsApiEndpoints
                 return Results.Unauthorized();
             }
 
-            var deleted = await blogService.RemoveCommentAsync(slug, commentId, user.UserName);
+            var deleted = await blogService.RemoveCommentAsync(slug, commentId, user.UserName, user.IsAdmin);
             return deleted ? Results.NoContent() : Results.NotFound();
         });
 
@@ -369,6 +424,9 @@ public static class SlogsApiEndpoints
             LlmWikiService llmWikiService,
             string? q,
             int? limit,
+            int? offset,
+            int? minRelevancePercent,
+            string? categoryPath,
             CancellationToken cancellationToken) =>
         {
             var user = GetCurrentUser(httpContext);
@@ -378,7 +436,21 @@ public static class SlogsApiEndpoints
                     user.UserName,
                     q,
                     NormalizeCount(limit, 20, 100),
+                    NormalizeOffset(offset),
+                    NormalizeRelevancePercent(minRelevancePercent),
+                    categoryPath,
                     cancellationToken));
+        });
+
+        api.MapGet("/llm-wiki/categories", async (
+            HttpContext httpContext,
+            LlmWikiService llmWikiService,
+            CancellationToken cancellationToken) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            return user is null
+                ? Results.Unauthorized()
+                : Results.Ok(await llmWikiService.GetCategoriesAsync(user.UserName, cancellationToken));
         });
 
         api.MapPost("/llm-wiki/entries", async (
@@ -505,6 +577,12 @@ public static class SlogsApiEndpoints
 
     private static int NormalizeCount(int? count, int defaultValue, int maxValue)
         => Math.Clamp(count.GetValueOrDefault(defaultValue), 1, maxValue);
+
+    private static int NormalizeOffset(int? offset)
+        => Math.Clamp(offset.GetValueOrDefault(0), 0, 10_000);
+
+    private static int NormalizeRelevancePercent(int? minRelevancePercent)
+        => Math.Clamp(minRelevancePercent.GetValueOrDefault(50), 0, 100);
 
     private static string NormalizeLocalReturnUrl(string? returnUrl, string fallback)
     {

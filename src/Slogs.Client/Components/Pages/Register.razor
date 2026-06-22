@@ -120,6 +120,10 @@
 
             apiError = MapAuthError(result.Error, result.Status == 409 ? "이미 사용 중인 아이디입니다." : "회원가입에 실패했습니다.");
         }
+        catch (Exception)
+        {
+            apiError = "회원가입 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+        }
         finally
         {
             isSubmitting = false;

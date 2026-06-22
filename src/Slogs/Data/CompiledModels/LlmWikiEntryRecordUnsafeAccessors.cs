@@ -15,6 +15,12 @@ namespace Slogs.Data.CompiledModels
         [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "<AccessCount>k__BackingField")]
         public static extern ref int AccessCount(LlmWikiEntryRecord @this);
 
+        [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "<CategoryDepth>k__BackingField")]
+        public static extern ref int CategoryDepth(LlmWikiEntryRecord @this);
+
+        [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "<CategoryPath>k__BackingField")]
+        public static extern ref string CategoryPath(LlmWikiEntryRecord @this);
+
         [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "<Content>k__BackingField")]
         public static extern ref string Content(LlmWikiEntryRecord @this);
 

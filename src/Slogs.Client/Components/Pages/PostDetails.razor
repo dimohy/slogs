@@ -40,7 +40,11 @@ else
             <h1 class="text-2xl font-bold text-slate-900">@post.Title</h1>
             @if (post.IsDraft)
             {
-                <span class="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">임시저장</span>
+                <span class="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">게시전</span>
+            }
+            else
+            {
+                <span class="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">게시후</span>
             }
         </div>
         <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
@@ -66,7 +70,7 @@ else
             <span>@($"{authorFollowerCount}명 팔로워")</span>
             @if (post.IsDraft)
             {
-                <span>임시저장</span>
+                <span>게시전</span>
                 <span>수정 @FormatDateTime(post.UpdatedAt)</span>
             }
             else
@@ -130,10 +134,11 @@ else
 
             @if (CanEditCurrentPost)
             {
-                <a class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold transition hover:bg-slate-100" href="@GetEditHref()">수정</a>
+                <a class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold transition hover:bg-slate-100" href="@GetEditHref()">@(post.IsDraft ? "게시전 수정" : "리비전 작성")</a>
                 <button class="rounded-full border border-rose-300 px-3 py-1.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-50"
+                        disabled="@isDeletingPost"
                         type="button" @onclick="ShowDeleteConfirm">
-                    삭제
+                    @(isDeletingPost ? "삭제 중..." : "삭제")
                 </button>
             }
         </div>
@@ -143,10 +148,12 @@ else
                 <p class="text-sm font-semibold text-rose-900">이 글을 정말 삭제하시겠습니까?</p>
                 <div class="flex flex-wrap gap-2">
                     <button class="rounded-full border border-rose-300 bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-rose-700"
+                            disabled="@isDeletingPost"
                             type="button" @onclick="DeletePost">
-                        삭제 진행
+                        @(isDeletingPost ? "삭제 중..." : "삭제 진행")
                     </button>
                     <button class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold transition hover:bg-slate-100"
+                            disabled="@isDeletingPost"
                             type="button" @onclick="CancelDelete">
                         취소
                     </button>
@@ -160,6 +167,49 @@ else
             </div>
         }
     </article>
+
+    @if (!post.IsDraft && revisions.Count > 0)
+    {
+        <section id="revisions" class="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+            <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h3 class="text-lg font-bold text-slate-900">리비전</h3>
+                <span class="text-sm font-semibold text-slate-500">@($"{revisions.Count}개")</span>
+            </div>
+            <div class="grid gap-2">
+                @foreach (var revision in revisions.OrderByDescending(x => x.RevisionNumber))
+                {
+                    <details class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <summary class="cursor-pointer list-none">
+                            <span class="flex flex-wrap items-center gap-2">
+                                <span class="font-bold text-slate-900">@($"v{revision.RevisionNumber}")</span>
+                                <span class="text-sm text-slate-500">@FormatDateTime(revision.CreatedAt)</span>
+                                @foreach (var field in revision.ChangedFields)
+                                {
+                                    <span class="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold text-slate-700">@field</span>
+                                }
+                            </span>
+                        </summary>
+                        <div class="mt-3 grid gap-2 text-sm text-slate-700">
+                            <p><span class="font-semibold text-slate-900">제목</span> @revision.Title</p>
+                            @if (!string.IsNullOrWhiteSpace(revision.Summary))
+                            {
+                                <p><span class="font-semibold text-slate-900">요약</span> @revision.Summary</p>
+                            }
+                            @if (revision.Tags.Count > 0)
+                            {
+                                <p><span class="font-semibold text-slate-900">태그</span> @(string.Join(", ", revision.Tags.Select(x => $"#{x}")))</p>
+                            }
+                            @if (revision.Series.Count > 0)
+                            {
+                                <p><span class="font-semibold text-slate-900">시리즈</span> @(string.Join(", ", revision.Series))</p>
+                            }
+                        </div>
+                        <MarkdownPreview Value="@revision.Body" Class="mt-3" />
+                    </details>
+                }
+            </div>
+        </section>
+    }
 
     <section id="related-posts" class="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
         <h3 class="mb-3 text-lg font-bold text-slate-900">연관 글</h3>
@@ -468,10 +518,12 @@ else
     private int commentTotalCount;
     private string commentSortOrder = "latest";
     private IReadOnlyList<BlogPost> relatedPosts = Array.Empty<BlogPost>();
+    private IReadOnlyList<PostRevisionResponse> revisions = Array.Empty<PostRevisionResponse>();
     private BlogPost? previousPost;
     private BlogPost? nextPost;
     private string message = string.Empty;
     private bool showDeleteConfirm;
+    private bool isDeletingPost;
     private Guid? pendingDeleteCommentId;
     private Guid? replyingToCommentId;
     private Guid? editingCommentId;
@@ -654,6 +706,7 @@ else
             message = "요청한 글을 찾을 수 없습니다.";
             authorFollowerCount = 0;
             isFollowingAuthor = false;
+            revisions = Array.Empty<PostRevisionResponse>();
             topLevelComments = Array.Empty<BlogComment>();
             allTopLevelComments = Array.Empty<BlogComment>();
             commentCurrentPage = 1;
@@ -672,6 +725,7 @@ else
             message = "요청한 작성자와 글의 작성자가 일치하지 않습니다.";
             post = null;
             relatedPosts = Array.Empty<BlogPost>();
+            revisions = Array.Empty<PostRevisionResponse>();
             previousPost = null;
             nextPost = null;
             authorFollowerCount = 0;
@@ -691,6 +745,7 @@ else
         if (post.IsDraft)
         {
             relatedPosts = Array.Empty<BlogPost>();
+            revisions = Array.Empty<PostRevisionResponse>();
             previousPost = null;
             nextPost = null;
             authorFollowerCount = await ApiClient.GetFollowerCountAsync(post.Author);
@@ -702,6 +757,7 @@ else
         }
 
         relatedPosts = await ApiClient.GetRelatedPostsAsync(Slug, 3);
+        revisions = await ApiClient.GetPostRevisionsAsync(Slug);
         var adjacent = await ApiClient.GetAdjacentPostsAsync(Slug);
         previousPost = adjacent.Previous;
         nextPost = adjacent.Next;
@@ -738,7 +794,7 @@ else
 
         if (post.IsDraft)
         {
-            message = "임시저장 글은 게시 후 좋아요를 사용할 수 있습니다.";
+            message = "게시전 글은 게시 후 좋아요를 사용할 수 있습니다.";
             return;
         }
 
@@ -791,7 +847,7 @@ else
 
         if (post.IsDraft)
         {
-            message = "임시저장 글은 게시 후 북마크를 사용할 수 있습니다.";
+            message = "게시전 글은 게시 후 북마크를 사용할 수 있습니다.";
             return;
         }
 
@@ -1028,6 +1084,7 @@ else
         {
             previousPost = null;
             nextPost = null;
+            revisions = Array.Empty<PostRevisionResponse>();
             topLevelComments = Array.Empty<BlogComment>();
             allTopLevelComments = Array.Empty<BlogComment>();
             commentCurrentPage = 1;
@@ -1040,6 +1097,7 @@ else
         }
 
         loadedPostSlug = post.Slug;
+        revisions = post.IsDraft ? Array.Empty<PostRevisionResponse>() : await ApiClient.GetPostRevisionsAsync(Slug);
         var adjacent = await ApiClient.GetAdjacentPostsAsync(Slug);
         previousPost = adjacent.Previous;
         nextPost = adjacent.Next;
@@ -1105,6 +1163,11 @@ else
 
     private async Task DeletePost()
     {
+        if (isDeletingPost)
+        {
+            return;
+        }
+
         if (post is null || CurrentUser is null || !post.IsAuthor(CurrentUser.UserName))
         {
             message = "삭제 권한이 없습니다.";
@@ -1112,15 +1175,31 @@ else
             return;
         }
 
-        var deleted = await ApiClient.DeletePostAsync(post.Slug, CurrentUser.UserName);
-        if (!deleted)
+        isDeletingPost = true;
+        message = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var deleted = await ApiClient.DeletePostAsync(post.Slug, CurrentUser.UserName);
+            if (!deleted)
+            {
+                showDeleteConfirm = false;
+                message = "삭제에 실패했습니다.";
+                return;
+            }
+
+            Navigation.NavigateTo("/");
+        }
+        catch (Exception ex)
         {
             showDeleteConfirm = false;
-            message = "삭제에 실패했습니다.";
-            return;
+            message = $"삭제 요청 중 오류가 발생했습니다: {ex.Message}";
         }
-
-        Navigation.NavigateTo("/");
+        finally
+        {
+            isDeletingPost = false;
+        }
     }
 
     private string GetEditHref() => $"/edit/{Uri.EscapeDataString(post?.Slug ?? Slug)}";
@@ -1158,10 +1237,10 @@ else
     private static string FormatDateTime(DateTime dateTime) => dateTime.ToLocalTime().ToString("yyyy.MM.dd HH:mm");
 
     private bool CanDeleteComment(BlogComment comment) => CurrentUser is not null
-        && (comment.IsAuthor(CurrentUser.UserName) || string.Equals(CurrentUser.UserName, "admin", StringComparison.OrdinalIgnoreCase));
+        && (comment.IsAuthor(CurrentUser.UserName) || CurrentUser.IsAdmin);
 
     private bool CanEditComment(BlogComment comment) => CurrentUser is not null
-        && (comment.IsAuthor(CurrentUser.UserName) || string.Equals(CurrentUser.UserName, "admin", StringComparison.OrdinalIgnoreCase));
+        && (comment.IsAuthor(CurrentUser.UserName) || CurrentUser.IsAdmin);
 
     private void RequestDeleteComment(Guid commentId)
     {
@@ -1414,6 +1493,7 @@ else
         post = PrerenderedState.Post;
         loadedPostSlug = PrerenderedState.LoadedPostSlug;
         relatedPosts = PrerenderedState.RelatedPosts;
+        revisions = PrerenderedState.Revisions;
         previousPost = PrerenderedState.PreviousPost;
         nextPost = PrerenderedState.NextPost;
         topLevelComments = PrerenderedState.TopLevelComments;
@@ -1439,6 +1519,7 @@ else
             Post = post,
             LoadedPostSlug = loadedPostSlug,
             RelatedPosts = relatedPosts.ToList(),
+            Revisions = revisions.ToList(),
             PreviousPost = previousPost,
             NextPost = nextPost,
             TopLevelComments = topLevelComments.ToList(),

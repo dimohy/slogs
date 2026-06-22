@@ -46,17 +46,17 @@ public sealed class SlogsApiClient
     public async Task<BlogPost?> GetBySlugForReadAsync(string slug)
         => backend is not null ? await backend.GetBySlugForReadAsync(slug) : await GetJsonAsync<BlogPost>($"api/posts/{EscapePath(slug)}/read");
 
-    public async Task<BlogPost?> UpdatePostAsync(string slug, string userName, string title, string summary, string body, string tags, string? series, string? thumbnailUrl = null, bool? isDraft = null)
+    public async Task<BlogPost?> UpdatePostAsync(string slug, string userName, string title, string summary, string body, string tags, string? series, string? thumbnailUrl = null, bool? isDraft = null, string? newSlug = null)
     {
         if (backend is not null)
         {
-            return await backend.UpdatePostAsync(slug, userName, title, summary, body, tags, series, thumbnailUrl, isDraft);
+            return await backend.UpdatePostAsync(slug, userName, title, summary, body, tags, series, thumbnailUrl, isDraft, newSlug);
         }
 
         _ = userName;
         return await PutJsonAsync<BlogPost, PostUpsertRequest>(
             $"api/posts/{EscapePath(slug)}",
-            new PostUpsertRequest(title, summary, body, tags, series, thumbnailUrl, isDraft));
+            new PostUpsertRequest(title, summary, body, tags, series, thumbnailUrl, isDraft, newSlug));
     }
 
     public async Task<bool> DeletePostAsync(string slug, string userName)
@@ -84,6 +84,11 @@ public sealed class SlogsApiClient
         var adjacent = await GetJsonAsync<AdjacentPostsResponse>($"api/posts/{EscapePath(slug)}/adjacent");
         return (adjacent?.Previous, adjacent?.Next);
     }
+
+    public async Task<IReadOnlyList<PostRevisionResponse>> GetPostRevisionsAsync(string slug)
+        => backend is not null
+            ? await backend.GetPostRevisionsAsync(slug)
+            : await GetJsonAsync<List<PostRevisionResponse>>($"api/posts/{EscapePath(slug)}/revisions") ?? [];
 
     public async Task<IReadOnlyList<BlogPost>> GetByTagAsync(string tag)
         => backend is not null ? await backend.GetByTagAsync(tag) : await GetJsonAsync<List<BlogPost>>($"api/tags/{EscapePath(tag)}/posts") ?? [];
@@ -159,17 +164,17 @@ public sealed class SlogsApiClient
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-    public async Task<BlogPost> CreatePostAsync(string title, string author, string summary, string body, string tags, string? series, string? thumbnailUrl = null, bool isDraft = false)
+    public async Task<BlogPost> CreatePostAsync(string title, string author, string summary, string body, string tags, string? series, string? thumbnailUrl = null, bool isDraft = false, string? slug = null)
     {
         if (backend is not null)
         {
-            return await backend.CreatePostAsync(title, author, summary, body, tags, series, thumbnailUrl, isDraft);
+            return await backend.CreatePostAsync(title, author, summary, body, tags, series, thumbnailUrl, isDraft, slug);
         }
 
         _ = author;
         var post = await PostJsonAsync<BlogPost, PostUpsertRequest>(
             "api/posts",
-            new PostUpsertRequest(title, summary, body, tags, series, thumbnailUrl, isDraft));
+            new PostUpsertRequest(title, summary, body, tags, series, thumbnailUrl, isDraft, slug));
         return post ?? throw new InvalidOperationException("게시글 생성에 실패했습니다.");
     }
 
@@ -323,15 +328,36 @@ public sealed class SlogsApiClient
     public async Task<int> GetFollowerCountAsync(string targetUser)
         => backend is not null ? await backend.GetFollowerCountAsync(targetUser) : await GetJsonAsync<int>($"api/users/{EscapePath(targetUser)}/follower-count");
 
-    public async Task<IReadOnlyList<LlmWikiSearchResult>> SearchLlmWikiAsync(string userName, string? query, int limit = 20)
+    public async Task<IReadOnlyList<LlmWikiSearchResult>> SearchLlmWikiAsync(
+        string userName,
+        string? query,
+        int limit = 20,
+        int offset = 0,
+        int minRelevancePercent = 50,
+        string? categoryPath = null)
     {
         if (backend is not null)
         {
-            return await backend.SearchLlmWikiAsync(userName, query, limit);
+            return await backend.SearchLlmWikiAsync(userName, query, limit, offset, minRelevancePercent, categoryPath);
         }
 
         _ = userName;
-        return await GetJsonAsync<List<LlmWikiSearchResult>>($"api/llm-wiki/entries?q={Escape(query)}&limit={limit}") ?? [];
+        var categoryQuery = string.IsNullOrWhiteSpace(categoryPath)
+            ? string.Empty
+            : $"&categoryPath={Escape(categoryPath)}";
+        return await GetJsonAsync<List<LlmWikiSearchResult>>(
+            $"api/llm-wiki/entries?q={Escape(query)}&limit={limit}&offset={offset}&minRelevancePercent={minRelevancePercent}{categoryQuery}") ?? [];
+    }
+
+    public async Task<IReadOnlyList<LlmWikiCategorySummary>> GetLlmWikiCategoriesAsync(string userName)
+    {
+        if (backend is not null)
+        {
+            return await backend.GetLlmWikiCategoriesAsync(userName);
+        }
+
+        _ = userName;
+        return await GetJsonAsync<List<LlmWikiCategorySummary>>("api/llm-wiki/categories") ?? [];
     }
 
     public async Task<LlmWikiEntryResponse?> GetLlmWikiEntryAsync(string userName, string idOrSlug)

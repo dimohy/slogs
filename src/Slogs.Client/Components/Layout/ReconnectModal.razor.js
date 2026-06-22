@@ -21,6 +21,9 @@ function setConnectionState(state) {
 
     if (state === "connected") {
         reconnectStatus.classList.remove(...stateClasses);
+        window.slogsInteractivity?.markReady();
+    } else {
+        window.slogsInteractivity?.markConnecting();
     }
 }
 

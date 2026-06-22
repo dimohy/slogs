@@ -97,6 +97,9 @@ if (-not $SkipPublish) {
         Write-Host "WebAssembly AOT is enabled because -WasmAot was specified."
         $enableWasmAot = $true
     }
+    else {
+        Write-Host "WebAssembly AOT is disabled by default. Specify -WasmAot only for an explicit AOT deployment."
+    }
 
     if ($enableWasmAot) {
         $publishArguments += "-p:SlogsWasmAot=true"
@@ -130,7 +133,7 @@ if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($remoteGid)) {
 $remoteInitTemplate = @'
 set -eu
 REMOTE_ROOT="__REMOTE_ROOT__"
-mkdir -p "$REMOTE_ROOT/releases" "$REMOTE_ROOT/uploads" "$REMOTE_ROOT/postgres-data"
+mkdir -p "$REMOTE_ROOT/releases" "$REMOTE_ROOT/uploads" "$REMOTE_ROOT/postgres-data" "$REMOTE_ROOT/embeddinggemma-data"
 if [ ! -f "$REMOTE_ROOT/.env" ]; then
     umask 077
     if command -v openssl >/dev/null 2>&1; then
@@ -148,10 +151,51 @@ fi
 $remoteInit = $remoteInitTemplate.Replace("__REMOTE_ROOT__", $RemoteRoot)
 Invoke-Remote $remoteInit
 
+$remoteGpuCheck = @'
+set -eu
+command -v nvidia-smi >/dev/null 2>&1
+nvidia-smi >/dev/null
+docker run --rm --gpus=all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi >/dev/null
+'@
+Invoke-Remote $remoteGpuCheck
+
 $composeTemplate = @'
 services:
+  embeddinggemma:
+    image: ollama/ollama:0.11.10
+    container_name: slogs-embeddinggemma
+    restart: unless-stopped
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    volumes:
+      - ./embeddinggemma-data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    entrypoint:
+      - /bin/sh
+      - -lc
+    command:
+      - |
+        test -e /dev/nvidiactl || { echo "NVIDIA GPU is required for EmbeddingGemma"; exit 1; }
+        ollama serve &
+        server=$$!
+        until ollama list >/dev/null 2>&1; do sleep 1; done
+        ollama pull embeddinggemma
+        wait $$server
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list | grep -q embeddinggemma"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: slogs-postgres
     restart: unless-stopped
     environment:
@@ -171,6 +215,8 @@ services:
     container_name: slogs-app
     restart: unless-stopped
     depends_on:
+      embeddinggemma:
+        condition: service_healthy
       postgres:
         condition: service_healthy
     user: "__REMOTE_UID__:__REMOTE_GID__"
@@ -182,6 +228,7 @@ services:
       ConnectionStrings__SlogsDatabase: Host=postgres;Port=5432;Database=slogs;Username=slogs;Password=${SLOGS_DB_PASSWORD}
       Authentication__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
       Authentication__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
+      EmbeddingGemma__Endpoint: http://embeddinggemma:11434/api/embed
       Slogs__PublicBaseUrl: https://__DOMAIN__
     ports:
       - "127.0.0.1:__APP_PORT__:8080"

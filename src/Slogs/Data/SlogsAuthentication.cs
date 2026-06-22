@@ -10,6 +10,8 @@ public static class SlogsAuthentication
     private const string ProfileImageClaim = "slogs:profile-image";
     private const string BioClaim = "slogs:bio";
     private const string RegisteredAtClaim = "slogs:registered-at";
+    private const string AdminModeClaim = "slogs:admin-mode";
+    private const string AdminModeSourceUserNameClaim = "slogs:admin-source-user";
     public static TimeSpan PersistentSessionLifetime { get; } = TimeSpan.FromDays(30);
 
     public static ClaimsPrincipal CreatePrincipal(AuthUser user)
@@ -23,6 +25,12 @@ public static class SlogsAuthentication
             new(BioClaim, user.Bio),
             new(RegisteredAtClaim, user.RegisteredAt.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture))
         };
+
+        if (user.IsAdminMode)
+        {
+            claims.Add(new Claim(AdminModeClaim, bool.TrueString));
+            claims.Add(new Claim(AdminModeSourceUserNameClaim, user.AdminModeSourceUserName));
+        }
 
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         return new ClaimsPrincipal(identity);
@@ -54,6 +62,15 @@ public static class SlogsAuthentication
             return null;
         }
 
+        var isAdminMode = bool.TryParse(principal.FindFirstValue(AdminModeClaim), out var parsedAdminMode)
+            && parsedAdminMode;
+        var adminModeSourceUserName = principal.FindFirstValue(AdminModeSourceUserNameClaim) ?? string.Empty;
+        if (userName.Equals(AuthUser.AdminUserName, StringComparison.OrdinalIgnoreCase)
+            && (!isAdminMode || !adminModeSourceUserName.Equals(AuthUser.AdminAuthorityUserName, StringComparison.OrdinalIgnoreCase)))
+        {
+            return null;
+        }
+
         var registeredAt = DateTime.UtcNow;
         var registeredAtValue = principal.FindFirstValue(RegisteredAtClaim);
         if (!string.IsNullOrWhiteSpace(registeredAtValue)
@@ -73,7 +90,9 @@ public static class SlogsAuthentication
             Email = principal.FindFirstValue(ClaimTypes.Email) ?? string.Empty,
             ProfileImageUrl = principal.FindFirstValue(ProfileImageClaim) ?? string.Empty,
             Bio = principal.FindFirstValue(BioClaim) ?? string.Empty,
-            RegisteredAt = registeredAt
+            RegisteredAt = registeredAt,
+            IsAdminMode = isAdminMode,
+            AdminModeSourceUserName = isAdminMode ? adminModeSourceUserName : string.Empty
         };
     }
 }

@@ -22,25 +22,49 @@ else if (!CanEditPost)
 else
 {
     <div class="flex flex-wrap items-center gap-2">
-        <h1 class="text-2xl font-bold text-slate-900">글 수정</h1>
+        <h1 class="text-2xl font-bold text-slate-900">@(post.IsDraft ? "게시전 글 수정" : "리비전 작성")</h1>
         @if (post.IsDraft)
         {
-            <span class="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">임시저장</span>
+            <span class="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">게시전</span>
+        }
+        else
+        {
+            <span class="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">게시후</span>
         }
     </div>
 
     <div class="mt-4 grid gap-3">
         <label class="text-sm font-semibold text-slate-700" for="edit-title">제목</label>
-        <input id="edit-title" class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="title" />
+        <input id="edit-title" class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" value="@title" @oninput="OnTitleInput" placeholder="제목을 입력하세요" />
+
+        @if (post.IsDraft)
+        {
+            <label class="text-sm font-semibold text-slate-700" for="edit-slug">주소 slug</label>
+            <div class="flex flex-col gap-2 sm:flex-row">
+                <input id="edit-slug" class="min-w-0 flex-1 rounded-2xl border border-slate-300 px-3 py-2 text-sm" value="@slug" @oninput="OnSlugInput" placeholder="@SlugGenerator.Suggest(title)" />
+                <button class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                        type="button"
+                        @onclick="ResetSlugSuggestion">
+                    제목으로 추천
+                </button>
+            </div>
+            <p class="break-all text-xs text-slate-500">@($"/@{post.Author}/{CurrentSlug}")</p>
+        }
 
         <label class="text-sm font-semibold text-slate-700" for="edit-summary">요약</label>
-        <input id="edit-summary" class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="summary" />
+        <input id="edit-summary" class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="summary" placeholder="요약을 입력하세요" />
 
         <label class="text-sm font-semibold text-slate-700" for="edit-tags">태그</label>
         <TagBadgeInput Id="edit-tags" @bind-Value="tags" Placeholder="태그를 선택하거나 입력하세요" />
 
         <label class="text-sm font-semibold text-slate-700" for="edit-series">시리즈</label>
-        <input id="edit-series" class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="series" />
+        <input id="edit-series" class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="series" list="edit-series-options" placeholder="시리즈명 입력 또는 선택(선택)" />
+        <datalist id="edit-series-options">
+            @foreach (var option in seriesOptions)
+            {
+                <option value="@option"></option>
+            }
+        </datalist>
 
         <RepresentativeImageField InputId="edit-representative-image" @bind-Value="thumbnailUrl" FallbackMarkdown="@body" />
 
@@ -52,7 +76,7 @@ else
             {
                 <button class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
                         type="button" @onclick="SaveDraft" disabled="@isSaving">
-                    @((isSaving && savingAction == "draft") ? "임시저장 중..." : "임시저장")
+                    @((isSaving && savingAction == "draft") ? "게시전 저장 중..." : "게시전 저장")
                 </button>
                 <button class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                         type="button" @onclick="Publish" disabled="@isSaving">
@@ -63,7 +87,7 @@ else
             {
                 <button class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                         type="button" @onclick="SavePublished" disabled="@isSaving">
-                    @((isSaving && savingAction == "publish") ? "저장 중..." : "수정 저장")
+                    @((isSaving && savingAction == "publish") ? "리비전 게시 중..." : "리비전 게시")
                 </button>
             }
             <button class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-100"
@@ -106,12 +130,16 @@ else
     private string savingAction = string.Empty;
     private string errorMessage = string.Empty;
     private string title = string.Empty;
+    private string slug = string.Empty;
+    private bool slugEdited;
     private string summary = string.Empty;
     private string body = string.Empty;
     private string tags = string.Empty;
     private string series = string.Empty;
     private string thumbnailUrl = string.Empty;
+    private IReadOnlyList<string> seriesOptions = Array.Empty<string>();
     private IReadOnlyList<string> ParsedTags => ApiClient.ParseTagsForDisplay(tags);
+    private string CurrentSlug => SlugGenerator.Normalize(string.IsNullOrWhiteSpace(slug) ? title : slug);
 
     private AuthUser? CurrentUser => AuthState.CurrentUser;
     private bool CanEditPost => post is not null && CurrentUser is not null && post.IsAuthor(CurrentUser.UserName);
@@ -122,7 +150,10 @@ else
         if (CurrentUser is null)
         {
             Navigation.NavigateTo(GetLoginHref());
+            return;
         }
+
+        seriesOptions = await ApiClient.GetSeriesAsync(50);
     }
 
     protected override async Task OnParametersSetAsync()
@@ -142,6 +173,8 @@ else
         }
 
         title = post.Title;
+        slug = post.Slug;
+        slugEdited = true;
         summary = post.Summary;
         body = post.Body;
         tags = string.Join(", ", post.Tags);
@@ -173,7 +206,7 @@ else
 
         if (isDraft && string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(body))
         {
-            errorMessage = "임시저장할 제목이나 본문을 입력해 주세요.";
+            errorMessage = "게시전 저장할 제목이나 본문을 입력해 주세요.";
             return;
         }
 
@@ -188,7 +221,24 @@ else
 
         try
         {
-            updatedPost = await ApiClient.UpdatePostAsync(post.Slug, CurrentUser.UserName, title, summary, body, tags, series, thumbnailUrl, isDraft: isDraft);
+            updatedPost = await ApiClient.UpdatePostAsync(
+                post.Slug,
+                CurrentUser.UserName,
+                title,
+                summary,
+                body,
+                tags,
+                series,
+                thumbnailUrl,
+                isDraft: isDraft,
+                newSlug: post.IsDraft ? CurrentSlug : null);
+        }
+        catch (Exception)
+        {
+            errorMessage = post.IsDraft
+                ? "게시전 글 저장에 실패했습니다. 잠시 후 다시 시도해 주세요."
+                : "리비전 게시에 실패했습니다. 잠시 후 다시 시도해 주세요.";
+            return;
         }
         finally
         {
@@ -198,7 +248,9 @@ else
 
         if (updatedPost is null)
         {
-            errorMessage = "수정 권한이 없거나 글이 존재하지 않습니다.";
+            errorMessage = post.IsDraft
+                ? "수정 권한이 없거나 글이 존재하지 않습니다."
+                : "리비전을 게시할 권한이 없거나 글이 존재하지 않습니다.";
             return;
         }
 
@@ -211,6 +263,27 @@ else
             ? "/me"
             : (post.IsDraft ? "/me" : GetPostUrl(post)));
         Navigation.NavigateTo(destination);
+    }
+
+    private void OnTitleInput(ChangeEventArgs e)
+    {
+        title = e.Value?.ToString() ?? string.Empty;
+        if (post?.IsDraft == true && !slugEdited)
+        {
+            slug = SlugGenerator.Suggest(title);
+        }
+    }
+
+    private void OnSlugInput(ChangeEventArgs e)
+    {
+        slugEdited = true;
+        slug = SlugGenerator.Normalize(e.Value?.ToString());
+    }
+
+    private void ResetSlugSuggestion()
+    {
+        slugEdited = false;
+        slug = SlugGenerator.Suggest(title);
     }
 
     private string GetReturnDestination(string fallback)

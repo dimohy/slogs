@@ -43,11 +43,11 @@
                 <input id="@InputId"
                        class="rounded-2xl border border-slate-300 px-3 py-2 text-sm"
                        value="@Value"
-                       placeholder="이미지 URL 또는 업로드 결과"
+                       placeholder="본문 Markdown에 포함된 이미지 URL"
                        @oninput="OnUrlChanged" />
             </div>
 
-            <p class="mt-2 text-xs text-slate-500">비워두면 본문에 들어간 첫 번째 이미지가 대표 이미지가 됩니다.</p>
+            <p class="mt-2 text-xs text-slate-500">업로드한 이미지는 본문 Markdown에도 포함되어야 저장됩니다. 비워두면 본문 첫 이미지가 대표 이미지가 됩니다.</p>
             @if (!string.IsNullOrWhiteSpace(statusMessage))
             {
                 <p class="@StatusClass">@statusMessage</p>
@@ -131,7 +131,7 @@
             }
 
             await ValueChanged.InvokeAsync(result.Url);
-            statusMessage = "대표 이미지가 업로드되었습니다.";
+            statusMessage = "이미지가 업로드되었습니다. 저장하려면 본문 Markdown에도 이 경로를 넣어 주세요.";
         }
         catch (Exception ex)
         {

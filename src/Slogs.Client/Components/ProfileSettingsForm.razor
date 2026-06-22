@@ -165,6 +165,10 @@
 
             profileError = MapProfileError(result.Error, result.Status == 401 ? "로그인이 필요합니다." : "프로필 저장에 실패했습니다.");
         }
+        catch (Exception)
+        {
+            profileError = "프로필 저장 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+        }
         finally
         {
             isSavingProfile = false;

@@ -3,15 +3,54 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+using Npgsql;
+using NpgsqlTypes;
 
 namespace Slogs.Data;
 
-public sealed class LlmWikiService(IDbContextFactory<SlogsDbContext> dbFactory)
+public sealed class LlmWikiService(
+    IDbContextFactory<SlogsDbContext> dbFactory,
+    EmbeddingGemmaService embeddingService)
 {
     private const int MaxPromptLength = 12_000;
     private const int MaxContentLength = 80_000;
     private const int MaxTitleLength = 120;
     private const int MaxSummaryLength = 240;
+    private const int MaxCategoryPathLength = 240;
+    private const int MaxCategorySegmentLength = 48;
+    private const int MaxEmbeddingContentLength = 18_000;
+    private const int MaxGraphNodesPerEntry = 80;
+    private const int MaxGraphNodeLength = 120;
+    private const string SearchIndexVersion = "2026-06-20-lexical-v3";
+    private static readonly string[] KoreanParticleSuffixes =
+    [
+        "으로",
+        "에서",
+        "에게",
+        "부터",
+        "까지",
+        "처럼",
+        "보다",
+        "라고",
+        "이라",
+        "하며",
+        "하고",
+        "의",
+        "은",
+        "는",
+        "이",
+        "가",
+        "을",
+        "를",
+        "와",
+        "과",
+        "로",
+        "에",
+        "께",
+        "도",
+        "만"
+    ];
 
     public async Task<LlmWikiEntryResponse> RememberAsync(
         string ownerUserName,
@@ -28,9 +67,16 @@ public sealed class LlmWikiService(IDbContextFactory<SlogsDbContext> dbFactory)
         var content = TrimToLength(request.Content, MaxContentLength);
         var title = DeriveTitle(request.Title, prompt, content);
         var tags = ParseTags(request.Tags);
+        var categoryPath = NormalizeCategoryPath(request.CategoryPath, tags);
+        var categoryDepth = GetCategoryDepth(categoryPath);
+        var embeddingDocument = BuildEmbeddingDocument(title, prompt, content, tags, categoryPath);
+        var embedding = await embeddingService.EmbedDocumentAsync(embeddingDocument, cancellationToken);
+        var contentHash = ComputeSearchContentHash(embeddingDocument);
+        var graphNodes = BuildGraphNodes(title, prompt, content, tags, categoryPath);
         var now = DateTime.UtcNow;
 
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var slug = await CreateUniqueSlugAsync(db, owner, title, cancellationToken);
         var entry = new LlmWikiEntryRecord
         {
@@ -42,12 +88,16 @@ public sealed class LlmWikiService(IDbContextFactory<SlogsDbContext> dbFactory)
             Content = content,
             SourcePrompt = prompt,
             TagsJson = SerializeTags(tags),
+            CategoryPath = categoryPath,
+            CategoryDepth = categoryDepth,
             CreatedAt = now,
             UpdatedAt = now
         };
 
         db.LlmWikiEntries.Add(entry);
         await db.SaveChangesAsync(cancellationToken);
+        await StoreEntrySearchIndexAsync(db, entry.Id, owner, contentHash, embedding, graphNodes, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return ToEntryResponse(entry);
     }
@@ -81,15 +131,28 @@ public sealed class LlmWikiService(IDbContextFactory<SlogsDbContext> dbFactory)
         var tags = request.Tags is null
             ? DeserializeTags(entry.TagsJson)
             : ParseTags(request.Tags);
+        var categoryPath = request.CategoryPath is null
+            ? NormalizeCategoryPath(entry.CategoryPath, tags)
+            : NormalizeCategoryPath(request.CategoryPath, tags);
+        var categoryDepth = GetCategoryDepth(categoryPath);
+        var embeddingDocument = BuildEmbeddingDocument(title, prompt, content, tags, categoryPath);
+        var embedding = await embeddingService.EmbedDocumentAsync(embeddingDocument, cancellationToken);
+        var contentHash = ComputeSearchContentHash(embeddingDocument);
+        var graphNodes = BuildGraphNodes(title, prompt, content, tags, categoryPath);
 
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         entry.Title = title;
         entry.Summary = DeriveSummary(content, prompt);
         entry.Content = content;
         entry.SourcePrompt = prompt;
         entry.TagsJson = SerializeTags(tags);
+        entry.CategoryPath = categoryPath;
+        entry.CategoryDepth = categoryDepth;
         entry.UpdatedAt = DateTime.UtcNow;
 
         await db.SaveChangesAsync(cancellationToken);
+        await StoreEntrySearchIndexAsync(db, entry.Id, owner, contentHash, embedding, graphNodes, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return ToEntryResponse(entry);
     }
@@ -98,59 +161,107 @@ public sealed class LlmWikiService(IDbContextFactory<SlogsDbContext> dbFactory)
         string ownerUserName,
         string? query,
         int limit = 20,
+        int offset = 0,
+        int minRelevancePercent = 50,
+        string? categoryPath = null,
         CancellationToken cancellationToken = default)
     {
         var owner = NormalizeUser(ownerUserName);
         var safeLimit = NormalizeLimit(limit, 20, 100);
+        var safeOffset = Math.Clamp(offset, 0, 10_000);
+        var safeMinRelevancePercent = Math.Clamp(minRelevancePercent, 0, 100);
+        var normalizedCategoryPath = NormalizeCategoryFilter(categoryPath);
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
 
         if (string.IsNullOrWhiteSpace(query))
         {
-            var recentEntries = await db.LlmWikiEntries
-                .AsNoTracking()
-                .Where(x => x.OwnerUserName == owner)
+            var recentQuery = FilterByCategory(
+                db.LlmWikiEntries
+                    .AsNoTracking()
+                    .Where(x => x.OwnerUserName == owner),
+                normalizedCategoryPath);
+            var recentEntries = await recentQuery
                 .OrderByDescending(x => x.UpdatedAt)
+                .Skip(safeOffset)
                 .Take(safeLimit)
                 .ToListAsync(cancellationToken);
 
-            return recentEntries.Select(ToSearchResult).ToList();
+            return recentEntries.Select(entry => ToSearchResult(entry)).ToList();
         }
 
-        var searchText = TrimToLength(query, 200);
-        var fullTextMatches = await db.LlmWikiEntries
-            .FromSql(
-                $"""
-                SELECT
-                    "Id", "OwnerUserName", "Slug", "Title", "Summary", "Content", "SourcePrompt",
-                    "TagsJson", "CreatedAt", "UpdatedAt", "LastAccessedAt", "AccessCount"
-                FROM "LlmWikiEntries"
-                WHERE "OwnerUserName" = {owner}
-                  AND "SearchVector" @@ websearch_to_tsquery('simple', {searchText})
-                ORDER BY ts_rank_cd("SearchVector", websearch_to_tsquery('simple', {searchText})) DESC,
-                         "UpdatedAt" DESC
-                LIMIT {safeLimit}
-                """)
-            .AsNoTracking()
-            .ToListAsync(cancellationToken);
-
-        if (fullTextMatches.Count > 0)
+        var searchText = TrimToLength(query, 400);
+        await EnsureOwnerSearchIndexAsync(db, owner, cancellationToken);
+        var rankedEntries = await SearchGraphAsync(
+            db,
+            owner,
+            searchText,
+            safeLimit,
+            safeOffset,
+            safeMinRelevancePercent,
+            normalizedCategoryPath,
+            cancellationToken);
+        if (rankedEntries.Count == 0)
         {
-            return fullTextMatches.Select(ToSearchResult).ToList();
+            return [];
         }
 
-        var pattern = $"%{EscapeLikePattern(searchText)}%";
-        var fallbackMatches = await db.LlmWikiEntries
+        var rankedIds = rankedEntries.Select(x => x.Id).ToArray();
+        var entries = await db.LlmWikiEntries
             .AsNoTracking()
-            .Where(x => x.OwnerUserName == owner
-                && (EF.Functions.ILike(x.Title, pattern)
-                    || EF.Functions.ILike(x.Summary, pattern)
-                    || EF.Functions.ILike(x.SourcePrompt, pattern)
-                    || EF.Functions.ILike(x.Content, pattern)))
-            .OrderByDescending(x => x.UpdatedAt)
-            .Take(safeLimit)
+            .Where(x => rankedIds.Contains(x.Id))
+            .ToListAsync(cancellationToken);
+        var entryById = entries.ToDictionary(x => x.Id);
+        var relevanceById = rankedEntries.ToDictionary(x => x.Id, x => x.RelevancePercent);
+
+        return rankedIds
+            .Where(entryById.ContainsKey)
+            .Select(id => ToSearchResult(entryById[id], relevanceById[id]))
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<LlmWikiCategorySummary>> GetCategoriesAsync(
+        string ownerUserName,
+        CancellationToken cancellationToken = default)
+    {
+        var owner = NormalizeUser(ownerUserName);
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+
+        var entries = await db.LlmWikiEntries
+            .AsNoTracking()
+            .Where(x => x.OwnerUserName == owner)
+            .Select(x => new { x.CategoryPath, x.UpdatedAt })
             .ToListAsync(cancellationToken);
 
-        return fallbackMatches.Select(ToSearchResult).ToList();
+        var categoryMap = new Dictionary<string, LlmWikiCategoryAccumulator>(StringComparer.Ordinal);
+        foreach (var entry in entries)
+        {
+            var segments = GetCategorySegments(NormalizeCategoryFilter(entry.CategoryPath));
+            if (segments.Count == 0)
+            {
+                segments = ["general"];
+            }
+
+            for (var i = 1; i <= segments.Count; i++)
+            {
+                var path = string.Join("/", segments.Take(i));
+                if (!categoryMap.TryGetValue(path, out var category))
+                {
+                    category = new LlmWikiCategoryAccumulator(path, i);
+                    categoryMap[path] = category;
+                }
+
+                category.Count++;
+                if (entry.UpdatedAt > category.UpdatedAt)
+                {
+                    category.UpdatedAt = entry.UpdatedAt;
+                }
+            }
+        }
+
+        return categoryMap.Values
+            .OrderBy(x => x.Path, StringComparer.Ordinal)
+            .Select(x => new LlmWikiCategorySummary(x.Path, x.Depth, x.Count, x.UpdatedAt))
+            .ToList();
     }
 
     public async Task<LlmWikiEntryResponse?> GetEntryAsync(
@@ -181,7 +292,8 @@ public sealed class LlmWikiService(IDbContextFactory<SlogsDbContext> dbFactory)
         int limit = 50,
         CancellationToken cancellationToken = default)
     {
-        var entries = await SearchAsync(ownerUserName, null, NormalizeLimit(limit, 50, 200), cancellationToken);
+        var entries = await SearchAsync(ownerUserName, null, NormalizeLimit(limit, 50, 200), cancellationToken: cancellationToken);
+        var categories = await GetCategoriesAsync(ownerUserName, cancellationToken);
         var owner = NormalizeUser(ownerUserName);
         var builder = new StringBuilder();
         builder.AppendLine($"# {owner} LLM Wiki");
@@ -190,25 +302,65 @@ public sealed class LlmWikiService(IDbContextFactory<SlogsDbContext> dbFactory)
         builder.AppendLine();
         builder.AppendLine("## Agent Workflow");
         builder.AppendLine();
+        builder.AppendLine($"- Korean Slogs MCP prompt: {SlogsMcpPolicyPrompt.DefaultKoreanPublicUrl}");
+        builder.AppendLine($"- English Slogs MCP prompt: {SlogsMcpPolicyPrompt.DefaultEnglishPublicUrl}");
+        builder.AppendLine($"- Prompt version URL: {SlogsMcpPolicyPrompt.DefaultVersionUrl}");
+        builder.AppendLine($"- Slogs MCP endpoint: {SlogsMcpPolicyPrompt.DefaultMcpUrl}");
+        builder.AppendLine("- When installing the copied prompt, ask for the Slogs MCP key first, then ask whether to configure the policy and MCP connection globally, for the current project, or only for the current session.");
+        builder.AppendLine("- Apply the prompt and MCP connection to the same selected scope unless the user explicitly chooses otherwise.");
+        builder.AppendLine("- Never write the MCP token value to prompt files, docs, logs, responses, or LLM Wiki; use the Agent's secure secret or environment mechanism when available.");
         builder.AppendLine("- Call `llm_wiki_instructions` once after connecting.");
         builder.AppendLine("- Before creating memory, call `llm_wiki_capture` or `llm_wiki_find_related`.");
         builder.AppendLine("- If a related entry exists, read it and use `llm_wiki_merge` or `llm_wiki_update` with the agent-composed final wording.");
-        builder.AppendLine("- Use `llm_wiki_remember` only for genuinely new durable knowledge.");
+        builder.AppendLine("- Before remember, merge, or update, choose an explicit `categoryPath` such as `project/domain/topic` when the project or topic is known.");
+        builder.AppendLine("- Use `llm_wiki_remember` only for genuinely new durable tacit knowledge.");
+        builder.AppendLine("- Before finishing meaningful work, quietly check whether the turn produced tacit knowledge that future LLMs can document, automate, reproduce, or use for decisions.");
+        builder.AppendLine("- Store corrected terminology, judgment criteria, repeatable workflows, operating rules, verified root causes, restart points, hidden prerequisites, and runbook-worthy command flows.");
+        builder.AppendLine("- Do not store sensitive information, one-time logs, temporary execution traces, unverified speculation, simple facts recoverable from current files, or turn-only intermediate state.");
         builder.AppendLine("- Use `llm_wiki_recall` when the user asks to continue, remember, or apply previous context.");
         builder.AppendLine();
-        builder.AppendLine("## Recent Entries");
+        builder.AppendLine("## Category Policy");
+        builder.AppendLine();
+        builder.AppendLine("- `categoryPath` is the primary structure; tags are secondary labels.");
+        builder.AppendLine("- Prefer 2-4 slash-separated segments such as `slogs/llm-wiki/graphrag`, `slogs/deployment/wasm-aot`, or `preference/coding-policy/slogs`.");
+        builder.AppendLine("- Do not use vague paths such as `general`, `misc`, or `notes` when the project/domain/topic is known.");
+        builder.AppendLine();
+        builder.AppendLine("## Categories");
+        builder.AppendLine();
+
+        if (categories.Count == 0)
+        {
+            builder.AppendLine("- No categories yet.");
+        }
+        else
+        {
+            foreach (var category in categories)
+            {
+                builder.AppendLine($"- {category.CategoryPath}: {category.Count} entries, depth {category.CategoryDepth}");
+            }
+        }
+
         builder.AppendLine();
 
         if (entries.Count == 0)
         {
+            builder.AppendLine("## Recent Entries");
+            builder.AppendLine();
             builder.AppendLine("- No entries yet.");
             return builder.ToString();
         }
 
-        foreach (var entry in entries)
+        foreach (var group in entries.GroupBy(x => x.CategoryPath).OrderBy(x => x.Key, StringComparer.Ordinal))
         {
-            var tags = entry.Tags.Count == 0 ? string.Empty : $" Tags: {string.Join(", ", entry.Tags)}.";
-            builder.AppendLine($"- [{entry.Title}](llm-wiki://entries/{entry.Id}): {entry.Summary}{tags}");
+            builder.AppendLine($"## {group.Key}");
+            builder.AppendLine();
+            foreach (var entry in group)
+            {
+                var tags = entry.Tags.Count == 0 ? string.Empty : $" Tags: {string.Join(", ", entry.Tags)}.";
+                builder.AppendLine($"- [{entry.Title}](llm-wiki://entries/{entry.Id}): {entry.Summary}{tags}");
+            }
+
+            builder.AppendLine();
         }
 
         return builder.ToString();
@@ -334,6 +486,8 @@ public sealed class LlmWikiService(IDbContextFactory<SlogsDbContext> dbFactory)
         builder.AppendLine($"- id: {entry.Id}");
         builder.AppendLine($"- slug: {entry.Slug}");
         builder.AppendLine($"- updated: {entry.UpdatedAt:O}");
+        builder.AppendLine($"- category: {entry.CategoryPath}");
+        builder.AppendLine($"- categoryDepth: {entry.CategoryDepth}");
         if (entry.Tags.Count > 0)
         {
             builder.AppendLine($"- tags: {string.Join(", ", entry.Tags)}");
@@ -369,7 +523,8 @@ public sealed class LlmWikiService(IDbContextFactory<SlogsDbContext> dbFactory)
         foreach (var result in results)
         {
             var tags = result.Tags.Count == 0 ? string.Empty : $" Tags: {string.Join(", ", result.Tags)}.";
-            builder.AppendLine($"- `{result.Id}` {result.Title}: {result.Summary}{tags}");
+            var relevance = result.RelevancePercent is null ? string.Empty : $" ({result.RelevancePercent}% relevance)";
+            builder.AppendLine($"- `{result.Id}` [{result.CategoryPath}] {result.Title}{relevance}: {result.Summary}{tags}");
         }
 
         return builder.ToString();
@@ -384,20 +539,661 @@ public sealed class LlmWikiService(IDbContextFactory<SlogsDbContext> dbFactory)
             entry.Content,
             entry.SourcePrompt,
             DeserializeTags(entry.TagsJson),
+            entry.CategoryPath,
+            entry.CategoryDepth,
             entry.CreatedAt,
             entry.UpdatedAt,
             entry.LastAccessedAt,
             entry.AccessCount);
 
-    private static LlmWikiSearchResult ToSearchResult(LlmWikiEntryRecord entry)
+    private static LlmWikiSearchResult ToSearchResult(LlmWikiEntryRecord entry, int? relevancePercent = null)
         => new(
             entry.Id,
             entry.Slug,
             entry.Title,
             entry.Summary,
             DeserializeTags(entry.TagsJson),
+            entry.CategoryPath,
+            entry.CategoryDepth,
             entry.UpdatedAt,
-            entry.AccessCount);
+            entry.AccessCount,
+            relevancePercent);
+
+    private async Task EnsureOwnerSearchIndexAsync(
+        SlogsDbContext db,
+        string owner,
+        CancellationToken cancellationToken)
+    {
+        var entries = await db.LlmWikiEntries
+            .AsNoTracking()
+            .Where(x => x.OwnerUserName == owner)
+            .ToListAsync(cancellationToken);
+        if (entries.Count == 0)
+        {
+            return;
+        }
+
+        var knownHashes = await LoadSearchIndexHashesAsync(db, owner, cancellationToken);
+        foreach (var entry in entries)
+        {
+            var tags = DeserializeTags(entry.TagsJson);
+            var categoryPath = NormalizeCategoryPath(entry.CategoryPath, tags);
+            var embeddingDocument = BuildEmbeddingDocument(entry.Title, entry.SourcePrompt, entry.Content, tags, categoryPath);
+            var contentHash = ComputeSearchContentHash(embeddingDocument);
+            if (knownHashes.TryGetValue(entry.Id, out var indexed)
+                && indexed.ContentHash == contentHash
+                && indexed.Model == embeddingService.Model
+                && indexed.Dimensions == embeddingService.Dimensions)
+            {
+                continue;
+            }
+
+            var embedding = await embeddingService.EmbedDocumentAsync(embeddingDocument, cancellationToken);
+            var graphNodes = BuildGraphNodes(entry.Title, entry.SourcePrompt, entry.Content, tags, categoryPath);
+            await StoreEntrySearchIndexAsync(db, entry.Id, owner, contentHash, embedding, graphNodes, cancellationToken);
+        }
+    }
+
+    private async Task<Dictionary<Guid, LlmWikiIndexedEntry>> LoadSearchIndexHashesAsync(
+        SlogsDbContext db,
+        string owner,
+        CancellationToken cancellationToken)
+    {
+        await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.CommandText =
+            """
+            SELECT "EntryId", "Model", "Dimensions", "ContentHash"
+            FROM "LlmWikiEntryEmbeddings"
+            WHERE "OwnerUserName" = @owner;
+            """;
+        command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
+        command.Parameters.Add(new NpgsqlParameter("owner", owner));
+
+        await EnsureConnectionOpenAsync(db, cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var results = new Dictionary<Guid, LlmWikiIndexedEntry>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            results[reader.GetGuid(0)] = new LlmWikiIndexedEntry(
+                reader.GetString(1),
+                reader.GetInt32(2),
+                reader.GetString(3));
+        }
+
+        return results;
+    }
+
+    private async Task StoreEntrySearchIndexAsync(
+        SlogsDbContext db,
+        Guid entryId,
+        string owner,
+        string contentHash,
+        IReadOnlyList<float> embedding,
+        IReadOnlyList<LlmWikiGraphNode> graphNodes,
+        CancellationToken cancellationToken)
+    {
+        var vectorLiteral = ToVectorLiteral(embedding);
+        await using (var command = db.Database.GetDbConnection().CreateCommand())
+        {
+            command.CommandText =
+                """
+                INSERT INTO "LlmWikiEntryEmbeddings"
+                    ("EntryId", "OwnerUserName", "Model", "Dimensions", "ContentHash", "Embedding", "UpdatedAt")
+                VALUES
+                    (@entryId, @owner, @model, @dimensions, @contentHash, CAST(@embedding AS vector), @updatedAt)
+                ON CONFLICT ("EntryId") DO UPDATE SET
+                    "OwnerUserName" = EXCLUDED."OwnerUserName",
+                    "Model" = EXCLUDED."Model",
+                    "Dimensions" = EXCLUDED."Dimensions",
+                    "ContentHash" = EXCLUDED."ContentHash",
+                    "Embedding" = EXCLUDED."Embedding",
+                    "UpdatedAt" = EXCLUDED."UpdatedAt";
+
+                DELETE FROM "LlmWikiEntryGraphNodes"
+                WHERE "EntryId" = @entryId;
+                """;
+            command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
+            command.Parameters.Add(new NpgsqlParameter("entryId", entryId));
+            command.Parameters.Add(new NpgsqlParameter("owner", owner));
+            command.Parameters.Add(new NpgsqlParameter("model", embeddingService.Model));
+            command.Parameters.Add(new NpgsqlParameter("dimensions", embeddingService.Dimensions));
+            command.Parameters.Add(new NpgsqlParameter("contentHash", contentHash));
+            command.Parameters.Add(new NpgsqlParameter("embedding", vectorLiteral));
+            command.Parameters.Add(new NpgsqlParameter("updatedAt", DateTime.UtcNow));
+
+            await EnsureConnectionOpenAsync(db, cancellationToken);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        foreach (var graphNode in graphNodes)
+        {
+            await using var command = db.Database.GetDbConnection().CreateCommand();
+            command.CommandText =
+                """
+                INSERT INTO "LlmWikiEntryGraphNodes"
+                    ("EntryId", "OwnerUserName", "NodeKey", "NodeText", "NodeType", "Weight")
+                VALUES
+                    (@entryId, @owner, @nodeKey, @nodeText, @nodeType, @weight);
+                """;
+            command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
+            command.Parameters.Add(new NpgsqlParameter("entryId", entryId));
+            command.Parameters.Add(new NpgsqlParameter("owner", owner));
+            command.Parameters.Add(new NpgsqlParameter("nodeKey", graphNode.Key));
+            command.Parameters.Add(new NpgsqlParameter("nodeText", graphNode.Text));
+            command.Parameters.Add(new NpgsqlParameter("nodeType", graphNode.Type));
+            command.Parameters.Add(new NpgsqlParameter("weight", graphNode.Weight));
+
+            await EnsureConnectionOpenAsync(db, cancellationToken);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+    }
+
+    private async Task<IReadOnlyList<LlmWikiRankedEntry>> SearchGraphAsync(
+        SlogsDbContext db,
+        string owner,
+        string searchText,
+        int limit,
+        int offset,
+        int minRelevancePercent,
+        string categoryPath,
+        CancellationToken cancellationToken)
+    {
+        var queryEmbedding = await embeddingService.EmbedQueryAsync(searchText, cancellationToken);
+        var queryNodeKeys = BuildQueryGraphNodeKeys(searchText, categoryPath);
+        var queryVector = ToVectorLiteral(queryEmbedding);
+        var categoryPrefix = string.IsNullOrWhiteSpace(categoryPath) ? string.Empty : $"{categoryPath}/%";
+        var seedLimit = Math.Max((offset + limit) * 5, 50);
+
+        await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.CommandText =
+            """
+            WITH vector_seed AS (
+                SELECT
+                    e."Id",
+                    1 - (idx."Embedding" <=> CAST(@queryVector AS vector)) AS vector_score
+                FROM "LlmWikiEntries" AS e
+                INNER JOIN "LlmWikiEntryEmbeddings" AS idx
+                    ON idx."EntryId" = e."Id"
+                WHERE e."OwnerUserName" = @owner
+                  AND idx."Model" = @model
+                  AND idx."Dimensions" = @dimensions
+                  AND (
+                      @categoryPath = ''
+                      OR e."CategoryPath" = @categoryPath
+                      OR e."CategoryPath" LIKE @categoryPrefix
+                  )
+                ORDER BY idx."Embedding" <=> CAST(@queryVector AS vector)
+                LIMIT @seedLimit
+            ),
+            query_graph AS (
+                SELECT
+                    nodes."EntryId" AS "Id",
+                    SUM(nodes."Weight") AS graph_score
+                FROM "LlmWikiEntryGraphNodes" AS nodes
+                WHERE nodes."OwnerUserName" = @owner
+                  AND nodes."NodeKey" = ANY(@queryNodeKeys)
+                GROUP BY nodes."EntryId"
+            ),
+            lexical_match AS (
+                SELECT
+                    nodes."EntryId" AS "Id",
+                    LEAST(
+                        SUM(
+                            CASE nodes."NodeType"
+                                WHEN 'title-phrase' THEN 0.70
+                                WHEN 'title-term' THEN 0.45
+                                WHEN 'tag' THEN 0.35
+                                WHEN 'category-path' THEN 0.30
+                                WHEN 'category-term' THEN 0.25
+                                WHEN 'prompt-term' THEN 0.14
+                                WHEN 'content-term' THEN 0.08
+                                ELSE 0.0
+                            END
+                        ),
+                        0.95
+                    ) AS lexical_score
+                FROM "LlmWikiEntryGraphNodes" AS nodes
+                WHERE nodes."OwnerUserName" = @owner
+                  AND nodes."NodeKey" = ANY(@queryNodeKeys)
+                GROUP BY nodes."EntryId"
+            ),
+            seed_graph_nodes AS (
+                SELECT DISTINCT nodes."NodeKey"
+                FROM "LlmWikiEntryGraphNodes" AS nodes
+                INNER JOIN vector_seed AS seed
+                    ON seed."Id" = nodes."EntryId"
+                WHERE nodes."OwnerUserName" = @owner
+                LIMIT 200
+            ),
+            expanded_graph AS (
+                SELECT
+                    nodes."EntryId" AS "Id",
+                    SUM(nodes."Weight") * 0.25 AS graph_score
+                FROM "LlmWikiEntryGraphNodes" AS nodes
+                INNER JOIN seed_graph_nodes AS seed_nodes
+                    ON seed_nodes."NodeKey" = nodes."NodeKey"
+                WHERE nodes."OwnerUserName" = @owner
+                GROUP BY nodes."EntryId"
+            ),
+            combined AS (
+                SELECT
+                    "Id",
+                    vector_score,
+                    0::double precision AS query_graph_score,
+                    0::double precision AS expanded_graph_score,
+                    0::double precision AS lexical_score
+                FROM vector_seed
+                UNION ALL
+                SELECT
+                    "Id",
+                    0::double precision AS vector_score,
+                    graph_score AS query_graph_score,
+                    0::double precision AS expanded_graph_score,
+                    0::double precision AS lexical_score
+                FROM query_graph
+                UNION ALL
+                SELECT
+                    "Id",
+                    0::double precision AS vector_score,
+                    0::double precision AS query_graph_score,
+                    0::double precision AS expanded_graph_score,
+                    lexical_score
+                FROM lexical_match
+                UNION ALL
+                SELECT
+                    "Id",
+                    0::double precision AS vector_score,
+                    0::double precision AS query_graph_score,
+                    graph_score AS expanded_graph_score,
+                    0::double precision AS lexical_score
+                FROM expanded_graph
+            ),
+            ranked AS (
+                SELECT
+                    "Id",
+                    MAX(vector_score) AS vector_score,
+                    SUM(query_graph_score) AS query_graph_score,
+                    SUM(expanded_graph_score) AS expanded_graph_score,
+                    SUM(lexical_score) AS lexical_score,
+                    MAX(vector_score)
+                        + LEAST(SUM(query_graph_score), 12) / 18.0
+                        + LEAST(SUM(expanded_graph_score), 8) / 80.0
+                        + SUM(lexical_score) AS rank_score
+                FROM combined
+                GROUP BY "Id"
+            ),
+            scored AS (
+                SELECT
+                    ranked."Id",
+                    ranked.rank_score,
+                    ROUND(LEAST(GREATEST(ranked.rank_score / 1.75, 0), 1) * 100)::integer AS relevance_percent
+                FROM ranked
+            )
+            SELECT scored."Id", scored.relevance_percent
+            FROM scored
+            INNER JOIN "LlmWikiEntries" AS e
+                ON e."Id" = scored."Id"
+            WHERE e."OwnerUserName" = @owner
+              AND (
+                  @categoryPath = ''
+                  OR e."CategoryPath" = @categoryPath
+                  OR e."CategoryPath" LIKE @categoryPrefix
+              )
+              AND scored.relevance_percent >= @minRelevancePercent
+            ORDER BY scored.rank_score DESC, e."UpdatedAt" DESC
+            OFFSET @offset
+            LIMIT @limit;
+            """;
+        command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
+        command.Parameters.Add(new NpgsqlParameter("owner", owner));
+        command.Parameters.Add(new NpgsqlParameter("model", embeddingService.Model));
+        command.Parameters.Add(new NpgsqlParameter("dimensions", embeddingService.Dimensions));
+        command.Parameters.Add(new NpgsqlParameter("queryVector", queryVector));
+        command.Parameters.Add(new NpgsqlParameter("categoryPath", categoryPath));
+        command.Parameters.Add(new NpgsqlParameter("categoryPrefix", categoryPrefix));
+        command.Parameters.Add(new NpgsqlParameter("queryNodeKeys", NpgsqlDbType.Array | NpgsqlDbType.Text)
+        {
+            Value = queryNodeKeys
+        });
+        command.Parameters.Add(new NpgsqlParameter("seedLimit", seedLimit));
+        command.Parameters.Add(new NpgsqlParameter("offset", offset));
+        command.Parameters.Add(new NpgsqlParameter("limit", limit));
+        command.Parameters.Add(new NpgsqlParameter("minRelevancePercent", minRelevancePercent));
+
+        await EnsureConnectionOpenAsync(db, cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var entries = new List<LlmWikiRankedEntry>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            entries.Add(new LlmWikiRankedEntry(reader.GetGuid(0), reader.GetInt32(1)));
+        }
+
+        return entries;
+    }
+
+    private static async Task EnsureConnectionOpenAsync(SlogsDbContext db, CancellationToken cancellationToken)
+    {
+        if (db.Database.GetDbConnection().State != System.Data.ConnectionState.Open)
+        {
+            await db.Database.OpenConnectionAsync(cancellationToken);
+        }
+    }
+
+    private static string BuildEmbeddingDocument(
+        string title,
+        string prompt,
+        string content,
+        IReadOnlyList<string> tags,
+        string categoryPath)
+    {
+        var tagText = tags.Count == 0 ? "none" : string.Join(", ", tags);
+        var text = string.Join(
+            Environment.NewLine,
+            new[]
+            {
+                $"title: {CleanInlineText(title)} | text:",
+                $"category: {categoryPath}",
+                $"tags: {tagText}",
+                CleanInlineText(prompt),
+                CleanInlineText(content)
+            }.Where(x => !string.IsNullOrWhiteSpace(x)));
+
+        return TrimToLength(text, MaxEmbeddingContentLength);
+    }
+
+    private static string ComputeSearchContentHash(string embeddingDocument)
+        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{SearchIndexVersion}\n{embeddingDocument}"))).ToLowerInvariant();
+
+    private static IQueryable<LlmWikiEntryRecord> FilterByCategory(
+        IQueryable<LlmWikiEntryRecord> query,
+        string categoryPath)
+    {
+        if (string.IsNullOrWhiteSpace(categoryPath))
+        {
+            return query;
+        }
+
+        var categoryPrefix = $"{categoryPath}/";
+        return query.Where(x => x.CategoryPath == categoryPath || x.CategoryPath.StartsWith(categoryPrefix));
+    }
+
+    private static string NormalizeCategoryPath(string? value, IReadOnlyList<string> tags)
+    {
+        var explicitSegments = ParseCategorySegments(value);
+        if (explicitSegments.Count > 0)
+        {
+            return TrimToLength(string.Join("/", explicitSegments), MaxCategoryPathLength);
+        }
+
+        var tagSegments = tags
+            .Select(CleanCategorySegment)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.Ordinal)
+            .Take(3)
+            .ToArray();
+
+        return tagSegments.Length == 0
+            ? "general"
+            : TrimToLength(string.Join("/", tagSegments), MaxCategoryPathLength);
+    }
+
+    private static string NormalizeCategoryFilter(string? value)
+    {
+        var segments = ParseCategorySegments(value);
+        return segments.Count == 0
+            ? string.Empty
+            : TrimToLength(string.Join("/", segments), MaxCategoryPathLength);
+    }
+
+    private static IReadOnlyList<string> ParseCategorySegments(string? value)
+        => (value ?? string.Empty)
+            .Split(['/', '\\', '>', '|'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(CleanCategorySegment)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Take(6)
+            .ToList();
+
+    private static IReadOnlyList<string> GetCategorySegments(string categoryPath)
+        => categoryPath
+            .Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+
+    private static int GetCategoryDepth(string categoryPath)
+        => Math.Max(1, GetCategorySegments(categoryPath).Count);
+
+    private static string CleanCategorySegment(string value)
+    {
+        var builder = new StringBuilder();
+        var previousDash = false;
+        foreach (var character in value.Normalize(NormalizationForm.FormKC).Trim().TrimStart('#').ToLowerInvariant())
+        {
+            if (char.IsLetterOrDigit(character) || character is '_' or '-')
+            {
+                builder.Append(character);
+                previousDash = character == '-';
+                continue;
+            }
+
+            if (char.IsWhiteSpace(character) && !previousDash && builder.Length > 0)
+            {
+                builder.Append('-');
+                previousDash = true;
+            }
+        }
+
+        return TrimToLength(builder.ToString().Trim('-'), MaxCategorySegmentLength);
+    }
+
+    private static IReadOnlyList<LlmWikiGraphNode> BuildGraphNodes(
+        string title,
+        string prompt,
+        string content,
+        IReadOnlyList<string> tags,
+        string categoryPath)
+    {
+        var nodes = new Dictionary<string, LlmWikiGraphNode>(StringComparer.Ordinal);
+
+        var categorySegments = GetCategorySegments(categoryPath);
+        for (var i = 0; i < categorySegments.Count; i++)
+        {
+            AddGraphNode(nodes, "category-term", categorySegments[i], categorySegments[i], 3.5);
+            var prefix = string.Join(" ", categorySegments.Take(i + 1));
+            AddGraphNode(nodes, "category-path", prefix, string.Join("/", categorySegments.Take(i + 1)), 4.5);
+        }
+
+        foreach (var tag in tags)
+        {
+            AddGraphNode(nodes, "tag", NormalizeGraphToken(tag), tag, 4.0);
+        }
+
+        var titleTokens = ExtractGraphTokens(title).Take(16).ToArray();
+        AddGraphPhrases(nodes, titleTokens, "title-phrase", 4.0);
+        foreach (var token in titleTokens)
+        {
+            AddGraphNode(nodes, "title-term", token, token, 3.0);
+        }
+
+        foreach (var token in ExtractGraphTokens(prompt).Take(36))
+        {
+            AddGraphNode(nodes, "prompt-term", token, token, 1.6);
+        }
+
+        foreach (var token in ExtractGraphTokens(content).Take(32))
+        {
+            AddGraphNode(nodes, "content-term", token, token, 1.0);
+        }
+
+        return nodes.Values
+            .OrderByDescending(x => x.Weight)
+            .ThenBy(x => x.Key, StringComparer.Ordinal)
+            .Take(MaxGraphNodesPerEntry)
+            .ToList();
+    }
+
+    private static void AddGraphPhrases(
+        Dictionary<string, LlmWikiGraphNode> nodes,
+        IReadOnlyList<string> tokens,
+        string type,
+        double weight)
+    {
+        for (var i = 0; i < tokens.Count - 1; i++)
+        {
+            AddGraphNode(nodes, type, $"{tokens[i]} {tokens[i + 1]}", $"{tokens[i]} {tokens[i + 1]}", weight);
+        }
+    }
+
+    private static string[] BuildQueryGraphNodeKeys(string searchText, string categoryPath)
+    {
+        var queryTokens = ExtractGraphTokens(searchText)
+            .Distinct(StringComparer.Ordinal)
+            .Take(24)
+            .ToArray();
+        var keys = BuildGraphNodes(searchText, searchText, searchText, queryTokens, categoryPath)
+            .Select(x => x.Key)
+            .ToHashSet(StringComparer.Ordinal);
+
+        foreach (var token in queryTokens)
+        {
+            keys.Add($"category-term:{token}");
+        }
+
+        for (var i = 0; i < queryTokens.Length - 1; i++)
+        {
+            keys.Add($"category-path:{queryTokens[i]} {queryTokens[i + 1]}");
+        }
+
+        return keys.ToArray();
+    }
+
+    private static void AddGraphNode(
+        Dictionary<string, LlmWikiGraphNode> nodes,
+        string type,
+        string token,
+        string text,
+        double weight)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return;
+        }
+
+        var normalizedToken = TrimToLength(token, MaxGraphNodeLength);
+        var key = $"{type}:{normalizedToken}";
+        if (nodes.TryGetValue(key, out var existing))
+        {
+            nodes[key] = existing with { Weight = Math.Max(existing.Weight, weight) };
+            return;
+        }
+
+        nodes[key] = new LlmWikiGraphNode(
+            key,
+            TrimToLength(text, MaxGraphNodeLength),
+            type,
+            weight);
+    }
+
+    private static IEnumerable<string> ExtractGraphTokens(string value)
+    {
+        var builder = new StringBuilder();
+        foreach (var character in value.Normalize(NormalizationForm.FormKC).ToLowerInvariant())
+        {
+            if (char.IsLetterOrDigit(character))
+            {
+                builder.Append(character);
+                continue;
+            }
+
+            foreach (var token in FlushGraphToken(builder))
+            {
+                yield return token;
+            }
+        }
+
+        foreach (var token in FlushGraphToken(builder))
+        {
+            yield return token;
+        }
+    }
+
+    private static IEnumerable<string> FlushGraphToken(StringBuilder builder)
+    {
+        if (builder.Length == 0)
+        {
+            yield break;
+        }
+
+        var token = NormalizeGraphToken(builder.ToString());
+        builder.Clear();
+
+        if (token.Length >= 2)
+        {
+            yield return token;
+        }
+    }
+
+    private static string NormalizeGraphToken(string value)
+    {
+        var token = value.Normalize(NormalizationForm.FormKC).Trim().TrimStart('#').ToLowerInvariant();
+        foreach (var suffix in KoreanParticleSuffixes)
+        {
+            if (token.Length > suffix.Length + 1
+                && token.EndsWith(suffix, StringComparison.Ordinal)
+                && ShouldStripKoreanParticleSuffix(token, suffix))
+            {
+                token = token[..^suffix.Length];
+                break;
+            }
+        }
+
+        return TrimToLength(token, MaxGraphNodeLength);
+    }
+
+    private static bool ShouldStripKoreanParticleSuffix(string token, string suffix)
+    {
+        var stemLastCharacterIndex = token.Length - suffix.Length - 1;
+        if (stemLastCharacterIndex < 0)
+        {
+            return false;
+        }
+
+        var stemLastCharacter = token[stemLastCharacterIndex];
+        return suffix switch
+        {
+            "이" or "은" or "을" or "과" => HasHangulFinalConsonant(stemLastCharacter),
+            "가" or "는" or "를" or "와" => !HasHangulFinalConsonant(stemLastCharacter),
+            _ => true
+        };
+    }
+
+    private static bool HasHangulFinalConsonant(char character)
+    {
+        const int hangulSyllableStart = 0xAC00;
+        const int hangulSyllableEnd = 0xD7A3;
+        if (character < hangulSyllableStart || character > hangulSyllableEnd)
+        {
+            return false;
+        }
+
+        return ((character - hangulSyllableStart) % 28) != 0;
+    }
+
+    private static string ToVectorLiteral(IReadOnlyList<float> values)
+    {
+        var builder = new StringBuilder(values.Count * 12);
+        builder.Append('[');
+        for (var i = 0; i < values.Count; i++)
+        {
+            if (i > 0)
+            {
+                builder.Append(',');
+            }
+
+            builder.Append(values[i].ToString("R", System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        builder.Append(']');
+        return builder.ToString();
+    }
 
     private static async Task<string> CreateUniqueSlugAsync(
         SlogsDbContext db,
@@ -540,11 +1336,6 @@ public sealed class LlmWikiService(IDbContextFactory<SlogsDbContext> dbFactory)
     private static string HashToken(string token)
         => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token))).ToLowerInvariant();
 
-    private static string EscapeLikePattern(string value)
-        => value.Replace(@"\", @"\\", StringComparison.Ordinal)
-            .Replace("%", @"\%", StringComparison.Ordinal)
-            .Replace("_", @"\_", StringComparison.Ordinal);
-
     private static string TrimToLength(string? value, int maxLength)
     {
         var trimmed = value?.Trim() ?? string.Empty;
@@ -556,4 +1347,21 @@ public sealed class LlmWikiService(IDbContextFactory<SlogsDbContext> dbFactory)
 
     private static string NormalizeUser(string value)
         => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToLowerInvariant();
+
+    private sealed record LlmWikiIndexedEntry(string Model, int Dimensions, string ContentHash);
+
+    private sealed record LlmWikiGraphNode(string Key, string Text, string Type, double Weight);
+
+    private sealed record LlmWikiRankedEntry(Guid Id, int RelevancePercent);
+
+    private sealed class LlmWikiCategoryAccumulator(string path, int depth)
+    {
+        public string Path { get; } = path;
+
+        public int Depth { get; } = depth;
+
+        public int Count { get; set; }
+
+        public DateTime UpdatedAt { get; set; } = DateTime.MinValue;
+    }
 }

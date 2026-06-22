@@ -12,7 +12,7 @@ namespace Slogs.Data.CompiledModels
     public partial class SlogsDbContextModel
     {
         private SlogsDbContextModel()
-            : base(skipDetectChanges: false, modelId: new Guid("92621a96-3e9d-4df1-bdb1-d28b81d45b57"), entityTypeCount: 7)
+            : base(skipDetectChanges: false, modelId: new Guid("3ae36357-38d9-4798-a88b-9e48b172d9d0"), entityTypeCount: 8)
         {
         }
 
@@ -24,6 +24,7 @@ namespace Slogs.Data.CompiledModels
             var llmWikiEntryRecord = LlmWikiEntryRecordEntityType.Create(this);
             var llmWikiMcpTokenRecord = LlmWikiMcpTokenRecordEntityType.Create(this);
             var postRecord = PostRecordEntityType.Create(this);
+            var postRevisionRecord = PostRevisionRecordEntityType.Create(this);
             var userRecord = UserRecordEntityType.Create(this);
 
             CommentRecordEntityType.CreateForeignKey1(commentRecord, postRecord);
@@ -32,6 +33,7 @@ namespace Slogs.Data.CompiledModels
             FollowRecordEntityType.CreateForeignKey2(followRecord, userRecord);
             LlmWikiEntryRecordEntityType.CreateForeignKey1(llmWikiEntryRecord, userRecord);
             LlmWikiMcpTokenRecordEntityType.CreateForeignKey1(llmWikiMcpTokenRecord, userRecord);
+            PostRevisionRecordEntityType.CreateForeignKey1(postRevisionRecord, postRecord);
 
             CommentRecordEntityType.CreateAnnotations(commentRecord);
             ExternalLoginRecordEntityType.CreateAnnotations(externalLoginRecord);
@@ -39,6 +41,7 @@ namespace Slogs.Data.CompiledModels
             LlmWikiEntryRecordEntityType.CreateAnnotations(llmWikiEntryRecord);
             LlmWikiMcpTokenRecordEntityType.CreateAnnotations(llmWikiMcpTokenRecord);
             PostRecordEntityType.CreateAnnotations(postRecord);
+            PostRevisionRecordEntityType.CreateAnnotations(postRevisionRecord);
             UserRecordEntityType.CreateAnnotations(userRecord);
 
             AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);

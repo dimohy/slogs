@@ -6,6 +6,8 @@ public sealed class SlogsDbContext(DbContextOptions<SlogsDbContext> options) : D
 {
     public DbSet<PostRecord> Posts => Set<PostRecord>();
 
+    public DbSet<PostRevisionRecord> PostRevisions => Set<PostRevisionRecord>();
+
     public DbSet<CommentRecord> Comments => Set<CommentRecord>();
 
     public DbSet<UserRecord> Users => Set<UserRecord>();
@@ -39,6 +41,23 @@ public sealed class SlogsDbContext(DbContextOptions<SlogsDbContext> options) : D
                 .WithOne(x => x.Post)
                 .HasForeignKey(x => x.PostId)
                 .OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(x => x.Revisions)
+                .WithOne(x => x.Post)
+                .HasForeignKey(x => x.PostId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PostRevisionRecord>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.PostId);
+            entity.HasIndex(x => new { x.PostId, x.RevisionNumber }).IsUnique();
+            entity.Property(x => x.Title).HasMaxLength(200);
+            entity.Property(x => x.Summary).HasMaxLength(500);
+            entity.Property(x => x.ThumbnailUrl).HasMaxLength(500);
+            entity.Property(x => x.Author).HasMaxLength(80);
+            entity.Property(x => x.TagsJson).HasColumnType("jsonb");
+            entity.Property(x => x.SeriesJson).HasColumnType("jsonb");
         });
 
         modelBuilder.Entity<CommentRecord>(entity =>
@@ -102,7 +121,9 @@ public sealed class SlogsDbContext(DbContextOptions<SlogsDbContext> options) : D
             entity.Property(x => x.Slug).HasMaxLength(160);
             entity.Property(x => x.Title).HasMaxLength(200);
             entity.Property(x => x.Summary).HasMaxLength(500);
+            entity.Property(x => x.CategoryPath).HasMaxLength(240);
             entity.Property(x => x.TagsJson).HasColumnType("jsonb");
+            entity.HasIndex(x => new { x.OwnerUserName, x.CategoryPath, x.UpdatedAt });
             entity.HasOne<UserRecord>()
                 .WithMany()
                 .HasForeignKey(x => x.OwnerUserName)
@@ -161,6 +182,35 @@ public sealed class PostRecord
     public string BookmarkedByJson { get; set; } = "[]";
 
     public List<CommentRecord> Comments { get; set; } = [];
+
+    public List<PostRevisionRecord> Revisions { get; set; } = [];
+}
+
+public sealed class PostRevisionRecord
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid PostId { get; set; }
+
+    public PostRecord? Post { get; set; }
+
+    public int RevisionNumber { get; set; }
+
+    public string Title { get; set; } = string.Empty;
+
+    public string Summary { get; set; } = string.Empty;
+
+    public string ThumbnailUrl { get; set; } = string.Empty;
+
+    public string Body { get; set; } = string.Empty;
+
+    public string TagsJson { get; set; } = "[]";
+
+    public string SeriesJson { get; set; } = "[]";
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public string Author { get; set; } = string.Empty;
 }
 
 public sealed class CommentRecord
@@ -244,6 +294,10 @@ public sealed class LlmWikiEntryRecord
     public string SourcePrompt { get; set; } = string.Empty;
 
     public string TagsJson { get; set; } = "[]";
+
+    public string CategoryPath { get; set; } = "general";
+
+    public int CategoryDepth { get; set; } = 1;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
