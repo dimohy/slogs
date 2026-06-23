@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Text;
 using ModelContextProtocol.Server;
 
@@ -17,17 +18,41 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         [Description("Strongly recommended hierarchical category path such as project/domain/topic. Example: slogs/llm-wiki/graphrag. Do not omit it when the project or topic is known.")] string? categoryPath = null)
     {
         var user = RequireUser();
+        var stopwatch = Stopwatch.StartNew();
         var entry = await llmWikiService.RememberAsync(
             user.UserName,
             new LlmWikiRememberRequest(prompt, content, title, tags, categoryPath));
+        stopwatch.Stop();
 
-        return LlmWikiService.FormatEntryMarkdown(entry);
+        var response = LlmWikiService.FormatEntryMarkdown(entry);
+        return await RecordAuditAndReturnAsync(
+            user,
+            "llm_wiki_remember",
+            "full stored entry",
+            stopwatch.Elapsed,
+            response,
+            prompt,
+            categoryPath,
+            resultCount: 1,
+            resultIds: [entry.Id]);
     }
 
     [McpServerTool(Name = "llm_wiki_instructions")]
     [Description("Read the operating policy for using this user's Slogs LLM Wiki. Call this once after connecting and follow it before storing or recalling memories.")]
-    public string GetInstructions()
-        => SlogsMcpPolicyPrompt.BuildMarkdown();
+    public async Task<string> GetInstructions()
+    {
+        var user = RequireUser();
+        var stopwatch = Stopwatch.StartNew();
+        var response = SlogsMcpPolicyPrompt.BuildMarkdown();
+        stopwatch.Stop();
+        return await RecordAuditAndReturnAsync(
+            user,
+            "llm_wiki_instructions",
+            "policy prompt",
+            stopwatch.Elapsed,
+            response,
+            resultCount: 1);
+    }
 
     [McpServerTool(Name = "llm_wiki_capture")]
     [Description("Start here when considering whether to remember a prompt or coding result. This does not store anything; it returns related memories and storage criteria for read, merge, update, or remember decisions.")]
@@ -39,7 +64,10 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
     {
         var user = RequireUser();
         var query = BuildRelatedQuery(prompt, content, tags);
-        var results = await llmWikiService.SearchAsync(user.UserName, query, NormalizeMcpLimit(limit, 5, 10));
+        var safeLimit = NormalizeMcpLimit(limit, 5, 10);
+        var stopwatch = Stopwatch.StartNew();
+        var results = await llmWikiService.SearchAsync(user.UserName, query, safeLimit);
+        stopwatch.Stop();
 
         var builder = new StringBuilder();
         builder.AppendLine("# LLM Wiki Capture Intake");
@@ -50,12 +78,33 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         builder.AppendLine("- If a related entry below matches, call `llm_wiki_read`, compose the final merged wording, then call `llm_wiki_merge` or `llm_wiki_update`.");
         builder.AppendLine("- Choose an explicit `categoryPath` such as `project/domain/topic` before remember, merge, or update when the project/topic is known.");
         builder.AppendLine("- If none match and the information is durable tacit knowledge, call `llm_wiki_remember` with that `categoryPath`.");
+        builder.AppendLine("- Raw prompt/content/title/tags/categoryPath submitted through remember, merge, and update are preserved as Raw Provenance for later audit; do not remove prior raw evidence when composing merged wording.");
         builder.AppendLine("- Durable tacit knowledge means future LLMs can use it to document, automate, reproduce, or make decisions: corrected terminology, judgment criteria, repeatable workflows, operating rules, verified root causes, restart points, hidden prerequisites, or runbook-worthy command flows.");
         builder.AppendLine("- Do not store sensitive information, one-time logs, temporary execution traces, unverified speculation, simple facts recoverable from current files, or intermediate state that only matters in this turn.");
         builder.AppendLine("- Avoid interrupting the user for routine memory choices; ask only when sensitivity or scope is genuinely ambiguous.");
         builder.AppendLine();
         builder.Append(FormatRelatedResults(results));
-        return builder.ToString();
+        AppendRetrievalDiagnostics(
+            builder,
+            "llm_wiki_capture",
+            "related summary candidates",
+            stopwatch.Elapsed,
+            results.Count,
+            limit,
+            safeLimit,
+            query);
+        var response = builder.ToString();
+        return await RecordAuditAndReturnAsync(
+            user,
+            "llm_wiki_capture",
+            "related summary candidates",
+            stopwatch.Elapsed,
+            response,
+            query,
+            requestedLimit: limit,
+            effectiveLimit: safeLimit,
+            resultCount: results.Count,
+            resultIds: results.Select(x => x.Id).ToArray());
     }
 
     [McpServerTool(Name = "llm_wiki_find_related")]
@@ -65,20 +114,81 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         [Description("Maximum number of related entries to return.")] int limit = 5)
     {
         var user = RequireUser();
-        var results = await llmWikiService.SearchAsync(user.UserName, query, NormalizeMcpLimit(limit, 5, 10));
-        return FormatRelatedResults(results);
+        var safeLimit = NormalizeMcpLimit(limit, 5, 10);
+        var stopwatch = Stopwatch.StartNew();
+        var results = await llmWikiService.SearchAsync(user.UserName, query, safeLimit);
+        stopwatch.Stop();
+        var builder = new StringBuilder();
+        builder.Append(FormatRelatedResults(results));
+        AppendRetrievalDiagnostics(
+            builder,
+            "llm_wiki_find_related",
+            "related summary candidates",
+            stopwatch.Elapsed,
+            results.Count,
+            limit,
+            safeLimit,
+            query);
+        var response = builder.ToString();
+        return await RecordAuditAndReturnAsync(
+            user,
+            "llm_wiki_find_related",
+            "related summary candidates",
+            stopwatch.Elapsed,
+            response,
+            query,
+            requestedLimit: limit,
+            effectiveLimit: safeLimit,
+            resultCount: results.Count,
+            resultIds: results.Select(x => x.Id).ToArray());
     }
 
     [McpServerTool(Name = "llm_wiki_search")]
-    [Description("Search the authenticated user's LLM Wiki with GraphRAG relevance and optional hierarchical category filtering.")]
+    [Description("Search the authenticated user's LLM Wiki with compact summary results. Start here for broad lookup, candidate selection, category filtering, and low-token retrieval.")]
     public async Task<string> SearchAsync(
         [Description("Search terms. Leave empty to return recent entries.")] string? query = null,
         [Description("Maximum number of entries to return.")] int limit = 10,
-        [Description("Optional hierarchical category path. Matching includes descendants.")] string? categoryPath = null)
+        [Description("Optional hierarchical category path. Matching includes descendants.")] string? categoryPath = null,
+        [Description("Minimum relevance percent for GraphRAG matches. Raise this when results are too broad or unrelated.")] int minRelevancePercent = 50)
     {
         var user = RequireUser();
-        var results = await llmWikiService.SearchAsync(user.UserName, query, limit, categoryPath: categoryPath);
-        return LlmWikiService.FormatSearchResultsMarkdown(results);
+        var safeLimit = NormalizeMcpLimit(limit, 10, 10);
+        var safeMinRelevancePercent = NormalizeRelevancePercent(minRelevancePercent);
+        var stopwatch = Stopwatch.StartNew();
+        var results = await llmWikiService.SearchAsync(
+            user.UserName,
+            query,
+            safeLimit,
+            minRelevancePercent: safeMinRelevancePercent,
+            categoryPath: categoryPath);
+        stopwatch.Stop();
+        var builder = new StringBuilder();
+        builder.Append(LlmWikiService.FormatSearchResultsMarkdown(results));
+        AppendRetrievalDiagnostics(
+            builder,
+            "llm_wiki_search",
+            "compact summaries",
+            stopwatch.Elapsed,
+            results.Count,
+            limit,
+            safeLimit,
+            query,
+            categoryPath,
+            safeMinRelevancePercent);
+        var response = builder.ToString();
+        return await RecordAuditAndReturnAsync(
+            user,
+            "llm_wiki_search",
+            "compact summaries",
+            stopwatch.Elapsed,
+            response,
+            query,
+            categoryPath,
+            limit,
+            safeLimit,
+            safeMinRelevancePercent,
+            results.Count,
+            results.Select(x => x.Id).ToArray());
     }
 
     [McpServerTool(Name = "llm_wiki_recent")]
@@ -88,8 +198,33 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         [Description("Optional hierarchical category path. Matching includes descendants.")] string? categoryPath = null)
     {
         var user = RequireUser();
-        var results = await llmWikiService.SearchAsync(user.UserName, null, limit, categoryPath: categoryPath);
-        return LlmWikiService.FormatSearchResultsMarkdown(results);
+        var safeLimit = NormalizeMcpLimit(limit, 10, 10);
+        var stopwatch = Stopwatch.StartNew();
+        var results = await llmWikiService.SearchAsync(user.UserName, null, safeLimit, categoryPath: categoryPath);
+        stopwatch.Stop();
+        var builder = new StringBuilder();
+        builder.Append(LlmWikiService.FormatSearchResultsMarkdown(results));
+        AppendRetrievalDiagnostics(
+            builder,
+            "llm_wiki_recent",
+            "compact recent summaries",
+            stopwatch.Elapsed,
+            results.Count,
+            limit,
+            safeLimit,
+            categoryPath: categoryPath);
+        var response = builder.ToString();
+        return await RecordAuditAndReturnAsync(
+            user,
+            "llm_wiki_recent",
+            "compact recent summaries",
+            stopwatch.Elapsed,
+            response,
+            categoryPath: categoryPath,
+            requestedLimit: limit,
+            effectiveLimit: safeLimit,
+            resultCount: results.Count,
+            resultIds: results.Select(x => x.Id).ToArray());
     }
 
     [McpServerTool(Name = "llm_wiki_read")]
@@ -98,10 +233,21 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         [Description("Entry id or slug returned by llm_wiki_search.")] string idOrSlug)
     {
         var user = RequireUser();
+        var stopwatch = Stopwatch.StartNew();
         var entry = await llmWikiService.GetEntryAsync(user.UserName, idOrSlug);
-        return entry is null
+        stopwatch.Stop();
+        var response = entry is null
             ? "LLM Wiki entry not found for this user."
             : LlmWikiService.FormatEntryMarkdown(entry);
+        return await RecordAuditAndReturnAsync(
+            user,
+            "llm_wiki_read",
+            "full entry",
+            stopwatch.Elapsed,
+            response,
+            idOrSlug,
+            resultCount: entry is null ? 0 : 1,
+            resultIds: entry is null ? [] : [entry.Id]);
     }
 
     [McpServerTool(Name = "llm_wiki_update")]
@@ -115,14 +261,26 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         [Description("Corrected hierarchical category path. Pass it when the current category is vague or the project/topic is known. Omit only to keep the existing category.")] string? categoryPath = null)
     {
         var user = RequireUser();
+        var stopwatch = Stopwatch.StartNew();
         var entry = await llmWikiService.UpdateAsync(
             user.UserName,
             idOrSlug,
             new LlmWikiUpdateRequest(prompt, content, title, tags, categoryPath));
+        stopwatch.Stop();
 
-        return entry is null
+        var response = entry is null
             ? "LLM Wiki entry not found for this user."
             : LlmWikiService.FormatEntryMarkdown(entry);
+        return await RecordAuditAndReturnAsync(
+            user,
+            "llm_wiki_update",
+            "full updated entry",
+            stopwatch.Elapsed,
+            response,
+            prompt,
+            categoryPath,
+            resultCount: entry is null ? 0 : 1,
+            resultIds: entry is null ? [] : [entry.Id]);
     }
 
     [McpServerTool(Name = "llm_wiki_merge")]
@@ -136,31 +294,77 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         [Description("Merged hierarchical category path. Pass it when the merged memory should move into a clearer project/domain/topic path. Omit only to keep the existing category.")] string? categoryPath = null)
     {
         var user = RequireUser();
+        var stopwatch = Stopwatch.StartNew();
         var entry = await llmWikiService.UpdateAsync(
             user.UserName,
             idOrSlug,
-            new LlmWikiUpdateRequest(mergedPrompt, mergedContent, title, tags, categoryPath));
+            new LlmWikiUpdateRequest(mergedPrompt, mergedContent, title, tags, categoryPath),
+            sourceAction: "merge");
+        stopwatch.Stop();
 
-        return entry is null
+        var response = entry is null
             ? "LLM Wiki entry not found for this user."
             : LlmWikiService.FormatEntryMarkdown(entry);
+        return await RecordAuditAndReturnAsync(
+            user,
+            "llm_wiki_merge",
+            "full merged entry",
+            stopwatch.Elapsed,
+            response,
+            mergedPrompt,
+            categoryPath,
+            resultCount: entry is null ? 0 : 1,
+            resultIds: entry is null ? [] : [entry.Id]);
     }
 
     [McpServerTool(Name = "llm_wiki_recall")]
-    [Description("Recall relevant memories for a user request. Use when the user asks to continue, remember prior decisions, apply preferences, or retrieve project context.")]
+    [Description("Recall compact context memories for a user request. Use when applying prior decisions, preferences, or project context; use llm_wiki_search first when only selecting candidates.")]
     public async Task<string> RecallAsync(
         [Description("What the user wants to recall or the current task context.")] string query,
-        [Description("Maximum number of full entries to return.")] int limit = 3)
+        [Description("Maximum number of compact context entries to return.")] int limit = 3,
+        [Description("Minimum relevance percent for GraphRAG matches. Raise this when results are too broad or unrelated.")] int minRelevancePercent = 50)
     {
         var user = RequireUser();
-        var results = await llmWikiService.SearchAsync(user.UserName, query, NormalizeMcpLimit(limit, 3, 5));
+        var safeLimit = NormalizeMcpLimit(limit, 3, 5);
+        var safeMinRelevancePercent = NormalizeRelevancePercent(minRelevancePercent);
+        var stopwatch = Stopwatch.StartNew();
+        var results = await llmWikiService.SearchAsync(
+            user.UserName,
+            query,
+            safeLimit,
+            minRelevancePercent: safeMinRelevancePercent);
         if (results.Count == 0)
         {
-            return "No matching LLM Wiki entries.";
+            stopwatch.Stop();
+            var emptyBuilder = new StringBuilder();
+            emptyBuilder.AppendLine("No matching LLM Wiki entries.");
+            AppendRetrievalDiagnostics(
+                emptyBuilder,
+                "llm_wiki_recall",
+                "compact context",
+                stopwatch.Elapsed,
+                0,
+                limit,
+                safeLimit,
+                query,
+                minRelevancePercent: safeMinRelevancePercent);
+            var emptyResponse = emptyBuilder.ToString();
+            return await RecordAuditAndReturnAsync(
+                user,
+                "llm_wiki_recall",
+                "compact context",
+                stopwatch.Elapsed,
+                emptyResponse,
+                query,
+                requestedLimit: limit,
+                effectiveLimit: safeLimit,
+                minRelevancePercent: safeMinRelevancePercent);
         }
 
         var builder = new StringBuilder();
         builder.AppendLine("# LLM Wiki Recall");
+        builder.AppendLine();
+        builder.AppendLine("Recall returns compact context without Raw Provenance. Use `llm_wiki_read` on a selected id when you need the full entry and provenance.");
         builder.AppendLine();
         foreach (var result in results)
         {
@@ -170,13 +374,36 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
                 continue;
             }
 
-            builder.AppendLine(LlmWikiService.FormatEntryMarkdown(entry).Trim());
+            builder.AppendLine(FormatRecallEntryMarkdown(entry, result.RelevancePercent).Trim());
             builder.AppendLine();
             builder.AppendLine("---");
             builder.AppendLine();
         }
 
-        return builder.ToString().TrimEnd();
+        stopwatch.Stop();
+        AppendRetrievalDiagnostics(
+            builder,
+            "llm_wiki_recall",
+            "compact context",
+            stopwatch.Elapsed,
+            results.Count,
+            limit,
+            safeLimit,
+            query,
+            minRelevancePercent: safeMinRelevancePercent);
+        var response = builder.ToString().TrimEnd();
+        return await RecordAuditAndReturnAsync(
+            user,
+            "llm_wiki_recall",
+            "compact context",
+            stopwatch.Elapsed,
+            response,
+            query,
+            requestedLimit: limit,
+            effectiveLimit: safeLimit,
+            minRelevancePercent: safeMinRelevancePercent,
+            resultCount: results.Count,
+            resultIds: results.Select(x => x.Id).ToArray());
     }
 
     [McpServerTool(Name = "llm_wiki_llms_txt")]
@@ -185,7 +412,18 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         [Description("Maximum number of entries to include.")] int limit = 50)
     {
         var user = RequireUser();
-        return await llmWikiService.BuildLlmsTextAsync(user.UserName, limit);
+        var safeLimit = NormalizeMcpLimit(limit, 50, 200);
+        var stopwatch = Stopwatch.StartNew();
+        var response = await llmWikiService.BuildLlmsTextAsync(user.UserName, safeLimit);
+        stopwatch.Stop();
+        return await RecordAuditAndReturnAsync(
+            user,
+            "llm_wiki_llms_txt",
+            "llms.txt index",
+            stopwatch.Elapsed,
+            response,
+            requestedLimit: limit,
+            effectiveLimit: safeLimit);
     }
 
     [McpServerTool(Name = "llm_wiki_categories")]
@@ -193,10 +431,17 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
     public async Task<string> CategoriesAsync()
     {
         var user = RequireUser();
+        var stopwatch = Stopwatch.StartNew();
         var categories = await llmWikiService.GetCategoriesAsync(user.UserName);
+        stopwatch.Stop();
         if (categories.Count == 0)
         {
-            return "No LLM Wiki categories.";
+            return await RecordAuditAndReturnAsync(
+                user,
+                "llm_wiki_categories",
+                "category list",
+                stopwatch.Elapsed,
+                "No LLM Wiki categories.");
         }
 
         var builder = new StringBuilder();
@@ -207,7 +452,48 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
             builder.AppendLine($"- {category.CategoryPath}: {category.Count} entries, depth {category.CategoryDepth}");
         }
 
-        return builder.ToString();
+        var response = builder.ToString();
+        return await RecordAuditAndReturnAsync(
+            user,
+            "llm_wiki_categories",
+            "category list",
+            stopwatch.Elapsed,
+            response,
+            resultCount: categories.Count);
+    }
+
+    private async Task<string> RecordAuditAndReturnAsync(
+        AuthUser user,
+        string toolName,
+        string responseMode,
+        TimeSpan elapsed,
+        string response,
+        string? query = null,
+        string? categoryPath = null,
+        int? requestedLimit = null,
+        int? effectiveLimit = null,
+        int? minRelevancePercent = null,
+        int resultCount = 0,
+        IReadOnlyList<Guid>? resultIds = null)
+    {
+        var elapsedMs = elapsed.TotalMilliseconds >= int.MaxValue
+            ? int.MaxValue
+            : Math.Max(0, (int)Math.Round(elapsed.TotalMilliseconds));
+        await llmWikiService.RecordMcpAuditAsync(
+            user.UserName,
+            new LlmWikiMcpAuditRequest(
+                toolName,
+                responseMode,
+                query,
+                categoryPath,
+                requestedLimit,
+                effectiveLimit,
+                minRelevancePercent,
+                resultCount,
+                resultIds ?? [],
+                elapsedMs,
+                response.Length));
+        return response;
     }
 
     private AuthUser RequireUser()
@@ -239,4 +525,90 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
 
     private static int NormalizeMcpLimit(int limit, int defaultValue, int maxValue)
         => Math.Clamp(limit <= 0 ? defaultValue : limit, 1, maxValue);
+
+    private static int NormalizeRelevancePercent(int minRelevancePercent)
+        => Math.Clamp(minRelevancePercent, 0, 100);
+
+    private static string FormatRecallEntryMarkdown(LlmWikiEntryResponse entry, int? relevancePercent)
+    {
+        var builder = new StringBuilder();
+        var relevance = relevancePercent is null ? string.Empty : $" ({relevancePercent}% relevance)";
+        builder.AppendLine($"## {entry.Title}{relevance}");
+        builder.AppendLine();
+        builder.AppendLine(entry.Summary);
+        builder.AppendLine();
+        builder.AppendLine($"- id: {entry.Id}");
+        builder.AppendLine($"- slug: {entry.Slug}");
+        builder.AppendLine($"- updated: {entry.UpdatedAt:O}");
+        builder.AppendLine($"- category: {entry.CategoryPath}");
+        if (entry.Tags.Count > 0)
+        {
+            builder.AppendLine($"- tags: {string.Join(", ", entry.Tags)}");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("### Source Prompt");
+        builder.AppendLine();
+        builder.AppendLine(TrimForMcp(entry.SourcePrompt, 1_600));
+
+        if (!string.IsNullOrWhiteSpace(entry.Content))
+        {
+            builder.AppendLine();
+            builder.AppendLine("### Content");
+            builder.AppendLine();
+            builder.AppendLine(TrimForMcp(entry.Content, 2_400));
+        }
+
+        return builder.ToString();
+    }
+
+    private static void AppendRetrievalDiagnostics(
+        StringBuilder builder,
+        string toolName,
+        string responseMode,
+        TimeSpan elapsed,
+        int resultCount,
+        int requestedLimit,
+        int effectiveLimit,
+        string? query = null,
+        string? categoryPath = null,
+        int? minRelevancePercent = null)
+    {
+        builder.AppendLine();
+        builder.AppendLine("## Retrieval Diagnostics");
+        builder.AppendLine();
+        builder.AppendLine($"- tool: `{toolName}`");
+        builder.AppendLine($"- responseMode: {responseMode}");
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            builder.AppendLine($"- query: {TrimForMcp(query, 240).ReplaceLineEndings(" ")}");
+        }
+
+        builder.AppendLine($"- results: {resultCount}");
+        builder.AppendLine($"- requestedLimit: {requestedLimit}");
+        builder.AppendLine($"- effectiveLimit: {effectiveLimit}");
+        if (!string.IsNullOrWhiteSpace(categoryPath))
+        {
+            builder.AppendLine($"- categoryPath: {categoryPath.Trim()}");
+        }
+
+        if (minRelevancePercent is not null)
+        {
+            builder.AppendLine($"- minRelevancePercent: {minRelevancePercent}");
+        }
+
+        builder.AppendLine($"- elapsedMs: {Math.Round(elapsed.TotalMilliseconds)}");
+        builder.AppendLine("- audit: If the top results are unrelated, missing expected entries, too broad, too slow, or too large, refine query/categoryPath/limit/minRelevancePercent and mention the mismatch when it affects the task.");
+    }
+
+    private static string TrimForMcp(string value, int maxLength)
+    {
+        var trimmed = value.Trim();
+        if (trimmed.Length <= maxLength)
+        {
+            return trimmed;
+        }
+
+        return $"{trimmed[..maxLength].TrimEnd()}... [truncated; call `llm_wiki_read` for the full entry]";
+    }
 }

@@ -20,18 +20,24 @@ public static class SeoMetadata
     };
 
     public static string AbsoluteUrl(string baseUri, string? pathOrUrl)
+        => CreateAbsoluteUri(baseUri, pathOrUrl).ToString();
+
+    private static string EscapedAbsoluteUrl(string baseUri, string? pathOrUrl)
+        => CreateAbsoluteUri(baseUri, pathOrUrl).AbsoluteUri;
+
+    private static Uri CreateAbsoluteUri(string baseUri, string? pathOrUrl)
     {
         if (Uri.TryCreate(pathOrUrl, UriKind.Absolute, out var absolute)
             && IsHttpUrl(absolute))
         {
-            return absolute.ToString();
+            return absolute;
         }
 
         var baseAddress = new Uri(EnsureTrailingSlash(baseUri), UriKind.Absolute);
         var relative = string.IsNullOrWhiteSpace(pathOrUrl)
             ? string.Empty
             : pathOrUrl.TrimStart('/');
-        return new Uri(baseAddress, relative).ToString();
+        return new Uri(baseAddress, relative);
     }
 
     private static bool IsHttpUrl(Uri uri)
@@ -60,7 +66,7 @@ public static class SeoMetadata
         XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
         var uniqueEntries = entries
             .Where(entry => !string.IsNullOrWhiteSpace(entry.Path))
-            .GroupBy(entry => AbsoluteUrl(baseUri, entry.Path), StringComparer.OrdinalIgnoreCase)
+            .GroupBy(entry => EscapedAbsoluteUrl(baseUri, entry.Path), StringComparer.OrdinalIgnoreCase)
             .Select(group => group.OrderByDescending(entry => entry.Priority).First())
             .OrderByDescending(entry => entry.Priority)
             .ThenBy(entry => entry.Path, StringComparer.Ordinal);
@@ -69,7 +75,7 @@ public static class SeoMetadata
             new XElement(ns + "urlset",
                 uniqueEntries.Select(entry =>
                     new XElement(ns + "url",
-                        new XElement(ns + "loc", AbsoluteUrl(baseUri, entry.Path)),
+                        new XElement(ns + "loc", EscapedAbsoluteUrl(baseUri, entry.Path)),
                         entry.LastModified is null
                             ? null
                             : new XElement(ns + "lastmod", FormatDate(entry.LastModified.Value)),

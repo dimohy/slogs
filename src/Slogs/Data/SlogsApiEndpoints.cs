@@ -371,6 +371,22 @@ public static class SlogsApiEndpoints
         api.MapPost("/users/by-names", async (AuthService authService, UserNamesRequest request) =>
             Results.Ok(await authService.GetUsersAsync(request.UserNames)));
 
+        api.MapGet("/admin/users/llm-wiki-usage", async (HttpContext httpContext, AuthService authService) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            if (user is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!user.IsAdmin)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            return Results.Ok(await authService.GetAdminUserUsageAsync());
+        });
+
         api.MapGet("/users/{userName}/following", async (AuthService authService, string userName) =>
             Results.Ok(await authService.GetFollowingAsync(userName)));
 

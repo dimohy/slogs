@@ -21,6 +21,7 @@ namespace Slogs.Data.CompiledModels
                 typeof(LlmWikiEntryRecord),
                 baseEntityType,
                 propertyCount: 14,
+                navigationCount: 1,
                 foreignKeyCount: 1,
                 unnamedIndexCount: 4,
                 keyCount: 1);

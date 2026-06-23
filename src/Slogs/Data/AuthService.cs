@@ -396,6 +396,159 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
         return records.Select(ToModel).ToList();
     }
 
+    public async Task<AdminUserUsageResponse> GetAdminUserUsageAsync()
+    {
+        var now = DateTime.UtcNow;
+        var recent7DayStart = now.AddDays(-7);
+        var recent30DayStart = now.AddDays(-30);
+
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var users = await db.Users
+            .AsNoTracking()
+            .OrderByDescending(x => x.RegisteredAt)
+            .Select(x => new
+            {
+                x.UserName,
+                x.DisplayName,
+                x.Email,
+                x.RegisteredAt,
+                x.ProfileUpdatedAt
+            })
+            .ToListAsync();
+
+        var posts = await db.Posts
+            .AsNoTracking()
+            .Select(x => new { x.Author, x.IsDraft })
+            .ToListAsync();
+
+        var entries = await db.LlmWikiEntries
+            .AsNoTracking()
+            .Select(x => new { x.OwnerUserName, x.UpdatedAt, x.LastAccessedAt, x.AccessCount })
+            .ToListAsync();
+
+        var sources = await db.LlmWikiEntrySources
+            .AsNoTracking()
+            .Select(x => new { x.OwnerUserName, x.Action, x.CreatedAt })
+            .ToListAsync();
+
+        var tokens = await db.LlmWikiMcpTokens
+            .AsNoTracking()
+            .Select(x => new { x.OwnerUserName, x.RevokedAt, x.LastUsedAt })
+            .ToListAsync();
+
+        var postsByUser = posts
+            .GroupBy(x => NormalizeUser(x.Author), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                x => x.Key,
+                x => new AdminPostUsage(
+                    x.Count(),
+                    x.Count(post => !post.IsDraft),
+                    x.Count(post => post.IsDraft)),
+                StringComparer.OrdinalIgnoreCase);
+
+        var entriesByUser = entries
+            .GroupBy(x => NormalizeUser(x.OwnerUserName), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                x => x.Key,
+                x => new AdminLlmWikiEntryUsage(
+                    x.Count(),
+                    x.Sum(entry => entry.AccessCount),
+                    MaxDate(x.Select(entry => (DateTime?)entry.UpdatedAt)),
+                    MaxDate(x.Select(entry => entry.LastAccessedAt))),
+                StringComparer.OrdinalIgnoreCase);
+
+        var sourcesByUser = sources
+            .GroupBy(x => NormalizeUser(x.OwnerUserName), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                x => x.Key,
+                x =>
+                {
+                    var activeSources = x
+                        .Where(source => !IsLegacySourceAction(source.Action))
+                        .ToList();
+                    return new AdminLlmWikiSourceUsage(
+                        x.Count(),
+                        activeSources.Count,
+                        activeSources.Count(source => source.CreatedAt >= recent7DayStart),
+                        activeSources.Count(source => source.CreatedAt >= recent30DayStart),
+                        activeSources.Count(source => IsSourceAction(source.Action, "remember")),
+                        activeSources.Count(source => IsSourceAction(source.Action, "merge")),
+                        activeSources.Count(source => IsSourceAction(source.Action, "update")),
+                        MaxDate(activeSources.Select(source => (DateTime?)source.CreatedAt)));
+                },
+                StringComparer.OrdinalIgnoreCase);
+
+        var tokensByUser = tokens
+            .GroupBy(x => NormalizeUser(x.OwnerUserName), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                x => x.Key,
+                x => new AdminLlmWikiTokenUsage(
+                    x.Count(token => token.RevokedAt is null),
+                    x.Count(token => token.RevokedAt is not null),
+                    MaxDate(x.Select(token => token.LastUsedAt))),
+                StringComparer.OrdinalIgnoreCase);
+
+        var summaries = users
+            .Select(user =>
+            {
+                var userName = NormalizeUser(user.UserName);
+                postsByUser.TryGetValue(userName, out var postUsage);
+                entriesByUser.TryGetValue(userName, out var entryUsage);
+                sourcesByUser.TryGetValue(userName, out var sourceUsage);
+                tokensByUser.TryGetValue(userName, out var tokenUsage);
+
+                var lastLlmWikiActivityAt = MaxDate([
+                    sourceUsage?.LastActivityAt,
+                    entryUsage?.LastUpdatedAt,
+                    entryUsage?.LastAccessedAt,
+                    tokenUsage?.LastUsedAt
+                ]);
+                var usesLlmWiki = entryUsage?.EntryCount > 0
+                    || sourceUsage?.ActivityCount > 0
+                    || tokenUsage?.ActiveCount > 0
+                    || tokenUsage?.RevokedCount > 0;
+
+                return new AdminUserUsageSummary(
+                    user.UserName,
+                    user.DisplayName,
+                    user.Email,
+                    user.RegisteredAt,
+                    user.ProfileUpdatedAt,
+                    postUsage?.PostCount ?? 0,
+                    postUsage?.PublishedPostCount ?? 0,
+                    postUsage?.DraftPostCount ?? 0,
+                    usesLlmWiki,
+                    entryUsage?.EntryCount ?? 0,
+                    sourceUsage?.SourceRecordCount ?? 0,
+                    sourceUsage?.ActivityCount ?? 0,
+                    sourceUsage?.Recent7DayActivityCount ?? 0,
+                    sourceUsage?.Recent30DayActivityCount ?? 0,
+                    sourceUsage?.RememberCount ?? 0,
+                    sourceUsage?.MergeCount ?? 0,
+                    sourceUsage?.UpdateCount ?? 0,
+                    entryUsage?.AccessCount ?? 0,
+                    tokenUsage?.ActiveCount ?? 0,
+                    tokenUsage?.RevokedCount ?? 0,
+                    lastLlmWikiActivityAt,
+                    entryUsage?.LastUpdatedAt,
+                    entryUsage?.LastAccessedAt,
+                    tokenUsage?.LastUsedAt);
+            })
+            .OrderByDescending(x => x.UsesLlmWiki)
+            .ThenByDescending(x => x.LastLlmWikiActivityAt ?? x.RegisteredAt)
+            .ThenBy(x => x.UserName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return new AdminUserUsageResponse(
+            summaries.Count,
+            summaries.Count(x => x.UsesLlmWiki),
+            summaries.Sum(x => x.LlmWikiEntryCount),
+            summaries.Sum(x => x.LlmWikiActivityCount),
+            summaries.Sum(x => x.LlmWikiRecent7DayActivityCount),
+            summaries.Sum(x => x.LlmWikiRecent30DayActivityCount),
+            summaries);
+    }
+
     public async Task<IReadOnlyList<string>> GetFollowingAsync(string followerUser)
     {
         await using var db = await dbFactory.CreateDbContextAsync();
@@ -472,6 +625,52 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
             RegisteredAt = record.RegisteredAt
         };
     }
+
+    private static bool IsSourceAction(string action, string expected)
+        => action.Equals(expected, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsLegacySourceAction(string action)
+        => IsSourceAction(action, "legacy-baseline");
+
+    private static DateTime? MaxDate(IEnumerable<DateTime?> values)
+    {
+        DateTime? max = null;
+        foreach (var value in values)
+        {
+            if (value is not null && (max is null || value.Value > max.Value))
+            {
+                max = value.Value;
+            }
+        }
+
+        return max;
+    }
+
+    private sealed record AdminPostUsage(
+        int PostCount,
+        int PublishedPostCount,
+        int DraftPostCount);
+
+    private sealed record AdminLlmWikiEntryUsage(
+        int EntryCount,
+        int AccessCount,
+        DateTime? LastUpdatedAt,
+        DateTime? LastAccessedAt);
+
+    private sealed record AdminLlmWikiSourceUsage(
+        int SourceRecordCount,
+        int ActivityCount,
+        int Recent7DayActivityCount,
+        int Recent30DayActivityCount,
+        int RememberCount,
+        int MergeCount,
+        int UpdateCount,
+        DateTime? LastActivityAt);
+
+    private sealed record AdminLlmWikiTokenUsage(
+        int ActiveCount,
+        int RevokedCount,
+        DateTime? LastUsedAt);
 
     private static async Task<UserRecord> RecreateExternalUserAsync(
         SlogsDbContext db,

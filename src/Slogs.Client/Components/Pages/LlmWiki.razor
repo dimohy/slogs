@@ -52,12 +52,15 @@ else
                     <h3 class="text-sm font-bold text-slate-900">LLM Agent 정책에 반영할 핵심</h3>
                     <ul class="mt-2 list-disc space-y-1.5 pl-5 text-sm leading-6 text-slate-600">
                         <li>이전 결정, 선호, 판단 기준, 프로젝트 맥락이 관련되면 Slogs LLM Wiki를 먼저 조회합니다.</li>
+                        <li><code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">search</code>는 후보 요약 목록, <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">recall</code>은 답변/구현에 바로 적용할 압축 컨텍스트로 구분합니다.</li>
+                        <li>MCP 응답의 Retrieval Diagnostics로 결과 수, limit, categoryPath, minRelevancePercent, elapsedMs를 확인해 검색 품질을 평가합니다.</li>
                         <li>작업을 마치기 전, 장기적으로 문서화나 자동화에 도움이 될 암묵지 저장 후보를 조용히 점검합니다.</li>
                         <li>저장 전에는 관련 기억을 먼저 찾고, 중복이면 새 항목이 아니라 기존 항목을 merge/update합니다.</li>
+                        <li>정제된 현재 기억과 별도로 원래 저장/병합/갱신 요청은 Raw Provenance에 남겨 검색 품질과 병합 품질을 검증합니다.</li>
                         <li>저장, 병합, 갱신 시 프로젝트/영역/주제를 나타내는 <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">categoryPath</code>를 명시합니다.</li>
                         <li>복사한 프롬프트는 Slogs MCP 키 입력과 전역/프로젝트/현재 세션 범위 선택을 안내하고, 선택한 범위에 맞춰 MCP 연결도 함께 설정하도록 합니다.</li>
                         <li>한국어 <a class="font-semibold text-slate-900 underline" href="/prompts/slogs-mcp.ko.md" target="_blank">slogs-mcp.ko.md</a>와 English <a class="font-semibold text-slate-900 underline" href="/prompts/slogs-mcp.en.md" target="_blank">slogs-mcp.en.md</a>를 언어별 프롬프트로 제공합니다.</li>
-                        <li>동기화는 버전 URL <a class="font-semibold text-slate-900 underline" href="/prompts/slogs-mcp.version" target="_blank">slogs-mcp.version</a>을 먼저 비교하고, 버전이 바뀔 때만 선택 언어의 전체 프롬프트를 읽습니다.</li>
+                        <li>동기화는 버전 URL <a class="font-semibold text-slate-900 underline" href="/prompts/slogs-mcp.version" target="_blank">slogs-mcp.version</a>을 먼저 비교하고, 버전이 같으면 프롬프트 다운로드, 키 요청, 범위 선택을 반복하지 않습니다.</li>
                         <li>API 키, 비밀번호, 토큰, 일회성 로그, 임시 실행 내역은 저장하지 않습니다.</li>
                     </ul>
                 </div>
@@ -65,9 +68,12 @@ else
                     <h3 class="text-sm font-bold text-slate-900">Agent 동작 흐름</h3>
                     <ol class="mt-2 list-decimal space-y-1.5 pl-5 text-sm leading-6 text-slate-600">
                         <li>사용자 요청이 이전 맥락과 관련되는지 판단합니다.</li>
-                        <li><code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">recall</code> 또는 <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">search</code>로 관련 기억을 먼저 찾습니다.</li>
-                        <li>관련도, 제목, 요약, 태그를 보고 현재 작업에 필요한 기억을 선별합니다.</li>
+                        <li>넓거나 애매한 요청은 먼저 <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">search</code>로 작은 후보 목록을 확인합니다.</li>
+                        <li>답변이나 구현에 바로 적용할 맥락은 낮은 limit의 <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">recall</code>로 불러옵니다.</li>
+                        <li>관련도, 제목, 요약, 태그, Retrieval Diagnostics를 보고 현재 작업에 필요한 기억을 선별합니다.</li>
+                        <li>상위 결과가 엉뚱하거나 느리거나 너무 크면 query, categoryPath, limit, minRelevancePercent를 좁혀 다시 조회합니다.</li>
                         <li>새 기억이 필요하면 <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">capture/find_related</code> 후 <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">categoryPath</code>를 정하고 저장합니다.</li>
+                        <li>항목을 열어 Raw Provenance의 원문 근거와 현재 통합 기억이 일치하는지 점검합니다.</li>
                         <li>일회성 로그, 임시 실행 내역, 검증되지 않은 추측, 현재 파일에서 쉽게 복구 가능한 단순 사실은 저장하지 않습니다.</li>
                     </ol>
                 </div>
@@ -79,7 +85,7 @@ else
                         <p class="text-xs font-bold uppercase text-slate-500">Agent Prompt</p>
                         <h3 class="mt-1 text-base font-bold text-slate-900">언어별 완성 프롬프트</h3>
                         <p class="mt-2 text-sm leading-6 text-slate-600">
-                            복사되는 프롬프트는 선택한 언어 하나만 포함합니다. 붙여넣으면 Agent가 Slogs MCP 키를 요청하고 전역, 현재 프로젝트, 현재 세션 중 적용 범위를 묻도록 안내합니다.
+                            복사되는 프롬프트는 선택한 언어 하나만 포함합니다. 처음 설치할 때만 Agent가 Slogs MCP 키를 요청하고 전역, 현재 프로젝트, 현재 세션 중 적용 범위를 묻도록 안내합니다.
                         </p>
                     </div>
                     <div class="flex flex-wrap gap-2 text-xs font-semibold">
@@ -99,7 +105,7 @@ else
                     <div class="@GetKoreanPromptCardClass()">
                         <div>
                             <p class="text-sm font-bold text-slate-900">한국어 프롬프트</p>
-                            <p class="mt-1 text-xs leading-5 text-slate-500">한국어 지침만 포함합니다. Agent가 MCP 키와 적용 범위를 먼저 묻도록 안내합니다.</p>
+                            <p class="mt-1 text-xs leading-5 text-slate-500">한국어 지침만 포함합니다. 최초 설치 시 MCP 키와 적용 범위를 묻도록 안내합니다.</p>
                         </div>
                         <div class="mt-3 flex flex-wrap gap-2">
                             <button class="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
@@ -117,7 +123,7 @@ else
                     <div class="@GetEnglishPromptCardClass()">
                         <div>
                             <p class="text-sm font-bold text-slate-900">English Prompt</p>
-                            <p class="mt-1 text-xs leading-5 text-slate-500">English instructions only. It tells the Agent to ask for the MCP key and scope first.</p>
+                            <p class="mt-1 text-xs leading-5 text-slate-500">English instructions only. It asks for the MCP key and scope only during initial installation.</p>
                         </div>
                         <div class="mt-3 flex flex-wrap gap-2">
                             <button class="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
@@ -358,6 +364,55 @@ else
                         <div>
                             <p class="text-xs font-bold uppercase text-slate-500">Content</p>
                             <pre class="mt-1 whitespace-pre-wrap break-words rounded-lg bg-slate-50 p-3 text-sm leading-6 text-slate-800">@selectedEntry.Content</pre>
+                        </div>
+                    }
+                    @if (selectedEntry.Sources.Count > 0)
+                    {
+                        <div>
+                            <p class="text-xs font-bold uppercase text-slate-500">Raw Provenance</p>
+                            <div class="mt-1 grid gap-2">
+                                @foreach (var source in selectedEntry.Sources.OrderBy(x => x.CreatedAt))
+                                {
+                                    <details class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                        <summary class="cursor-pointer list-none text-sm font-bold text-slate-800">
+                                            <span>@source.Action</span>
+                                            <span class="ml-2 text-xs font-semibold text-slate-500">@FormatDateTime(source.CreatedAt)</span>
+                                        </summary>
+                                        <div class="mt-3 grid gap-3">
+                                            @if (!string.IsNullOrWhiteSpace(source.Title)
+                                                || !string.IsNullOrWhiteSpace(source.Tags)
+                                                || !string.IsNullOrWhiteSpace(source.CategoryPath))
+                                            {
+                                                <div class="grid gap-1 text-xs text-slate-600">
+                                                    @if (!string.IsNullOrWhiteSpace(source.Title))
+                                                    {
+                                                        <p><span class="font-bold text-slate-800">title</span> @source.Title</p>
+                                                    }
+                                                    @if (!string.IsNullOrWhiteSpace(source.Tags))
+                                                    {
+                                                        <p><span class="font-bold text-slate-800">tags</span> @source.Tags</p>
+                                                    }
+                                                    @if (!string.IsNullOrWhiteSpace(source.CategoryPath))
+                                                    {
+                                                        <p><span class="font-bold text-slate-800">categoryPath</span> @source.CategoryPath</p>
+                                                    }
+                                                </div>
+                                            }
+                                            <div>
+                                                <p class="text-xs font-bold uppercase text-slate-500">Raw Prompt</p>
+                                                <pre class="mt-1 whitespace-pre-wrap break-words rounded-lg bg-white p-3 text-sm leading-6 text-slate-800">@source.Prompt</pre>
+                                            </div>
+                                            @if (source.Content is not null)
+                                            {
+                                                <div>
+                                                    <p class="text-xs font-bold uppercase text-slate-500">Raw Content</p>
+                                                    <pre class="mt-1 whitespace-pre-wrap break-words rounded-lg bg-white p-3 text-sm leading-6 text-slate-800">@source.Content</pre>
+                                                </div>
+                                            }
+                                        </div>
+                                    </details>
+                                }
+                            </div>
                         </div>
                     }
                 </div>

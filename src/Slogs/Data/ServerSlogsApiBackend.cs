@@ -127,6 +127,11 @@ public sealed class ServerSlogsApiBackend(
     public Task<IReadOnlyList<AuthUser>> GetUsersAsync(IEnumerable<string> userNames)
         => authService.GetUsersAsync(userNames);
 
+    public Task<AdminUserUsageResponse> GetAdminUserUsageAsync()
+        => GetCurrentUser()?.IsAdmin == true
+            ? authService.GetAdminUserUsageAsync()
+            : throw new InvalidOperationException("adminRequired");
+
     public Task<IReadOnlyList<string>> GetFollowingAsync(string followerUser)
         => authService.GetFollowingAsync(ResolveUserName(followerUser));
 

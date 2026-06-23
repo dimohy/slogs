@@ -12,7 +12,7 @@ namespace Slogs.Data.CompiledModels
     public partial class SlogsDbContextModel
     {
         private SlogsDbContextModel()
-            : base(skipDetectChanges: false, modelId: new Guid("3ae36357-38d9-4798-a88b-9e48b172d9d0"), entityTypeCount: 8)
+            : base(skipDetectChanges: false, modelId: new Guid("8b55927a-7761-4515-ace7-8665961575e3"), entityTypeCount: 9)
         {
         }
 
@@ -22,6 +22,7 @@ namespace Slogs.Data.CompiledModels
             var externalLoginRecord = ExternalLoginRecordEntityType.Create(this);
             var followRecord = FollowRecordEntityType.Create(this);
             var llmWikiEntryRecord = LlmWikiEntryRecordEntityType.Create(this);
+            var llmWikiEntrySourceRecord = LlmWikiEntrySourceRecordEntityType.Create(this);
             var llmWikiMcpTokenRecord = LlmWikiMcpTokenRecordEntityType.Create(this);
             var postRecord = PostRecordEntityType.Create(this);
             var postRevisionRecord = PostRevisionRecordEntityType.Create(this);
@@ -32,6 +33,7 @@ namespace Slogs.Data.CompiledModels
             FollowRecordEntityType.CreateForeignKey1(followRecord, userRecord);
             FollowRecordEntityType.CreateForeignKey2(followRecord, userRecord);
             LlmWikiEntryRecordEntityType.CreateForeignKey1(llmWikiEntryRecord, userRecord);
+            LlmWikiEntrySourceRecordEntityType.CreateForeignKey1(llmWikiEntrySourceRecord, llmWikiEntryRecord);
             LlmWikiMcpTokenRecordEntityType.CreateForeignKey1(llmWikiMcpTokenRecord, userRecord);
             PostRevisionRecordEntityType.CreateForeignKey1(postRevisionRecord, postRecord);
 
@@ -39,6 +41,7 @@ namespace Slogs.Data.CompiledModels
             ExternalLoginRecordEntityType.CreateAnnotations(externalLoginRecord);
             FollowRecordEntityType.CreateAnnotations(followRecord);
             LlmWikiEntryRecordEntityType.CreateAnnotations(llmWikiEntryRecord);
+            LlmWikiEntrySourceRecordEntityType.CreateAnnotations(llmWikiEntrySourceRecord);
             LlmWikiMcpTokenRecordEntityType.CreateAnnotations(llmWikiMcpTokenRecord);
             PostRecordEntityType.CreateAnnotations(postRecord);
             PostRevisionRecordEntityType.CreateAnnotations(postRevisionRecord);

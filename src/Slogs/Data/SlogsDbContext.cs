@@ -18,6 +18,8 @@ public sealed class SlogsDbContext(DbContextOptions<SlogsDbContext> options) : D
 
     public DbSet<LlmWikiEntryRecord> LlmWikiEntries => Set<LlmWikiEntryRecord>();
 
+    public DbSet<LlmWikiEntrySourceRecord> LlmWikiEntrySources => Set<LlmWikiEntrySourceRecord>();
+
     public DbSet<LlmWikiMcpTokenRecord> LlmWikiMcpTokens => Set<LlmWikiMcpTokenRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -127,6 +129,25 @@ public sealed class SlogsDbContext(DbContextOptions<SlogsDbContext> options) : D
             entity.HasOne<UserRecord>()
                 .WithMany()
                 .HasForeignKey(x => x.OwnerUserName)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(x => x.Sources)
+                .WithOne(x => x.Entry)
+                .HasForeignKey(x => x.EntryId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LlmWikiEntrySourceRecord>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.EntryId, x.CreatedAt });
+            entity.HasIndex(x => new { x.OwnerUserName, x.CreatedAt });
+            entity.Property(x => x.OwnerUserName).HasMaxLength(80);
+            entity.Property(x => x.Action).HasMaxLength(40);
+            entity.Property(x => x.Title).HasMaxLength(200);
+            entity.Property(x => x.CategoryPath).HasMaxLength(240);
+            entity.HasOne(x => x.Entry)
+                .WithMany(x => x.Sources)
+                .HasForeignKey(x => x.EntryId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -306,6 +327,33 @@ public sealed class LlmWikiEntryRecord
     public DateTime? LastAccessedAt { get; set; }
 
     public int AccessCount { get; set; }
+
+    public List<LlmWikiEntrySourceRecord> Sources { get; set; } = [];
+}
+
+public sealed class LlmWikiEntrySourceRecord
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid EntryId { get; set; }
+
+    public LlmWikiEntryRecord? Entry { get; set; }
+
+    public string OwnerUserName { get; set; } = string.Empty;
+
+    public string Action { get; set; } = string.Empty;
+
+    public string Prompt { get; set; } = string.Empty;
+
+    public string? Content { get; set; }
+
+    public string? Title { get; set; }
+
+    public string? Tags { get; set; }
+
+    public string? CategoryPath { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 
 public sealed class LlmWikiMcpTokenRecord

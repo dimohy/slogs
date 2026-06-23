@@ -27,6 +27,41 @@ public sealed record AuthorsRequest(IReadOnlyList<string> Authors);
 
 public sealed record UserNamesRequest(IReadOnlyList<string> UserNames);
 
+public sealed record AdminUserUsageResponse(
+    int TotalUsers,
+    int LlmWikiUserCount,
+    int TotalLlmWikiEntries,
+    int TotalLlmWikiActivityCount,
+    int Recent7DayLlmWikiActivityCount,
+    int Recent30DayLlmWikiActivityCount,
+    IReadOnlyList<AdminUserUsageSummary> Users);
+
+public sealed record AdminUserUsageSummary(
+    string UserName,
+    string DisplayName,
+    string Email,
+    DateTime RegisteredAt,
+    DateTime? ProfileUpdatedAt,
+    int PostCount,
+    int PublishedPostCount,
+    int DraftPostCount,
+    bool UsesLlmWiki,
+    int LlmWikiEntryCount,
+    int LlmWikiSourceRecordCount,
+    int LlmWikiActivityCount,
+    int LlmWikiRecent7DayActivityCount,
+    int LlmWikiRecent30DayActivityCount,
+    int LlmWikiRememberCount,
+    int LlmWikiMergeCount,
+    int LlmWikiUpdateCount,
+    int LlmWikiAccessCount,
+    int ActiveMcpTokenCount,
+    int RevokedMcpTokenCount,
+    DateTime? LastLlmWikiActivityAt,
+    DateTime? LastLlmWikiEntryUpdatedAt,
+    DateTime? LastLlmWikiAccessedAt,
+    DateTime? LastMcpTokenUsedAt);
+
 public sealed record CommentRequest(string Content, Guid? ParentCommentId);
 
 public sealed record EmptyRequest();
@@ -56,7 +91,18 @@ public sealed record LlmWikiEntryResponse(
     DateTime CreatedAt,
     DateTime UpdatedAt,
     DateTime? LastAccessedAt,
-    int AccessCount);
+    int AccessCount,
+    IReadOnlyList<LlmWikiSourceResponse> Sources);
+
+public sealed record LlmWikiSourceResponse(
+    Guid Id,
+    string Action,
+    string Prompt,
+    string? Content,
+    string? Title,
+    string? Tags,
+    string? CategoryPath,
+    DateTime CreatedAt);
 
 public sealed record LlmWikiSearchResult(
     Guid Id,

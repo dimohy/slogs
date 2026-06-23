@@ -22,6 +22,7 @@ public static class SlogsDbInitializer
         await SeedPostsAsync(db);
         await EnsurePostThumbnailDefaultsAsync(db);
         await EnsurePostRevisionBaselinesAsync(db);
+        await EnsureLlmWikiSourceBaselinesAsync(db);
     }
 
     private static async Task EnsureSchemaAsync(SlogsDbContext db)
@@ -196,6 +197,46 @@ public static class SlogsDbInitializer
             """);
         await db.Database.ExecuteSqlRawAsync(
             """
+            CREATE TABLE IF NOT EXISTS "LlmWikiEntrySources" (
+                "Id" uuid NOT NULL,
+                "EntryId" uuid NOT NULL,
+                "OwnerUserName" character varying(80) NOT NULL,
+                "Action" character varying(40) NOT NULL,
+                "Prompt" text NOT NULL,
+                "Content" text NULL,
+                "Title" character varying(200) NULL,
+                "Tags" text NULL,
+                "CategoryPath" character varying(240) NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                CONSTRAINT "PK_LlmWikiEntrySources" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_LlmWikiEntrySources_LlmWikiEntries_EntryId"
+                    FOREIGN KEY ("EntryId") REFERENCES "LlmWikiEntries" ("Id") ON DELETE CASCADE
+            );
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "LlmWikiMcpAudits" (
+                "Id" uuid NOT NULL,
+                "OwnerUserName" character varying(80) NOT NULL,
+                "ToolName" character varying(80) NOT NULL,
+                "ResponseMode" character varying(80) NOT NULL,
+                "QueryHash" character varying(64) NOT NULL DEFAULT '',
+                "QueryPreview" character varying(240) NOT NULL DEFAULT '',
+                "CategoryPath" character varying(240) NOT NULL DEFAULT '',
+                "RequestedLimit" integer NULL,
+                "EffectiveLimit" integer NULL,
+                "MinRelevancePercent" integer NULL,
+                "ResultCount" integer NOT NULL DEFAULT 0,
+                "ResultIdsJson" jsonb NOT NULL DEFAULT '[]'::jsonb,
+                "ElapsedMs" integer NOT NULL DEFAULT 0,
+                "ResponseChars" integer NOT NULL DEFAULT 0,
+                "Succeeded" boolean NOT NULL DEFAULT TRUE,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                CONSTRAINT "PK_LlmWikiMcpAudits" PRIMARY KEY ("Id")
+            );
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
             ALTER TABLE "LlmWikiEntries"
             ADD COLUMN IF NOT EXISTS "SearchVector" tsvector
             GENERATED ALWAYS AS (
@@ -295,6 +336,26 @@ public static class SlogsDbInitializer
             """
             CREATE INDEX IF NOT EXISTS "IX_LlmWikiEntries_SearchVector"
             ON "LlmWikiEntries" USING GIN ("SearchVector");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiEntrySources_EntryId_CreatedAt"
+            ON "LlmWikiEntrySources" ("EntryId", "CreatedAt");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiEntrySources_OwnerUserName_CreatedAt"
+            ON "LlmWikiEntrySources" ("OwnerUserName", "CreatedAt");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiMcpAudits_OwnerUserName_CreatedAt"
+            ON "LlmWikiMcpAudits" ("OwnerUserName", "CreatedAt" DESC);
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiMcpAudits_OwnerUserName_ToolName_CreatedAt"
+            ON "LlmWikiMcpAudits" ("OwnerUserName", "ToolName", "CreatedAt" DESC);
             """);
         await db.Database.ExecuteSqlRawAsync(
             """
@@ -559,6 +620,43 @@ public static class SlogsDbInitializer
         {
             await db.SaveChangesAsync();
         }
+    }
+
+    private static async Task EnsureLlmWikiSourceBaselinesAsync(SlogsDbContext db)
+    {
+        var entries = await db.LlmWikiEntries
+            .Include(x => x.Sources)
+            .Where(x => !x.Sources.Any())
+            .ToListAsync();
+        if (entries.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var entry in entries)
+        {
+            db.LlmWikiEntrySources.Add(new LlmWikiEntrySourceRecord
+            {
+                Id = Guid.NewGuid(),
+                EntryId = entry.Id,
+                OwnerUserName = entry.OwnerUserName,
+                Action = "legacy-baseline",
+                Prompt = entry.SourcePrompt,
+                Content = string.IsNullOrWhiteSpace(entry.Content) ? null : entry.Content,
+                Title = entry.Title,
+                Tags = FormatTags(entry.TagsJson),
+                CategoryPath = entry.CategoryPath,
+                CreatedAt = entry.CreatedAt
+            });
+        }
+
+        await db.SaveChangesAsync();
+    }
+
+    private static string? FormatTags(string tagsJson)
+    {
+        var tags = JsonSerializer.Deserialize(tagsJson, GetJsonTypeInfo<string[]>()) ?? [];
+        return tags.Length == 0 ? null : string.Join(", ", tags);
     }
 
     private static CommentRecord CreateComment(string author, string content, DateTime createdAt)

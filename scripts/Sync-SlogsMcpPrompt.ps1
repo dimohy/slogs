@@ -35,6 +35,32 @@ if ($serverVersion -notmatch '^[0-9A-Za-z._-]+$') {
     throw "Fetched Slogs MCP prompt version contains unsupported characters: $serverVersion"
 }
 
+function Get-NormalizedPromptUrl {
+    param([string]$Value)
+
+    return $Value.Trim().TrimEnd("/")
+}
+
+function Get-CompatiblePromptUrls {
+    param([string]$Value)
+
+    $urls = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    $normalized = Get-NormalizedPromptUrl $Value
+    $urls.Add($normalized) | Out-Null
+
+    $koreanCanonicalSuffix = "/prompts/slogs-mcp.ko.md"
+    $koreanCompatibleSuffix = "/prompts/slogs-mcp.md"
+    if ($normalized.EndsWith($koreanCanonicalSuffix, [System.StringComparison]::Ordinal)) {
+        $urls.Add($normalized.Substring(0, $normalized.Length - $koreanCanonicalSuffix.Length) + $koreanCompatibleSuffix) | Out-Null
+    }
+    elseif ($normalized.EndsWith($koreanCompatibleSuffix, [System.StringComparison]::Ordinal)) {
+        $urls.Add($normalized.Substring(0, $normalized.Length - $koreanCompatibleSuffix.Length) + $koreanCanonicalSuffix) | Out-Null
+    }
+
+    return $urls
+}
+
+$compatiblePromptUrls = Get-CompatiblePromptUrls $PromptUrl
 $pattern = "(?s)<!-- SLOGS_MCP_PROMPT:BEGIN.*?<!-- SLOGS_MCP_PROMPT:END -->"
 $regex = [System.Text.RegularExpressions.Regex]::new($pattern)
 $existingBlockMatch = $regex.Match($current)
@@ -42,8 +68,14 @@ if ($existingBlockMatch.Success) {
     $existingHeaderMatch = [System.Text.RegularExpressions.Regex]::Match(
         $existingBlockMatch.Value,
         "<!-- SLOGS_MCP_PROMPT:BEGIN url=(?<url>.*?) version=(?<version>[0-9A-Za-z._-]+) sha256=(?<sha256>[a-f0-9]{64}) updated=.*? -->")
+    $existingPromptUrl = if ($existingHeaderMatch.Success) {
+        Get-NormalizedPromptUrl $existingHeaderMatch.Groups["url"].Value
+    }
+    else {
+        ""
+    }
     $alreadyCurrentByVersion = $existingHeaderMatch.Success `
-        -and [string]::Equals($existingHeaderMatch.Groups["url"].Value, $PromptUrl, [System.StringComparison]::Ordinal) `
+        -and $compatiblePromptUrls.Contains($existingPromptUrl) `
         -and [string]::Equals($existingHeaderMatch.Groups["version"].Value, $serverVersion, [System.StringComparison]::Ordinal)
 
     if ($alreadyCurrentByVersion) {
@@ -51,10 +83,12 @@ if ($existingBlockMatch.Success) {
             Updated = $false
             PromptFetched = $false
             PromptUrl = $PromptUrl
+            ExistingPromptUrl = $existingPromptUrl
             VersionUrl = $VersionUrl
             TargetPath = [System.IO.Path]::GetFullPath($TargetPath)
             Version = $serverVersion
             Sha256 = $existingHeaderMatch.Groups["sha256"].Value
+            Reason = "VersionMatch"
         } | ConvertTo-Json -Compress
         return
     }

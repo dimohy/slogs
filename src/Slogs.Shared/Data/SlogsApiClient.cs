@@ -319,6 +319,9 @@ public sealed class SlogsApiClient
             ? await backend.GetUsersAsync(userNames)
             : await PostJsonAsync<List<AuthUser>, UserNamesRequest>("api/users/by-names", new UserNamesRequest(userNames.ToArray())) ?? [];
 
+    public async Task<AdminUserUsageResponse?> GetAdminUserUsageAsync()
+        => backend is not null ? await backend.GetAdminUserUsageAsync() : await GetJsonAsync<AdminUserUsageResponse>("api/admin/users/llm-wiki-usage");
+
     public async Task<IReadOnlyList<string>> GetFollowingAsync(string followerUser)
         => backend is not null ? await backend.GetFollowingAsync(followerUser) : await GetJsonAsync<List<string>>($"api/users/{EscapePath(followerUser)}/following") ?? [];
 

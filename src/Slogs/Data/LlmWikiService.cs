@@ -9,6 +9,20 @@ using NpgsqlTypes;
 
 namespace Slogs.Data;
 
+public sealed record LlmWikiMcpAuditRequest(
+    string ToolName,
+    string ResponseMode,
+    string? Query,
+    string? CategoryPath,
+    int? RequestedLimit,
+    int? EffectiveLimit,
+    int? MinRelevancePercent,
+    int ResultCount,
+    IReadOnlyList<Guid> ResultIds,
+    int ElapsedMs,
+    int ResponseChars,
+    bool Succeeded = true);
+
 public sealed class LlmWikiService(
     IDbContextFactory<SlogsDbContext> dbFactory,
     EmbeddingGemmaService embeddingService)
@@ -18,10 +32,13 @@ public sealed class LlmWikiService(
     private const int MaxTitleLength = 120;
     private const int MaxSummaryLength = 240;
     private const int MaxCategoryPathLength = 240;
+    private const int MaxRawMetadataLength = 2_000;
     private const int MaxCategorySegmentLength = 48;
     private const int MaxEmbeddingContentLength = 18_000;
     private const int MaxGraphNodesPerEntry = 80;
     private const int MaxGraphNodeLength = 120;
+    private const int MaxAuditInlineLength = 240;
+    private const int MaxAuditResultIds = 5;
     private const string SearchIndexVersion = "2026-06-20-lexical-v3";
     private static readonly string[] KoreanParticleSuffixes =
     [
@@ -93,6 +110,16 @@ public sealed class LlmWikiService(
             CreatedAt = now,
             UpdatedAt = now
         };
+        entry.Sources.Add(CreateSourceRecord(
+            entry.Id,
+            owner,
+            "remember",
+            request.Prompt,
+            request.Content,
+            request.Title,
+            request.Tags,
+            request.CategoryPath,
+            now));
 
         db.LlmWikiEntries.Add(entry);
         await db.SaveChangesAsync(cancellationToken);
@@ -106,7 +133,8 @@ public sealed class LlmWikiService(
         string ownerUserName,
         string idOrSlug,
         LlmWikiUpdateRequest request,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string sourceAction = "update")
     {
         var owner = NormalizeUser(ownerUserName);
         var prompt = TrimToLength(request.Prompt, MaxPromptLength);
@@ -139,6 +167,7 @@ public sealed class LlmWikiService(
         var embedding = await embeddingService.EmbedDocumentAsync(embeddingDocument, cancellationToken);
         var contentHash = ComputeSearchContentHash(embeddingDocument);
         var graphNodes = BuildGraphNodes(title, prompt, content, tags, categoryPath);
+        var now = DateTime.UtcNow;
 
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         entry.Title = title;
@@ -148,7 +177,19 @@ public sealed class LlmWikiService(
         entry.TagsJson = SerializeTags(tags);
         entry.CategoryPath = categoryPath;
         entry.CategoryDepth = categoryDepth;
-        entry.UpdatedAt = DateTime.UtcNow;
+        entry.UpdatedAt = now;
+        var source = CreateSourceRecord(
+            entry.Id,
+            owner,
+            sourceAction,
+            request.Prompt,
+            request.Content,
+            request.Title,
+            request.Tags,
+            request.CategoryPath,
+            now);
+        source.Entry = entry;
+        db.LlmWikiEntrySources.Add(source);
 
         await db.SaveChangesAsync(cancellationToken);
         await StoreEntrySearchIndexAsync(db, entry.Id, owner, contentHash, embedding, graphNodes, cancellationToken);
@@ -295,6 +336,7 @@ public sealed class LlmWikiService(
         var entries = await SearchAsync(ownerUserName, null, NormalizeLimit(limit, 50, 200), cancellationToken: cancellationToken);
         var categories = await GetCategoriesAsync(ownerUserName, cancellationToken);
         var owner = NormalizeUser(ownerUserName);
+        var provenanceByEntryId = await LoadProvenanceSummariesAsync(owner, entries.Select(x => x.Id).ToArray(), cancellationToken);
         var builder = new StringBuilder();
         builder.AppendLine($"# {owner} LLM Wiki");
         builder.AppendLine();
@@ -312,6 +354,7 @@ public sealed class LlmWikiService(
         builder.AppendLine("- Call `llm_wiki_instructions` once after connecting.");
         builder.AppendLine("- Before creating memory, call `llm_wiki_capture` or `llm_wiki_find_related`.");
         builder.AppendLine("- If a related entry exists, read it and use `llm_wiki_merge` or `llm_wiki_update` with the agent-composed final wording.");
+        builder.AppendLine("- Keep raw provenance verifiable: remember, merge, and update requests are preserved as Raw Provenance so retrieval quality and merge quality can be audited later.");
         builder.AppendLine("- Before remember, merge, or update, choose an explicit `categoryPath` such as `project/domain/topic` when the project or topic is known.");
         builder.AppendLine("- Use `llm_wiki_remember` only for genuinely new durable tacit knowledge.");
         builder.AppendLine("- Before finishing meaningful work, quietly check whether the turn produced tacit knowledge that future LLMs can document, automate, reproduce, or use for decisions.");
@@ -357,13 +400,106 @@ public sealed class LlmWikiService(
             foreach (var entry in group)
             {
                 var tags = entry.Tags.Count == 0 ? string.Empty : $" Tags: {string.Join(", ", entry.Tags)}.";
-                builder.AppendLine($"- [{entry.Title}](llm-wiki://entries/{entry.Id}): {entry.Summary}{tags}");
+                var provenance = provenanceByEntryId.TryGetValue(entry.Id, out var provenanceSummary)
+                    ? $" Provenance: {provenanceSummary}."
+                    : " Provenance: none.";
+                builder.AppendLine($"- [{entry.Title}](llm-wiki://entries/{entry.Id}): {entry.Summary}{tags}{provenance}");
             }
 
             builder.AppendLine();
         }
 
         return builder.ToString();
+    }
+
+    public async Task RecordMcpAuditAsync(
+        string ownerUserName,
+        LlmWikiMcpAuditRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var owner = NormalizeUser(ownerUserName);
+        var toolName = TrimToLength(CleanAuditInlineText(request.ToolName), 80);
+        var responseMode = TrimToLength(CleanAuditInlineText(request.ResponseMode), 80);
+        if (string.IsNullOrWhiteSpace(owner) || string.IsNullOrWhiteSpace(toolName))
+        {
+            throw new InvalidOperationException("LLM Wiki MCP 감사 기록에는 로그인 사용자와 도구 이름이 필요합니다.");
+        }
+
+        var normalizedQuery = NormalizeAuditQuery(request.Query);
+        var queryPreview = TrimToLength(CleanAuditInlineText(normalizedQuery), MaxAuditInlineLength);
+        var queryHash = string.IsNullOrWhiteSpace(normalizedQuery) ? string.Empty : ComputeAuditHash(normalizedQuery);
+        var categoryPath = TrimToLength(CleanAuditInlineText(request.CategoryPath), MaxCategoryPathLength);
+        var resultIds = request.ResultIds
+            .Where(x => x != Guid.Empty)
+            .Take(MaxAuditResultIds)
+            .Select(x => x.ToString())
+            .ToArray();
+        var resultIdsJson = JsonSerializer.Serialize(resultIds, GetJsonTypeInfo<string[]>());
+
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.CommandText =
+            """
+            INSERT INTO "LlmWikiMcpAudits"
+                ("Id", "OwnerUserName", "ToolName", "ResponseMode", "QueryHash", "QueryPreview",
+                 "CategoryPath", "RequestedLimit", "EffectiveLimit", "MinRelevancePercent",
+                 "ResultCount", "ResultIdsJson", "ElapsedMs", "ResponseChars", "Succeeded", "CreatedAt")
+            VALUES
+                (@id, @owner, @toolName, @responseMode, @queryHash, @queryPreview,
+                 @categoryPath, @requestedLimit, @effectiveLimit, @minRelevancePercent,
+                 @resultCount, @resultIdsJson, @elapsedMs, @responseChars, @succeeded, @createdAt);
+            """;
+        command.Parameters.Add(new NpgsqlParameter("id", Guid.NewGuid()));
+        command.Parameters.Add(new NpgsqlParameter("owner", owner));
+        command.Parameters.Add(new NpgsqlParameter("toolName", toolName));
+        command.Parameters.Add(new NpgsqlParameter("responseMode", responseMode));
+        command.Parameters.Add(new NpgsqlParameter("queryHash", queryHash));
+        command.Parameters.Add(new NpgsqlParameter("queryPreview", queryPreview));
+        command.Parameters.Add(new NpgsqlParameter("categoryPath", categoryPath));
+        command.Parameters.Add(new NpgsqlParameter("requestedLimit", request.RequestedLimit is int requestedLimit ? requestedLimit : (object)DBNull.Value));
+        command.Parameters.Add(new NpgsqlParameter("effectiveLimit", request.EffectiveLimit is int effectiveLimit ? effectiveLimit : (object)DBNull.Value));
+        command.Parameters.Add(new NpgsqlParameter("minRelevancePercent", request.MinRelevancePercent is int minRelevancePercent ? minRelevancePercent : (object)DBNull.Value));
+        command.Parameters.Add(new NpgsqlParameter("resultCount", Math.Max(0, request.ResultCount)));
+        command.Parameters.Add(new NpgsqlParameter("resultIdsJson", NpgsqlDbType.Jsonb) { Value = resultIdsJson });
+        command.Parameters.Add(new NpgsqlParameter("elapsedMs", Math.Clamp(request.ElapsedMs, 0, int.MaxValue)));
+        command.Parameters.Add(new NpgsqlParameter("responseChars", Math.Clamp(request.ResponseChars, 0, int.MaxValue)));
+        command.Parameters.Add(new NpgsqlParameter("succeeded", request.Succeeded));
+        command.Parameters.Add(new NpgsqlParameter("createdAt", DateTime.UtcNow));
+
+        await EnsureConnectionOpenAsync(db, cancellationToken);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private async Task<Dictionary<Guid, string>> LoadProvenanceSummariesAsync(
+        string owner,
+        IReadOnlyCollection<Guid> entryIds,
+        CancellationToken cancellationToken)
+    {
+        if (entryIds.Count == 0)
+        {
+            return [];
+        }
+
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        var sources = await db.LlmWikiEntrySources
+            .AsNoTracking()
+            .Where(x => x.OwnerUserName == owner && entryIds.Contains(x.EntryId))
+            .OrderBy(x => x.CreatedAt)
+            .Select(x => new { x.EntryId, x.Action })
+            .ToListAsync(cancellationToken);
+
+        return sources
+            .GroupBy(x => x.EntryId)
+            .ToDictionary(
+                x => x.Key,
+                x =>
+                {
+                    var actions = x
+                        .Select(source => source.Action)
+                        .Distinct(StringComparer.Ordinal)
+                        .ToList();
+                    return $"{x.Count()} raw record{(x.Count() == 1 ? string.Empty : "s")} ({string.Join(", ", actions)})";
+                });
     }
 
     public async Task<IReadOnlyList<LlmWikiTokenResponse>> GetTokensAsync(
@@ -506,6 +642,48 @@ public sealed class LlmWikiService(
             builder.AppendLine(entry.Content);
         }
 
+        if (entry.Sources.Count > 0)
+        {
+            builder.AppendLine();
+            builder.AppendLine("## Raw Provenance");
+            builder.AppendLine();
+            var index = 1;
+            foreach (var source in entry.Sources.OrderBy(x => x.CreatedAt))
+            {
+                builder.AppendLine($"### {index}. {source.Action} at {source.CreatedAt:O}");
+                builder.AppendLine();
+                if (!string.IsNullOrWhiteSpace(source.Title))
+                {
+                    builder.AppendLine($"- title: {source.Title}");
+                }
+
+                if (!string.IsNullOrWhiteSpace(source.Tags))
+                {
+                    builder.AppendLine($"- tags: {source.Tags}");
+                }
+
+                if (!string.IsNullOrWhiteSpace(source.CategoryPath))
+                {
+                    builder.AppendLine($"- categoryPath: {source.CategoryPath}");
+                }
+
+                builder.AppendLine();
+                builder.AppendLine("#### Raw Prompt");
+                builder.AppendLine();
+                builder.AppendLine(source.Prompt);
+                if (source.Content is not null)
+                {
+                    builder.AppendLine();
+                    builder.AppendLine("#### Raw Content");
+                    builder.AppendLine();
+                    builder.AppendLine(source.Content);
+                }
+
+                builder.AppendLine();
+                index++;
+            }
+        }
+
         return builder.ToString();
     }
 
@@ -544,7 +722,22 @@ public sealed class LlmWikiService(
             entry.CreatedAt,
             entry.UpdatedAt,
             entry.LastAccessedAt,
-            entry.AccessCount);
+            entry.AccessCount,
+            entry.Sources
+                .OrderBy(x => x.CreatedAt)
+                .Select(ToSourceResponse)
+                .ToList());
+
+    private static LlmWikiSourceResponse ToSourceResponse(LlmWikiEntrySourceRecord source)
+        => new(
+            source.Id,
+            source.Action,
+            source.Prompt,
+            source.Content,
+            source.Title,
+            source.Tags,
+            source.CategoryPath,
+            source.CreatedAt);
 
     private static LlmWikiSearchResult ToSearchResult(LlmWikiEntryRecord entry, int? relevancePercent = null)
         => new(
@@ -1225,12 +1418,48 @@ public sealed class LlmWikiService(
         if (Guid.TryParse(key, out var id))
         {
             return await db.LlmWikiEntries
+                .Include(x => x.Sources)
                 .FirstOrDefaultAsync(x => x.OwnerUserName == owner && x.Id == id, cancellationToken);
         }
 
         return await db.LlmWikiEntries
+            .Include(x => x.Sources)
             .FirstOrDefaultAsync(x => x.OwnerUserName == owner && x.Slug == key, cancellationToken);
     }
+
+    private static LlmWikiEntrySourceRecord CreateSourceRecord(
+        Guid entryId,
+        string owner,
+        string action,
+        string prompt,
+        string? content,
+        string? title,
+        string? tags,
+        string? categoryPath,
+        DateTime createdAt)
+        => new()
+        {
+            Id = Guid.NewGuid(),
+            EntryId = entryId,
+            OwnerUserName = owner,
+            Action = NormalizeSourceAction(action),
+            Prompt = TrimToLength(prompt, MaxPromptLength),
+            Content = content is null ? null : TrimToLength(content, MaxContentLength),
+            Title = title is null ? null : TrimToLength(title, MaxTitleLength),
+            Tags = tags is null ? null : TrimToLength(tags, MaxRawMetadataLength),
+            CategoryPath = categoryPath is null ? null : TrimToLength(categoryPath, MaxCategoryPathLength),
+            CreatedAt = createdAt
+        };
+
+    private static string NormalizeSourceAction(string action)
+        => action switch
+        {
+            "remember" => "remember",
+            "update" => "update",
+            "merge" => "merge",
+            "legacy-baseline" => "legacy-baseline",
+            _ => throw new InvalidOperationException($"Unsupported LLM Wiki source action: {action}")
+        };
 
     private static string CreateSlug(string value)
     {
@@ -1335,6 +1564,15 @@ public sealed class LlmWikiService(
 
     private static string HashToken(string token)
         => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token))).ToLowerInvariant();
+
+    private static string ComputeAuditHash(string value)
+        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
+
+    private static string NormalizeAuditQuery(string? value)
+        => (value ?? string.Empty).ReplaceLineEndings("\n").Trim();
+
+    private static string CleanAuditInlineText(string? value)
+        => (value ?? string.Empty).ReplaceLineEndings(" ").Trim();
 
     private static string TrimToLength(string? value, int maxLength)
     {
