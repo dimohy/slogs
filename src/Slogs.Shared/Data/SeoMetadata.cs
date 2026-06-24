@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text;
 using System.Xml.Linq;
 
 namespace Slogs.Data;
@@ -22,7 +23,7 @@ public static class SeoMetadata
     public static string AbsoluteUrl(string baseUri, string? pathOrUrl)
         => CreateAbsoluteUri(baseUri, pathOrUrl).ToString();
 
-    private static string EscapedAbsoluteUrl(string baseUri, string? pathOrUrl)
+    public static string EscapedAbsoluteUrl(string baseUri, string? pathOrUrl)
         => CreateAbsoluteUri(baseUri, pathOrUrl).AbsoluteUri;
 
     private static Uri CreateAbsoluteUri(string baseUri, string? pathOrUrl)
@@ -46,7 +47,9 @@ public static class SeoMetadata
 
     public static string BuildRobotsTxt(string baseUri)
     {
-        var sitemapUrl = AbsoluteUrl(baseUri, "/sitemap.xml");
+        var sitemapUrl = EscapedAbsoluteUrl(baseUri, "/sitemap.xml");
+        var llmsUrl = EscapedAbsoluteUrl(baseUri, "/llms.txt");
+        var llmsFullUrl = EscapedAbsoluteUrl(baseUri, "/llms-full.txt");
         return string.Join('\n', [
             "User-agent: *",
             "Allow: /",
@@ -57,6 +60,8 @@ public static class SeoMetadata
             "Disallow: /login",
             "Disallow: /register",
             $"Sitemap: {sitemapUrl}",
+            $"# LLM guide: {llmsUrl}",
+            $"# Full LLM Markdown export: {llmsFullUrl}",
             string.Empty
         ]);
     }
@@ -92,9 +97,9 @@ public static class SeoMetadata
             ["@context"] = "https://schema.org",
             ["@type"] = "WebSite",
             ["name"] = SiteName,
-            ["url"] = AbsoluteUrl(baseUri, "/"),
+            ["url"] = EscapedAbsoluteUrl(baseUri, "/"),
             ["description"] = DefaultDescription,
-            ["image"] = AbsoluteUrl(baseUri, SiteIconPath),
+            ["image"] = EscapedAbsoluteUrl(baseUri, SiteIconPath),
             ["inLanguage"] = "ko-KR",
             ["potentialAction"] = new Dictionary<string, object?>
             {
@@ -112,14 +117,14 @@ public static class SeoMetadata
             ["@context"] = "https://schema.org",
             ["@type"] = "CollectionPage",
             ["name"] = name,
-            ["url"] = AbsoluteUrl(baseUri, path),
+            ["url"] = EscapedAbsoluteUrl(baseUri, path),
             ["description"] = description,
             ["inLanguage"] = "ko-KR",
             ["isPartOf"] = new Dictionary<string, object?>
             {
                 ["@type"] = "WebSite",
                 ["name"] = SiteName,
-                ["url"] = AbsoluteUrl(baseUri, "/")
+                ["url"] = EscapedAbsoluteUrl(baseUri, "/")
             }
         });
     }
@@ -131,14 +136,14 @@ public static class SeoMetadata
             ["@context"] = "https://schema.org",
             ["@type"] = "ProfilePage",
             ["name"] = displayName,
-            ["url"] = AbsoluteUrl(baseUri, path),
+            ["url"] = EscapedAbsoluteUrl(baseUri, path),
             ["description"] = description,
             ["inLanguage"] = "ko-KR",
             ["mainEntity"] = new Dictionary<string, object?>
             {
                 ["@type"] = "Person",
                 ["name"] = displayName,
-                ["image"] = string.IsNullOrWhiteSpace(imageUrl) ? null : AbsoluteUrl(baseUri, imageUrl)
+                ["image"] = string.IsNullOrWhiteSpace(imageUrl) ? null : EscapedAbsoluteUrl(baseUri, imageUrl)
             }
         });
     }
@@ -151,23 +156,23 @@ public static class SeoMetadata
             ["@type"] = "BlogPosting",
             ["headline"] = post.Title,
             ["description"] = post.Summary,
-            ["url"] = AbsoluteUrl(baseUri, path),
-            ["image"] = string.IsNullOrWhiteSpace(imageUrl) ? null : AbsoluteUrl(baseUri, imageUrl),
+            ["url"] = EscapedAbsoluteUrl(baseUri, path),
+            ["image"] = string.IsNullOrWhiteSpace(imageUrl) ? null : EscapedAbsoluteUrl(baseUri, imageUrl),
             ["author"] = new Dictionary<string, object?>
             {
                 ["@type"] = "Person",
                 ["name"] = post.Author,
-                ["url"] = AbsoluteUrl(baseUri, $"/@{Uri.EscapeDataString(post.Author)}")
+                ["url"] = EscapedAbsoluteUrl(baseUri, WriterPath(post.Author))
             },
             ["publisher"] = new Dictionary<string, object?>
             {
                 ["@type"] = "Organization",
                 ["name"] = SiteName,
-                ["url"] = AbsoluteUrl(baseUri, "/"),
+                ["url"] = EscapedAbsoluteUrl(baseUri, "/"),
                 ["logo"] = new Dictionary<string, object?>
                 {
                     ["@type"] = "ImageObject",
-                    ["url"] = AbsoluteUrl(baseUri, SiteIconPath)
+                    ["url"] = EscapedAbsoluteUrl(baseUri, SiteIconPath)
                 }
             },
             ["datePublished"] = FormatDateTime(post.PublishedAt),
@@ -177,9 +182,157 @@ public static class SeoMetadata
             ["mainEntityOfPage"] = new Dictionary<string, object?>
             {
                 ["@type"] = "WebPage",
-                ["@id"] = AbsoluteUrl(baseUri, path)
+                ["@id"] = EscapedAbsoluteUrl(baseUri, path)
             }
         });
+    }
+
+    public static string WriterPath(string author)
+        => $"/@{Uri.EscapeDataString(author)}";
+
+    public static string PostPath(BlogPost post)
+        => $"{WriterPath(post.Author)}/{Uri.EscapeDataString(post.Slug)}";
+
+    public static string PostMarkdownPath(BlogPost post)
+        => $"{PostPath(post)}.md";
+
+    public static string BuildLlmsTxt(
+        string baseUri,
+        IEnumerable<BlogPost> posts,
+        IEnumerable<(string Tag, int Count)> tags,
+        IEnumerable<(string Series, int Count)> series,
+        IEnumerable<(string Author, int Count)> authors)
+    {
+        var publicPosts = posts
+            .Where(post => !post.IsDraft)
+            .OrderByDescending(post => post.PublishedAt)
+            .ThenBy(post => post.Title, StringComparer.OrdinalIgnoreCase)
+            .Take(100)
+            .ToList();
+        var tagList = tags.OrderByDescending(tag => tag.Count).ThenBy(tag => tag.Tag, StringComparer.OrdinalIgnoreCase).Take(40).ToList();
+        var seriesList = series.OrderByDescending(item => item.Count).ThenBy(item => item.Series, StringComparer.OrdinalIgnoreCase).Take(40).ToList();
+        var authorList = authors.OrderByDescending(author => author.Count).ThenBy(author => author.Author, StringComparer.OrdinalIgnoreCase).Take(40).ToList();
+
+        var builder = new StringBuilder();
+        builder.AppendLine("# slogs");
+        builder.AppendLine();
+        builder.AppendLine("> slogs is a Korean developer blogging service for Markdown posts, Slogger home pages, tag and series discovery, social reading, Slogs MCP, and LLM Wiki workflows.");
+        builder.AppendLine();
+        builder.AppendLine("Primary language: ko-KR.");
+        builder.AppendLine($"Canonical site: {EscapedAbsoluteUrl(baseUri, "/")}");
+        builder.AppendLine("Only public, published content is listed here. Authenticated pages, drafts, editor routes, and account pages are intentionally excluded.");
+        builder.AppendLine();
+        builder.AppendLine("## AI-readable exports");
+        builder.AppendLine();
+        AppendMarkdownLink(builder, "Full public Markdown export", EscapedAbsoluteUrl(baseUri, "/llms-full.txt"), "Single Markdown export containing the current public post corpus.");
+        AppendMarkdownLink(builder, "Sitemap", EscapedAbsoluteUrl(baseUri, "/sitemap.xml"), "Complete public URL set for conventional crawlers.");
+        AppendMarkdownLink(builder, "Robots", EscapedAbsoluteUrl(baseUri, "/robots.txt"), "Crawler access guidance.");
+        AppendMarkdownLink(builder, "Slogs MCP prompt", EscapedAbsoluteUrl(baseUri, "/prompts/slogs-mcp.md"), "Korean Agent policy prompt for connecting Slogs MCP and LLM Wiki.");
+        builder.AppendLine();
+        builder.AppendLine("## Core pages");
+        builder.AppendLine();
+        AppendMarkdownLink(builder, "Home", EscapedAbsoluteUrl(baseUri, "/"), "Latest public posts and discovery navigation.");
+        AppendMarkdownLink(builder, "Recent posts", EscapedAbsoluteUrl(baseUri, "/recent"), "Newest public posts.");
+        AppendMarkdownLink(builder, "Trending posts", EscapedAbsoluteUrl(baseUri, "/trending"), "Popular public posts.");
+        AppendMarkdownLink(builder, "Recommended posts", EscapedAbsoluteUrl(baseUri, "/recommended"), "Recommended public posts.");
+        AppendMarkdownLink(builder, "Tags", EscapedAbsoluteUrl(baseUri, "/tag"), "Public tag discovery.");
+        AppendMarkdownLink(builder, "Series", EscapedAbsoluteUrl(baseUri, "/series"), "Public series discovery.");
+        AppendMarkdownLink(builder, "Writers", EscapedAbsoluteUrl(baseUri, "/writer"), "Public Slogger directory.");
+
+        if (publicPosts.Count > 0)
+        {
+            builder.AppendLine();
+            builder.AppendLine("## Public posts");
+            builder.AppendLine();
+            foreach (var post in publicPosts)
+            {
+                var description = $"{NormalizePlainText(post.Summary, 260)} Published {FormatDate(post.PublishedAt)} by @{post.Author}.";
+                if (post.Tags.Count > 0)
+                {
+                    description += $" Tags: {string.Join(", ", post.Tags.Select(tag => $"#{tag}"))}.";
+                }
+
+                AppendMarkdownLink(
+                    builder,
+                    post.Title,
+                    EscapedAbsoluteUrl(baseUri, PostMarkdownPath(post)),
+                    description);
+            }
+        }
+
+        AppendTopicSection(builder, "Tags", tagList.Select(tag => (tag.Tag, EscapedAbsoluteUrl(baseUri, $"/tag/{Uri.EscapeDataString(tag.Tag)}"), $"{tag.Count} public posts.")));
+        AppendTopicSection(builder, "Series", seriesList.Select(item => (item.Series, EscapedAbsoluteUrl(baseUri, $"/series/{Uri.EscapeDataString(item.Series)}"), $"{item.Count} public posts.")));
+        AppendTopicSection(builder, "Authors", authorList.Select(author => ($"@{author.Author}", EscapedAbsoluteUrl(baseUri, WriterPath(author.Author)), $"{author.Count} public posts.")));
+
+        return builder.ToString();
+    }
+
+    public static string BuildLlmsFullTxt(string baseUri, IEnumerable<BlogPost> posts)
+    {
+        var publicPosts = posts
+            .Where(post => !post.IsDraft)
+            .OrderByDescending(post => post.PublishedAt)
+            .ThenBy(post => post.Title, StringComparer.OrdinalIgnoreCase)
+            .Take(500)
+            .ToList();
+
+        var builder = new StringBuilder();
+        builder.AppendLine("# slogs public Markdown export");
+        builder.AppendLine();
+        builder.AppendLine("> Current public Markdown export for slogs. The site is primarily Korean and publishes developer-focused posts, Slogs MCP guidance, and LLM Wiki related content.");
+        builder.AppendLine();
+        builder.AppendLine($"Canonical site: {EscapedAbsoluteUrl(baseUri, "/")}");
+        builder.AppendLine($"Source index: {EscapedAbsoluteUrl(baseUri, "/llms.txt")}");
+        builder.AppendLine($"Generated: {DateTime.UtcNow:O}");
+        builder.AppendLine();
+
+        foreach (var post in publicPosts)
+        {
+            builder.AppendLine("---");
+            builder.AppendLine();
+            builder.Append(BuildPostMarkdown(baseUri, post));
+            builder.AppendLine();
+        }
+
+        return builder.ToString();
+    }
+
+    public static string BuildPostMarkdown(string baseUri, BlogPost post)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine($"# {NormalizePlainText(post.Title, 160)}");
+        builder.AppendLine();
+        builder.AppendLine($"- Canonical URL: {EscapedAbsoluteUrl(baseUri, PostPath(post))}");
+        builder.AppendLine($"- Markdown URL: {EscapedAbsoluteUrl(baseUri, PostMarkdownPath(post))}");
+        builder.AppendLine($"- Author: @{post.Author}");
+        builder.AppendLine($"- Published: {FormatDate(post.PublishedAt)}");
+        builder.AppendLine($"- Updated: {FormatDate(post.UpdatedAt)}");
+        builder.AppendLine($"- Read time: {post.ReadTimeMinutes} minutes");
+        if (post.Tags.Count > 0)
+        {
+            builder.AppendLine($"- Tags: {string.Join(", ", post.Tags.Select(tag => $"#{tag}"))}");
+        }
+
+        if (post.Series.Count > 0)
+        {
+            builder.AppendLine($"- Series: {string.Join(", ", post.Series)}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(post.ThumbnailUrl))
+        {
+            builder.AppendLine($"- Representative image: {EscapedAbsoluteUrl(baseUri, post.ThumbnailUrl)}");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("## Summary");
+        builder.AppendLine();
+        builder.AppendLine(NormalizePlainText(post.Summary, 500));
+        builder.AppendLine();
+        builder.AppendLine("## Body");
+        builder.AppendLine();
+        builder.AppendLine(string.IsNullOrWhiteSpace(post.Body) ? "내용이 없습니다." : post.Body.Trim());
+        builder.AppendLine();
+        return builder.ToString();
     }
 
     public static string NormalizeDescription(string? value, int maxLength = 180)
@@ -211,4 +364,48 @@ public static class SeoMetadata
             ? DateTime.SpecifyKind(dateTime, DateTimeKind.Utc)
             : dateTime.ToUniversalTime();
     }
+
+    private static void AppendTopicSection(StringBuilder builder, string heading, IEnumerable<(string Label, string Url, string Description)> items)
+    {
+        var list = items.ToList();
+        if (list.Count == 0)
+        {
+            return;
+        }
+
+        builder.AppendLine();
+        builder.AppendLine($"## {heading}");
+        builder.AppendLine();
+        foreach (var item in list)
+        {
+            AppendMarkdownLink(builder, item.Label, item.Url, item.Description);
+        }
+    }
+
+    private static void AppendMarkdownLink(StringBuilder builder, string label, string url, string description)
+    {
+        builder.Append("- [");
+        builder.Append(EscapeMarkdownLinkLabel(NormalizePlainText(label, 120)));
+        builder.Append("](");
+        builder.Append(url);
+        builder.Append("): ");
+        builder.AppendLine(NormalizePlainText(description, 320));
+    }
+
+    private static string NormalizePlainText(string? value, int maxLength)
+    {
+        var normalized = string.Join(' ', (value ?? string.Empty)
+            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        if (normalized.Length <= maxLength)
+        {
+            return normalized;
+        }
+
+        return $"{normalized[..Math.Max(0, maxLength - 1)].TrimEnd()}…";
+    }
+
+    private static string EscapeMarkdownLinkLabel(string value)
+        => value.Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("[", "\\[", StringComparison.Ordinal)
+            .Replace("]", "\\]", StringComparison.Ordinal);
 }

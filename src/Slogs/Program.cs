@@ -160,6 +160,21 @@ if (publicBaseUri is not null)
     });
 }
 
+app.Use(async (httpContext, next) =>
+{
+    if (ShouldExposeLlmsDiscoveryHeaders(httpContext.Request))
+    {
+        httpContext.Response.OnStarting(() =>
+        {
+            httpContext.Response.Headers["Link"] = "</llms.txt>; rel=\"alternate llms-txt\"; type=\"text/markdown\"; title=\"llms.txt\", </llms-full.txt>; rel=\"alternate llms-full-txt\"; type=\"text/markdown\"; title=\"llms-full.txt\"";
+            httpContext.Response.Headers["X-Llms-Txt"] = "/llms.txt";
+            return Task.CompletedTask;
+        });
+    }
+
+    await next(httpContext);
+});
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -462,6 +477,95 @@ app.MapGet(SlogsMcpPolicyPrompt.VersionPath, (HttpContext httpContext) =>
         "text/plain; charset=utf-8");
 });
 
+app.MapGet("/llms.txt", async (
+    HttpContext httpContext,
+    BlogService blogService) =>
+{
+    var posts = await blogService.GetLatestAsync(500);
+    var tags = await blogService.GetTagCloudAsync(100);
+    var series = await blogService.GetSeriesCloudAsync(100);
+    var authors = await blogService.GetAuthorCloudAsync(100);
+
+    httpContext.Response.Headers.CacheControl = "public, max-age=600";
+    return Results.Text(
+        SeoMetadata.BuildLlmsTxt(DefaultProductionPublicBaseUrl, posts, tags, series, authors),
+        "text/markdown; charset=utf-8");
+});
+
+app.MapGet("/.well-known/llms.txt", async (
+    HttpContext httpContext,
+    BlogService blogService) =>
+{
+    var posts = await blogService.GetLatestAsync(500);
+    var tags = await blogService.GetTagCloudAsync(100);
+    var series = await blogService.GetSeriesCloudAsync(100);
+    var authors = await blogService.GetAuthorCloudAsync(100);
+
+    httpContext.Response.Headers.CacheControl = "public, max-age=600";
+    return Results.Text(
+        SeoMetadata.BuildLlmsTxt(DefaultProductionPublicBaseUrl, posts, tags, series, authors),
+        "text/markdown; charset=utf-8");
+});
+
+app.MapGet("/llms-full.txt", async (
+    HttpContext httpContext,
+    BlogService blogService) =>
+{
+    var posts = await blogService.GetLatestAsync(500);
+
+    httpContext.Response.Headers.CacheControl = "public, max-age=600";
+    return Results.Text(
+        SeoMetadata.BuildLlmsFullTxt(DefaultProductionPublicBaseUrl, posts),
+        "text/markdown; charset=utf-8");
+});
+
+app.MapGet("/.well-known/llms-full.txt", async (
+    HttpContext httpContext,
+    BlogService blogService) =>
+{
+    var posts = await blogService.GetLatestAsync(500);
+
+    httpContext.Response.Headers.CacheControl = "public, max-age=600";
+    return Results.Text(
+        SeoMetadata.BuildLlmsFullTxt(DefaultProductionPublicBaseUrl, posts),
+        "text/markdown; charset=utf-8");
+});
+
+app.MapGet("/@{author}/{slug}.md", async (
+    HttpContext httpContext,
+    BlogService blogService,
+    string author,
+    string slug) =>
+{
+    var post = await blogService.GetBySlugAsync(slug);
+    if (post is null || post.IsDraft || !post.Author.Equals(author, StringComparison.OrdinalIgnoreCase))
+    {
+        return Results.NotFound();
+    }
+
+    httpContext.Response.Headers.CacheControl = "public, max-age=600";
+    return Results.Text(
+        SeoMetadata.BuildPostMarkdown(DefaultProductionPublicBaseUrl, post),
+        "text/markdown; charset=utf-8");
+});
+
+app.MapGet("/post/{slug}.md", async (
+    HttpContext httpContext,
+    BlogService blogService,
+    string slug) =>
+{
+    var post = await blogService.GetBySlugAsync(slug);
+    if (post is null || post.IsDraft)
+    {
+        return Results.NotFound();
+    }
+
+    httpContext.Response.Headers.CacheControl = "public, max-age=600";
+    return Results.Text(
+        SeoMetadata.BuildPostMarkdown(DefaultProductionPublicBaseUrl, post),
+        "text/markdown; charset=utf-8");
+});
+
 app.MapGet("/sitemap.xml", async (
     BlogService blogService,
     AuthService authService) =>
@@ -527,6 +631,19 @@ static string GetFormValue(IFormCollection form, string name)
 
 static string BuildAuthRedirect(string path, string returnUrl, string error)
     => $"{path}?returnUrl={Uri.EscapeDataString(returnUrl)}&error={Uri.EscapeDataString(error)}";
+
+static bool ShouldExposeLlmsDiscoveryHeaders(HttpRequest request)
+{
+    if (!HttpMethods.IsGet(request.Method) && !HttpMethods.IsHead(request.Method))
+    {
+        return false;
+    }
+
+    return !request.Path.StartsWithSegments("/api")
+        && !request.Path.StartsWithSegments("/mcp")
+        && !request.Path.StartsWithSegments("/auth")
+        && !request.Path.StartsWithSegments("/editor");
+}
 
 static async Task<GoogleExternalLoginInfo?> ReadGoogleExternalLoginAsync(HttpContext httpContext)
 {

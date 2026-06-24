@@ -68,11 +68,11 @@
         ? "noindex, nofollow"
         : "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1";
 
-    private string CanonicalUrl => SeoMetadata.AbsoluteUrl(Navigation.BaseUri, GetCanonicalPath());
+    private string CanonicalUrl => SeoMetadata.EscapedAbsoluteUrl(Navigation.BaseUri, GetCanonicalPath());
 
     private string? AbsoluteImageUrl => string.IsNullOrWhiteSpace(ImageUrl)
         ? null
-        : SeoMetadata.AbsoluteUrl(Navigation.BaseUri, ImageUrl);
+        : SeoMetadata.EscapedAbsoluteUrl(Navigation.BaseUri, ImageUrl);
 
     private string GetCanonicalPath()
     {
