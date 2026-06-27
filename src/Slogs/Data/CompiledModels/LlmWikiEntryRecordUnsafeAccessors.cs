@@ -30,11 +30,17 @@ namespace Slogs.Data.CompiledModels
         [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "<LastAccessedAt>k__BackingField")]
         public static extern ref DateTime? LastAccessedAt(LlmWikiEntryRecord @this);
 
+        [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "<IsPublic>k__BackingField")]
+        public static extern ref bool IsPublic(LlmWikiEntryRecord @this);
+
         [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "<OwnerUserName>k__BackingField")]
         public static extern ref string OwnerUserName(LlmWikiEntryRecord @this);
 
         [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "<Slug>k__BackingField")]
         public static extern ref string Slug(LlmWikiEntryRecord @this);
+
+        [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "<PublishedAt>k__BackingField")]
+        public static extern ref DateTime? PublishedAt(LlmWikiEntryRecord @this);
 
         [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "<SourcePrompt>k__BackingField")]
         public static extern ref string SourcePrompt(LlmWikiEntryRecord @this);

@@ -166,7 +166,13 @@ app.Use(async (httpContext, next) =>
     {
         httpContext.Response.OnStarting(() =>
         {
-            httpContext.Response.Headers["Link"] = "</llms.txt>; rel=\"alternate llms-txt\"; type=\"text/markdown\"; title=\"llms.txt\", </llms-full.txt>; rel=\"alternate llms-full-txt\"; type=\"text/markdown\"; title=\"llms-full.txt\"";
+            httpContext.Response.Headers["Link"] = string.Join(", ", [
+                "</feed.xml>; rel=\"alternate\"; type=\"application/rss+xml\"; title=\"slogs RSS\"",
+                "</atom.xml>; rel=\"alternate\"; type=\"application/atom+xml\"; title=\"slogs Atom\"",
+                "</feed.json>; rel=\"alternate\"; type=\"application/feed+json\"; title=\"slogs JSON Feed\"",
+                "</llms.txt>; rel=\"alternate llms-txt\"; type=\"text/markdown\"; title=\"llms.txt\"",
+                "</llms-full.txt>; rel=\"alternate llms-full-txt\"; type=\"text/markdown\"; title=\"llms-full.txt\""
+            ]);
             httpContext.Response.Headers["X-Llms-Txt"] = "/llms.txt";
             return Task.CompletedTask;
         });
@@ -440,12 +446,14 @@ app.MapPost("/editor/images", async (
     }
 }).DisableAntiforgery();
 
-app.MapGet("/robots.txt", () =>
+var getAndHeadMethods = new[] { HttpMethods.Get, HttpMethods.Head };
+
+app.MapMethods("/robots.txt", getAndHeadMethods, () =>
 {
     return Results.Text(SeoMetadata.BuildRobotsTxt(DefaultProductionPublicBaseUrl), "text/plain; charset=utf-8");
 });
 
-app.MapGet(SlogsMcpPolicyPrompt.PublicPath, (HttpContext httpContext) =>
+app.MapMethods(SlogsMcpPolicyPrompt.PublicPath, getAndHeadMethods, (HttpContext httpContext) =>
 {
     httpContext.Response.Headers.CacheControl = "no-cache";
     return Results.Text(
@@ -453,7 +461,7 @@ app.MapGet(SlogsMcpPolicyPrompt.PublicPath, (HttpContext httpContext) =>
         "text/markdown; charset=utf-8");
 });
 
-app.MapGet(SlogsMcpPolicyPrompt.KoreanPublicPath, (HttpContext httpContext) =>
+app.MapMethods(SlogsMcpPolicyPrompt.KoreanPublicPath, getAndHeadMethods, (HttpContext httpContext) =>
 {
     httpContext.Response.Headers.CacheControl = "no-cache";
     return Results.Text(
@@ -461,7 +469,7 @@ app.MapGet(SlogsMcpPolicyPrompt.KoreanPublicPath, (HttpContext httpContext) =>
         "text/markdown; charset=utf-8");
 });
 
-app.MapGet(SlogsMcpPolicyPrompt.EnglishPublicPath, (HttpContext httpContext) =>
+app.MapMethods(SlogsMcpPolicyPrompt.EnglishPublicPath, getAndHeadMethods, (HttpContext httpContext) =>
 {
     httpContext.Response.Headers.CacheControl = "no-cache";
     return Results.Text(
@@ -469,7 +477,7 @@ app.MapGet(SlogsMcpPolicyPrompt.EnglishPublicPath, (HttpContext httpContext) =>
         "text/markdown; charset=utf-8");
 });
 
-app.MapGet(SlogsMcpPolicyPrompt.VersionPath, (HttpContext httpContext) =>
+app.MapMethods(SlogsMcpPolicyPrompt.VersionPath, getAndHeadMethods, (HttpContext httpContext) =>
 {
     httpContext.Response.Headers.CacheControl = "no-cache";
     return Results.Text(
@@ -477,7 +485,7 @@ app.MapGet(SlogsMcpPolicyPrompt.VersionPath, (HttpContext httpContext) =>
         "text/plain; charset=utf-8");
 });
 
-app.MapGet("/llms.txt", async (
+app.MapMethods("/llms.txt", getAndHeadMethods, async (
     HttpContext httpContext,
     BlogService blogService) =>
 {
@@ -492,7 +500,7 @@ app.MapGet("/llms.txt", async (
         "text/markdown; charset=utf-8");
 });
 
-app.MapGet("/.well-known/llms.txt", async (
+app.MapMethods("/.well-known/llms.txt", getAndHeadMethods, async (
     HttpContext httpContext,
     BlogService blogService) =>
 {
@@ -507,7 +515,7 @@ app.MapGet("/.well-known/llms.txt", async (
         "text/markdown; charset=utf-8");
 });
 
-app.MapGet("/llms-full.txt", async (
+app.MapMethods("/llms-full.txt", getAndHeadMethods, async (
     HttpContext httpContext,
     BlogService blogService) =>
 {
@@ -519,7 +527,7 @@ app.MapGet("/llms-full.txt", async (
         "text/markdown; charset=utf-8");
 });
 
-app.MapGet("/.well-known/llms-full.txt", async (
+app.MapMethods("/.well-known/llms-full.txt", getAndHeadMethods, async (
     HttpContext httpContext,
     BlogService blogService) =>
 {
@@ -531,7 +539,55 @@ app.MapGet("/.well-known/llms-full.txt", async (
         "text/markdown; charset=utf-8");
 });
 
-app.MapGet("/@{author}/{slug}.md", async (
+app.MapMethods("/feed.xml", getAndHeadMethods, async (
+    HttpContext httpContext,
+    BlogService blogService) =>
+{
+    var posts = await blogService.GetLatestAsync(500);
+
+    httpContext.Response.Headers.CacheControl = "public, max-age=600";
+    return Results.Text(
+        SeoMetadata.BuildRssFeedXml(DefaultProductionPublicBaseUrl, posts),
+        "application/rss+xml; charset=utf-8");
+});
+
+app.MapMethods("/rss.xml", getAndHeadMethods, async (
+    HttpContext httpContext,
+    BlogService blogService) =>
+{
+    var posts = await blogService.GetLatestAsync(500);
+
+    httpContext.Response.Headers.CacheControl = "public, max-age=600";
+    return Results.Text(
+        SeoMetadata.BuildRssFeedXml(DefaultProductionPublicBaseUrl, posts),
+        "application/rss+xml; charset=utf-8");
+});
+
+app.MapMethods("/atom.xml", getAndHeadMethods, async (
+    HttpContext httpContext,
+    BlogService blogService) =>
+{
+    var posts = await blogService.GetLatestAsync(500);
+
+    httpContext.Response.Headers.CacheControl = "public, max-age=600";
+    return Results.Text(
+        SeoMetadata.BuildAtomFeedXml(DefaultProductionPublicBaseUrl, posts),
+        "application/atom+xml; charset=utf-8");
+});
+
+app.MapMethods("/feed.json", getAndHeadMethods, async (
+    HttpContext httpContext,
+    BlogService blogService) =>
+{
+    var posts = await blogService.GetLatestAsync(500);
+
+    httpContext.Response.Headers.CacheControl = "public, max-age=600";
+    return Results.Text(
+        SeoMetadata.BuildJsonFeed(DefaultProductionPublicBaseUrl, posts),
+        "application/feed+json; charset=utf-8");
+});
+
+app.MapMethods("/@{author}/{slug}.md", getAndHeadMethods, async (
     HttpContext httpContext,
     BlogService blogService,
     string author,
@@ -549,7 +605,7 @@ app.MapGet("/@{author}/{slug}.md", async (
         "text/markdown; charset=utf-8");
 });
 
-app.MapGet("/post/{slug}.md", async (
+app.MapMethods("/post/{slug}.md", getAndHeadMethods, async (
     HttpContext httpContext,
     BlogService blogService,
     string slug) =>
@@ -566,7 +622,7 @@ app.MapGet("/post/{slug}.md", async (
         "text/markdown; charset=utf-8");
 });
 
-app.MapGet("/sitemap.xml", async (
+app.MapMethods("/sitemap.xml", getAndHeadMethods, async (
     BlogService blogService,
     AuthService authService) =>
 {

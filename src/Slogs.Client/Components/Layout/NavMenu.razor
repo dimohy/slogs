@@ -21,12 +21,14 @@
         <div class="mb-1 px-3 py-2">
             <div class="text-sm font-bold text-slate-900">LLM Wiki</div>
             <div class="mt-2 grid gap-1">
-                <a class='@GetLlmWikiSubMenuClass("usage")'
-                   @onclick="SelectLlmWikiUsageSection"
-                   href="/me/llm-wiki#usage">LLM Wiki 사용법</a>
-                <a class='@GetLlmWikiSubMenuClass("search")'
-                   @onclick="SelectLlmWikiSearchSection"
-                   href="/me/llm-wiki#search">검색</a>
+                <NavLink class="block rounded-md px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+                         ActiveClass="bg-slate-900 text-white hover:bg-slate-900 hover:text-white"
+                         href="/me/llm-wiki"
+                         Match="NavLinkMatch.All">LLM Wiki 사용법</NavLink>
+                <NavLink class="block rounded-md px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+                         ActiveClass="bg-slate-900 text-white hover:bg-slate-900 hover:text-white"
+                         href="/me/llm-wiki/search"
+                         Match="NavLinkMatch.All">검색</NavLink>
             </div>
         </div>
         <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
@@ -87,7 +89,6 @@
     private string[] trendingTags = [];
     private (string Series, int Count, int LikeCount)[] serieses = [];
     private string featuredTagPath = "/tag";
-    private string activeLlmWikiSection = "usage";
     private bool isLoaded;
 
     public SideMenuState? PrerenderedState { get; set; }
@@ -129,37 +130,6 @@
         }
     }
 
-    private string CurrentFragment
-    {
-        get
-        {
-            var fragment = new Uri(Navigation.Uri).Fragment;
-            return string.IsNullOrWhiteSpace(fragment) ? string.Empty : fragment[1..];
-        }
-    }
-
-    private bool IsLlmWikiPath
-        => CurrentPath.Equals("/me/llm-wiki", StringComparison.OrdinalIgnoreCase);
-
-    private string GetLlmWikiSubMenuClass(string section)
-    {
-        var isActive = IsLlmWikiPath && activeLlmWikiSection.Equals(section, StringComparison.OrdinalIgnoreCase);
-        return isActive
-            ? "block rounded-md bg-slate-900 px-2.5 py-1.5 text-xs font-bold text-white"
-            : "block rounded-md px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900";
-    }
-
-    private void SelectLlmWikiUsageSection()
-        => activeLlmWikiSection = "usage";
-
-    private void SelectLlmWikiSearchSection()
-        => activeLlmWikiSection = "search";
-
-    private string ResolveLlmWikiSection()
-        => CurrentFragment.Equals("search", StringComparison.OrdinalIgnoreCase)
-            ? "search"
-            : "usage";
-
     private bool IsPersonalSideContext => ShowMyMenu;
 
     private string TagSectionTitle => IsPersonalSideContext ? "내 태그" : "인기 태그";
@@ -186,7 +156,6 @@
     {
         AuthState.AuthStateChanged += OnAuthStateChanged;
         Navigation.LocationChanged += OnLocationChanged;
-        activeLlmWikiSection = ResolveLlmWikiSection();
 
         await AuthState.EnsureInitializedAsync();
 
@@ -222,7 +191,6 @@
 
     private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
     {
-        activeLlmWikiSection = ResolveLlmWikiSection();
         _ = RefreshSideMenuAsync();
     }
 

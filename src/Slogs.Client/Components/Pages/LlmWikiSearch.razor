@@ -1,0 +1,512 @@
+@page "/me/llm-wiki/search"
+@inject SlogsAuthState AuthState
+@inject SlogsApiClient ApiClient
+@inject NavigationManager Navigation
+
+<PageTitle>LLM Wiki 검색</PageTitle>
+<SeoHead Title="LLM Wiki 검색 | slogs" Description="개인 LLM Wiki를 검색하고 읽습니다." NoIndex="true" />
+
+@if (CurrentUser is null)
+{
+    <p class="rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">로그인이 필요합니다. <a class="font-semibold underline" href="@GetLoginHref()">로그인</a>해 주세요.</p>
+}
+else
+{
+    <section class="space-y-5">
+        <div class="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-900">LLM Wiki 검색</h1>
+                <p class="mt-1 text-sm text-slate-500">@CurrentUser.DisplayName 님의 LLM Wiki를 검색하고 읽습니다.</p>
+            </div>
+        </div>
+
+        <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <h2 class="text-lg font-bold text-slate-900">검색</h2>
+                <div class="flex min-w-0 flex-1 gap-2 md:max-w-lg">
+                    <input class="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-500"
+                           placeholder="검색어"
+                           @bind="searchQuery"
+                           @bind:event="oninput"
+                           @onkeydown="HandleSearchKeyDown" />
+                    <button class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                            type="button"
+                            disabled="@isSearching"
+                            @onclick="SearchEntriesAsync">
+                        @(isSearching ? "검색 중..." : "검색")
+                    </button>
+                </div>
+            </div>
+
+            <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3" data-llm-wiki-category-panel="true">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-sm font-bold text-slate-900">카테고리</p>
+                        <p class="mt-1 text-xs text-slate-500">카테고리로 좁힌 뒤 아래 카드 그리드에서 Wiki를 선택합니다.</p>
+                    </div>
+                    <span class="w-fit rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-slate-500">@($"{categories.Count}개")</span>
+                </div>
+                @if (categories.Count == 0)
+                {
+                    <p class="mt-3 rounded-lg border border-dashed border-slate-300 bg-white px-3 py-4 text-center text-sm text-slate-500">카테고리가 없습니다.</p>
+                }
+                else
+                {
+                    <div class="mt-3 grid max-h-64 gap-2 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                        <button class="@GetCategoryButtonClass(null)"
+                                type="button"
+                                @onclick="() => SelectCategoryAsync(null)">
+                            <span class="min-w-0">
+                                <span class="block truncate">전체</span>
+                                <span class="mt-1 block text-xs font-semibold text-slate-400">모든 카테고리</span>
+                            </span>
+                            <span class="shrink-0 rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-slate-500">@GetTotalCategoryCount()</span>
+                        </button>
+                        @foreach (var category in categories)
+                        {
+                            var categoryHint = GetCategoryHint(category.CategoryPath);
+                            <button class="@GetCategoryButtonClass(category.CategoryPath)"
+                                    type="button"
+                                    title="@categoryHint"
+                                    aria-label="@categoryHint"
+                                    @onclick="() => SelectCategoryAsync(category.CategoryPath)">
+                                <span class="min-w-0 space-y-0.5 cursor-help"
+                                      title="@categoryHint"
+                                      data-llm-wiki-category-path="true">
+                                    @foreach (var segment in GetCategorySegments(category.CategoryPath))
+                                    {
+                                        <span class="block truncate"
+                                              title="@categoryHint"
+                                              data-llm-wiki-category-segment="true">@segment</span>
+                                    }
+                                    <span class="block text-xs font-semibold text-slate-400">@($"깊이 {category.CategoryDepth}")</span>
+                                </span>
+                                <span class="shrink-0 rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-slate-500">@category.Count</span>
+                            </button>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div class="mt-4">
+                <section class="space-y-3" data-llm-wiki-results="true">
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                            <p class="text-sm font-bold text-slate-900">@GetCategoryBreadcrumb(activeCategoryPath ?? string.Empty)</p>
+                            <h3 class="mt-1 text-lg font-bold text-slate-900">Wiki 카드</h3>
+                        </div>
+                        <p class="text-xs font-semibold text-slate-500">@($"{results.Count}개 표시 중")</p>
+                    </div>
+
+                    @if (results.Count == 0)
+                    {
+                        <p class="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">@GetEmptyMessage()</p>
+                    }
+                    else
+                    {
+                        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                            @foreach (var result in results)
+                            {
+                                var resultCategoryHint = GetCategoryHint(result.CategoryPath);
+                                <button class="@GetResultButtonClass(result)"
+                                        data-llm-wiki-card="true"
+                                        type="button"
+                                        @onclick="() => SelectEntryAsync(result)">
+                                    <span class="mb-3 flex items-start justify-between gap-2">
+                                        <span class="min-w-0 cursor-help rounded-lg bg-slate-50 px-2.5 py-1 text-xs font-bold leading-4 text-slate-600"
+                                              title="@resultCategoryHint"
+                                              data-llm-wiki-card-category-path="true">
+                                            @foreach (var segment in GetCategorySegments(result.CategoryPath))
+                                            {
+                                                <span class="block truncate"
+                                                      title="@resultCategoryHint"
+                                                      data-llm-wiki-category-segment="true">@segment</span>
+                                            }
+                                        </span>
+                                        <span class="shrink-0 whitespace-nowrap rounded-full bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-400">@($"깊이 {result.CategoryDepth}")</span>
+                                    </span>
+                                    <span class="flex items-start justify-between gap-2">
+                                        <span class="min-w-0 break-words text-sm font-bold text-slate-900">@result.Title</span>
+                                        @if (result.RelevancePercent is not null)
+                                        {
+                                            <span class="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-800">@($"{result.RelevancePercent}%")</span>
+                                        }
+                                    </span>
+                                    @if (result.RelevancePercent is not null)
+                                    {
+                                        <span class="mt-2 block h-1.5 overflow-hidden rounded-full bg-slate-100">
+                                            <span class="block h-full rounded-full bg-emerald-500" style="@GetRelevanceBarStyle(result.RelevancePercent.Value)"></span>
+                                        </span>
+                                    }
+                                    <span class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                                        <span>@FormatDateTime(result.UpdatedAt)</span>
+                                        <span>@($"{result.AccessCount}회 열람")</span>
+                                    </span>
+                                    @if (!string.IsNullOrWhiteSpace(result.Summary))
+                                    {
+                                        <span class="mt-2 block text-sm leading-5 text-slate-700">@Shorten(result.Summary, 160)</span>
+                                    }
+                                    @if (result.Tags.Count > 0)
+                                    {
+                                        <span class="mt-2 flex flex-wrap gap-1">
+                                            @foreach (var tag in result.Tags)
+                                            {
+                                                <span class="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-900">#@tag</span>
+                                            }
+                                        </span>
+                                    }
+                                </button>
+                            }
+                        </div>
+
+                        <InfiniteScrollSentinel Visible="@(results.Count > 0)"
+                                                HasMore="@hasMoreResults"
+                                                IsLoading="@isLoadingMore"
+                                                OnLoadMore="LoadMoreEntriesAsync"
+                                                LoadingText="다음 Wiki를 불러오는 중..."
+                                                DoneText="더 이상 표시할 Wiki가 없습니다."
+                                                ShowDoneText="@(!hasMoreResults && !isLoading && !isSearching)" />
+                    }
+                </section>
+            </div>
+        </section>
+    </section>
+
+    @if (selectedEntry is not null)
+    {
+        <div class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/40 p-4 backdrop-blur-sm"
+             style="z-index: 1000;"
+             data-llm-wiki-detail-modal="true"
+             role="presentation"
+             @onclick="CloseSelectedEntry">
+            <article class="mx-auto flex w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+                     style="max-height: calc(100vh - 2rem);"
+                     role="dialog"
+                     aria-modal="true"
+                     aria-labelledby="llm-wiki-detail-title"
+                     @onclick:stopPropagation="true">
+                <div class="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+                    <div class="min-w-0">
+                        <p class="mb-2 inline-flex max-w-full cursor-help items-center gap-2 rounded-full bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-600"
+                           title="@GetCategoryHint(selectedEntry.CategoryPath)">
+                            <span class="min-w-0 truncate">@GetCategoryBreadcrumb(selectedEntry.CategoryPath)</span>
+                            <span class="shrink-0 text-slate-400">@($"깊이 {selectedEntry.CategoryDepth}")</span>
+                        </p>
+                        <h3 id="llm-wiki-detail-title" class="break-words text-xl font-bold text-slate-900">@selectedEntry.Title</h3>
+                        <p class="mt-1 text-xs text-slate-500">@FormatDateTime(selectedEntry.UpdatedAt)</p>
+                    </div>
+                    <button class="shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+                            type="button"
+                            @onclick="CloseSelectedEntry">
+                        닫기
+                    </button>
+                </div>
+                <div class="space-y-4 overflow-y-auto px-5 py-4">
+                    @if (selectedEntry.Tags.Count > 0)
+                    {
+                        <div class="flex flex-wrap gap-1">
+                            @foreach (var tag in selectedEntry.Tags)
+                            {
+                                <span class="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-900">#@tag</span>
+                            }
+                        </div>
+                    }
+                    <div>
+                        <p class="text-xs font-bold uppercase text-slate-500">Prompt</p>
+                        <pre class="mt-1 whitespace-pre-wrap break-words rounded-lg bg-slate-50 p-3 text-sm leading-6 text-slate-800">@selectedEntry.SourcePrompt</pre>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(selectedEntry.Content))
+                    {
+                        <div>
+                            <p class="text-xs font-bold uppercase text-slate-500">Content</p>
+                            <pre class="mt-1 whitespace-pre-wrap break-words rounded-lg bg-slate-50 p-3 text-sm leading-6 text-slate-800">@selectedEntry.Content</pre>
+                        </div>
+                    }
+                    @if (selectedEntry.Sources.Count > 0)
+                    {
+                        <div>
+                            <p class="text-xs font-bold uppercase text-slate-500">Raw Provenance</p>
+                            <div class="mt-1 grid gap-2">
+                                @foreach (var source in selectedEntry.Sources.OrderBy(x => x.CreatedAt))
+                                {
+                                    <details class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                        <summary class="cursor-pointer list-none text-sm font-bold text-slate-800">
+                                            <span>@source.Action</span>
+                                            <span class="ml-2 text-xs font-semibold text-slate-500">@FormatDateTime(source.CreatedAt)</span>
+                                        </summary>
+                                        <div class="mt-3 grid gap-3">
+                                            @if (!string.IsNullOrWhiteSpace(source.Title)
+                                                || !string.IsNullOrWhiteSpace(source.Tags)
+                                                || !string.IsNullOrWhiteSpace(source.CategoryPath))
+                                            {
+                                                <div class="grid gap-1 text-xs text-slate-600">
+                                                    @if (!string.IsNullOrWhiteSpace(source.Title))
+                                                    {
+                                                        <p><span class="font-bold text-slate-800">title</span> @source.Title</p>
+                                                    }
+                                                    @if (!string.IsNullOrWhiteSpace(source.Tags))
+                                                    {
+                                                        <p><span class="font-bold text-slate-800">tags</span> @source.Tags</p>
+                                                    }
+                                                    @if (!string.IsNullOrWhiteSpace(source.CategoryPath))
+                                                    {
+                                                        <p><span class="font-bold text-slate-800">categoryPath</span> @source.CategoryPath</p>
+                                                    }
+                                                </div>
+                                            }
+                                            <div>
+                                                <p class="text-xs font-bold uppercase text-slate-500">Raw Prompt</p>
+                                                <pre class="mt-1 whitespace-pre-wrap break-words rounded-lg bg-white p-3 text-sm leading-6 text-slate-800">@source.Prompt</pre>
+                                            </div>
+                                            @if (source.Content is not null)
+                                            {
+                                                <div>
+                                                    <p class="text-xs font-bold uppercase text-slate-500">Raw Content</p>
+                                                    <pre class="mt-1 whitespace-pre-wrap break-words rounded-lg bg-white p-3 text-sm leading-6 text-slate-800">@source.Content</pre>
+                                                </div>
+                                            }
+                                        </div>
+                                    </details>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </article>
+        </div>
+    }
+}
+
+@code {
+    private const int PageSize = 20;
+    private const int MinSearchRelevancePercent = 50;
+
+    private AuthUser? CurrentUser => AuthState.CurrentUser;
+    private List<LlmWikiSearchResult> results = [];
+    private IReadOnlyList<LlmWikiCategorySummary> categories = [];
+    private LlmWikiEntryResponse? selectedEntry;
+    private string searchQuery = string.Empty;
+    private string activeSearchQuery = string.Empty;
+    private string? activeCategoryPath;
+    private bool isLoading;
+    private bool isSearching;
+    private bool isLoadingMore;
+    private bool hasMoreResults;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthState.EnsureInitializedAsync();
+        if (CurrentUser is null)
+        {
+            Navigation.NavigateTo(GetLoginHref());
+            return;
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        if (CurrentUser is null || isLoading)
+        {
+            return;
+        }
+
+        isLoading = true;
+        try
+        {
+            categories = await ApiClient.GetLlmWikiCategoriesAsync(CurrentUser.UserName);
+            activeSearchQuery = NormalizeSearchQuery(searchQuery);
+            await LoadEntriesPageAsync(reset: true);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SearchEntriesAsync()
+    {
+        if (CurrentUser is null || isSearching)
+        {
+            return;
+        }
+
+        isSearching = true;
+        try
+        {
+            activeSearchQuery = NormalizeSearchQuery(searchQuery);
+            await LoadEntriesPageAsync(reset: true);
+        }
+        finally
+        {
+            isSearching = false;
+        }
+    }
+
+    private async Task LoadMoreEntriesAsync()
+    {
+        if (CurrentUser is null || isLoading || isSearching || isLoadingMore || !hasMoreResults)
+        {
+            return;
+        }
+
+        isLoadingMore = true;
+        try
+        {
+            await LoadEntriesPageAsync(reset: false);
+        }
+        finally
+        {
+            isLoadingMore = false;
+        }
+    }
+
+    private async Task LoadEntriesPageAsync(bool reset)
+    {
+        if (CurrentUser is null)
+        {
+            return;
+        }
+
+        if (reset)
+        {
+            results = [];
+            selectedEntry = null;
+            hasMoreResults = false;
+        }
+
+        var batch = await ApiClient.SearchLlmWikiAsync(
+            CurrentUser.UserName,
+            activeSearchQuery,
+            PageSize,
+            results.Count,
+            MinSearchRelevancePercent,
+            activeCategoryPath);
+        var knownIds = results.Select(x => x.Id).ToHashSet();
+        results.AddRange(batch.Where(x => !knownIds.Contains(x.Id)));
+        hasMoreResults = batch.Count == PageSize;
+    }
+
+    private async Task SelectCategoryAsync(string? categoryPath)
+    {
+        if (CurrentUser is null || isLoading || isSearching || isLoadingMore)
+        {
+            return;
+        }
+
+        activeCategoryPath = string.IsNullOrWhiteSpace(categoryPath) ? null : categoryPath;
+        activeSearchQuery = NormalizeSearchQuery(searchQuery);
+        isSearching = true;
+        try
+        {
+            await LoadEntriesPageAsync(reset: true);
+        }
+        finally
+        {
+            isSearching = false;
+        }
+    }
+
+    private async Task SelectEntryAsync(LlmWikiSearchResult result)
+    {
+        if (CurrentUser is null)
+        {
+            return;
+        }
+
+        selectedEntry = await ApiClient.GetLlmWikiEntryAsync(CurrentUser.UserName, result.Id.ToString());
+    }
+
+    private void CloseSelectedEntry()
+        => selectedEntry = null;
+
+    private async Task HandleSearchKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SearchEntriesAsync();
+        }
+    }
+
+    private string GetLoginHref()
+    {
+        var uri = new Uri(Navigation.Uri);
+        var safeReturn = string.IsNullOrWhiteSpace(uri.Query) ? uri.AbsolutePath : uri.PathAndQuery;
+        return $"/login?returnUrl={Uri.EscapeDataString(safeReturn)}";
+    }
+
+    private static string FormatDateTime(DateTime dateTime)
+        => dateTime.ToLocalTime().ToString("yyyy.MM.dd HH:mm");
+
+    private string GetEmptyMessage()
+    {
+        if (isLoading || isSearching)
+        {
+            return "검색 중입니다.";
+        }
+
+        if (!string.IsNullOrWhiteSpace(activeCategoryPath) && string.IsNullOrWhiteSpace(activeSearchQuery))
+        {
+            return "선택한 카테고리에 표시할 LLM Wiki가 없습니다.";
+        }
+
+        return string.IsNullOrWhiteSpace(activeSearchQuery)
+            ? "저장된 LLM Wiki가 없습니다."
+            : "검색 결과가 없습니다.";
+    }
+
+    private string GetResultButtonClass(LlmWikiSearchResult result)
+    {
+        var selected = selectedEntry?.Id == result.Id;
+        return selected
+            ? "block h-full w-full rounded-xl border border-slate-900 bg-white px-4 py-4 text-left shadow-sm ring-2 ring-slate-900/10 transition"
+            : "block h-full w-full rounded-xl border border-slate-200 bg-white px-4 py-4 text-left shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:shadow";
+    }
+
+    private string GetCategoryButtonClass(string? categoryPath)
+    {
+        var isActive = string.Equals(activeCategoryPath ?? string.Empty, categoryPath ?? string.Empty, StringComparison.Ordinal);
+        return isActive
+            ? "flex min-h-24 w-full items-start justify-between gap-3 rounded-lg border border-slate-900 bg-white px-3 py-2 text-left text-sm font-bold text-slate-900"
+            : "flex min-h-24 w-full items-start justify-between gap-3 rounded-lg border border-transparent bg-white/60 px-3 py-2 text-left text-sm font-semibold text-slate-600 transition hover:border-slate-200 hover:bg-white";
+    }
+
+    private int GetTotalCategoryCount()
+        => categories.Where(x => x.CategoryDepth == 1).Sum(x => x.Count);
+
+    private static string GetCategoryBreadcrumb(string categoryPath)
+        => string.IsNullOrWhiteSpace(categoryPath)
+            ? "general"
+            : categoryPath.Replace("/", " / ", StringComparison.Ordinal);
+
+    private static string GetCategoryHint(string categoryPath)
+        => GetCategoryBreadcrumb(categoryPath);
+
+    private static IReadOnlyList<string> GetCategorySegments(string categoryPath)
+    {
+        if (string.IsNullOrWhiteSpace(categoryPath))
+        {
+            return ["general"];
+        }
+
+        var segments = categoryPath.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return segments.Length == 0 ? ["general"] : segments;
+    }
+
+    private static string GetRelevanceBarStyle(int relevancePercent)
+        => $"width: {Math.Clamp(relevancePercent, 0, 100)}%;";
+
+    private static string NormalizeSearchQuery(string value)
+        => value.Trim();
+
+    private static string Shorten(string text, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        return text.Length <= maxLength ? text : text[..maxLength] + "...";
+    }
+}

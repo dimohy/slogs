@@ -50,6 +50,9 @@ public static class SeoMetadata
         var sitemapUrl = EscapedAbsoluteUrl(baseUri, "/sitemap.xml");
         var llmsUrl = EscapedAbsoluteUrl(baseUri, "/llms.txt");
         var llmsFullUrl = EscapedAbsoluteUrl(baseUri, "/llms-full.txt");
+        var rssUrl = EscapedAbsoluteUrl(baseUri, "/feed.xml");
+        var atomUrl = EscapedAbsoluteUrl(baseUri, "/atom.xml");
+        var jsonFeedUrl = EscapedAbsoluteUrl(baseUri, "/feed.json");
         return string.Join('\n', [
             "User-agent: *",
             "Allow: /",
@@ -62,6 +65,9 @@ public static class SeoMetadata
             $"Sitemap: {sitemapUrl}",
             $"# LLM guide: {llmsUrl}",
             $"# Full LLM Markdown export: {llmsFullUrl}",
+            $"# RSS feed: {rssUrl}",
+            $"# Atom feed: {atomUrl}",
+            $"# JSON feed: {jsonFeedUrl}",
             string.Empty
         ]);
     }
@@ -227,6 +233,9 @@ public static class SeoMetadata
         AppendMarkdownLink(builder, "Full public Markdown export", EscapedAbsoluteUrl(baseUri, "/llms-full.txt"), "Single Markdown export containing the current public post corpus.");
         AppendMarkdownLink(builder, "Sitemap", EscapedAbsoluteUrl(baseUri, "/sitemap.xml"), "Complete public URL set for conventional crawlers.");
         AppendMarkdownLink(builder, "Robots", EscapedAbsoluteUrl(baseUri, "/robots.txt"), "Crawler access guidance.");
+        AppendMarkdownLink(builder, "RSS feed", EscapedAbsoluteUrl(baseUri, "/feed.xml"), "Latest public posts in RSS format.");
+        AppendMarkdownLink(builder, "Atom feed", EscapedAbsoluteUrl(baseUri, "/atom.xml"), "Latest public posts in Atom format.");
+        AppendMarkdownLink(builder, "JSON feed", EscapedAbsoluteUrl(baseUri, "/feed.json"), "Latest public posts in JSON Feed format.");
         AppendMarkdownLink(builder, "Slogs MCP prompt", EscapedAbsoluteUrl(baseUri, "/prompts/slogs-mcp.md"), "Korean Agent policy prompt for connecting Slogs MCP and LLM Wiki.");
         builder.AppendLine();
         builder.AppendLine("## Core pages");
@@ -297,6 +306,129 @@ public static class SeoMetadata
         return builder.ToString();
     }
 
+    public static string BuildRssFeedXml(string baseUri, IEnumerable<BlogPost> posts)
+    {
+        XNamespace atom = "http://www.w3.org/2005/Atom";
+        var publicPosts = GetPublicFeedPosts(posts, 100);
+        var channelUpdatedAt = publicPosts.Count == 0
+            ? DateTime.UtcNow
+            : publicPosts.Max(post => NormalizeUtc(post.UpdatedAt));
+
+        var document = new XDocument(
+            new XElement("rss",
+                new XAttribute("version", "2.0"),
+                new XAttribute(XNamespace.Xmlns + "atom", atom.NamespaceName),
+                new XElement("channel",
+                    new XElement("title", SiteName),
+                    new XElement("link", EscapedAbsoluteUrl(baseUri, "/")),
+                    new XElement("description", DefaultDescription),
+                    new XElement("language", "ko-KR"),
+                    new XElement("lastBuildDate", FormatRfc1123(channelUpdatedAt)),
+                    new XElement(atom + "link",
+                        new XAttribute("href", EscapedAbsoluteUrl(baseUri, "/feed.xml")),
+                        new XAttribute("rel", "self"),
+                        new XAttribute("type", "application/rss+xml")),
+                    publicPosts.Select(post =>
+                    {
+                        var postUrl = EscapedAbsoluteUrl(baseUri, PostPath(post));
+                        return new XElement("item",
+                            new XElement("title", post.Title),
+                            new XElement("link", postUrl),
+                            new XElement("guid", new XAttribute("isPermaLink", "true"), postUrl),
+                            new XElement("description", NormalizePlainText(post.Summary, 500)),
+                            new XElement("author", $"@{post.Author}"),
+                            new XElement("pubDate", FormatRfc1123(post.PublishedAt)),
+                            post.Tags.Select(tag => new XElement("category", tag)));
+                    }))));
+
+        return document.ToString(SaveOptions.DisableFormatting);
+    }
+
+    public static string BuildAtomFeedXml(string baseUri, IEnumerable<BlogPost> posts)
+    {
+        XNamespace atom = "http://www.w3.org/2005/Atom";
+        var publicPosts = GetPublicFeedPosts(posts, 100);
+        var feedUpdatedAt = publicPosts.Count == 0
+            ? DateTime.UtcNow
+            : publicPosts.Max(post => NormalizeUtc(post.UpdatedAt));
+
+        var document = new XDocument(
+            new XElement(atom + "feed",
+                new XElement(atom + "id", EscapedAbsoluteUrl(baseUri, "/")),
+                new XElement(atom + "title", SiteName),
+                new XElement(atom + "subtitle", DefaultDescription),
+                new XElement(atom + "updated", FormatDateTime(feedUpdatedAt)),
+                new XElement(atom + "link",
+                    new XAttribute("href", EscapedAbsoluteUrl(baseUri, "/")),
+                    new XAttribute("rel", "alternate"),
+                    new XAttribute("type", "text/html")),
+                new XElement(atom + "link",
+                    new XAttribute("href", EscapedAbsoluteUrl(baseUri, "/atom.xml")),
+                    new XAttribute("rel", "self"),
+                    new XAttribute("type", "application/atom+xml")),
+                new XElement(atom + "generator", SiteName),
+                publicPosts.Select(post =>
+                {
+                    var postUrl = EscapedAbsoluteUrl(baseUri, PostPath(post));
+                    return new XElement(atom + "entry",
+                        new XElement(atom + "id", postUrl),
+                        new XElement(atom + "title", post.Title),
+                        new XElement(atom + "link",
+                            new XAttribute("href", postUrl),
+                            new XAttribute("rel", "alternate"),
+                            new XAttribute("type", "text/html")),
+                        new XElement(atom + "published", FormatDateTime(post.PublishedAt)),
+                        new XElement(atom + "updated", FormatDateTime(post.UpdatedAt)),
+                        new XElement(atom + "author",
+                            new XElement(atom + "name", post.Author),
+                            new XElement(atom + "uri", EscapedAbsoluteUrl(baseUri, WriterPath(post.Author)))),
+                        new XElement(atom + "summary", new XAttribute("type", "text"), NormalizePlainText(post.Summary, 500)),
+                        post.Tags.Select(tag => new XElement(atom + "category", new XAttribute("term", tag))));
+                })));
+
+        return document.ToString(SaveOptions.DisableFormatting);
+    }
+
+    public static string BuildJsonFeed(string baseUri, IEnumerable<BlogPost> posts)
+    {
+        var publicPosts = GetPublicFeedPosts(posts, 100);
+        var feed = new Dictionary<string, object?>
+        {
+            ["version"] = "https://jsonfeed.org/version/1.1",
+            ["title"] = SiteName,
+            ["home_page_url"] = EscapedAbsoluteUrl(baseUri, "/"),
+            ["feed_url"] = EscapedAbsoluteUrl(baseUri, "/feed.json"),
+            ["description"] = DefaultDescription,
+            ["language"] = "ko-KR",
+            ["items"] = publicPosts.Select(post =>
+            {
+                var postUrl = EscapedAbsoluteUrl(baseUri, PostPath(post));
+                return new Dictionary<string, object?>
+                {
+                    ["id"] = postUrl,
+                    ["url"] = postUrl,
+                    ["title"] = post.Title,
+                    ["summary"] = NormalizePlainText(post.Summary, 500),
+                    ["content_text"] = NormalizePlainText(post.Body, 2000),
+                    ["date_published"] = FormatDateTime(post.PublishedAt),
+                    ["date_modified"] = FormatDateTime(post.UpdatedAt),
+                    ["image"] = string.IsNullOrWhiteSpace(post.ThumbnailUrl) ? null : EscapedAbsoluteUrl(baseUri, post.ThumbnailUrl),
+                    ["authors"] = new[]
+                    {
+                        new Dictionary<string, object?>
+                        {
+                            ["name"] = post.Author,
+                            ["url"] = EscapedAbsoluteUrl(baseUri, WriterPath(post.Author))
+                        }
+                    },
+                    ["tags"] = post.Tags
+                };
+            }).ToList()
+        };
+
+        return JsonSerializer.Serialize(feed, JsonOptions);
+    }
+
     public static string BuildPostMarkdown(string baseUri, BlogPost post)
     {
         var builder = new StringBuilder();
@@ -358,12 +490,22 @@ public static class SeoMetadata
 
     private static string FormatDateTime(DateTime dateTime) => NormalizeUtc(dateTime).ToString("O", CultureInfo.InvariantCulture);
 
+    private static string FormatRfc1123(DateTime dateTime) => NormalizeUtc(dateTime).ToString("R", CultureInfo.InvariantCulture);
+
     private static DateTime NormalizeUtc(DateTime dateTime)
     {
         return dateTime.Kind == DateTimeKind.Unspecified
             ? DateTime.SpecifyKind(dateTime, DateTimeKind.Utc)
             : dateTime.ToUniversalTime();
     }
+
+    private static List<BlogPost> GetPublicFeedPosts(IEnumerable<BlogPost> posts, int limit)
+        => posts
+            .Where(post => !post.IsDraft)
+            .OrderByDescending(post => post.PublishedAt)
+            .ThenBy(post => post.Title, StringComparer.OrdinalIgnoreCase)
+            .Take(limit)
+            .ToList();
 
     private static void AppendTopicSection(StringBuilder builder, string heading, IEnumerable<(string Label, string Url, string Description)> items)
     {

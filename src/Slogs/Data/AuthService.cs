@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using System.Net.Mail;
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 
 namespace Slogs.Data;
 
@@ -396,6 +398,56 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
         return records.Select(ToModel).ToList();
     }
 
+    public async Task<AuthUser> ChangeAdminUserNameAsync(string currentUserName, string requestedUserName)
+    {
+        var oldUserName = NormalizeProfileUserName(currentUserName, string.Empty);
+        var newUserName = NormalizeProfileUserName(requestedUserName, string.Empty);
+        if (oldUserName.Equals(newUserName, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("adminUserNameUnchanged");
+        }
+
+        if (IsReservedUserName(oldUserName) || IsReservedUserName(newUserName))
+        {
+            throw new InvalidOperationException("adminUserNameReserved");
+        }
+
+        await using var db = await dbFactory.CreateDbContextAsync();
+        await using var transaction = await db.Database.BeginTransactionAsync();
+
+        var oldUser = await db.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.UserName == oldUserName)
+            ?? throw new InvalidOperationException("adminUserNameNotFound");
+
+        if (await db.Users.AsNoTracking().AnyAsync(x => x.UserName == newUserName))
+        {
+            throw new InvalidOperationException("adminUserNameTaken");
+        }
+
+        var newUser = new UserRecord
+        {
+            UserName = newUserName,
+            DisplayName = oldUser.DisplayName,
+            Email = oldUser.Email,
+            Password = oldUser.Password,
+            ProfileImageUrl = oldUser.ProfileImageUrl,
+            Bio = oldUser.Bio,
+            RegisteredAt = oldUser.RegisteredAt,
+            ProfileUpdatedAt = oldUser.ProfileUpdatedAt ?? DateTime.UtcNow
+        };
+        db.Users.Add(newUser);
+        await db.SaveChangesAsync();
+
+        await RenameUserReferencesAsync(db, oldUserName, newUserName);
+        await RenameUserJsonReferencesAsync(db, oldUserName, newUserName);
+        await db.Database.ExecuteSqlAsync(
+            $@"DELETE FROM ""Users"" WHERE ""UserName"" = {oldUserName};");
+
+        await transaction.CommitAsync();
+        return ToModel(newUser);
+    }
+
     public async Task<AdminUserUsageResponse> GetAdminUserUsageAsync()
     {
         var now = DateTime.UtcNow;
@@ -435,6 +487,7 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
             .AsNoTracking()
             .Select(x => new { x.OwnerUserName, x.RevokedAt, x.LastUsedAt })
             .ToListAsync();
+        var mcpAuditRows = await LoadLlmWikiMcpAuditRowsAsync(db, recent30DayStart);
 
         var postsByUser = posts
             .GroupBy(x => NormalizeUser(x.Author), StringComparer.OrdinalIgnoreCase)
@@ -546,6 +599,7 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
             summaries.Sum(x => x.LlmWikiActivityCount),
             summaries.Sum(x => x.LlmWikiRecent7DayActivityCount),
             summaries.Sum(x => x.LlmWikiRecent30DayActivityCount),
+            BuildMcpQualitySummary(mcpAuditRows, recent30DayStart, recent7DayStart),
             summaries);
     }
 
@@ -612,6 +666,117 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
             .ToList();
     }
 
+    private static async Task RenameUserReferencesAsync(SlogsDbContext db, string oldUserName, string newUserName)
+    {
+        await db.Database.ExecuteSqlAsync(
+            $@"UPDATE ""ExternalLogins"" SET ""UserName"" = {newUserName} WHERE ""UserName"" = {oldUserName};");
+        await db.Database.ExecuteSqlAsync(
+            $@"UPDATE ""Follows"" SET ""FollowerUserName"" = {newUserName} WHERE ""FollowerUserName"" = {oldUserName};");
+        await db.Database.ExecuteSqlAsync(
+            $@"UPDATE ""Follows"" SET ""TargetUserName"" = {newUserName} WHERE ""TargetUserName"" = {oldUserName};");
+        await db.Database.ExecuteSqlAsync(
+            $@"UPDATE ""PostImages"" SET ""OwnerUserName"" = {newUserName} WHERE ""OwnerUserName"" = {oldUserName};");
+        await db.Database.ExecuteSqlAsync(
+            $@"UPDATE ""Posts"" SET ""Author"" = {newUserName} WHERE ""Author"" = {oldUserName};");
+        await db.Database.ExecuteSqlAsync(
+            $@"UPDATE ""PostRevisions"" SET ""Author"" = {newUserName} WHERE ""Author"" = {oldUserName};");
+        await db.Database.ExecuteSqlAsync(
+            $@"UPDATE ""Comments"" SET ""Author"" = {newUserName} WHERE ""Author"" = {oldUserName};");
+        await db.Database.ExecuteSqlAsync(
+            $@"UPDATE ""Comments"" SET ""AuthorNormalized"" = {newUserName} WHERE ""AuthorNormalized"" = {oldUserName};");
+        await db.Database.ExecuteSqlAsync(
+            $@"UPDATE ""LlmWikiEntries"" SET ""OwnerUserName"" = {newUserName} WHERE ""OwnerUserName"" = {oldUserName};");
+        await db.Database.ExecuteSqlAsync(
+            $@"UPDATE ""LlmWikiEntrySources"" SET ""OwnerUserName"" = {newUserName} WHERE ""OwnerUserName"" = {oldUserName};");
+        await db.Database.ExecuteSqlAsync(
+            $@"UPDATE ""LlmWikiMcpTokens"" SET ""OwnerUserName"" = {newUserName} WHERE ""OwnerUserName"" = {oldUserName};");
+        await db.Database.ExecuteSqlAsync(
+            $@"UPDATE ""LlmWikiMcpAudits"" SET ""OwnerUserName"" = {newUserName} WHERE ""OwnerUserName"" = {oldUserName};");
+        await db.Database.ExecuteSqlAsync(
+            $@"UPDATE ""LlmWikiEntryEmbeddings"" SET ""OwnerUserName"" = {newUserName} WHERE ""OwnerUserName"" = {oldUserName};");
+        await db.Database.ExecuteSqlAsync(
+            $@"UPDATE ""LlmWikiEntryGraphNodes"" SET ""OwnerUserName"" = {newUserName} WHERE ""OwnerUserName"" = {oldUserName};");
+    }
+
+    private static async Task RenameUserJsonReferencesAsync(SlogsDbContext db, string oldUserName, string newUserName)
+    {
+        var posts = await db.Posts.ToListAsync();
+        foreach (var post in posts)
+        {
+            post.LikedByJson = RenameUserInJsonSet(post.LikedByJson, oldUserName, newUserName, out var likedChanged);
+            post.BookmarkedByJson = RenameUserInJsonSet(post.BookmarkedByJson, oldUserName, newUserName, out var bookmarkedChanged);
+            if (!likedChanged && !bookmarkedChanged)
+            {
+                db.Entry(post).State = EntityState.Unchanged;
+            }
+        }
+
+        await db.SaveChangesAsync();
+    }
+
+    private static string RenameUserInJsonSet(string? json, string oldUserName, string newUserName, out bool changed)
+    {
+        changed = false;
+        var values = DeserializeUserNameList(json);
+        if (values.Count == 0)
+        {
+            return "[]";
+        }
+
+        var renamed = new List<string>();
+        foreach (var value in values)
+        {
+            var normalized = NormalizeUser(value);
+            if (string.IsNullOrWhiteSpace(normalized))
+            {
+                continue;
+            }
+
+            if (normalized.Equals(oldUserName, StringComparison.OrdinalIgnoreCase))
+            {
+                normalized = newUserName;
+                changed = true;
+            }
+
+            if (!renamed.Contains(normalized, StringComparer.OrdinalIgnoreCase))
+            {
+                renamed.Add(normalized);
+            }
+        }
+
+        return changed ? SerializeUserNameList(renamed) : json ?? "[]";
+    }
+
+    private static List<string> DeserializeUserNameList(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return [];
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize(json, GetJsonTypeInfo<List<string>>()) ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static string SerializeUserNameList(IEnumerable<string> values)
+        => JsonSerializer.Serialize(
+            values
+                .Select(NormalizeUser)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray(),
+            GetJsonTypeInfo<string[]>());
+
+    private static JsonTypeInfo<T> GetJsonTypeInfo<T>()
+        => (JsonTypeInfo<T>?)SlogsJsonSerializerContext.Default.GetTypeInfo(typeof(T))
+            ?? throw new InvalidOperationException($"JSON metadata for {typeof(T).FullName} is not registered.");
+
     private static AuthUser ToModel(UserRecord record)
     {
         return new AuthUser
@@ -631,6 +796,127 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
 
     private static bool IsLegacySourceAction(string action)
         => IsSourceAction(action, "legacy-baseline");
+
+    private static async Task<IReadOnlyList<AdminLlmWikiMcpAuditRow>> LoadLlmWikiMcpAuditRowsAsync(
+        SlogsDbContext db,
+        DateTime windowStart)
+    {
+        await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.CommandText =
+            """
+            SELECT "OwnerUserName", "ToolName", "QueryHash", "ResultCount", "ElapsedMs", "Succeeded", "CreatedAt"
+            FROM "LlmWikiMcpAudits"
+            WHERE "CreatedAt" >= @windowStart
+            ORDER BY "CreatedAt" DESC;
+            """;
+        command.Parameters.Add(new NpgsqlParameter("windowStart", windowStart));
+
+        if (db.Database.GetDbConnection().State != System.Data.ConnectionState.Open)
+        {
+            await db.Database.OpenConnectionAsync();
+        }
+
+        await using var reader = await command.ExecuteReaderAsync();
+        var rows = new List<AdminLlmWikiMcpAuditRow>();
+        while (await reader.ReadAsync())
+        {
+            rows.Add(new AdminLlmWikiMcpAuditRow(
+                NormalizeUser(reader.GetString(0)),
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.GetInt32(3),
+                reader.GetInt32(4),
+                reader.GetBoolean(5),
+                reader.GetDateTime(6)));
+        }
+
+        return rows;
+    }
+
+    private static AdminLlmWikiMcpQualitySummary BuildMcpQualitySummary(
+        IReadOnlyList<AdminLlmWikiMcpAuditRow> rows,
+        DateTime windowStart,
+        DateTime recent7DayStart)
+    {
+        var searchRecallRows = rows
+            .Where(row => IsSearchRecallTool(row.ToolName))
+            .ToList();
+        var mutationRows = rows
+            .Where(row => IsMutationTool(row.ToolName))
+            .ToList();
+        var repeatQueryCount = searchRecallRows
+            .Where(row => !string.IsNullOrWhiteSpace(row.QueryHash))
+            .GroupBy(row => $"{row.ToolName}\n{row.QueryHash}", StringComparer.Ordinal)
+            .Sum(group => Math.Max(0, group.Count() - 1));
+        var tools = rows
+            .GroupBy(row => row.ToolName, StringComparer.Ordinal)
+            .OrderByDescending(group => group.Count())
+            .ThenBy(group => group.Key, StringComparer.Ordinal)
+            .Select(group =>
+            {
+                var groupRows = group.ToList();
+                return new AdminLlmWikiMcpToolUsageSummary(
+                    group.Key,
+                    groupRows.Count,
+                    groupRows.Count(row => row.CreatedAt >= recent7DayStart),
+                    Percent(groupRows.Count(row => row.Succeeded), groupRows.Count),
+                    groupRows.Count(row => row.ResultCount == 0),
+                    AverageElapsedMs(groupRows),
+                    P95ElapsedMs(groupRows),
+                    groupRows.Count(IsSlowMcpCall),
+                    MaxDate(groupRows.Select(row => (DateTime?)row.CreatedAt)));
+            })
+            .ToList();
+
+        return new AdminLlmWikiMcpQualitySummary(
+            windowStart,
+            rows.Count,
+            rows.Count(row => row.CreatedAt >= recent7DayStart),
+            searchRecallRows.Count,
+            Percent(searchRecallRows.Count(row => row.Succeeded && row.ResultCount > 0), searchRecallRows.Count),
+            Percent(searchRecallRows.Count(row => row.ResultCount == 0), searchRecallRows.Count),
+            Percent(repeatQueryCount, searchRecallRows.Count),
+            AverageElapsedMs(searchRecallRows),
+            P95ElapsedMs(searchRecallRows),
+            searchRecallRows.Count(IsSlowMcpCall),
+            mutationRows.Count,
+            Percent(mutationRows.Count, rows.Count),
+            MaxDate(rows.Select(row => (DateTime?)row.CreatedAt)),
+            tools);
+    }
+
+    private static bool IsSearchRecallTool(string toolName)
+        => IsSourceAction(toolName, "llm_wiki_search")
+            || IsSourceAction(toolName, "llm_wiki_recall");
+
+    private static bool IsMutationTool(string toolName)
+        => IsSourceAction(toolName, "llm_wiki_remember")
+            || IsSourceAction(toolName, "llm_wiki_merge")
+            || IsSourceAction(toolName, "llm_wiki_update");
+
+    private static bool IsSlowMcpCall(AdminLlmWikiMcpAuditRow row)
+        => row.ElapsedMs >= 1_000;
+
+    private static int Percent(int value, int total)
+        => total <= 0 ? 0 : (int)Math.Round(value * 100.0 / total);
+
+    private static int AverageElapsedMs(IReadOnlyCollection<AdminLlmWikiMcpAuditRow> rows)
+        => rows.Count == 0 ? 0 : (int)Math.Round(rows.Average(row => row.ElapsedMs));
+
+    private static int P95ElapsedMs(IReadOnlyCollection<AdminLlmWikiMcpAuditRow> rows)
+    {
+        if (rows.Count == 0)
+        {
+            return 0;
+        }
+
+        var ordered = rows
+            .Select(row => row.ElapsedMs)
+            .Order()
+            .ToArray();
+        var index = Math.Clamp((int)Math.Ceiling(ordered.Length * 0.95) - 1, 0, ordered.Length - 1);
+        return ordered[index];
+    }
 
     private static DateTime? MaxDate(IEnumerable<DateTime?> values)
     {
@@ -671,6 +957,15 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
         int ActiveCount,
         int RevokedCount,
         DateTime? LastUsedAt);
+
+    private sealed record AdminLlmWikiMcpAuditRow(
+        string OwnerUserName,
+        string ToolName,
+        string QueryHash,
+        int ResultCount,
+        int ElapsedMs,
+        bool Succeeded,
+        DateTime CreatedAt);
 
     private static async Task<UserRecord> RecreateExternalUserAsync(
         SlogsDbContext db,
@@ -822,6 +1117,10 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
 
         return normalized;
     }
+
+    private static bool IsReservedUserName(string userName)
+        => userName.Equals(AuthUser.AdminUserName, StringComparison.OrdinalIgnoreCase)
+            || userName.Equals(AuthUser.AdminAuthorityUserName, StringComparison.OrdinalIgnoreCase);
 
     private static bool IsProfileUserNameCharacter(char character)
         => char.IsAsciiLetterOrDigit(character) || character is '-' or '_' or '.';

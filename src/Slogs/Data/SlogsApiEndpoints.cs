@@ -387,6 +387,37 @@ public static class SlogsApiEndpoints
             return Results.Ok(await authService.GetAdminUserUsageAsync());
         });
 
+        api.MapPut("/admin/users/{userName}/name", async (
+            HttpContext httpContext,
+            AuthService authService,
+            string userName,
+            AdminUserNameUpdateRequest request) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            if (user is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!user.IsAdmin)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            try
+            {
+                return Results.Ok(await authService.ChangeAdminUserNameAsync(userName, request.UserName));
+            }
+            catch (InvalidOperationException ex) when (ex.Message is "adminUserNameTaken")
+            {
+                return Results.Conflict(new ApiErrorResponse(ex.Message));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        });
+
         api.MapGet("/users/{userName}/following", async (AuthService authService, string userName) =>
             Results.Ok(await authService.GetFollowingAsync(userName)));
 

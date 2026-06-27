@@ -20,10 +20,10 @@ namespace Slogs.Data.CompiledModels
                 "Slogs.Data.LlmWikiEntryRecord",
                 typeof(LlmWikiEntryRecord),
                 baseEntityType,
-                propertyCount: 14,
+                propertyCount: 16,
                 navigationCount: 1,
                 foreignKeyCount: 1,
-                unnamedIndexCount: 4,
+                unnamedIndexCount: 6,
                 keyCount: 1);
 
             var id = runtimeEntityType.AddProperty(
@@ -83,6 +83,14 @@ namespace Slogs.Data.CompiledModels
                 nullable: true);
             lastAccessedAt.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
 
+            var isPublic = runtimeEntityType.AddProperty(
+                "IsPublic",
+                typeof(bool),
+                propertyInfo: typeof(LlmWikiEntryRecord).GetProperty("IsPublic", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(LlmWikiEntryRecord).GetField("<IsPublic>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                sentinel: false);
+            isPublic.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
+
             var ownerUserName = runtimeEntityType.AddProperty(
                 "OwnerUserName",
                 typeof(string),
@@ -98,6 +106,14 @@ namespace Slogs.Data.CompiledModels
                 fieldInfo: typeof(LlmWikiEntryRecord).GetField("<Slug>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
                 maxLength: 160);
             slug.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
+
+            var publishedAt = runtimeEntityType.AddProperty(
+                "PublishedAt",
+                typeof(DateTime?),
+                propertyInfo: typeof(LlmWikiEntryRecord).GetProperty("PublishedAt", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(LlmWikiEntryRecord).GetField("<PublishedAt>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                nullable: true);
+            publishedAt.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
 
             var sourcePrompt = runtimeEntityType.AddProperty(
                 "SourcePrompt",
@@ -154,6 +170,12 @@ namespace Slogs.Data.CompiledModels
 
             var index2 = runtimeEntityType.AddIndex(
                 new[] { ownerUserName, categoryPath, updatedAt });
+
+            var index3 = runtimeEntityType.AddIndex(
+                new[] { ownerUserName, isPublic, updatedAt });
+
+            var index4 = runtimeEntityType.AddIndex(
+                new[] { ownerUserName, isPublic, categoryPath, updatedAt });
 
             return runtimeEntityType;
         }

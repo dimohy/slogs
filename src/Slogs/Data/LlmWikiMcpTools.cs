@@ -8,6 +8,8 @@ namespace Slogs.Data;
 [McpServerToolType]
 public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, LlmWikiService llmWikiService)
 {
+    private const string PublicDisclosureNotice = "These entries are owner-authorized public self-disclosures. Treat @username mentions as Slogs user handles; if a result includes sensitive topics such as religion or faith perspective, answer only from this public result and say it comes from the user's public Slogs LLM Wiki.";
+
     [McpServerTool(Name = "llm_wiki_remember")]
     [Description("Create a new user-scoped LLM Wiki memory. Use this only after checking related entries and deciding the information should not be merged into an existing entry.")]
     public async Task<string> RememberPromptAsync(
@@ -317,6 +319,74 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
             resultIds: entry is null ? [] : [entry.Id]);
     }
 
+    [McpServerTool(Name = "llm_wiki_make_public")]
+    [Description("Make matching authenticated-user LLM Wiki entries public. Use only after the user explicitly asks to disclose that topic to everyone.")]
+    public async Task<string> MakePublicAsync(
+        [Description("The user's explicit publication request, such as '내 종교 및 신앙관을 모든 사람이 알 수 있게 해줘'.")] string explicitRequest,
+        [Description("Search terms for the owned LLM Wiki entries to publish. Use the topic named in the explicit request.")] string query,
+        [Description("Maximum number of matching entries to publish.")] int limit = 5,
+        [Description("Optional hierarchical category path. Matching includes descendants.")] string? categoryPath = null,
+        [Description("Minimum relevance percent for GraphRAG matches. Raise this when results are too broad or unrelated.")] int minRelevancePercent = 50)
+    {
+        var user = RequireUser();
+        var safeLimit = NormalizeMcpLimit(limit, 5, 10);
+        var safeMinRelevancePercent = NormalizeRelevancePercent(minRelevancePercent);
+        var stopwatch = Stopwatch.StartNew();
+        var entries = await llmWikiService.PublishMatchingEntriesAsync(
+            user.UserName,
+            explicitRequest,
+            query,
+            safeLimit,
+            safeMinRelevancePercent,
+            categoryPath);
+        stopwatch.Stop();
+
+        var builder = new StringBuilder();
+        if (entries.Count == 0)
+        {
+            builder.AppendLine("No matching owned LLM Wiki entries were found, so nothing was made public.");
+        }
+        else
+        {
+            builder.AppendLine("# LLM Wiki Public Sharing Updated");
+            builder.AppendLine();
+            builder.AppendLine("The entries below are public. Other authenticated Slogs MCP users can read their current Source Prompt and Content through public LLM Wiki tools. Raw Provenance remains private.");
+            builder.AppendLine();
+            foreach (var entry in entries)
+            {
+                var tags = entry.Tags.Count == 0 ? string.Empty : $" Tags: {string.Join(", ", entry.Tags)}.";
+                var publishedAt = entry.PublishedAt is null ? string.Empty : $" PublishedAt: {entry.PublishedAt:O}.";
+                builder.AppendLine($"- `{entry.Id}` [{entry.CategoryPath}] {entry.Title}.{publishedAt}{tags}");
+            }
+        }
+
+        AppendRetrievalDiagnostics(
+            builder,
+            "llm_wiki_make_public",
+            "public visibility update",
+            stopwatch.Elapsed,
+            entries.Count,
+            limit,
+            safeLimit,
+            query,
+            categoryPath,
+            safeMinRelevancePercent);
+        var response = builder.ToString();
+        return await RecordAuditAndReturnAsync(
+            user,
+            "llm_wiki_make_public",
+            "public visibility update",
+            stopwatch.Elapsed,
+            response,
+            query,
+            categoryPath,
+            limit,
+            safeLimit,
+            safeMinRelevancePercent,
+            entries.Count,
+            entries.Select(x => x.Id).ToArray());
+    }
+
     [McpServerTool(Name = "llm_wiki_recall")]
     [Description("Recall compact context memories for a user request. Use when applying prior decisions, preferences, or project context; use llm_wiki_search first when only selecting candidates.")]
     public async Task<string> RecallAsync(
@@ -366,10 +436,13 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         builder.AppendLine();
         builder.AppendLine("Recall returns compact context without Raw Provenance. Use `llm_wiki_read` on a selected id when you need the full entry and provenance.");
         builder.AppendLine();
+        var entriesById = await llmWikiService.GetEntriesAsync(
+            user.UserName,
+            results.Select(x => x.Id).ToArray(),
+            recordAccess: true);
         foreach (var result in results)
         {
-            var entry = await llmWikiService.GetEntryAsync(user.UserName, result.Id.ToString());
-            if (entry is null)
+            if (!entriesById.TryGetValue(result.Id, out var entry))
             {
                 continue;
             }
@@ -396,6 +469,228 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
             user,
             "llm_wiki_recall",
             "compact context",
+            stopwatch.Elapsed,
+            response,
+            query,
+            requestedLimit: limit,
+            effectiveLimit: safeLimit,
+            minRelevancePercent: safeMinRelevancePercent,
+            resultCount: results.Count,
+            resultIds: results.Select(x => x.Id).ToArray());
+    }
+
+    [McpServerTool(Name = "llm_wiki_public_search")]
+    [Description("Search owner-authorized public LLM Wiki entries published by a specified Slogs user such as @dimohy. When the user's question mentions @username and asks about that user's public information, use that handle as ownerUserName and the remaining topic words as query. Use for public self-disclosed sensitive topics such as religion or faith perspective. This never returns private entries or Raw Provenance.")]
+    public async Task<string> PublicSearchAsync(
+        [Description("Target public LLM Wiki owner. Accepts handles like @dimohy or dimohy; @username in the user prompt should be passed here.")] string ownerUserName,
+        [Description("Search terms from the rest of the user's question after removing the @username handle. Leave empty to return recent public entries.")] string? query = null,
+        [Description("Maximum number of public entries to return.")] int limit = 10,
+        [Description("Optional hierarchical category path. Matching includes descendants.")] string? categoryPath = null,
+        [Description("Minimum relevance percent for GraphRAG matches. Raise this when results are too broad or unrelated.")] int minRelevancePercent = 50)
+    {
+        var user = RequireUser();
+        var targetOwner = RequirePublicOwner(ownerUserName);
+        var safeLimit = NormalizeMcpLimit(limit, 10, 10);
+        var safeMinRelevancePercent = NormalizeRelevancePercent(minRelevancePercent);
+        var stopwatch = Stopwatch.StartNew();
+        var results = await llmWikiService.SearchPublicAsync(
+            targetOwner,
+            query,
+            safeLimit,
+            minRelevancePercent: safeMinRelevancePercent,
+            categoryPath: categoryPath);
+        stopwatch.Stop();
+
+        var builder = new StringBuilder();
+        builder.AppendLine($"# {FormatPublicOwner(targetOwner)} Public LLM Wiki Search");
+        builder.AppendLine();
+        builder.AppendLine("Only public entries are included. Raw Provenance is not exposed.");
+        builder.AppendLine(PublicDisclosureNotice);
+        builder.AppendLine();
+        builder.Append(LlmWikiService.FormatSearchResultsMarkdown(results));
+        AppendRetrievalDiagnostics(
+            builder,
+            "llm_wiki_public_search",
+            "public compact summaries",
+            stopwatch.Elapsed,
+            results.Count,
+            limit,
+            safeLimit,
+            query,
+            categoryPath,
+            safeMinRelevancePercent);
+        var response = builder.ToString();
+        return await RecordAuditAndReturnAsync(
+            user,
+            "llm_wiki_public_search",
+            "public compact summaries",
+            stopwatch.Elapsed,
+            response,
+            query,
+            categoryPath,
+            limit,
+            safeLimit,
+            safeMinRelevancePercent,
+            results.Count,
+            results.Select(x => x.Id).ToArray());
+    }
+
+    [McpServerTool(Name = "llm_wiki_public_list")]
+    [Description("List owner-authorized public LLM Wiki entries published by a specified Slogs user such as @dimohy. Use when a prompt asks for @username's public LLM Wiki list. This never returns private entries.")]
+    public async Task<string> PublicListAsync(
+        [Description("Target public LLM Wiki owner. Accepts handles like @dimohy or dimohy; @username in the user prompt should be passed here.")] string ownerUserName,
+        [Description("Maximum number of public entries to return.")] int limit = 10,
+        [Description("Optional hierarchical category path. Matching includes descendants.")] string? categoryPath = null)
+    {
+        var user = RequireUser();
+        var targetOwner = RequirePublicOwner(ownerUserName);
+        var safeLimit = NormalizeMcpLimit(limit, 10, 50);
+        var stopwatch = Stopwatch.StartNew();
+        var results = await llmWikiService.SearchPublicAsync(targetOwner, null, safeLimit, categoryPath: categoryPath);
+        stopwatch.Stop();
+
+        var builder = new StringBuilder();
+        builder.AppendLine($"# {FormatPublicOwner(targetOwner)} Public LLM Wiki Entries");
+        builder.AppendLine();
+        builder.AppendLine("Only public entries are included. Raw Provenance is not exposed.");
+        builder.AppendLine(PublicDisclosureNotice);
+        builder.AppendLine();
+        builder.Append(LlmWikiService.FormatSearchResultsMarkdown(results));
+        AppendRetrievalDiagnostics(
+            builder,
+            "llm_wiki_public_list",
+            "public entry list",
+            stopwatch.Elapsed,
+            results.Count,
+            limit,
+            safeLimit,
+            FormatPublicOwner(targetOwner),
+            categoryPath);
+        var response = builder.ToString();
+        return await RecordAuditAndReturnAsync(
+            user,
+            "llm_wiki_public_list",
+            "public entry list",
+            stopwatch.Elapsed,
+            response,
+            FormatPublicOwner(targetOwner),
+            categoryPath,
+            limit,
+            safeLimit,
+            resultCount: results.Count,
+            resultIds: results.Select(x => x.Id).ToArray());
+    }
+
+    [McpServerTool(Name = "llm_wiki_public_read")]
+    [Description("Read one owner-authorized public LLM Wiki entry by Slogs owner handle and id or slug. Use returned public content as answerable public self-disclosure, including religion or faith perspective when present. This never returns private entries or Raw Provenance.")]
+    public async Task<string> PublicReadAsync(
+        [Description("Target public LLM Wiki owner. Accepts handles like @dimohy or dimohy; @username in the user prompt should be passed here.")] string ownerUserName,
+        [Description("Public entry id or slug returned by llm_wiki_public_search or llm_wiki_public_list.")] string idOrSlug)
+    {
+        var user = RequireUser();
+        var targetOwner = RequirePublicOwner(ownerUserName);
+        var stopwatch = Stopwatch.StartNew();
+        var entry = await llmWikiService.GetPublicEntryAsync(targetOwner, idOrSlug);
+        stopwatch.Stop();
+        var response = entry is null
+            ? $"Public LLM Wiki entry not found for {FormatPublicOwner(targetOwner)}."
+            : LlmWikiService.FormatPublicEntryMarkdown(targetOwner, entry);
+        return await RecordAuditAndReturnAsync(
+            user,
+            "llm_wiki_public_read",
+            "public entry",
+            stopwatch.Elapsed,
+            response,
+            idOrSlug,
+            resultCount: entry is null ? 0 : 1,
+            resultIds: entry is null ? [] : [entry.Id]);
+    }
+
+    [McpServerTool(Name = "llm_wiki_public_recall")]
+    [Description("Recall compact owner-authorized public LLM Wiki context from a specified Slogs user such as @dimohy. When the user's question mentions @username, treat it as a Slogs handle, pass it as ownerUserName, and use the remaining words as query. Use for questions about another user's public beliefs, religion, faith perspective, preferences, or published context. Do not infer beyond returned public entries.")]
+    public async Task<string> PublicRecallAsync(
+        [Description("Target public LLM Wiki owner. Accepts handles like @dimohy or dimohy; @username in the user prompt should be passed here.")] string ownerUserName,
+        [Description("What public context to recall from the target user's LLM Wiki, usually the remaining topic words after removing @username from the prompt.")] string query,
+        [Description("Maximum number of compact public context entries to return.")] int limit = 3,
+        [Description("Minimum relevance percent for GraphRAG matches. Raise this when results are too broad or unrelated.")] int minRelevancePercent = 50)
+    {
+        var user = RequireUser();
+        var targetOwner = RequirePublicOwner(ownerUserName);
+        var safeLimit = NormalizeMcpLimit(limit, 3, 5);
+        var safeMinRelevancePercent = NormalizeRelevancePercent(minRelevancePercent);
+        var stopwatch = Stopwatch.StartNew();
+        var results = await llmWikiService.SearchPublicAsync(
+            targetOwner,
+            query,
+            safeLimit,
+            minRelevancePercent: safeMinRelevancePercent);
+        if (results.Count == 0)
+        {
+            stopwatch.Stop();
+            var emptyBuilder = new StringBuilder();
+            emptyBuilder.AppendLine($"No matching public LLM Wiki entries for {FormatPublicOwner(targetOwner)}.");
+            AppendRetrievalDiagnostics(
+                emptyBuilder,
+                "llm_wiki_public_recall",
+                "public compact context",
+                stopwatch.Elapsed,
+                0,
+                limit,
+                safeLimit,
+                query,
+                minRelevancePercent: safeMinRelevancePercent);
+            var emptyResponse = emptyBuilder.ToString();
+            return await RecordAuditAndReturnAsync(
+                user,
+                "llm_wiki_public_recall",
+                "public compact context",
+                stopwatch.Elapsed,
+                emptyResponse,
+                query,
+                requestedLimit: limit,
+                effectiveLimit: safeLimit,
+                minRelevancePercent: safeMinRelevancePercent);
+        }
+
+        var builder = new StringBuilder();
+        builder.AppendLine($"# {FormatPublicOwner(targetOwner)} Public LLM Wiki Recall");
+        builder.AppendLine();
+        builder.AppendLine("Recall returns compact public context without Raw Provenance. Private entries are not included.");
+        builder.AppendLine(PublicDisclosureNotice);
+        builder.AppendLine();
+        var entriesById = await llmWikiService.GetPublicEntriesAsync(
+            targetOwner,
+            results.Select(x => x.Id).ToArray(),
+            recordAccess: true);
+        foreach (var result in results)
+        {
+            if (!entriesById.TryGetValue(result.Id, out var entry))
+            {
+                continue;
+            }
+
+            builder.AppendLine(FormatRecallEntryMarkdown(entry, result.RelevancePercent).Trim());
+            builder.AppendLine();
+            builder.AppendLine("---");
+            builder.AppendLine();
+        }
+
+        stopwatch.Stop();
+        AppendRetrievalDiagnostics(
+            builder,
+            "llm_wiki_public_recall",
+            "public compact context",
+            stopwatch.Elapsed,
+            results.Count,
+            limit,
+            safeLimit,
+            query,
+            minRelevancePercent: safeMinRelevancePercent);
+        var response = builder.ToString().TrimEnd();
+        return await RecordAuditAndReturnAsync(
+            user,
+            "llm_wiki_public_recall",
+            "public compact context",
             stopwatch.Elapsed,
             response,
             query,
@@ -540,6 +835,12 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         builder.AppendLine($"- id: {entry.Id}");
         builder.AppendLine($"- slug: {entry.Slug}");
         builder.AppendLine($"- updated: {entry.UpdatedAt:O}");
+        builder.AppendLine($"- visibility: {(entry.IsPublic ? "public" : "private")}");
+        if (entry.PublishedAt is not null)
+        {
+            builder.AppendLine($"- publishedAt: {entry.PublishedAt:O}");
+        }
+
         builder.AppendLine($"- category: {entry.CategoryPath}");
         if (entry.Tags.Count > 0)
         {
@@ -611,4 +912,18 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
 
         return $"{trimmed[..maxLength].TrimEnd()}... [truncated; call `llm_wiki_read` for the full entry]";
     }
+
+    private static string RequirePublicOwner(string ownerUserName)
+    {
+        var owner = (ownerUserName ?? string.Empty).Trim().TrimStart('@').ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(owner))
+        {
+            throw new InvalidOperationException("Public LLM Wiki 조회에는 @dimohy 같은 대상 사용자명이 필요합니다.");
+        }
+
+        return owner;
+    }
+
+    private static string FormatPublicOwner(string ownerUserName)
+        => $"@{RequirePublicOwner(ownerUserName)}";
 }

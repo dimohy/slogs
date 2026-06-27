@@ -53,6 +53,92 @@ else
             </div>
         </section>
 
+        <section class="space-y-3 rounded-lg border border-slate-200 bg-white p-3" aria-label="MCP 품질 지표">
+            <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900">LLM Wiki MCP 품질</h2>
+                    <p class="text-xs font-semibold text-slate-500">@($"{FormatDate(usage.LlmWikiMcpQuality.WindowStartedAt)} 이후 감사 로그 기준")</p>
+                </div>
+                <p class="text-xs font-semibold text-slate-500">@($"최근 호출 {FormatNullableDate(usage.LlmWikiMcpQuality.LastCallAt)}")</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 lg:grid-cols-6">
+                <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <div class="text-xs font-bold uppercase text-slate-500">30일 호출</div>
+                    <div class="mt-1 text-2xl font-bold text-slate-900">@usage.LlmWikiMcpQuality.CallCount</div>
+                    <div class="mt-1 text-xs font-semibold text-slate-500">@($"7일 {usage.LlmWikiMcpQuality.Recent7DayCallCount}")</div>
+                </div>
+                <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <div class="text-xs font-bold uppercase text-slate-500">Recall/Search</div>
+                    <div class="mt-1 text-2xl font-bold text-slate-900">@usage.LlmWikiMcpQuality.SearchRecallCallCount</div>
+                    <div class="mt-1 text-xs font-semibold text-slate-500">후보 탐색 호출</div>
+                </div>
+                <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <div class="text-xs font-bold uppercase text-slate-500">유효 결과율</div>
+                    <div class="mt-1 text-2xl font-bold text-slate-900">@($"{usage.LlmWikiMcpQuality.SearchRecallSuccessRatePercent}%")</div>
+                    <div class="mt-1 text-xs font-semibold text-slate-500">@($"빈 결과 {usage.LlmWikiMcpQuality.SearchRecallEmptyResultRatePercent}%")</div>
+                </div>
+                <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <div class="text-xs font-bold uppercase text-slate-500">응답 속도</div>
+                    <div class="mt-1 text-2xl font-bold text-slate-900">@($"{usage.LlmWikiMcpQuality.SearchRecallAverageElapsedMs}ms")</div>
+                    <div class="mt-1 text-xs font-semibold text-slate-500">@($"p95 {usage.LlmWikiMcpQuality.SearchRecallP95ElapsedMs}ms")</div>
+                </div>
+                <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <div class="text-xs font-bold uppercase text-slate-500">재조회율</div>
+                    <div class="mt-1 text-2xl font-bold text-slate-900">@($"{usage.LlmWikiMcpQuality.SearchRecallRepeatQueryRatePercent}%")</div>
+                    <div class="mt-1 text-xs font-semibold text-slate-500">@($"1초 이상 {usage.LlmWikiMcpQuality.SearchRecallSlowCallCount}")</div>
+                </div>
+                <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <div class="text-xs font-bold uppercase text-slate-500">기록 변경</div>
+                    <div class="mt-1 text-2xl font-bold text-slate-900">@usage.LlmWikiMcpQuality.MutationCallCount</div>
+                    <div class="mt-1 text-xs font-semibold text-slate-500">@($"전체 중 {usage.LlmWikiMcpQuality.MutationSharePercent}%")</div>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto rounded-lg border border-slate-200">
+                <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
+                    <thead class="bg-slate-50 font-bold uppercase text-slate-500">
+                        <tr>
+                            <th class="px-3 py-2">도구</th>
+                            <th class="px-3 py-2 text-right">호출</th>
+                            <th class="px-3 py-2 text-right">7일</th>
+                            <th class="px-3 py-2 text-right">성공</th>
+                            <th class="px-3 py-2 text-right">빈 결과</th>
+                            <th class="px-3 py-2 text-right">평균</th>
+                            <th class="px-3 py-2 text-right">p95</th>
+                            <th class="px-3 py-2 text-right">1초+</th>
+                            <th class="px-3 py-2">최근 호출</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @if (usage.LlmWikiMcpQuality.Tools.Count == 0)
+                        {
+                            <tr>
+                                <td class="px-3 py-5 text-center text-sm text-slate-500" colspan="9">최근 MCP 감사 로그가 없습니다.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var tool in usage.LlmWikiMcpQuality.Tools)
+                            {
+                                <tr>
+                                    <td class="whitespace-nowrap px-3 py-2 font-bold text-slate-800">@tool.ToolName</td>
+                                    <td class="px-3 py-2 text-right font-semibold text-slate-700">@tool.CallCount</td>
+                                    <td class="px-3 py-2 text-right font-semibold text-slate-700">@tool.Recent7DayCallCount</td>
+                                    <td class="px-3 py-2 text-right font-semibold text-slate-700">@($"{tool.SuccessRatePercent}%")</td>
+                                    <td class="px-3 py-2 text-right font-semibold text-slate-700">@tool.EmptyResultCount</td>
+                                    <td class="px-3 py-2 text-right font-semibold text-slate-700">@($"{tool.AverageElapsedMs}ms")</td>
+                                    <td class="px-3 py-2 text-right font-semibold text-slate-700">@($"{tool.P95ElapsedMs}ms")</td>
+                                    <td class="px-3 py-2 text-right font-semibold text-slate-700">@tool.SlowCallCount</td>
+                                    <td class="whitespace-nowrap px-3 py-2 text-slate-600">@FormatNullableDate(tool.LastCallAt)</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
         <section class="rounded-lg border border-slate-200 bg-white p-3">
             <div class="flex flex-wrap items-center gap-2">
                 <input class="min-w-56 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900"
@@ -74,6 +160,14 @@ else
                 </select>
             </div>
             <div class="mt-2 text-xs font-semibold text-slate-500">@(users.Count)명 표시</div>
+            @if (!string.IsNullOrWhiteSpace(renameError))
+            {
+                <div class="mt-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">@renameError</div>
+            }
+            @if (!string.IsNullOrWhiteSpace(renameSuccess))
+            {
+                <div class="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">@renameSuccess</div>
+            }
         </section>
 
         <section class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
@@ -90,13 +184,14 @@ else
                         <th class="px-3 py-2 text-right">조회</th>
                         <th class="px-3 py-2 text-right">MCP 토큰</th>
                         <th class="px-3 py-2">최근 Wiki 활동</th>
+                        <th class="px-3 py-2">관리</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     @if (users.Count == 0)
                     {
                         <tr>
-                            <td class="px-3 py-8 text-center text-sm text-slate-500" colspan="10">표시할 사용자가 없습니다.</td>
+                            <td class="px-3 py-8 text-center text-sm text-slate-500" colspan="11">표시할 사용자가 없습니다.</td>
                         </tr>
                     }
                     else
@@ -143,6 +238,29 @@ else
                                     }
                                 </td>
                                 <td class="whitespace-nowrap px-3 py-3 text-slate-600">@FormatNullableDate(user.LastLlmWikiActivityAt)</td>
+                                <td class="px-3 py-3">
+                                    @if (CanRenameUser(user.UserName))
+                                    {
+                                        <div class="flex min-w-52 items-center gap-2">
+                                            <input class="w-32 rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-semibold text-slate-800 outline-none transition focus:border-slate-900"
+                                                   value="@GetRenameInput(user)"
+                                                   @oninput="e => HandleRenameInputChanged(user.UserName, e)"
+                                                   disabled="@IsAnyRenameBusy"
+                                                   aria-label="@($"{user.UserName} 새 @name")" />
+                                            <button type="button"
+                                                    class="rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                                                    disabled="@IsAnyRenameBusy"
+                                                    @onclick="() => ChangeUserNameAsync(user)">
+                                                @(IsRenameBusy(user.UserName) ? "변경 중" : "변경")
+                                            </button>
+                                        </div>
+                                        <div class="mt-1 text-[11px] font-semibold text-slate-400">변경 후 해당 사용자는 다시 로그인해야 합니다.</div>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-xs font-semibold text-slate-400">예약 계정</span>
+                                    }
+                                </td>
                             </tr>
                         }
                     }
@@ -158,6 +276,11 @@ else
     private string searchText = string.Empty;
     private string sortMode = "activity";
     private bool showLlmWikiUsersOnly;
+    private readonly Dictionary<string, string> renameInputs = new(StringComparer.OrdinalIgnoreCase);
+    private string? renameBusyUserName;
+    private string? renameError;
+    private string? renameSuccess;
+    private bool IsAnyRenameBusy => !string.IsNullOrWhiteSpace(renameBusyUserName);
 
     protected override async Task OnInitializedAsync()
     {
@@ -217,6 +340,82 @@ else
     {
         searchText = e.Value?.ToString() ?? string.Empty;
     }
+
+    private string GetRenameInput(AdminUserUsageSummary user)
+        => renameInputs.TryGetValue(user.UserName, out var value) ? value : $"@{user.UserName}";
+
+    private void HandleRenameInputChanged(string userName, ChangeEventArgs e)
+    {
+        renameInputs[userName] = e.Value?.ToString() ?? string.Empty;
+        renameError = null;
+        renameSuccess = null;
+    }
+
+    private async Task ChangeUserNameAsync(AdminUserUsageSummary user)
+    {
+        if (IsAnyRenameBusy)
+        {
+            return;
+        }
+
+        renameError = null;
+        renameSuccess = null;
+        var requestedUserName = GetRenameInput(user).Trim();
+        if (string.IsNullOrWhiteSpace(requestedUserName))
+        {
+            renameError = "새 @name을 입력해 주세요.";
+            return;
+        }
+
+        renameBusyUserName = user.UserName;
+        try
+        {
+            var updatedUser = await ApiClient.ChangeAdminUserNameAsync(user.UserName, requestedUserName);
+            usage = await ApiClient.GetAdminUserUsageAsync();
+            renameInputs.Remove(user.UserName);
+            if (updatedUser is not null)
+            {
+                renameInputs[updatedUser.UserName] = $"@{updatedUser.UserName}";
+                renameSuccess = $"@{user.UserName} -> @{updatedUser.UserName} 변경 완료. 해당 사용자는 다시 로그인해야 합니다.";
+            }
+            else
+            {
+                renameSuccess = $"@{user.UserName} 변경 완료. 해당 사용자는 다시 로그인해야 합니다.";
+            }
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException)
+        {
+            renameError = FormatRenameError(ex.Message);
+        }
+        finally
+        {
+            renameBusyUserName = null;
+        }
+    }
+
+    private bool IsRenameBusy(string userName)
+        => renameBusyUserName?.Equals(userName, StringComparison.OrdinalIgnoreCase) == true;
+
+    private static bool CanRenameUser(string userName)
+        => !IsReservedUserName(userName);
+
+    private static bool IsReservedUserName(string userName)
+        => userName.Equals(AuthUser.AdminUserName, StringComparison.OrdinalIgnoreCase)
+            || userName.Equals(AuthUser.AdminAuthorityUserName, StringComparison.OrdinalIgnoreCase);
+
+    private static string FormatRenameError(string error)
+        => error switch
+        {
+            "adminRequired" => "어드민 권한이 필요합니다.",
+            "adminUserNameUnchanged" => "기존 @name과 새 @name이 같습니다.",
+            "adminUserNameReserved" => "예약 계정 이름은 변경하거나 대상으로 사용할 수 없습니다.",
+            "adminUserNameNotFound" => "변경할 사용자를 찾을 수 없습니다.",
+            "adminUserNameTaken" => "이미 사용 중인 @name입니다.",
+            "profileUserNameRequired" => "새 @name을 입력해 주세요.",
+            "profileUserNameLength" => "@name은 80자 이하여야 합니다.",
+            "profileUserNameInvalid" => "@name은 영문, 숫자, 점, 하이픈, 밑줄만 사용할 수 있고 첫 글자는 영문 또는 숫자여야 합니다.",
+            _ => "사용자 @name 변경에 실패했습니다."
+        };
 
     private string FormatDate(DateTime value)
         => value.ToLocalTime().ToString("yyyy-MM-dd");

@@ -38,6 +38,7 @@ public interface ISlogsApiBackend
     Task<bool> IsKnownUserAsync(string userName);
     Task<AuthUser?> GetUserAsync(string userName);
     Task<IReadOnlyList<AuthUser>> GetUsersAsync(IEnumerable<string> userNames);
+    Task<AuthUser> ChangeAdminUserNameAsync(string userName, AdminUserNameUpdateRequest request);
     Task<AdminUserUsageResponse> GetAdminUserUsageAsync();
     Task<IReadOnlyList<string>> GetFollowingAsync(string followerUser);
     Task<IReadOnlyList<string>> GetFollowersAsync(string targetUser);

@@ -178,6 +178,8 @@ public static class SlogsDbInitializer
                 "UpdatedAt" timestamp with time zone NOT NULL,
                 "LastAccessedAt" timestamp with time zone NULL,
                 "AccessCount" integer NOT NULL DEFAULT 0,
+                "IsPublic" boolean NOT NULL DEFAULT FALSE,
+                "PublishedAt" timestamp with time zone NULL,
                 CONSTRAINT "PK_LlmWikiEntries" PRIMARY KEY ("Id")
             );
             """);
@@ -258,6 +260,16 @@ public static class SlogsDbInitializer
             """);
         await db.Database.ExecuteSqlRawAsync(
             """
+            ALTER TABLE "LlmWikiEntries"
+            ADD COLUMN IF NOT EXISTS "IsPublic" boolean NOT NULL DEFAULT FALSE;
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE "LlmWikiEntries"
+            ADD COLUMN IF NOT EXISTS "PublishedAt" timestamp with time zone NULL;
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
             UPDATE "LlmWikiEntries"
             SET "CategoryPath" = COALESCE(
                     (
@@ -296,12 +308,18 @@ public static class SlogsDbInitializer
                 "Model" character varying(80) NOT NULL,
                 "Dimensions" integer NOT NULL,
                 "ContentHash" character varying(64) NOT NULL,
+                "IndexVersion" character varying(40) NOT NULL DEFAULT '',
                 "Embedding" vector(768) NOT NULL,
                 "UpdatedAt" timestamp with time zone NOT NULL,
                 CONSTRAINT "PK_LlmWikiEntryEmbeddings" PRIMARY KEY ("EntryId"),
                 CONSTRAINT "FK_LlmWikiEntryEmbeddings_LlmWikiEntries_EntryId"
                     FOREIGN KEY ("EntryId") REFERENCES "LlmWikiEntries" ("Id") ON DELETE CASCADE
             );
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE "LlmWikiEntryEmbeddings"
+            ADD COLUMN IF NOT EXISTS "IndexVersion" character varying(40) NOT NULL DEFAULT '';
             """);
         await db.Database.ExecuteSqlRawAsync(
             """
@@ -334,6 +352,18 @@ public static class SlogsDbInitializer
             """);
         await db.Database.ExecuteSqlRawAsync(
             """
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiEntries_PublicOwner_UpdatedAt"
+            ON "LlmWikiEntries" ("OwnerUserName", "UpdatedAt" DESC)
+            WHERE "IsPublic" = TRUE;
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiEntries_PublicOwner_CategoryPath_UpdatedAt"
+            ON "LlmWikiEntries" ("OwnerUserName", "CategoryPath", "UpdatedAt" DESC)
+            WHERE "IsPublic" = TRUE;
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
             CREATE INDEX IF NOT EXISTS "IX_LlmWikiEntries_SearchVector"
             ON "LlmWikiEntries" USING GIN ("SearchVector");
             """);
@@ -354,13 +384,33 @@ public static class SlogsDbInitializer
             """);
         await db.Database.ExecuteSqlRawAsync(
             """
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiMcpAudits_CreatedAt"
+            ON "LlmWikiMcpAudits" ("CreatedAt" DESC);
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
             CREATE INDEX IF NOT EXISTS "IX_LlmWikiMcpAudits_OwnerUserName_ToolName_CreatedAt"
             ON "LlmWikiMcpAudits" ("OwnerUserName", "ToolName", "CreatedAt" DESC);
             """);
         await db.Database.ExecuteSqlRawAsync(
             """
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiMcpAudits_ToolName_CreatedAt"
+            ON "LlmWikiMcpAudits" ("ToolName", "CreatedAt" DESC);
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiMcpAudits_ToolName_QueryHash_CreatedAt"
+            ON "LlmWikiMcpAudits" ("ToolName", "QueryHash", "CreatedAt" DESC);
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
             CREATE INDEX IF NOT EXISTS "IX_LlmWikiEntryEmbeddings_Owner_Model_Dimensions"
             ON "LlmWikiEntryEmbeddings" ("OwnerUserName", "Model", "Dimensions");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiEntryEmbeddings_Owner_Model_Dimensions_IndexVersion"
+            ON "LlmWikiEntryEmbeddings" ("OwnerUserName", "Model", "Dimensions", "IndexVersion");
             """);
         await db.Database.ExecuteSqlRawAsync(
             """

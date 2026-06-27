@@ -235,7 +235,7 @@ nav[aria-label="main menu"] a.bg-slate-900:hover {
 
 .slogger-hero__body {
     padding: 0 1.25rem 1.25rem;
-    margin-top: -2.35rem;
+    margin-top: -1.15rem;
 }
 
 .slogger-hero__header {
@@ -319,7 +319,7 @@ nav[aria-label="main menu"] a.bg-slate-900:hover {
 @media (min-width: 768px) {
     .slogger-hero__body {
         padding: 0 1.75rem 1.75rem;
-        margin-top: -2.6rem;
+        margin-top: -1.25rem;
     }
 }
 
@@ -329,7 +329,7 @@ nav[aria-label="main menu"] a.bg-slate-900:hover {
     }
 
     .slogger-hero__body {
-        margin-top: -2rem;
+        margin-top: -0.75rem;
     }
 
     .slogger-hero__header {
@@ -894,16 +894,23 @@ header.bg-white {
 }
 
 .slogs-markdown-preview {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
     min-height: 1.5rem;
     overflow: visible;
+    overflow-wrap: anywhere;
 }
 
 .slogs-markdown-preview__runtime {
     display: none;
+    min-width: 0;
+    max-width: 100%;
     overflow: visible;
 }
 
 .slogs-markdown-preview__runtime.vditor-reset {
+    max-width: 100%;
     overflow: visible;
 }
 
@@ -1073,6 +1080,9 @@ header.bg-white {
 
 .slogs-markdown-editor {
     position: relative;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
     overflow: visible;
     border: 1px solid var(--theme-border-strong);
     border-radius: 1rem;
@@ -1085,6 +1095,9 @@ header.bg-white {
 }
 
 .slogs-markdown-editor .vditor {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
     border: 0;
     overflow: visible;
     border-radius: calc(1rem - 1px);
@@ -1101,19 +1114,33 @@ header.bg-white {
 .slogs-markdown-editor .vditor-toolbar,
 .slogs-markdown-editor .vditor-content,
 .slogs-markdown-editor .vditor-ir {
+    min-width: 0;
+    max-width: 100%;
     overflow: visible;
 }
 
 .slogs-markdown-editor .vditor-ir pre.vditor-reset {
+    max-width: 100%;
+    overflow-wrap: anywhere;
     padding: 1rem 1.125rem;
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 
 .slogs-markdown-editor .vditor-toolbar {
     position: relative;
     z-index: 4;
+    flex-wrap: wrap;
     border-bottom: 1px solid var(--theme-border);
     border-radius: calc(1rem - 1px) calc(1rem - 1px) 0 0;
     padding: 0.25rem 0.5rem;
+}
+
+.slogs-markdown-editor .vditor-content,
+.slogs-markdown-editor .vditor-ir {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
 }
 
 .slogs-markdown-editor .vditor-counter {

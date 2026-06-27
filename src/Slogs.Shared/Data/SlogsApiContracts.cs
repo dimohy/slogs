@@ -27,6 +27,8 @@ public sealed record AuthorsRequest(IReadOnlyList<string> Authors);
 
 public sealed record UserNamesRequest(IReadOnlyList<string> UserNames);
 
+public sealed record AdminUserNameUpdateRequest(string UserName);
+
 public sealed record AdminUserUsageResponse(
     int TotalUsers,
     int LlmWikiUserCount,
@@ -34,7 +36,35 @@ public sealed record AdminUserUsageResponse(
     int TotalLlmWikiActivityCount,
     int Recent7DayLlmWikiActivityCount,
     int Recent30DayLlmWikiActivityCount,
+    AdminLlmWikiMcpQualitySummary LlmWikiMcpQuality,
     IReadOnlyList<AdminUserUsageSummary> Users);
+
+public sealed record AdminLlmWikiMcpQualitySummary(
+    DateTime WindowStartedAt,
+    int CallCount,
+    int Recent7DayCallCount,
+    int SearchRecallCallCount,
+    int SearchRecallSuccessRatePercent,
+    int SearchRecallEmptyResultRatePercent,
+    int SearchRecallRepeatQueryRatePercent,
+    int SearchRecallAverageElapsedMs,
+    int SearchRecallP95ElapsedMs,
+    int SearchRecallSlowCallCount,
+    int MutationCallCount,
+    int MutationSharePercent,
+    DateTime? LastCallAt,
+    IReadOnlyList<AdminLlmWikiMcpToolUsageSummary> Tools);
+
+public sealed record AdminLlmWikiMcpToolUsageSummary(
+    string ToolName,
+    int CallCount,
+    int Recent7DayCallCount,
+    int SuccessRatePercent,
+    int EmptyResultCount,
+    int AverageElapsedMs,
+    int P95ElapsedMs,
+    int SlowCallCount,
+    DateTime? LastCallAt);
 
 public sealed record AdminUserUsageSummary(
     string UserName,
@@ -92,6 +122,8 @@ public sealed record LlmWikiEntryResponse(
     DateTime UpdatedAt,
     DateTime? LastAccessedAt,
     int AccessCount,
+    bool IsPublic,
+    DateTime? PublishedAt,
     IReadOnlyList<LlmWikiSourceResponse> Sources);
 
 public sealed record LlmWikiSourceResponse(
@@ -114,6 +146,8 @@ public sealed record LlmWikiSearchResult(
     int CategoryDepth,
     DateTime UpdatedAt,
     int AccessCount,
+    bool IsPublic,
+    DateTime? PublishedAt,
     int? RelevancePercent = null);
 
 public sealed record LlmWikiCategorySummary(string CategoryPath, int CategoryDepth, int Count, DateTime UpdatedAt);

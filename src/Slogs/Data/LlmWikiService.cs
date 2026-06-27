@@ -35,11 +35,12 @@ public sealed class LlmWikiService(
     private const int MaxRawMetadataLength = 2_000;
     private const int MaxCategorySegmentLength = 48;
     private const int MaxEmbeddingContentLength = 18_000;
-    private const int MaxGraphNodesPerEntry = 80;
+    private const int MaxGraphNodesPerEntry = 120;
     private const int MaxGraphNodeLength = 120;
     private const int MaxAuditInlineLength = 240;
     private const int MaxAuditResultIds = 5;
-    private const string SearchIndexVersion = "2026-06-20-lexical-v3";
+    private const int MaxSearchIndexRefreshPerQuery = 4;
+    private const string SearchIndexVersion = "2026-06-27-public-sharing-v1";
     private static readonly string[] KoreanParticleSuffixes =
     [
         "으로",
@@ -198,7 +199,85 @@ public sealed class LlmWikiService(
         return ToEntryResponse(entry);
     }
 
-    public async Task<IReadOnlyList<LlmWikiSearchResult>> SearchAsync(
+    public async Task<IReadOnlyList<LlmWikiEntryResponse>> PublishMatchingEntriesAsync(
+        string ownerUserName,
+        string explicitRequest,
+        string query,
+        int limit = 5,
+        int minRelevancePercent = 50,
+        string? categoryPath = null,
+        CancellationToken cancellationToken = default)
+    {
+        var owner = NormalizeUser(ownerUserName);
+        var authorizationText = TrimToLength(explicitRequest, MaxPromptLength);
+        var searchText = TrimToLength(query, 400);
+        if (string.IsNullOrWhiteSpace(owner) || string.IsNullOrWhiteSpace(authorizationText) || string.IsNullOrWhiteSpace(searchText))
+        {
+            throw new InvalidOperationException("LLM Wiki 공개 전환에는 로그인 사용자, 명시적 공개 요청, 검색어가 필요합니다.");
+        }
+
+        var safeLimit = NormalizeLimit(limit, 5, 10);
+        var safeMinRelevancePercent = Math.Clamp(minRelevancePercent, 0, 100);
+        var matches = await SearchAsync(
+            owner,
+            searchText,
+            safeLimit,
+            minRelevancePercent: safeMinRelevancePercent,
+            categoryPath: categoryPath,
+            cancellationToken: cancellationToken);
+        if (matches.Count == 0)
+        {
+            return [];
+        }
+
+        var matchOrder = matches
+            .Select((match, index) => new { match.Id, index })
+            .ToDictionary(x => x.Id, x => x.index);
+        var matchedIds = matchOrder.Keys.ToArray();
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        var entries = await db.LlmWikiEntries
+            .Include(x => x.Sources)
+            .Where(x => x.OwnerUserName == owner && matchedIds.Contains(x.Id))
+            .ToListAsync(cancellationToken);
+        if (entries.Count == 0)
+        {
+            return [];
+        }
+
+        var now = DateTime.UtcNow;
+        foreach (var entry in entries)
+        {
+            if (entry.IsPublic)
+            {
+                entry.PublishedAt ??= now;
+                continue;
+            }
+
+            entry.IsPublic = true;
+            entry.PublishedAt = now;
+            var source = CreateSourceRecord(
+                entry.Id,
+                owner,
+                "publish",
+                authorizationText,
+                $"Matched explicit public-share query: {searchText}",
+                entry.Title,
+                string.Join(", ", DeserializeTags(entry.TagsJson)),
+                entry.CategoryPath,
+                now);
+            source.Entry = entry;
+            db.LlmWikiEntrySources.Add(source);
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        return entries
+            .OrderBy(x => matchOrder[x.Id])
+            .Select(entry => ToEntryResponse(entry))
+            .ToList();
+    }
+
+    public Task<IReadOnlyList<LlmWikiSearchResult>> SearchAsync(
         string ownerUserName,
         string? query,
         int limit = 20,
@@ -206,6 +285,27 @@ public sealed class LlmWikiService(
         int minRelevancePercent = 50,
         string? categoryPath = null,
         CancellationToken cancellationToken = default)
+        => SearchCoreAsync(ownerUserName, query, limit, offset, minRelevancePercent, categoryPath, publicOnly: false, cancellationToken);
+
+    public Task<IReadOnlyList<LlmWikiSearchResult>> SearchPublicAsync(
+        string ownerUserName,
+        string? query,
+        int limit = 20,
+        int offset = 0,
+        int minRelevancePercent = 50,
+        string? categoryPath = null,
+        CancellationToken cancellationToken = default)
+        => SearchCoreAsync(ownerUserName, query, limit, offset, minRelevancePercent, categoryPath, publicOnly: true, cancellationToken);
+
+    private async Task<IReadOnlyList<LlmWikiSearchResult>> SearchCoreAsync(
+        string ownerUserName,
+        string? query,
+        int limit,
+        int offset,
+        int minRelevancePercent,
+        string? categoryPath,
+        bool publicOnly,
+        CancellationToken cancellationToken)
     {
         var owner = NormalizeUser(ownerUserName);
         var safeLimit = NormalizeLimit(limit, 20, 100);
@@ -213,25 +313,44 @@ public sealed class LlmWikiService(
         var safeMinRelevancePercent = Math.Clamp(minRelevancePercent, 0, 100);
         var normalizedCategoryPath = NormalizeCategoryFilter(categoryPath);
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        var ownerEntries = db.LlmWikiEntries
+            .AsNoTracking()
+            .Where(x => x.OwnerUserName == owner);
+        if (publicOnly)
+        {
+            ownerEntries = ownerEntries.Where(x => x.IsPublic);
+        }
 
         if (string.IsNullOrWhiteSpace(query))
         {
             var recentQuery = FilterByCategory(
-                db.LlmWikiEntries
-                    .AsNoTracking()
-                    .Where(x => x.OwnerUserName == owner),
+                ownerEntries,
                 normalizedCategoryPath);
-            var recentEntries = await recentQuery
-                .OrderByDescending(x => x.UpdatedAt)
+            var orderedRecentQuery = publicOnly
+                ? recentQuery.OrderByDescending(x => x.PublishedAt ?? x.UpdatedAt)
+                : recentQuery.OrderByDescending(x => x.UpdatedAt);
+            var recentEntries = await orderedRecentQuery
                 .Skip(safeOffset)
                 .Take(safeLimit)
+                .Select(x => new LlmWikiSearchProjection(
+                    x.Id,
+                    x.Slug,
+                    x.Title,
+                    x.Summary,
+                    x.TagsJson,
+                    x.CategoryPath,
+                    x.CategoryDepth,
+                    x.UpdatedAt,
+                    x.AccessCount,
+                    x.IsPublic,
+                    x.PublishedAt))
                 .ToListAsync(cancellationToken);
 
             return recentEntries.Select(entry => ToSearchResult(entry)).ToList();
         }
 
         var searchText = TrimToLength(query, 400);
-        await EnsureOwnerSearchIndexAsync(db, owner, cancellationToken);
+        await EnsureOwnerSearchIndexAsync(db, owner, publicOnly, cancellationToken);
         var rankedEntries = await SearchGraphAsync(
             db,
             owner,
@@ -240,6 +359,7 @@ public sealed class LlmWikiService(
             safeOffset,
             safeMinRelevancePercent,
             normalizedCategoryPath,
+            publicOnly,
             cancellationToken);
         if (rankedEntries.Count == 0)
         {
@@ -247,9 +367,27 @@ public sealed class LlmWikiService(
         }
 
         var rankedIds = rankedEntries.Select(x => x.Id).ToArray();
-        var entries = await db.LlmWikiEntries
+        var rankedQuery = db.LlmWikiEntries
             .AsNoTracking()
-            .Where(x => rankedIds.Contains(x.Id))
+            .Where(x => x.OwnerUserName == owner && rankedIds.Contains(x.Id));
+        if (publicOnly)
+        {
+            rankedQuery = rankedQuery.Where(x => x.IsPublic);
+        }
+
+        var entries = await rankedQuery
+            .Select(x => new LlmWikiSearchProjection(
+                x.Id,
+                x.Slug,
+                x.Title,
+                x.Summary,
+                x.TagsJson,
+                x.CategoryPath,
+                x.CategoryDepth,
+                x.UpdatedAt,
+                x.AccessCount,
+                x.IsPublic,
+                x.PublishedAt))
             .ToListAsync(cancellationToken);
         var entryById = entries.ToDictionary(x => x.Id);
         var relevanceById = rankedEntries.ToDictionary(x => x.Id, x => x.RelevancePercent);
@@ -260,16 +398,93 @@ public sealed class LlmWikiService(
             .ToList();
     }
 
-    public async Task<IReadOnlyList<LlmWikiCategorySummary>> GetCategoriesAsync(
+    public Task<IReadOnlyDictionary<Guid, LlmWikiEntryResponse>> GetEntriesAsync(
+        string ownerUserName,
+        IReadOnlyCollection<Guid> entryIds,
+        bool recordAccess = false,
+        CancellationToken cancellationToken = default)
+        => GetEntriesCoreAsync(ownerUserName, entryIds, recordAccess, publicOnly: false, includeSources: true, cancellationToken);
+
+    public Task<IReadOnlyDictionary<Guid, LlmWikiEntryResponse>> GetPublicEntriesAsync(
+        string ownerUserName,
+        IReadOnlyCollection<Guid> entryIds,
+        bool recordAccess = false,
+        CancellationToken cancellationToken = default)
+        => GetEntriesCoreAsync(ownerUserName, entryIds, recordAccess, publicOnly: true, includeSources: false, cancellationToken);
+
+    private async Task<IReadOnlyDictionary<Guid, LlmWikiEntryResponse>> GetEntriesCoreAsync(
+        string ownerUserName,
+        IReadOnlyCollection<Guid> entryIds,
+        bool recordAccess,
+        bool publicOnly,
+        bool includeSources,
+        CancellationToken cancellationToken)
+    {
+        var owner = NormalizeUser(ownerUserName);
+        var ids = entryIds
+            .Where(x => x != Guid.Empty)
+            .Distinct()
+            .ToArray();
+        if (string.IsNullOrWhiteSpace(owner) || ids.Length == 0)
+        {
+            return new Dictionary<Guid, LlmWikiEntryResponse>();
+        }
+
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        IQueryable<LlmWikiEntryRecord> query = db.LlmWikiEntries
+            .Include(x => x.Sources)
+            .Where(x => x.OwnerUserName == owner && ids.Contains(x.Id));
+        if (publicOnly)
+        {
+            query = query.Where(x => x.IsPublic);
+        }
+
+        var entries = recordAccess
+            ? await query.ToListAsync(cancellationToken)
+            : await query.AsNoTracking().ToListAsync(cancellationToken);
+
+        if (recordAccess && entries.Count > 0)
+        {
+            var now = DateTime.UtcNow;
+            foreach (var entry in entries)
+            {
+                entry.AccessCount++;
+                entry.LastAccessedAt = now;
+            }
+
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        return entries.ToDictionary(x => x.Id, entry => ToEntryResponse(entry, includeSources));
+    }
+
+    public Task<IReadOnlyList<LlmWikiCategorySummary>> GetCategoriesAsync(
         string ownerUserName,
         CancellationToken cancellationToken = default)
+        => GetCategoriesCoreAsync(ownerUserName, publicOnly: false, cancellationToken);
+
+    public Task<IReadOnlyList<LlmWikiCategorySummary>> GetPublicCategoriesAsync(
+        string ownerUserName,
+        CancellationToken cancellationToken = default)
+        => GetCategoriesCoreAsync(ownerUserName, publicOnly: true, cancellationToken);
+
+    private async Task<IReadOnlyList<LlmWikiCategorySummary>> GetCategoriesCoreAsync(
+        string ownerUserName,
+        bool publicOnly,
+        CancellationToken cancellationToken)
     {
         var owner = NormalizeUser(ownerUserName);
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
 
-        var entries = await db.LlmWikiEntries
+        var query = db.LlmWikiEntries
             .AsNoTracking()
-            .Where(x => x.OwnerUserName == owner)
+            .Where(x => x.OwnerUserName == owner);
+        if (publicOnly)
+        {
+            query = query.Where(x => x.IsPublic);
+        }
+
+        var entries = await query
             .Select(x => new { x.CategoryPath, x.UpdatedAt })
             .ToListAsync(cancellationToken);
 
@@ -305,10 +520,24 @@ public sealed class LlmWikiService(
             .ToList();
     }
 
-    public async Task<LlmWikiEntryResponse?> GetEntryAsync(
+    public Task<LlmWikiEntryResponse?> GetEntryAsync(
         string ownerUserName,
         string idOrSlug,
         CancellationToken cancellationToken = default)
+        => GetEntryCoreAsync(ownerUserName, idOrSlug, publicOnly: false, includeSources: true, cancellationToken);
+
+    public Task<LlmWikiEntryResponse?> GetPublicEntryAsync(
+        string ownerUserName,
+        string idOrSlug,
+        CancellationToken cancellationToken = default)
+        => GetEntryCoreAsync(ownerUserName, idOrSlug, publicOnly: true, includeSources: false, cancellationToken);
+
+    private async Task<LlmWikiEntryResponse?> GetEntryCoreAsync(
+        string ownerUserName,
+        string idOrSlug,
+        bool publicOnly,
+        bool includeSources,
+        CancellationToken cancellationToken)
     {
         var owner = NormalizeUser(ownerUserName);
         var key = idOrSlug.Trim();
@@ -316,7 +545,7 @@ public sealed class LlmWikiService(
 
         var entry = await FindEntryAsync(db, owner, key, cancellationToken);
 
-        if (entry is null)
+        if (entry is null || (publicOnly && !entry.IsPublic))
         {
             return null;
         }
@@ -325,7 +554,7 @@ public sealed class LlmWikiService(
         entry.LastAccessedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
 
-        return ToEntryResponse(entry);
+        return ToEntryResponse(entry, includeSources);
     }
 
     public async Task<string> BuildLlmsTextAsync(
@@ -355,6 +584,12 @@ public sealed class LlmWikiService(
         builder.AppendLine("- Before creating memory, call `llm_wiki_capture` or `llm_wiki_find_related`.");
         builder.AppendLine("- If a related entry exists, read it and use `llm_wiki_merge` or `llm_wiki_update` with the agent-composed final wording.");
         builder.AppendLine("- Keep raw provenance verifiable: remember, merge, and update requests are preserved as Raw Provenance so retrieval quality and merge quality can be audited later.");
+        builder.AppendLine("- LLM Wiki entries are private by default; use `llm_wiki_make_public` only after the owner explicitly asks to disclose a specific topic.");
+        builder.AppendLine("- Use `llm_wiki_public_list`, `llm_wiki_public_search`, `llm_wiki_public_read`, or `llm_wiki_public_recall` to access another user's public entries; public tools never return Raw Provenance.");
+        builder.AppendLine("- Treat `@username` mentions in user questions as Slogs user handles. For questions such as `@dimohy의 신앙관` or `@dimohy의 공개된 LLM Wiki 목록`, call the matching public lookup tool with `ownerUserName` set to that handle and the remaining topic words as the query.");
+        builder.AppendLine("- If public lookup tools return no results for an `@username` question, say that no public Slogs LLM Wiki information was found for that topic.");
+        builder.AppendLine("- Entries returned by public lookup tools are owner-authorized public self-disclosures. If a public result includes sensitive topics such as religion or faith perspective, answer only from that public result and scope the answer as public Slogs LLM Wiki information.");
+        builder.AppendLine("- Do not infer sensitive information that public tools did not return, and do not substitute private recall/search results for another user's public disclosure.");
         builder.AppendLine("- Before remember, merge, or update, choose an explicit `categoryPath` such as `project/domain/topic` when the project or topic is known.");
         builder.AppendLine("- Use `llm_wiki_remember` only for genuinely new durable tacit knowledge.");
         builder.AppendLine("- Before finishing meaningful work, quietly check whether the turn produced tacit knowledge that future LLMs can document, automate, reproduce, or use for decisions.");
@@ -622,6 +857,12 @@ public sealed class LlmWikiService(
         builder.AppendLine($"- id: {entry.Id}");
         builder.AppendLine($"- slug: {entry.Slug}");
         builder.AppendLine($"- updated: {entry.UpdatedAt:O}");
+        builder.AppendLine($"- visibility: {(entry.IsPublic ? "public" : "private")}");
+        if (entry.PublishedAt is not null)
+        {
+            builder.AppendLine($"- publishedAt: {entry.PublishedAt:O}");
+        }
+
         builder.AppendLine($"- category: {entry.CategoryPath}");
         builder.AppendLine($"- categoryDepth: {entry.CategoryDepth}");
         if (entry.Tags.Count > 0)
@@ -687,6 +928,49 @@ public sealed class LlmWikiService(
         return builder.ToString();
     }
 
+    public static string FormatPublicEntryMarkdown(string ownerUserName, LlmWikiEntryResponse entry)
+    {
+        var owner = NormalizeUser(ownerUserName);
+        var builder = new StringBuilder();
+        builder.AppendLine($"# @{owner} Public LLM Wiki: {entry.Title}");
+        builder.AppendLine();
+        builder.AppendLine("This entry is an owner-authorized public self-disclosure. If it includes sensitive topics such as religion or faith perspective, answer only from this public entry and say it comes from the user's public Slogs LLM Wiki.");
+        builder.AppendLine();
+        builder.AppendLine(entry.Summary);
+        builder.AppendLine();
+        builder.AppendLine($"- owner: @{owner}");
+        builder.AppendLine($"- id: {entry.Id}");
+        builder.AppendLine($"- slug: {entry.Slug}");
+        builder.AppendLine($"- updated: {entry.UpdatedAt:O}");
+        builder.AppendLine("- visibility: public");
+        if (entry.PublishedAt is not null)
+        {
+            builder.AppendLine($"- publishedAt: {entry.PublishedAt:O}");
+        }
+
+        builder.AppendLine($"- category: {entry.CategoryPath}");
+        builder.AppendLine($"- categoryDepth: {entry.CategoryDepth}");
+        if (entry.Tags.Count > 0)
+        {
+            builder.AppendLine($"- tags: {string.Join(", ", entry.Tags)}");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("## Source Prompt");
+        builder.AppendLine();
+        builder.AppendLine(entry.SourcePrompt);
+
+        if (!string.IsNullOrWhiteSpace(entry.Content))
+        {
+            builder.AppendLine();
+            builder.AppendLine("## Content");
+            builder.AppendLine();
+            builder.AppendLine(entry.Content);
+        }
+
+        return builder.ToString();
+    }
+
     public static string FormatSearchResultsMarkdown(IReadOnlyList<LlmWikiSearchResult> results)
     {
         if (results.Count == 0)
@@ -702,13 +986,14 @@ public sealed class LlmWikiService(
         {
             var tags = result.Tags.Count == 0 ? string.Empty : $" Tags: {string.Join(", ", result.Tags)}.";
             var relevance = result.RelevancePercent is null ? string.Empty : $" ({result.RelevancePercent}% relevance)";
-            builder.AppendLine($"- `{result.Id}` [{result.CategoryPath}] {result.Title}{relevance}: {result.Summary}{tags}");
+            var visibility = result.IsPublic ? " public" : string.Empty;
+            builder.AppendLine($"- `{result.Id}` [{result.CategoryPath}]{visibility} {result.Title}{relevance}: {result.Summary}{tags}");
         }
 
         return builder.ToString();
     }
 
-    private static LlmWikiEntryResponse ToEntryResponse(LlmWikiEntryRecord entry)
+    private static LlmWikiEntryResponse ToEntryResponse(LlmWikiEntryRecord entry, bool includeSources = true)
         => new(
             entry.Id,
             entry.Slug,
@@ -723,10 +1008,14 @@ public sealed class LlmWikiService(
             entry.UpdatedAt,
             entry.LastAccessedAt,
             entry.AccessCount,
-            entry.Sources
-                .OrderBy(x => x.CreatedAt)
-                .Select(ToSourceResponse)
-                .ToList());
+            entry.IsPublic,
+            entry.PublishedAt,
+            includeSources
+                ? entry.Sources
+                    .OrderBy(x => x.CreatedAt)
+                    .Select(ToSourceResponse)
+                    .ToList()
+                : []);
 
     private static LlmWikiSourceResponse ToSourceResponse(LlmWikiEntrySourceRecord source)
         => new(
@@ -750,67 +1039,116 @@ public sealed class LlmWikiService(
             entry.CategoryDepth,
             entry.UpdatedAt,
             entry.AccessCount,
+            entry.IsPublic,
+            entry.PublishedAt,
+            relevancePercent);
+
+    private static LlmWikiSearchResult ToSearchResult(LlmWikiSearchProjection entry, int? relevancePercent = null)
+        => new(
+            entry.Id,
+            entry.Slug,
+            entry.Title,
+            entry.Summary,
+            DeserializeTags(entry.TagsJson),
+            entry.CategoryPath,
+            entry.CategoryDepth,
+            entry.UpdatedAt,
+            entry.AccessCount,
+            entry.IsPublic,
+            entry.PublishedAt,
             relevancePercent);
 
     private async Task EnsureOwnerSearchIndexAsync(
         SlogsDbContext db,
         string owner,
+        bool publicOnly,
         CancellationToken cancellationToken)
     {
-        var entries = await db.LlmWikiEntries
+        var staleEntryIds = await LoadEntryIdsRequiringSearchIndexAsync(
+            db,
+            owner,
+            MaxSearchIndexRefreshPerQuery,
+            publicOnly,
+            cancellationToken);
+        if (staleEntryIds.Count == 0)
+        {
+            return;
+        }
+
+        var entriesQuery = db.LlmWikiEntries
             .AsNoTracking()
-            .Where(x => x.OwnerUserName == owner)
-            .ToListAsync(cancellationToken);
+            .Where(x => x.OwnerUserName == owner && staleEntryIds.Contains(x.Id));
+        if (publicOnly)
+        {
+            entriesQuery = entriesQuery.Where(x => x.IsPublic);
+        }
+
+        var entries = await entriesQuery.ToListAsync(cancellationToken);
         if (entries.Count == 0)
         {
             return;
         }
 
-        var knownHashes = await LoadSearchIndexHashesAsync(db, owner, cancellationToken);
         foreach (var entry in entries)
         {
             var tags = DeserializeTags(entry.TagsJson);
             var categoryPath = NormalizeCategoryPath(entry.CategoryPath, tags);
             var embeddingDocument = BuildEmbeddingDocument(entry.Title, entry.SourcePrompt, entry.Content, tags, categoryPath);
             var contentHash = ComputeSearchContentHash(embeddingDocument);
-            if (knownHashes.TryGetValue(entry.Id, out var indexed)
-                && indexed.ContentHash == contentHash
-                && indexed.Model == embeddingService.Model
-                && indexed.Dimensions == embeddingService.Dimensions)
-            {
-                continue;
-            }
-
             var embedding = await embeddingService.EmbedDocumentAsync(embeddingDocument, cancellationToken);
             var graphNodes = BuildGraphNodes(entry.Title, entry.SourcePrompt, entry.Content, tags, categoryPath);
             await StoreEntrySearchIndexAsync(db, entry.Id, owner, contentHash, embedding, graphNodes, cancellationToken);
         }
     }
 
-    private async Task<Dictionary<Guid, LlmWikiIndexedEntry>> LoadSearchIndexHashesAsync(
+    private async Task<IReadOnlyList<Guid>> LoadEntryIdsRequiringSearchIndexAsync(
         SlogsDbContext db,
         string owner,
+        int limit,
+        bool publicOnly,
         CancellationToken cancellationToken)
     {
+        var safeLimit = NormalizeLimit(limit, MaxSearchIndexRefreshPerQuery, MaxSearchIndexRefreshPerQuery);
         await using var command = db.Database.GetDbConnection().CreateCommand();
         command.CommandText =
             """
-            SELECT "EntryId", "Model", "Dimensions", "ContentHash"
-            FROM "LlmWikiEntryEmbeddings"
-            WHERE "OwnerUserName" = @owner;
+            SELECT e."Id"
+            FROM "LlmWikiEntries" AS e
+            LEFT JOIN "LlmWikiEntryEmbeddings" AS idx
+                ON idx."EntryId" = e."Id"
+            WHERE e."OwnerUserName" = @owner
+              AND (@publicOnly = FALSE OR e."IsPublic" = TRUE)
+              AND (
+                  idx."EntryId" IS NULL
+                  OR idx."OwnerUserName" <> @owner
+                  OR idx."Model" <> @model
+                  OR idx."Dimensions" <> @dimensions
+                  OR idx."IndexVersion" <> @indexVersion
+                  OR idx."UpdatedAt" < e."UpdatedAt"
+              )
+            ORDER BY
+                CASE
+                    WHEN idx."EntryId" IS NULL THEN 0
+                    WHEN idx."UpdatedAt" < e."UpdatedAt" THEN 1
+                    ELSE 2
+                END,
+                e."UpdatedAt" DESC
+            LIMIT @limit;
             """;
         command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
         command.Parameters.Add(new NpgsqlParameter("owner", owner));
+        command.Parameters.Add(new NpgsqlParameter("publicOnly", publicOnly));
+        command.Parameters.Add(new NpgsqlParameter("model", embeddingService.Model));
+        command.Parameters.Add(new NpgsqlParameter("dimensions", embeddingService.Dimensions));
+        command.Parameters.Add(new NpgsqlParameter("indexVersion", SearchIndexVersion));
+        command.Parameters.Add(new NpgsqlParameter("limit", safeLimit));
 
         await EnsureConnectionOpenAsync(db, cancellationToken);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        var results = new Dictionary<Guid, LlmWikiIndexedEntry>();
+        var results = new List<Guid>();
         while (await reader.ReadAsync(cancellationToken))
         {
-            results[reader.GetGuid(0)] = new LlmWikiIndexedEntry(
-                reader.GetString(1),
-                reader.GetInt32(2),
-                reader.GetString(3));
+            results.Add(reader.GetGuid(0));
         }
 
         return results;
@@ -831,14 +1169,15 @@ public sealed class LlmWikiService(
             command.CommandText =
                 """
                 INSERT INTO "LlmWikiEntryEmbeddings"
-                    ("EntryId", "OwnerUserName", "Model", "Dimensions", "ContentHash", "Embedding", "UpdatedAt")
+                    ("EntryId", "OwnerUserName", "Model", "Dimensions", "ContentHash", "IndexVersion", "Embedding", "UpdatedAt")
                 VALUES
-                    (@entryId, @owner, @model, @dimensions, @contentHash, CAST(@embedding AS vector), @updatedAt)
+                    (@entryId, @owner, @model, @dimensions, @contentHash, @indexVersion, CAST(@embedding AS vector), @updatedAt)
                 ON CONFLICT ("EntryId") DO UPDATE SET
                     "OwnerUserName" = EXCLUDED."OwnerUserName",
                     "Model" = EXCLUDED."Model",
                     "Dimensions" = EXCLUDED."Dimensions",
                     "ContentHash" = EXCLUDED."ContentHash",
+                    "IndexVersion" = EXCLUDED."IndexVersion",
                     "Embedding" = EXCLUDED."Embedding",
                     "UpdatedAt" = EXCLUDED."UpdatedAt";
 
@@ -851,6 +1190,7 @@ public sealed class LlmWikiService(
             command.Parameters.Add(new NpgsqlParameter("model", embeddingService.Model));
             command.Parameters.Add(new NpgsqlParameter("dimensions", embeddingService.Dimensions));
             command.Parameters.Add(new NpgsqlParameter("contentHash", contentHash));
+            command.Parameters.Add(new NpgsqlParameter("indexVersion", SearchIndexVersion));
             command.Parameters.Add(new NpgsqlParameter("embedding", vectorLiteral));
             command.Parameters.Add(new NpgsqlParameter("updatedAt", DateTime.UtcNow));
 
@@ -858,23 +1198,40 @@ public sealed class LlmWikiService(
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
 
-        foreach (var graphNode in graphNodes)
+        if (graphNodes.Count == 0)
         {
-            await using var command = db.Database.GetDbConnection().CreateCommand();
+            return;
+        }
+
+        await using (var command = db.Database.GetDbConnection().CreateCommand())
+        {
             command.CommandText =
                 """
                 INSERT INTO "LlmWikiEntryGraphNodes"
                     ("EntryId", "OwnerUserName", "NodeKey", "NodeText", "NodeType", "Weight")
-                VALUES
-                    (@entryId, @owner, @nodeKey, @nodeText, @nodeType, @weight);
+                SELECT @entryId, @owner, nodes."NodeKey", nodes."NodeText", nodes."NodeType", nodes."Weight"
+                FROM unnest(@nodeKeys, @nodeTexts, @nodeTypes, @nodeWeights)
+                    AS nodes("NodeKey", "NodeText", "NodeType", "Weight");
                 """;
             command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
             command.Parameters.Add(new NpgsqlParameter("entryId", entryId));
             command.Parameters.Add(new NpgsqlParameter("owner", owner));
-            command.Parameters.Add(new NpgsqlParameter("nodeKey", graphNode.Key));
-            command.Parameters.Add(new NpgsqlParameter("nodeText", graphNode.Text));
-            command.Parameters.Add(new NpgsqlParameter("nodeType", graphNode.Type));
-            command.Parameters.Add(new NpgsqlParameter("weight", graphNode.Weight));
+            command.Parameters.Add(new NpgsqlParameter("nodeKeys", NpgsqlDbType.Array | NpgsqlDbType.Text)
+            {
+                Value = graphNodes.Select(x => x.Key).ToArray()
+            });
+            command.Parameters.Add(new NpgsqlParameter("nodeTexts", NpgsqlDbType.Array | NpgsqlDbType.Text)
+            {
+                Value = graphNodes.Select(x => x.Text).ToArray()
+            });
+            command.Parameters.Add(new NpgsqlParameter("nodeTypes", NpgsqlDbType.Array | NpgsqlDbType.Text)
+            {
+                Value = graphNodes.Select(x => x.Type).ToArray()
+            });
+            command.Parameters.Add(new NpgsqlParameter("nodeWeights", NpgsqlDbType.Array | NpgsqlDbType.Double)
+            {
+                Value = graphNodes.Select(x => x.Weight).ToArray()
+            });
 
             await EnsureConnectionOpenAsync(db, cancellationToken);
             await command.ExecuteNonQueryAsync(cancellationToken);
@@ -889,32 +1246,39 @@ public sealed class LlmWikiService(
         int offset,
         int minRelevancePercent,
         string categoryPath,
+        bool publicOnly,
         CancellationToken cancellationToken)
     {
         var queryEmbedding = await embeddingService.EmbedQueryAsync(searchText, cancellationToken);
         var queryNodeKeys = BuildQueryGraphNodeKeys(searchText, categoryPath);
         var queryVector = ToVectorLiteral(queryEmbedding);
         var categoryPrefix = string.IsNullOrWhiteSpace(categoryPath) ? string.Empty : $"{categoryPath}/%";
-        var seedLimit = Math.Max((offset + limit) * 5, 50);
+        var seedLimit = Math.Max((offset + limit) * 10, 100);
 
         await using var command = db.Database.GetDbConnection().CreateCommand();
         command.CommandText =
             """
-            WITH vector_seed AS (
+            WITH filtered_entries AS (
+                SELECT "Id", "UpdatedAt"
+                FROM "LlmWikiEntries"
+                WHERE "OwnerUserName" = @owner
+                  AND (@publicOnly = FALSE OR "IsPublic" = TRUE)
+                  AND (
+                      @categoryPath = ''
+                      OR "CategoryPath" = @categoryPath
+                      OR "CategoryPath" LIKE @categoryPrefix
+                  )
+            ),
+            vector_seed AS (
                 SELECT
                     e."Id",
                     1 - (idx."Embedding" <=> CAST(@queryVector AS vector)) AS vector_score
-                FROM "LlmWikiEntries" AS e
+                FROM filtered_entries AS e
                 INNER JOIN "LlmWikiEntryEmbeddings" AS idx
                     ON idx."EntryId" = e."Id"
-                WHERE e."OwnerUserName" = @owner
+                WHERE idx."OwnerUserName" = @owner
                   AND idx."Model" = @model
                   AND idx."Dimensions" = @dimensions
-                  AND (
-                      @categoryPath = ''
-                      OR e."CategoryPath" = @categoryPath
-                      OR e."CategoryPath" LIKE @categoryPrefix
-                  )
                 ORDER BY idx."Embedding" <=> CAST(@queryVector AS vector)
                 LIMIT @seedLimit
             ),
@@ -923,6 +1287,8 @@ public sealed class LlmWikiService(
                     nodes."EntryId" AS "Id",
                     SUM(nodes."Weight") AS graph_score
                 FROM "LlmWikiEntryGraphNodes" AS nodes
+                INNER JOIN filtered_entries AS e
+                    ON e."Id" = nodes."EntryId"
                 WHERE nodes."OwnerUserName" = @owner
                   AND nodes."NodeKey" = ANY(@queryNodeKeys)
                 GROUP BY nodes."EntryId"
@@ -933,29 +1299,35 @@ public sealed class LlmWikiService(
                     LEAST(
                         SUM(
                             CASE nodes."NodeType"
-                                WHEN 'title-phrase' THEN 0.70
-                                WHEN 'title-term' THEN 0.45
-                                WHEN 'tag' THEN 0.35
-                                WHEN 'category-path' THEN 0.30
-                                WHEN 'category-term' THEN 0.25
-                                WHEN 'prompt-term' THEN 0.14
-                                WHEN 'content-term' THEN 0.08
+                                WHEN 'title-phrase' THEN 0.85
+                                WHEN 'title-term' THEN 0.55
+                                WHEN 'tag' THEN 0.45
+                                WHEN 'category-path' THEN 0.36
+                                WHEN 'category-term' THEN 0.30
+                                WHEN 'prompt-phrase' THEN 0.28
+                                WHEN 'prompt-term' THEN 0.22
+                                WHEN 'content-phrase' THEN 0.18
+                                WHEN 'content-term' THEN 0.14
                                 ELSE 0.0
                             END
                         ),
-                        0.95
+                        1.15
                     ) AS lexical_score
                 FROM "LlmWikiEntryGraphNodes" AS nodes
+                INNER JOIN filtered_entries AS e
+                    ON e."Id" = nodes."EntryId"
                 WHERE nodes."OwnerUserName" = @owner
                   AND nodes."NodeKey" = ANY(@queryNodeKeys)
                 GROUP BY nodes."EntryId"
             ),
             seed_graph_nodes AS (
-                SELECT DISTINCT nodes."NodeKey"
+                SELECT nodes."NodeKey"
                 FROM "LlmWikiEntryGraphNodes" AS nodes
                 INNER JOIN vector_seed AS seed
                     ON seed."Id" = nodes."EntryId"
                 WHERE nodes."OwnerUserName" = @owner
+                GROUP BY nodes."NodeKey"
+                ORDER BY MAX(seed.vector_score) DESC, SUM(nodes."Weight") DESC, nodes."NodeKey"
                 LIMIT 200
             ),
             expanded_graph AS (
@@ -965,6 +1337,8 @@ public sealed class LlmWikiService(
                 FROM "LlmWikiEntryGraphNodes" AS nodes
                 INNER JOIN seed_graph_nodes AS seed_nodes
                     ON seed_nodes."NodeKey" = nodes."NodeKey"
+                INNER JOIN filtered_entries AS e
+                    ON e."Id" = nodes."EntryId"
                 WHERE nodes."OwnerUserName" = @owner
                 GROUP BY nodes."EntryId"
             ),
@@ -1008,9 +1382,9 @@ public sealed class LlmWikiService(
                     SUM(query_graph_score) AS query_graph_score,
                     SUM(expanded_graph_score) AS expanded_graph_score,
                     SUM(lexical_score) AS lexical_score,
-                    MAX(vector_score)
-                        + LEAST(SUM(query_graph_score), 12) / 18.0
-                        + LEAST(SUM(expanded_graph_score), 8) / 80.0
+                    MAX(vector_score) * 0.90
+                        + LEAST(SUM(query_graph_score), 16) / 18.0
+                        + LEAST(SUM(expanded_graph_score), 10) / 90.0
                         + SUM(lexical_score) AS rank_score
                 FROM combined
                 GROUP BY "Id"
@@ -1019,26 +1393,21 @@ public sealed class LlmWikiService(
                 SELECT
                     ranked."Id",
                     ranked.rank_score,
-                    ROUND(LEAST(GREATEST(ranked.rank_score / 1.75, 0), 1) * 100)::integer AS relevance_percent
+                    ROUND(LEAST(GREATEST(ranked.rank_score / 1.60, 0), 1) * 100)::integer AS relevance_percent
                 FROM ranked
             )
             SELECT scored."Id", scored.relevance_percent
             FROM scored
-            INNER JOIN "LlmWikiEntries" AS e
+            INNER JOIN filtered_entries AS e
                 ON e."Id" = scored."Id"
-            WHERE e."OwnerUserName" = @owner
-              AND (
-                  @categoryPath = ''
-                  OR e."CategoryPath" = @categoryPath
-                  OR e."CategoryPath" LIKE @categoryPrefix
-              )
-              AND scored.relevance_percent >= @minRelevancePercent
+            WHERE scored.relevance_percent >= @minRelevancePercent
             ORDER BY scored.rank_score DESC, e."UpdatedAt" DESC
             OFFSET @offset
             LIMIT @limit;
             """;
         command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
         command.Parameters.Add(new NpgsqlParameter("owner", owner));
+        command.Parameters.Add(new NpgsqlParameter("publicOnly", publicOnly));
         command.Parameters.Add(new NpgsqlParameter("model", embeddingService.Model));
         command.Parameters.Add(new NpgsqlParameter("dimensions", embeddingService.Dimensions));
         command.Parameters.Add(new NpgsqlParameter("queryVector", queryVector));
@@ -1199,19 +1568,23 @@ public sealed class LlmWikiService(
             AddGraphNode(nodes, "tag", NormalizeGraphToken(tag), tag, 4.0);
         }
 
-        var titleTokens = ExtractGraphTokens(title).Take(16).ToArray();
+        var titleTokens = ExtractGraphTokens(title).Take(20).ToArray();
         AddGraphPhrases(nodes, titleTokens, "title-phrase", 4.0);
         foreach (var token in titleTokens)
         {
             AddGraphNode(nodes, "title-term", token, token, 3.0);
         }
 
-        foreach (var token in ExtractGraphTokens(prompt).Take(36))
+        var promptTokens = ExtractGraphTokens(prompt).Take(56).ToArray();
+        AddGraphPhrases(nodes, promptTokens.Take(20).ToArray(), "prompt-phrase", 2.2);
+        foreach (var token in promptTokens)
         {
             AddGraphNode(nodes, "prompt-term", token, token, 1.6);
         }
 
-        foreach (var token in ExtractGraphTokens(content).Take(32))
+        var contentTokens = ExtractGraphTokens(content).Take(56).ToArray();
+        AddGraphPhrases(nodes, contentTokens.Take(20).ToArray(), "content-phrase", 1.4);
+        foreach (var token in contentTokens)
         {
             AddGraphNode(nodes, "content-term", token, token, 1.0);
         }
@@ -1457,6 +1830,7 @@ public sealed class LlmWikiService(
             "remember" => "remember",
             "update" => "update",
             "merge" => "merge",
+            "publish" => "publish",
             "legacy-baseline" => "legacy-baseline",
             _ => throw new InvalidOperationException($"Unsupported LLM Wiki source action: {action}")
         };
@@ -1584,9 +1958,20 @@ public sealed class LlmWikiService(
         => Math.Clamp(limit <= 0 ? defaultValue : limit, 1, maxValue);
 
     private static string NormalizeUser(string value)
-        => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToLowerInvariant();
+        => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().TrimStart('@').ToLowerInvariant();
 
-    private sealed record LlmWikiIndexedEntry(string Model, int Dimensions, string ContentHash);
+    private sealed record LlmWikiSearchProjection(
+        Guid Id,
+        string Slug,
+        string Title,
+        string Summary,
+        string TagsJson,
+        string CategoryPath,
+        int CategoryDepth,
+        DateTime UpdatedAt,
+        int AccessCount,
+        bool IsPublic,
+        DateTime? PublishedAt);
 
     private sealed record LlmWikiGraphNode(string Key, string Text, string Type, double Weight);
 

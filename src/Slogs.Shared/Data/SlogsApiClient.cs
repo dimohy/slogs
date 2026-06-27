@@ -322,6 +322,24 @@ public sealed class SlogsApiClient
     public async Task<AdminUserUsageResponse?> GetAdminUserUsageAsync()
         => backend is not null ? await backend.GetAdminUserUsageAsync() : await GetJsonAsync<AdminUserUsageResponse>("api/admin/users/llm-wiki-usage");
 
+    public async Task<AuthUser?> ChangeAdminUserNameAsync(string currentUserName, string newUserName)
+    {
+        if (backend is not null)
+        {
+            return await backend.ChangeAdminUserNameAsync(currentUserName, new AdminUserNameUpdateRequest(newUserName));
+        }
+
+        using var request = CreateRequest(HttpMethod.Put, $"api/admin/users/{EscapePath(currentUserName)}/name");
+        request.Content = JsonContent.Create(new AdminUserNameUpdateRequest(newUserName), jsonTypeInfo: GetJsonTypeInfo<AdminUserNameUpdateRequest>());
+        using var response = await httpClient.SendAsync(request);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(await ReadApiErrorCodeAsync(response) ?? "adminUserNameChangeFailed");
+        }
+
+        return await ReadJsonAsync<AuthUser>(response);
+    }
+
     public async Task<IReadOnlyList<string>> GetFollowingAsync(string followerUser)
         => backend is not null ? await backend.GetFollowingAsync(followerUser) : await GetJsonAsync<List<string>>($"api/users/{EscapePath(followerUser)}/following") ?? [];
 
@@ -506,6 +524,25 @@ public sealed class SlogsApiClient
 
         await using var stream = await response.Content.ReadAsStreamAsync();
         return await JsonSerializer.DeserializeAsync(stream, GetJsonTypeInfo<T>());
+    }
+
+    private static async Task<string?> ReadApiErrorCodeAsync(HttpResponseMessage response)
+    {
+        if (response.Content.Headers.ContentLength == 0)
+        {
+            return null;
+        }
+
+        try
+        {
+            await using var stream = await response.Content.ReadAsStreamAsync();
+            var apiError = await JsonSerializer.DeserializeAsync(stream, GetJsonTypeInfo<ApiErrorResponse>());
+            return apiError?.Error;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private static JsonSerializerOptions CreateJsonOptions()

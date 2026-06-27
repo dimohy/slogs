@@ -126,6 +126,8 @@ public sealed class SlogsDbContext(DbContextOptions<SlogsDbContext> options) : D
             entity.Property(x => x.CategoryPath).HasMaxLength(240);
             entity.Property(x => x.TagsJson).HasColumnType("jsonb");
             entity.HasIndex(x => new { x.OwnerUserName, x.CategoryPath, x.UpdatedAt });
+            entity.HasIndex(x => new { x.OwnerUserName, x.IsPublic, x.UpdatedAt });
+            entity.HasIndex(x => new { x.OwnerUserName, x.IsPublic, x.CategoryPath, x.UpdatedAt });
             entity.HasOne<UserRecord>()
                 .WithMany()
                 .HasForeignKey(x => x.OwnerUserName)
@@ -327,6 +329,10 @@ public sealed class LlmWikiEntryRecord
     public DateTime? LastAccessedAt { get; set; }
 
     public int AccessCount { get; set; }
+
+    public bool IsPublic { get; set; }
+
+    public DateTime? PublishedAt { get; set; }
 
     public List<LlmWikiEntrySourceRecord> Sources { get; set; } = [];
 }
