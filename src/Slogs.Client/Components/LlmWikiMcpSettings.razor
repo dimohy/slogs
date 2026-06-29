@@ -98,25 +98,22 @@
         }
 
         <div class="mt-4 space-y-2">
-            @if (tokens.Count == 0)
+            @if (ActiveTokens.Count == 0)
             {
                 <p class="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">등록된 Slogs MCP 토큰이 없습니다.</p>
             }
             else
             {
-                @foreach (var token in tokens)
+                @foreach (var token in ActiveTokens)
                 {
                     <div class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 px-3 py-2">
                         <div class="min-w-0">
                             <p class="truncate text-sm font-semibold text-slate-900">@token.Name</p>
-                            <p class="text-xs text-slate-500">@token.TokenPrefix... · @FormatScopes(token.Scopes) · @FormatDateTime(token.CreatedAt)@GetTokenStatus(token)</p>
+                            <p class="text-xs text-slate-500">@token.TokenPrefix... · @FormatScopes(token.Scopes) · @FormatDateTime(token.CreatedAt)@GetTokenLastUsedStatus(token)</p>
                         </div>
-                        @if (!token.IsRevoked)
-                        {
-                            <button class="inline-flex min-w-max shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-rose-300 px-3 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-50"
-                                    type="button"
-                                    @onclick="() => RevokeTokenAsync(token.Id)">폐기</button>
-                        }
+                        <button class="inline-flex min-w-max shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-rose-300 px-3 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-50"
+                                type="button"
+                                @onclick="() => RevokeTokenAsync(token.Id)">폐기</button>
                     </div>
                 }
             }
@@ -317,6 +314,8 @@
     private Guid? deletingObsidianVaultId;
     private string deleteObsidianVaultConfirmation = string.Empty;
     private bool isDeletingObsidianVault;
+    private IReadOnlyList<LlmWikiTokenResponse> ActiveTokens
+        => tokens.Where(token => !token.IsRevoked).ToList();
 
     protected override async Task OnInitializedAsync()
     {
@@ -549,15 +548,8 @@
     private static string FormatScopes(IReadOnlyList<string> scopes)
         => scopes.Count == 0 ? SlogsTokenScopes.Mcp : string.Join(", ", scopes);
 
-    private static string GetTokenStatus(LlmWikiTokenResponse token)
-    {
-        if (token.IsRevoked)
-        {
-            return " · 폐기됨";
-        }
-
-        return token.LastUsedAt is null ? string.Empty : $" · 마지막 사용 {FormatDateTime(token.LastUsedAt.Value)}";
-    }
+    private static string GetTokenLastUsedStatus(LlmWikiTokenResponse token)
+        => token.LastUsedAt is null ? string.Empty : $" · 마지막 사용 {FormatDateTime(token.LastUsedAt.Value)}";
 
     private static string FormatBytes(long bytes)
     {

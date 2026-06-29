@@ -750,7 +750,7 @@ public sealed class LlmWikiService(
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
         var tokens = await db.LlmWikiMcpTokens
             .AsNoTracking()
-            .Where(x => x.OwnerUserName == owner)
+            .Where(x => x.OwnerUserName == owner && x.RevokedAt == null)
             .OrderByDescending(x => x.CreatedAt)
             .ToListAsync(cancellationToken);
 
