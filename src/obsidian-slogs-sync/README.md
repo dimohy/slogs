@@ -1,31 +1,39 @@
 # Slogs Sync for Obsidian
 
-Obsidian plugin that synchronizes an Obsidian vault with the Slogs Obsidian vault API.
+Slogs Sync synchronizes an Obsidian vault with the Slogs remote Obsidian Vault API.
 
-## Requirements
+## Install
 
-- Obsidian desktop or mobile.
-- A Slogs Bearer token with the `obsidian.sync` scope.
-- Slogs server URL, normally `https://slogs.dev`.
+### Community plugin
 
-## Build
+After Obsidian approves the community plugin submission:
 
-```powershell
-npm install
-npm run check
-npm run test
-npm run build
-```
+1. Open Obsidian settings.
+2. Go to Community plugins and turn off Restricted mode if needed.
+3. Select Browse and search for `Slogs Sync`.
+4. Install and enable the plugin.
 
-## Manual Install
+### Beta install before approval
 
-Copy `manifest.json` and `main.js` into an Obsidian vault plugin directory such as:
+Until the community plugin review is merged, install without copying files by using the BRAT community plugin:
+
+1. Install `BRAT` from Obsidian community plugins.
+2. Run `BRAT: Add a beta plugin for testing`.
+3. Enter this repository URL:
 
 ```text
-<vault>/.obsidian/plugins/obsidian-slogs-sync/
+https://github.com/dimohy/obsidian-slogs-sync
 ```
 
-Enable `Slogs Sync` from Obsidian community plugins, then set the Slogs server URL, `obsidian.sync` token, and remote vault name in plugin settings.
+4. Enable `Slogs Sync` from Community plugins.
+
+## Configure
+
+1. In Slogs, create a token with the `obsidian.sync` scope.
+2. In Obsidian, open Settings > Slogs Sync.
+3. Set the Slogs server URL, normally `https://slogs.dev`.
+4. Paste the `obsidian.sync` token.
+5. Set a remote vault name, or leave it blank to use the current Obsidian vault name.
 
 ## Commands
 
@@ -51,3 +59,14 @@ slogs.llmWiki.categoryPath: slogs/obsidian-import
 ```
 
 Conflicts open a modal so the user can use the remote copy, keep the local copy, or skip the file instead of overwriting silently.
+
+## Develop
+
+```powershell
+npm install
+npm run check
+npm run test
+npm run build
+```
+
+Release assets for Obsidian are `manifest.json`, `main.js`, and `styles.css` if a future release adds styles. The GitHub release tag must match the `version` in `manifest.json`.

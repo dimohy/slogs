@@ -1,5 +1,5 @@
 {
-  "name": "obsidian-slogs-sync",
+  "name": "slogs-sync",
   "version": "0.1.0",
   "private": true,
   "description": "Obsidian plugin for syncing Markdown notes with Slogs.",
