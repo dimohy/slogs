@@ -393,6 +393,7 @@ else
                         <h2 class="text-base font-bold text-slate-900">스토리지 한도</h2>
                         <p class="mt-1 text-xs font-semibold text-slate-500">
                             @($"계정당 {FormatBytes(usage.ObsidianPerAccountStorageLimitBytes)} · 전체 {FormatBytes(usage.ObsidianTotalStorageCapacityBytes)}")
+                            <span>@($" · 물리 여유 {FormatBytes(usage.ObsidianPhysicalStorageRemainingBytes)}")</span>
                             @if (!usage.ObsidianTotalStorageCapacityConfigured)
                             {
                                 <span> · 기본값</span>
@@ -417,14 +418,18 @@ else
                         </button>
                     </div>
                 </div>
-                <div class="grid gap-3 md:grid-cols-3">
+                <div class="grid gap-3 md:grid-cols-4">
                     <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
                         <div class="text-xs font-bold uppercase text-slate-500">사용량</div>
                         <div class="mt-1 text-xl font-bold text-slate-900">@FormatBytes(usage.TotalObsidianSizeBytes)</div>
                     </div>
                     <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                        <div class="text-xs font-bold uppercase text-slate-500">남은 용량</div>
+                        <div class="text-xs font-bold uppercase text-slate-500">한도 남은 용량</div>
                         <div class="mt-1 text-xl font-bold text-slate-900">@FormatBytes(usage.ObsidianTotalStorageRemainingBytes)</div>
+                    </div>
+                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <div class="text-xs font-bold uppercase text-slate-500">물리 남은 용량</div>
+                        <div class="mt-1 text-xl font-bold text-slate-900">@FormatBytes(usage.ObsidianPhysicalStorageRemainingBytes)</div>
                     </div>
                     <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
                         <div class="text-xs font-bold uppercase text-slate-500">전체 사용률</div>

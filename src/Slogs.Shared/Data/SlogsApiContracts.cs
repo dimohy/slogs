@@ -48,6 +48,7 @@ public sealed record AdminUserUsageResponse(
     long ObsidianTotalStorageRemainingBytes,
     int ObsidianTotalStorageUsagePercent,
     bool ObsidianTotalStorageCapacityConfigured,
+    long ObsidianPhysicalStorageRemainingBytes,
     AdminLlmWikiMcpQualitySummary LlmWikiMcpQuality,
     IReadOnlyList<AdminUserUsageSummary> Users);
 
@@ -59,7 +60,8 @@ public sealed record AdminObsidianStorageSettingsResponse(
     long TotalUsedBytes,
     long TotalRemainingBytes,
     int TotalUsagePercent,
-    bool TotalCapacityConfigured);
+    bool TotalCapacityConfigured,
+    long PhysicalStorageRemainingBytes);
 
 public sealed record AdminLlmWikiMcpQualitySummary(
     DateTime WindowStartedAt,

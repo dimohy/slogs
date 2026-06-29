@@ -6,7 +6,10 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Slogs.Data;
 
-public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHttpContextAccessor httpContextAccessor)
+public sealed class AuthService(
+    IDbContextFactory<SlogsDbContext> dbFactory,
+    IHttpContextAccessor httpContextAccessor,
+    ObsidianStorageQuotaService obsidianStorageQuotaService)
 {
     private readonly object stateLock = new();
     private AuthUser? currentUser = SlogsAuthentication.TryCreateUser(httpContextAccessor.HttpContext?.User);
@@ -588,6 +591,7 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
                 StringComparer.OrdinalIgnoreCase);
 
         var obsidianStorageQuota = await ObsidianStorageQuotaService.GetSnapshotAsync(db);
+        var obsidianPhysicalStorageRemainingBytes = obsidianStorageQuotaService.GetPhysicalStorageRemainingBytes();
 
         var summaries = users
             .Select(user =>
@@ -679,6 +683,7 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
             obsidianStorageQuota.TotalRemainingBytes,
             obsidianStorageQuota.TotalUsagePercent,
             obsidianStorageQuota.TotalCapacityConfigured,
+            obsidianPhysicalStorageRemainingBytes,
             BuildMcpQualitySummary(mcpAuditRows, recent30DayStart, recent7DayStart),
             summaries);
     }

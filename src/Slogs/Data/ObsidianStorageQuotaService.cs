@@ -1,10 +1,13 @@
 using System.Data;
 using System.Globalization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 
 namespace Slogs.Data;
 
-public sealed class ObsidianStorageQuotaService(IDbContextFactory<SlogsDbContext> dbFactory)
+public sealed class ObsidianStorageQuotaService(
+    IDbContextFactory<SlogsDbContext> dbFactory,
+    IWebHostEnvironment environment)
 {
     public const long DefaultPerAccountStorageLimitBytes = 1L * 1024 * 1024 * 1024;
     private const long MaxStorageCapacityBytes = 1024L * 1024 * 1024 * 1024 * 1024;
@@ -15,7 +18,7 @@ public sealed class ObsidianStorageQuotaService(IDbContextFactory<SlogsDbContext
     {
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
         var snapshot = await GetSnapshotAsync(db, cancellationToken);
-        return ToResponse(snapshot);
+        return ToResponse(snapshot, GetPhysicalStorageRemainingBytes());
     }
 
     public async Task<AdminObsidianStorageSettingsResponse> UpdateSettingsAsync(
@@ -33,7 +36,27 @@ public sealed class ObsidianStorageQuotaService(IDbContextFactory<SlogsDbContext
 
         await WriteLongSettingAsync(db, TotalCapacityKey, request.TotalCapacityBytes, cancellationToken);
         var snapshot = await GetSnapshotAsync(db, cancellationToken);
-        return ToResponse(snapshot);
+        return ToResponse(snapshot, GetPhysicalStorageRemainingBytes());
+    }
+
+    public long GetPhysicalStorageRemainingBytes()
+    {
+        var probePath = GetPhysicalStorageProbePath();
+        var existingDirectory = new DirectoryInfo(probePath);
+        while (!existingDirectory.Exists)
+        {
+            existingDirectory = existingDirectory.Parent
+                ?? throw new InvalidOperationException("obsidianPhysicalStoragePathMissing");
+        }
+
+        var fullPath = Path.GetFullPath(existingDirectory.FullName);
+        var drive = DriveInfo.GetDrives()
+            .Where(candidate => IsPathOnDrive(fullPath, candidate.Name))
+            .OrderByDescending(candidate => candidate.Name.Length)
+            .FirstOrDefault()
+            ?? throw new InvalidOperationException("obsidianPhysicalStorageDriveMissing");
+
+        return drive.AvailableFreeSpace;
     }
 
     public static async Task<ObsidianStorageQuotaSnapshot> GetSnapshotAsync(
@@ -195,14 +218,42 @@ public sealed class ObsidianStorageQuotaService(IDbContextFactory<SlogsDbContext
         }
     }
 
-    private static AdminObsidianStorageSettingsResponse ToResponse(ObsidianStorageQuotaSnapshot snapshot)
+    private string GetPhysicalStorageProbePath()
+    {
+        var webRoot = environment.WebRootPath;
+        if (string.IsNullOrWhiteSpace(webRoot))
+        {
+            webRoot = Path.Combine(environment.ContentRootPath, "wwwroot");
+        }
+
+        return Path.Combine(webRoot, "uploads");
+    }
+
+    private static bool IsPathOnDrive(string fullPath, string driveName)
+    {
+        var normalizedDrive = Path.GetFullPath(driveName);
+        if (!normalizedDrive.EndsWith(Path.DirectorySeparatorChar))
+        {
+            normalizedDrive += Path.DirectorySeparatorChar;
+        }
+
+        return fullPath.Equals(
+                normalizedDrive.TrimEnd(Path.DirectorySeparatorChar),
+                StringComparison.OrdinalIgnoreCase)
+            || fullPath.StartsWith(normalizedDrive, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static AdminObsidianStorageSettingsResponse ToResponse(
+        ObsidianStorageQuotaSnapshot snapshot,
+        long physicalStorageRemainingBytes)
         => new(
             snapshot.PerAccountStorageLimitBytes,
             snapshot.TotalCapacityBytes,
             snapshot.TotalUsedBytes,
             snapshot.TotalRemainingBytes,
             snapshot.TotalUsagePercent,
-            snapshot.TotalCapacityConfigured);
+            snapshot.TotalCapacityConfigured,
+            physicalStorageRemainingBytes);
 
     private static int ToUsagePercent(long usedBytes, long capacityBytes)
         => capacityBytes <= 0

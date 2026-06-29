@@ -2,6 +2,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
 using Slogs.Data;
 using System.Security.Cryptography;
 using System.Text;
@@ -261,6 +264,7 @@ public sealed class ObsidianVaultServiceTests
         Assert.Equal(0, settings.TotalUsedBytes);
         Assert.Equal(0, settings.TotalUsagePercent);
         Assert.False(settings.TotalCapacityConfigured);
+        Assert.True(settings.PhysicalStorageRemainingBytes > 0);
     }
 
     [Fact]
@@ -273,6 +277,7 @@ public sealed class ObsidianVaultServiceTests
 
         Assert.Equal(capacityBytes, updated.TotalCapacityBytes);
         Assert.True(updated.TotalCapacityConfigured);
+        Assert.True(updated.PhysicalStorageRemainingBytes > 0);
 
         var vault = await fixture.Obsidian.GetOrCreateVaultAsync("alice", new ObsidianVaultCreateRequest("Vault"));
         await fixture.Obsidian.UpsertFileAsync(
@@ -325,6 +330,7 @@ public sealed class ObsidianVaultServiceTests
             await connection.OpenAsync();
             var services = new ServiceCollection();
             services.AddHttpContextAccessor();
+            services.AddSingleton<IWebHostEnvironment>(_ => new TestWebHostEnvironment());
             services.AddDbContextFactory<SlogsDbContext>(options => options.UseSqlite(connection));
             services.AddScoped<ObsidianVaultService>();
             services.AddScoped<AuthService>();
@@ -420,6 +426,21 @@ public sealed class ObsidianVaultServiceTests
         {
             await services.DisposeAsync();
             await connection.DisposeAsync();
+        }
+
+        private sealed class TestWebHostEnvironment : IWebHostEnvironment
+        {
+            public string ApplicationName { get; set; } = "Slogs.Tests";
+
+            public IFileProvider WebRootFileProvider { get; set; } = new NullFileProvider();
+
+            public string WebRootPath { get; set; } = Path.GetTempPath();
+
+            public string EnvironmentName { get; set; } = Environments.Development;
+
+            public string ContentRootPath { get; set; } = Path.GetTempPath();
+
+            public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
         }
     }
 }
