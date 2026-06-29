@@ -6,26 +6,16 @@ Slogs Sync synchronizes an Obsidian vault with the Slogs remote Obsidian Vault A
 
 ### Community plugin
 
-After Obsidian approves the community plugin submission:
+Slogs Sync is available as an Obsidian community plugin. Version `0.1.2` requires Obsidian `1.6.6` or newer.
 
 1. Open Obsidian settings.
 2. Go to Community plugins and turn off Restricted mode if needed.
 3. Select Browse and search for `Slogs Sync`.
 4. Install and enable the plugin.
 
-### Beta install before approval
+### Beta testing
 
-Until the community plugin review is merged, install without copying files by using the BRAT community plugin:
-
-1. Install `BRAT` from Obsidian community plugins.
-2. Run `BRAT: Add a beta plugin for testing`.
-3. Enter this repository URL:
-
-```text
-https://github.com/dimohy/obsidian-slogs-sync
-```
-
-4. Enable `Slogs Sync` from Community plugins.
+For unreleased test builds, use the GitHub releases in this repository or add this repository to BRAT. Normal users should install the community plugin instead of copying files into a vault.
 
 ## Configure
 
@@ -69,4 +59,4 @@ npm run test
 npm run build
 ```
 
-Release assets for Obsidian are `manifest.json`, `main.js`, and `styles.css` if a future release adds styles. The GitHub release tag must match the `version` in `manifest.json`.
+Release assets are `manifest.json`, `main.js`, and `styles.css` if a future release adds styles. The GitHub release tag must match the `version` in `manifest.json`.
