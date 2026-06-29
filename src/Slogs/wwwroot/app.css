@@ -284,6 +284,20 @@ nav[aria-label="main menu"] a.bg-slate-900:hover {
     outline-offset: 3px;
 }
 
+.slogs-post-list-grid {
+    align-items: stretch;
+}
+
+.slogs-post-list-empty {
+    grid-column: 1 / -1;
+}
+
+@media (min-width: 1800px) {
+    .slogs-page-shell--wide .slogs-post-list-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+}
+
 .slogs-post-action {
     background-color: transparent;
     border-color: var(--theme-border-strong);

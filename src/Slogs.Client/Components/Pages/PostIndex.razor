@@ -47,10 +47,10 @@
     <p class="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">@actionMessage</p>
 }
 
-<section class="grid grid-cols-1 gap-3 md:grid-cols-2">
+<section class="slogs-post-list-grid grid grid-cols-1 gap-3 md:grid-cols-2">
     @if (!posts.Any())
     {
-        <p class="rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">작성된 글이 없습니다.</p>
+        <p class="slogs-post-list-empty rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">작성된 글이 없습니다.</p>
     }
     else
     {

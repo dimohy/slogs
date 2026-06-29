@@ -31,10 +31,10 @@ else
             <p class="mt-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">@message</p>
         }
 
-        <section class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+        <section class="slogs-post-list-grid mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
             @if (!myPosts.Any())
             {
-                <div class="grid min-h-64 place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center md:col-span-2">
+                <div class="slogs-post-list-empty grid min-h-64 place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center md:col-span-2">
                     <div class="max-w-sm">
                         <p class="text-sm font-semibold text-slate-500">저장한 글이 없습니다.</p>
                     </div>

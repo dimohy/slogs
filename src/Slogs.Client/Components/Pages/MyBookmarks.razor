@@ -21,10 +21,10 @@ else
         <p class="mt-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">@message</p>
     }
 
-    <section class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+    <section class="slogs-post-list-grid mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
         @if (!bookmarks.Any())
         {
-            <div class="grid min-h-64 place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center md:col-span-2">
+            <div class="slogs-post-list-empty grid min-h-64 place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center md:col-span-2">
                 <div class="max-w-sm">
                     <p class="text-sm font-semibold text-slate-500">북마크한 글이 없습니다.</p>
                 </div>
