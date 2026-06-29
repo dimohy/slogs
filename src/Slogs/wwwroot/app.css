@@ -169,6 +169,93 @@ nav[aria-label="main menu"] a.bg-slate-900:hover {
     white-space: pre-wrap;
 }
 
+.obsidian-vault-card {
+    transition:
+        border-color 0.16s ease,
+        background-color 0.16s ease,
+        box-shadow 0.16s ease;
+}
+
+.obsidian-vault-card--danger {
+    border-color: #fb923c !important;
+    background: linear-gradient(180deg, #fff7ed 0%, #fff1f2 100%) !important;
+    box-shadow: 0 12px 28px rgba(190, 18, 60, 0.12);
+}
+
+.obsidian-vault-delete-trigger {
+    border-color: #fb923c !important;
+    background: #ffedd5 !important;
+    color: #9a3412 !important;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.72) inset;
+}
+
+.obsidian-vault-delete-trigger:hover,
+.obsidian-vault-delete-trigger:focus-visible {
+    border-color: #f97316 !important;
+    background: #fed7aa !important;
+    color: #7c2d12 !important;
+    outline: none;
+}
+
+.obsidian-vault-delete-trigger:disabled {
+    border-color: #fdba74 !important;
+    background: #ffedd5 !important;
+    color: #9a3412 !important;
+    opacity: 0.72;
+}
+
+.obsidian-vault-delete-panel {
+    border-color: #fb7185 !important;
+    background: linear-gradient(135deg, #fff7ed 0%, #ffe4e6 100%) !important;
+    box-shadow: 0 12px 26px rgba(190, 18, 60, 0.14);
+}
+
+.obsidian-vault-delete-input {
+    border-color: #fb7185 !important;
+    color: #431407;
+}
+
+.obsidian-vault-delete-input:focus {
+    border-color: #e11d48 !important;
+    box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.16);
+}
+
+.obsidian-vault-delete-cancel {
+    border-color: #fda4af !important;
+    background: rgba(255, 255, 255, 0.74) !important;
+    color: #7f1d1d !important;
+}
+
+.obsidian-vault-delete-cancel:hover,
+.obsidian-vault-delete-cancel:focus-visible {
+    background: #ffffff !important;
+    color: #881337 !important;
+    outline: none;
+}
+
+.obsidian-vault-delete-confirm {
+    border: 1px solid #c2410c !important;
+    background: #ea580c !important;
+    color: #ffffff !important;
+    box-shadow: 0 8px 18px rgba(194, 65, 12, 0.24);
+}
+
+.obsidian-vault-delete-confirm:hover,
+.obsidian-vault-delete-confirm:focus-visible {
+    background: #dc2626 !important;
+    border-color: #b91c1c !important;
+    color: #ffffff !important;
+    outline: none;
+}
+
+.obsidian-vault-delete-confirm:disabled {
+    background: #fb923c !important;
+    border-color: #f97316 !important;
+    color: #fff7ed !important;
+    opacity: 0.78;
+    box-shadow: none;
+}
+
 .slogs-account-menu > summary {
     cursor: pointer;
 }
