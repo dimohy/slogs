@@ -12,7 +12,8 @@ public interface ISlogsApiBackend
     Task<bool> DeletePostAsync(string slug, string userName);
     Task<IReadOnlyList<BlogPost>> GetRelatedPostsAsync(string slug, int maxCount);
     Task<(BlogPost? Previous, BlogPost? Next)> GetAdjacentPostsAsync(string slug);
-    Task<IReadOnlyList<PostRevisionResponse>> GetPostRevisionsAsync(string slug);
+    Task<IReadOnlyList<PostRevisionSummaryResponse>> GetPostRevisionsAsync(string slug);
+    Task<PostRevisionResponse?> GetPostRevisionAsync(string slug, int revisionNumber);
     Task<IReadOnlyList<BlogPost>> GetByTagAsync(string tag);
     Task<IReadOnlyList<BlogPost>> GetMyPostsAsync(string userName);
     Task<IReadOnlyList<BlogPost>> GetByAuthorAsync(string author);

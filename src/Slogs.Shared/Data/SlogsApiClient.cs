@@ -85,10 +85,15 @@ public sealed class SlogsApiClient
         return (adjacent?.Previous, adjacent?.Next);
     }
 
-    public async Task<IReadOnlyList<PostRevisionResponse>> GetPostRevisionsAsync(string slug)
+    public async Task<IReadOnlyList<PostRevisionSummaryResponse>> GetPostRevisionsAsync(string slug)
         => backend is not null
             ? await backend.GetPostRevisionsAsync(slug)
-            : await GetJsonAsync<List<PostRevisionResponse>>($"api/posts/{EscapePath(slug)}/revisions") ?? [];
+            : await GetJsonAsync<List<PostRevisionSummaryResponse>>($"api/posts/{EscapePath(slug)}/revisions") ?? [];
+
+    public async Task<PostRevisionResponse?> GetPostRevisionAsync(string slug, int revisionNumber)
+        => backend is not null
+            ? await backend.GetPostRevisionAsync(slug, revisionNumber)
+            : await GetJsonAsync<PostRevisionResponse>($"api/posts/{EscapePath(slug)}/revisions/{revisionNumber}");
 
     public async Task<IReadOnlyList<BlogPost>> GetByTagAsync(string tag)
         => backend is not null ? await backend.GetByTagAsync(tag) : await GetJsonAsync<List<BlogPost>>($"api/tags/{EscapePath(tag)}/posts") ?? [];

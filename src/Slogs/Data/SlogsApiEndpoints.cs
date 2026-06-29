@@ -203,6 +203,12 @@ public static class SlogsApiEndpoints
         api.MapGet("/posts/{slug}/revisions", async (HttpContext httpContext, BlogService blogService, string slug) =>
             Results.Ok(await blogService.GetPostRevisionsAsync(slug, GetCurrentUser(httpContext)?.UserName)));
 
+        api.MapGet("/posts/{slug}/revisions/{revisionNumber:int}", async (HttpContext httpContext, BlogService blogService, string slug, int revisionNumber) =>
+        {
+            var revision = await blogService.GetPostRevisionAsync(slug, revisionNumber, GetCurrentUser(httpContext)?.UserName);
+            return revision is null ? Results.NotFound() : Results.Ok(revision);
+        });
+
         api.MapGet("/posts/{slug}", async (HttpContext httpContext, BlogService blogService, string slug) =>
         {
             var post = await blogService.GetBySlugAsync(slug, GetCurrentUser(httpContext)?.UserName);

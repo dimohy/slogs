@@ -43,8 +43,11 @@ public sealed class ServerSlogsApiBackend(
     public Task<(BlogPost? Previous, BlogPost? Next)> GetAdjacentPostsAsync(string slug)
         => blogService.GetAdjacentPostsAsync(slug);
 
-    public Task<IReadOnlyList<PostRevisionResponse>> GetPostRevisionsAsync(string slug)
+    public Task<IReadOnlyList<PostRevisionSummaryResponse>> GetPostRevisionsAsync(string slug)
         => blogService.GetPostRevisionsAsync(slug, GetCurrentUser()?.UserName);
+
+    public Task<PostRevisionResponse?> GetPostRevisionAsync(string slug, int revisionNumber)
+        => blogService.GetPostRevisionAsync(slug, revisionNumber, GetCurrentUser()?.UserName);
 
     public Task<IReadOnlyList<BlogPost>> GetByTagAsync(string tag)
         => blogService.GetByTagAsync(tag);

@@ -137,6 +137,38 @@ nav[aria-label="main menu"] a.bg-slate-900:hover {
     color: #f8fafc !important;
 }
 
+.revision-diff-code {
+    background-color: #0f172a;
+}
+
+.revision-diff-line {
+    display: grid;
+    grid-template-columns: 2rem minmax(0, 1fr);
+    gap: 0.5rem;
+    padding: 0.125rem 0.75rem;
+    color: #cbd5e1;
+}
+
+.revision-diff-line-added {
+    background-color: #064e3b;
+    color: #d1fae5;
+}
+
+.revision-diff-line-removed {
+    background-color: #881337;
+    color: #ffe4e6;
+}
+
+.revision-diff-marker {
+    user-select: none;
+    text-align: right;
+}
+
+.revision-diff-text {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
 .slogs-account-menu > summary {
     cursor: pointer;
 }

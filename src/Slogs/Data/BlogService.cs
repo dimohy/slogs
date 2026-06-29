@@ -231,37 +231,73 @@ public sealed class BlogService(
         return (previous, next);
     }
 
-    public async Task<IReadOnlyList<PostRevisionResponse>> GetPostRevisionsAsync(string slug, string? viewerUserName = null)
+    public async Task<IReadOnlyList<PostRevisionSummaryResponse>> GetPostRevisionsAsync(string slug, string? viewerUserName = null)
     {
         if (string.IsNullOrWhiteSpace(slug))
         {
-            return Array.Empty<PostRevisionResponse>();
+            return Array.Empty<PostRevisionSummaryResponse>();
         }
 
         await using var db = await dbFactory.CreateDbContextAsync();
-        var record = await FindPostBySlugAsync(db, slug, tracking: false, includeComments: false, includeRevisions: true);
+        var record = await FindPostBySlugAsync(db, slug, tracking: false, includeComments: false);
         if (record is null || !CanViewPost(record, viewerUserName) || record.IsDraft)
         {
-            return Array.Empty<PostRevisionResponse>();
+            return Array.Empty<PostRevisionSummaryResponse>();
         }
 
-        var revisions = record.Revisions
+        var revisions = await db.PostRevisions
+            .AsNoTracking()
+            .Where(x => x.PostId == record.Id)
             .OrderBy(x => x.RevisionNumber)
-            .ToList();
+            .ToListAsync();
         if (revisions.Count == 0)
         {
             revisions.Add(CreateRevisionRecord(record, 1, record.PublishedAt));
         }
 
-        var result = new List<PostRevisionResponse>();
+        var result = new List<PostRevisionSummaryResponse>();
         PostRevisionRecord? previous = null;
         foreach (var revision in revisions)
         {
-            result.Add(ToRevisionResponse(revision, previous));
+            result.Add(ToRevisionSummaryResponse(revision, previous));
             previous = revision;
         }
 
         return result;
+    }
+
+    public async Task<PostRevisionResponse?> GetPostRevisionAsync(string slug, int revisionNumber, string? viewerUserName = null)
+    {
+        if (string.IsNullOrWhiteSpace(slug) || revisionNumber <= 0)
+        {
+            return null;
+        }
+
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var record = await FindPostBySlugAsync(db, slug, tracking: false, includeComments: false);
+        if (record is null || !CanViewPost(record, viewerUserName) || record.IsDraft)
+        {
+            return null;
+        }
+
+        var revisions = await db.PostRevisions
+            .AsNoTracking()
+            .Where(x => x.PostId == record.Id)
+            .OrderBy(x => x.RevisionNumber)
+            .ToListAsync();
+        if (revisions.Count == 0)
+        {
+            revisions.Add(CreateRevisionRecord(record, 1, record.PublishedAt));
+        }
+
+        var revisionIndex = revisions.FindIndex(x => x.RevisionNumber == revisionNumber);
+        if (revisionIndex < 0)
+        {
+            return null;
+        }
+
+        var previous = revisionIndex > 0 ? revisions[revisionIndex - 1] : null;
+        return ToRevisionResponse(revisions[revisionIndex], previous);
     }
 
     public async Task<IReadOnlyList<BlogPost>> GetByTagAsync(string tag)
@@ -771,6 +807,14 @@ public sealed class BlogService(
         };
     }
 
+    private static PostRevisionSummaryResponse ToRevisionSummaryResponse(PostRevisionRecord record, PostRevisionRecord? previous)
+    {
+        return new PostRevisionSummaryResponse(
+            record.RevisionNumber,
+            record.CreatedAt,
+            GetChangedFields(record, previous));
+    }
+
     private static PostRevisionResponse ToRevisionResponse(PostRevisionRecord record, PostRevisionRecord? previous)
     {
         return new PostRevisionResponse(
@@ -782,7 +826,8 @@ public sealed class BlogService(
             DeserializeList(record.TagsJson),
             DeserializeList(record.SeriesJson),
             record.ThumbnailUrl,
-            GetChangedFields(record, previous));
+            GetChangedFields(record, previous),
+            GetRevisionDiffs(record, previous));
     }
 
     private static IReadOnlyList<string> GetChangedFields(PostRevisionRecord current, PostRevisionRecord? previous)
@@ -824,6 +869,123 @@ public sealed class BlogService(
         }
 
         return changed.Count == 0 ? ["변경 없음"] : changed;
+    }
+
+    private static IReadOnlyList<PostRevisionFieldDiff> GetRevisionDiffs(PostRevisionRecord current, PostRevisionRecord? previous)
+    {
+        var diffs = new List<PostRevisionFieldDiff>();
+        AddRevisionDiff(diffs, "title", "제목", previous?.Title ?? string.Empty, current.Title, previous is null);
+        AddRevisionDiff(diffs, "summary", "요약", previous?.Summary ?? string.Empty, current.Summary, previous is null);
+        AddRevisionDiff(diffs, "body", "본문", previous?.Body ?? string.Empty, current.Body, previous is null);
+        AddRevisionDiff(
+            diffs,
+            "tags",
+            "태그",
+            previous is null ? string.Empty : FormatRevisionList(previous.TagsJson, "#"),
+            FormatRevisionList(current.TagsJson, "#"),
+            previous is null);
+        AddRevisionDiff(
+            diffs,
+            "series",
+            "시리즈",
+            previous is null ? string.Empty : FormatRevisionList(previous.SeriesJson, string.Empty),
+            FormatRevisionList(current.SeriesJson, string.Empty),
+            previous is null);
+        AddRevisionDiff(diffs, "thumbnail", "대표 이미지", previous?.ThumbnailUrl ?? string.Empty, current.ThumbnailUrl, previous is null);
+        return diffs;
+    }
+
+    private static void AddRevisionDiff(
+        List<PostRevisionFieldDiff> diffs,
+        string field,
+        string label,
+        string previousValue,
+        string currentValue,
+        bool includeInitialValue)
+    {
+        if (string.Equals(previousValue, currentValue, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        if (includeInitialValue && string.IsNullOrWhiteSpace(currentValue))
+        {
+            return;
+        }
+
+        diffs.Add(new PostRevisionFieldDiff(field, label, CreateLineDiff(previousValue, currentValue)));
+    }
+
+    private static IReadOnlyList<PostRevisionDiffLine> CreateLineDiff(string previousValue, string currentValue)
+    {
+        var previousLines = SplitRevisionText(previousValue);
+        var currentLines = SplitRevisionText(currentValue);
+        var table = new int[previousLines.Length + 1, currentLines.Length + 1];
+
+        for (var i = previousLines.Length - 1; i >= 0; i--)
+        {
+            for (var j = currentLines.Length - 1; j >= 0; j--)
+            {
+                table[i, j] = string.Equals(previousLines[i], currentLines[j], StringComparison.Ordinal)
+                    ? table[i + 1, j + 1] + 1
+                    : Math.Max(table[i + 1, j], table[i, j + 1]);
+            }
+        }
+
+        var lines = new List<PostRevisionDiffLine>();
+        var previousIndex = 0;
+        var currentIndex = 0;
+        while (previousIndex < previousLines.Length && currentIndex < currentLines.Length)
+        {
+            if (string.Equals(previousLines[previousIndex], currentLines[currentIndex], StringComparison.Ordinal))
+            {
+                lines.Add(new PostRevisionDiffLine("unchanged", previousLines[previousIndex]));
+                previousIndex++;
+                currentIndex++;
+            }
+            else if (table[previousIndex + 1, currentIndex] >= table[previousIndex, currentIndex + 1])
+            {
+                lines.Add(new PostRevisionDiffLine("removed", previousLines[previousIndex]));
+                previousIndex++;
+            }
+            else
+            {
+                lines.Add(new PostRevisionDiffLine("added", currentLines[currentIndex]));
+                currentIndex++;
+            }
+        }
+
+        while (previousIndex < previousLines.Length)
+        {
+            lines.Add(new PostRevisionDiffLine("removed", previousLines[previousIndex]));
+            previousIndex++;
+        }
+
+        while (currentIndex < currentLines.Length)
+        {
+            lines.Add(new PostRevisionDiffLine("added", currentLines[currentIndex]));
+            currentIndex++;
+        }
+
+        return lines;
+    }
+
+    private static string[] SplitRevisionText(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return [];
+        }
+
+        return value.Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Replace('\r', '\n')
+            .Split('\n');
+    }
+
+    private static string FormatRevisionList(string json, string prefix)
+    {
+        var values = DeserializeList(json);
+        return values.Count == 0 ? string.Empty : string.Join(", ", values.Select(x => $"{prefix}{x}"));
     }
 
     private static void ApplyPostContent(

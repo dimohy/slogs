@@ -12,6 +12,11 @@ public sealed record AuthResponse(AuthUser User, string ReturnUrl);
 
 public sealed record PostUpsertRequest(string Title, string Summary, string Body, string Tags, string? Series, string? ThumbnailUrl, bool? IsDraft = null, string? Slug = null);
 
+public sealed record PostRevisionSummaryResponse(
+    int RevisionNumber,
+    DateTime CreatedAt,
+    IReadOnlyList<string> ChangedFields);
+
 public sealed record PostRevisionResponse(
     int RevisionNumber,
     DateTime CreatedAt,
@@ -21,7 +26,15 @@ public sealed record PostRevisionResponse(
     IReadOnlyList<string> Tags,
     IReadOnlyList<string> Series,
     string ThumbnailUrl,
-    IReadOnlyList<string> ChangedFields);
+    IReadOnlyList<string> ChangedFields,
+    IReadOnlyList<PostRevisionFieldDiff> Diffs);
+
+public sealed record PostRevisionFieldDiff(
+    string Field,
+    string Label,
+    IReadOnlyList<PostRevisionDiffLine> Lines);
+
+public sealed record PostRevisionDiffLine(string Kind, string Text);
 
 public sealed record AuthorsRequest(IReadOnlyList<string> Authors);
 
@@ -499,7 +512,7 @@ public sealed class PostDetailsPageState
 
     public BlogPost? NextPost { get; set; }
 
-    public List<PostRevisionResponse> Revisions { get; set; } = [];
+    public List<PostRevisionSummaryResponse> Revisions { get; set; } = [];
 
     public List<BlogComment> TopLevelComments { get; set; } = [];
 
