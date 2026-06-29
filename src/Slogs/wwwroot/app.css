@@ -292,7 +292,7 @@ nav[aria-label="main menu"] a.bg-slate-900:hover {
     grid-column: 1 / -1;
 }
 
-@media (min-width: 1800px) {
+@media (min-width: 1280px) {
     .slogs-page-shell--wide .slogs-post-list-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     }
