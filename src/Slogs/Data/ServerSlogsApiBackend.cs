@@ -4,6 +4,8 @@ public sealed class ServerSlogsApiBackend(
     BlogService blogService,
     AuthService authService,
     LlmWikiService llmWikiService,
+    ObsidianVaultService obsidianVaultService,
+    ObsidianStorageQuotaService obsidianStorageQuotaService,
     IHttpContextAccessor httpContextAccessor) : ISlogsApiBackend
 {
     public Task<AuthUser?> GetCurrentUserAsync()
@@ -137,6 +139,16 @@ public sealed class ServerSlogsApiBackend(
             ? authService.GetAdminUserUsageAsync()
             : throw new InvalidOperationException("adminRequired");
 
+    public Task<AdminObsidianStorageSettingsResponse> GetAdminObsidianStorageSettingsAsync()
+        => GetCurrentUser()?.IsAdmin == true
+            ? obsidianStorageQuotaService.GetSettingsAsync()
+            : throw new InvalidOperationException("adminRequired");
+
+    public Task<AdminObsidianStorageSettingsResponse> UpdateAdminObsidianStorageSettingsAsync(AdminObsidianStorageSettingsUpdateRequest request)
+        => GetCurrentUser()?.IsAdmin == true
+            ? obsidianStorageQuotaService.UpdateSettingsAsync(request)
+            : throw new InvalidOperationException("adminRequired");
+
     public Task<IReadOnlyList<string>> GetFollowingAsync(string followerUser)
         => authService.GetFollowingAsync(ResolveUserName(followerUser));
 
@@ -173,11 +185,23 @@ public sealed class ServerSlogsApiBackend(
     public Task<IReadOnlyList<LlmWikiTokenResponse>> GetLlmWikiTokensAsync(string userName)
         => llmWikiService.GetTokensAsync(ResolveUserName(userName));
 
-    public Task<LlmWikiTokenCreatedResponse> CreateLlmWikiTokenAsync(string userName, string? name)
-        => llmWikiService.CreateTokenAsync(ResolveUserName(userName), name);
+    public Task<LlmWikiTokenCreatedResponse> CreateLlmWikiTokenAsync(string userName, string? name, IReadOnlyList<string>? scopes = null)
+        => llmWikiService.CreateTokenAsync(ResolveUserName(userName), name, scopes);
 
     public Task<bool> RevokeLlmWikiTokenAsync(string userName, Guid tokenId)
         => llmWikiService.RevokeTokenAsync(ResolveUserName(userName), tokenId);
+
+    public Task<IReadOnlyList<ObsidianVaultResponse>> GetObsidianVaultsAsync(string userName)
+        => obsidianVaultService.GetVaultsAsync(ResolveUserName(userName));
+
+    public Task<ObsidianVaultResponse> GetOrCreateObsidianVaultAsync(string userName, ObsidianVaultCreateRequest request)
+        => obsidianVaultService.GetOrCreateVaultAsync(ResolveUserName(userName), request);
+
+    public Task<ObsidianVaultStatusResponse?> GetObsidianVaultStatusAsync(string userName, Guid vaultId)
+        => obsidianVaultService.GetStatusAsync(ResolveUserName(userName), vaultId);
+
+    public async Task<IReadOnlyList<ObsidianVaultClientResponse>> GetObsidianVaultClientsAsync(string userName, Guid vaultId)
+        => await obsidianVaultService.GetClientsAsync(ResolveUserName(userName), vaultId) ?? [];
 
     private string ResolveUserName(string fallback)
         => GetCurrentUser()?.UserName ?? fallback;

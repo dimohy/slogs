@@ -12,7 +12,7 @@ namespace Slogs.Data.CompiledModels
     public partial class SlogsDbContextModel
     {
         private SlogsDbContextModel()
-            : base(skipDetectChanges: false, modelId: new Guid("8b55927a-7761-4515-ace7-8665961575e3"), entityTypeCount: 9)
+            : base(skipDetectChanges: false, modelId: new Guid("02945d43-d6d9-4072-874f-3eec924b3384"), entityTypeCount: 13)
         {
         }
 
@@ -24,6 +24,10 @@ namespace Slogs.Data.CompiledModels
             var llmWikiEntryRecord = LlmWikiEntryRecordEntityType.Create(this);
             var llmWikiEntrySourceRecord = LlmWikiEntrySourceRecordEntityType.Create(this);
             var llmWikiMcpTokenRecord = LlmWikiMcpTokenRecordEntityType.Create(this);
+            var obsidianVaultClientRecord = ObsidianVaultClientRecordEntityType.Create(this);
+            var obsidianVaultFileRecord = ObsidianVaultFileRecordEntityType.Create(this);
+            var obsidianVaultFileVersionRecord = ObsidianVaultFileVersionRecordEntityType.Create(this);
+            var obsidianVaultRecord = ObsidianVaultRecordEntityType.Create(this);
             var postRecord = PostRecordEntityType.Create(this);
             var postRevisionRecord = PostRevisionRecordEntityType.Create(this);
             var userRecord = UserRecordEntityType.Create(this);
@@ -35,6 +39,12 @@ namespace Slogs.Data.CompiledModels
             LlmWikiEntryRecordEntityType.CreateForeignKey1(llmWikiEntryRecord, userRecord);
             LlmWikiEntrySourceRecordEntityType.CreateForeignKey1(llmWikiEntrySourceRecord, llmWikiEntryRecord);
             LlmWikiMcpTokenRecordEntityType.CreateForeignKey1(llmWikiMcpTokenRecord, userRecord);
+            ObsidianVaultClientRecordEntityType.CreateForeignKey1(obsidianVaultClientRecord, userRecord);
+            ObsidianVaultClientRecordEntityType.CreateForeignKey2(obsidianVaultClientRecord, obsidianVaultRecord);
+            ObsidianVaultFileRecordEntityType.CreateForeignKey1(obsidianVaultFileRecord, userRecord);
+            ObsidianVaultFileRecordEntityType.CreateForeignKey2(obsidianVaultFileRecord, obsidianVaultRecord);
+            ObsidianVaultFileVersionRecordEntityType.CreateForeignKey1(obsidianVaultFileVersionRecord, userRecord);
+            ObsidianVaultRecordEntityType.CreateForeignKey1(obsidianVaultRecord, userRecord);
             PostRevisionRecordEntityType.CreateForeignKey1(postRevisionRecord, postRecord);
 
             CommentRecordEntityType.CreateAnnotations(commentRecord);
@@ -43,6 +53,10 @@ namespace Slogs.Data.CompiledModels
             LlmWikiEntryRecordEntityType.CreateAnnotations(llmWikiEntryRecord);
             LlmWikiEntrySourceRecordEntityType.CreateAnnotations(llmWikiEntrySourceRecord);
             LlmWikiMcpTokenRecordEntityType.CreateAnnotations(llmWikiMcpTokenRecord);
+            ObsidianVaultClientRecordEntityType.CreateAnnotations(obsidianVaultClientRecord);
+            ObsidianVaultFileRecordEntityType.CreateAnnotations(obsidianVaultFileRecord);
+            ObsidianVaultFileVersionRecordEntityType.CreateAnnotations(obsidianVaultFileVersionRecord);
+            ObsidianVaultRecordEntityType.CreateAnnotations(obsidianVaultRecord);
             PostRecordEntityType.CreateAnnotations(postRecord);
             PostRevisionRecordEntityType.CreateAnnotations(postRevisionRecord);
             UserRecordEntityType.CreateAnnotations(userRecord);

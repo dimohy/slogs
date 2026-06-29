@@ -322,6 +322,30 @@ public sealed class SlogsApiClient
     public async Task<AdminUserUsageResponse?> GetAdminUserUsageAsync()
         => backend is not null ? await backend.GetAdminUserUsageAsync() : await GetJsonAsync<AdminUserUsageResponse>("api/admin/users/llm-wiki-usage");
 
+    public async Task<AdminObsidianStorageSettingsResponse?> GetAdminObsidianStorageSettingsAsync()
+        => backend is not null
+            ? await backend.GetAdminObsidianStorageSettingsAsync()
+            : await GetJsonAsync<AdminObsidianStorageSettingsResponse>("api/admin/storage/obsidian");
+
+    public async Task<AdminObsidianStorageSettingsResponse?> UpdateAdminObsidianStorageSettingsAsync(long totalCapacityBytes)
+    {
+        var requestPayload = new AdminObsidianStorageSettingsUpdateRequest(totalCapacityBytes);
+        if (backend is not null)
+        {
+            return await backend.UpdateAdminObsidianStorageSettingsAsync(requestPayload);
+        }
+
+        using var request = CreateRequest(HttpMethod.Put, "api/admin/storage/obsidian");
+        request.Content = JsonContent.Create(requestPayload, jsonTypeInfo: GetJsonTypeInfo<AdminObsidianStorageSettingsUpdateRequest>());
+        using var response = await httpClient.SendAsync(request);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(await ReadApiErrorCodeAsync(response) ?? "obsidianStorageSettingsUpdateFailed");
+        }
+
+        return await ReadJsonAsync<AdminObsidianStorageSettingsResponse>(response);
+    }
+
     public async Task<AuthUser?> ChangeAdminUserNameAsync(string currentUserName, string newUserName)
     {
         if (backend is not null)
@@ -446,17 +470,17 @@ public sealed class SlogsApiClient
         return await GetJsonAsync<List<LlmWikiTokenResponse>>("api/llm-wiki/tokens") ?? [];
     }
 
-    public async Task<LlmWikiTokenCreatedResponse?> CreateLlmWikiTokenAsync(string userName, string? name)
+    public async Task<LlmWikiTokenCreatedResponse?> CreateLlmWikiTokenAsync(string userName, string? name, IReadOnlyList<string>? scopes = null)
     {
         if (backend is not null)
         {
-            return await backend.CreateLlmWikiTokenAsync(userName, name);
+            return await backend.CreateLlmWikiTokenAsync(userName, name, scopes);
         }
 
         _ = userName;
         return await PostJsonAsync<LlmWikiTokenCreatedResponse, LlmWikiTokenCreateRequest>(
             "api/llm-wiki/tokens",
-            new LlmWikiTokenCreateRequest(name ?? string.Empty));
+            new LlmWikiTokenCreateRequest(name ?? string.Empty, scopes));
     }
 
     public async Task<bool> RevokeLlmWikiTokenAsync(string userName, Guid tokenId)
@@ -469,6 +493,52 @@ public sealed class SlogsApiClient
         _ = userName;
         var response = await SendAsync(HttpMethod.Delete, $"api/llm-wiki/tokens/{tokenId}");
         return response.IsSuccessStatusCode;
+    }
+
+    public async Task<IReadOnlyList<ObsidianVaultResponse>> GetObsidianVaultsAsync(string userName)
+    {
+        if (backend is not null)
+        {
+            return await backend.GetObsidianVaultsAsync(userName);
+        }
+
+        _ = userName;
+        return await GetJsonAsync<List<ObsidianVaultResponse>>("api/obsidian/vaults") ?? [];
+    }
+
+    public async Task<ObsidianVaultResponse?> GetOrCreateObsidianVaultAsync(string userName, string vaultName)
+    {
+        if (backend is not null)
+        {
+            return await backend.GetOrCreateObsidianVaultAsync(userName, new ObsidianVaultCreateRequest(vaultName));
+        }
+
+        _ = userName;
+        return await PostJsonAsync<ObsidianVaultResponse, ObsidianVaultCreateRequest>(
+            "api/obsidian/vaults",
+            new ObsidianVaultCreateRequest(vaultName));
+    }
+
+    public async Task<ObsidianVaultStatusResponse?> GetObsidianVaultStatusAsync(string userName, Guid vaultId)
+    {
+        if (backend is not null)
+        {
+            return await backend.GetObsidianVaultStatusAsync(userName, vaultId);
+        }
+
+        _ = userName;
+        return await GetJsonAsync<ObsidianVaultStatusResponse>($"api/obsidian/vaults/{vaultId}/status");
+    }
+
+    public async Task<IReadOnlyList<ObsidianVaultClientResponse>> GetObsidianVaultClientsAsync(string userName, Guid vaultId)
+    {
+        if (backend is not null)
+        {
+            return await backend.GetObsidianVaultClientsAsync(userName, vaultId);
+        }
+
+        _ = userName;
+        return await GetJsonAsync<List<ObsidianVaultClientResponse>>($"api/obsidian/vaults/{vaultId}/clients") ?? [];
     }
 
     private async Task<T?> GetJsonAsync<T>(string relativeUrl)

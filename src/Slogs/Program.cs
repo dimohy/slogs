@@ -122,6 +122,8 @@ builder.Services.AddScoped<EditorImageStorage>();
 builder.Services.AddScoped<PostImageService>();
 builder.Services.AddHttpClient<EmbeddingGemmaService>();
 builder.Services.AddScoped<LlmWikiService>();
+builder.Services.AddScoped<ObsidianVaultService>();
+builder.Services.AddScoped<ObsidianStorageQuotaService>();
 builder.Services.AddScoped<ISlogsApiBackend, ServerSlogsApiBackend>();
 builder.Services.AddScoped<SlogsAuthState>();
 builder.Services.AddMcpServer()
@@ -201,15 +203,24 @@ app.UseStaticFiles();
 app.UseAuthentication();
 app.Use(async (httpContext, next) =>
 {
-    if (httpContext.Request.Path.StartsWithSegments("/mcp")
+    if (TryGetRequiredBearerScope(httpContext.Request.Path, out var requiredBearerScope)
         && httpContext.User.Identity?.IsAuthenticated != true
         && TryGetBearerToken(httpContext.Request, out var bearerToken))
     {
         var llmWikiService = httpContext.RequestServices.GetRequiredService<LlmWikiService>();
-        var tokenUser = await llmWikiService.AuthenticateMcpTokenAsync(bearerToken, httpContext.RequestAborted);
-        if (tokenUser is not null)
+        var tokenAuthentication = await llmWikiService.AuthenticateBearerTokenAsync(
+            bearerToken,
+            requiredBearerScope,
+            httpContext.RequestAborted);
+        if (!tokenAuthentication.IsScopeAllowed)
         {
-            httpContext.User = SlogsAuthentication.CreatePrincipal(tokenUser);
+            httpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return;
+        }
+
+        if (tokenAuthentication.User is not null)
+        {
+            httpContext.User = SlogsAuthentication.CreatePrincipal(tokenAuthentication.User);
         }
     }
 
@@ -882,6 +893,24 @@ static bool TryGetBearerToken(HttpRequest request, out string token)
         return !string.IsNullOrWhiteSpace(token);
     }
 
+    return false;
+}
+
+static bool TryGetRequiredBearerScope(PathString path, out string requiredScope)
+{
+    if (path.StartsWithSegments("/mcp"))
+    {
+        requiredScope = SlogsTokenScopes.Mcp;
+        return true;
+    }
+
+    if (path.StartsWithSegments("/api/obsidian"))
+    {
+        requiredScope = SlogsTokenScopes.ObsidianSync;
+        return true;
+    }
+
+    requiredScope = string.Empty;
     return false;
 }
 

@@ -1,8 +1,12 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Slogs.Obsidian.Drive/Slogs.Obsidian.Drive.csproj" />
     <Project Path="src/Slogs/Slogs.csproj" />
     <Project Path="src/Slogs.NativeAotProbe/Slogs.NativeAotProbe.csproj" />
     <Project Path="src/Slogs.Client/Slogs.Client.csproj" />
     <Project Path="src/Slogs.Shared/Slogs.Shared.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Slogs.Tests/Slogs.Tests.csproj" />
   </Folder>
 </Solution>

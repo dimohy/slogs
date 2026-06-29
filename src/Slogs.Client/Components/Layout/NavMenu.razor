@@ -9,8 +9,17 @@
     @if (ShowAdminMenu)
     {
         <div class="mt-4 mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">어드민</div>
-        <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
-                 ActiveClass="bg-slate-900 text-white" href="/admin/users" Match="NavLinkMatch.All">사용자</NavLink>
+        <div class="mb-1 px-3 py-2">
+            <div class="text-sm font-bold text-slate-900">사용자</div>
+            <div class="mt-2 grid gap-1">
+                <a class="@GetAdminMenuLinkClass(AdminUsersView)"
+                   href="@GetAdminMenuHref(AdminUsersView)">사용자 관리</a>
+                <a class="@GetAdminMenuLinkClass(AdminLlmWikiView)"
+                   href="@GetAdminMenuHref(AdminLlmWikiView)">LLM Wiki</a>
+                <a class="@GetAdminMenuLinkClass(AdminObsidianView)"
+                   href="@GetAdminMenuHref(AdminObsidianView)">Obsidian Sync</a>
+            </div>
+        </div>
     }
 
     @if (ShowMyMenu)
@@ -90,6 +99,9 @@
     private (string Series, int Count, int LikeCount)[] serieses = [];
     private string featuredTagPath = "/tag";
     private bool isLoaded;
+    private const string AdminUsersView = "users";
+    private const string AdminLlmWikiView = "llm-wiki";
+    private const string AdminObsidianView = "obsidian";
 
     public SideMenuState? PrerenderedState { get; set; }
 
@@ -132,6 +144,11 @@
 
     private bool IsPersonalSideContext => ShowMyMenu;
 
+    private string CurrentAdminUsersView
+        => CurrentPath.Equals("/admin/users", StringComparison.OrdinalIgnoreCase)
+            ? NormalizeAdminUsersView(GetQueryValue("view"))
+            : string.Empty;
+
     private string TagSectionTitle => IsPersonalSideContext ? "내 태그" : "인기 태그";
 
     private string SeriesSectionTitle => IsPersonalSideContext ? "내 시리즈" : "인기 시리즈";
@@ -150,6 +167,48 @@
                 ? "/"
                 : $"/{pathOnly}";
         }
+    }
+
+    private string GetAdminMenuLinkClass(string view)
+    {
+        const string baseClass = "block rounded-md px-2.5 py-1.5 text-xs font-semibold transition";
+        return CurrentAdminUsersView == view
+            ? $"{baseClass} bg-slate-900 text-white hover:bg-slate-900 hover:text-white"
+            : $"{baseClass} text-slate-600 hover:bg-slate-100 hover:text-slate-900";
+    }
+
+    private static string GetAdminMenuHref(string view)
+        => $"/admin/users?view={Uri.EscapeDataString(view)}";
+
+    private static string NormalizeAdminUsersView(string? view)
+        => view?.Trim().ToLowerInvariant() switch
+        {
+            AdminLlmWikiView => AdminLlmWikiView,
+            AdminObsidianView => AdminObsidianView,
+            _ => AdminUsersView
+        };
+
+    private string? GetQueryValue(string name)
+    {
+        var query = new Uri(Navigation.Uri).Query.TrimStart('?');
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return null;
+        }
+
+        foreach (var part in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var pair = part.Split('=', 2, StringSplitOptions.None);
+            var key = Uri.UnescapeDataString(pair[0]);
+            if (!key.Equals(name, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            return pair.Length == 2 ? Uri.UnescapeDataString(pair[1]) : string.Empty;
+        }
+
+        return null;
     }
 
     protected override async Task OnInitializedAsync()

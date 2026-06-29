@@ -1,0 +1,19 @@
+{
+  "name": "obsidian-slogs-sync",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Obsidian plugin for syncing Markdown notes with Slogs.",
+  "main": "main.js",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "build": "node esbuild.config.mjs production",
+    "test": "node scripts/check-plugin-core.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "builtin-modules": "^3.3.0",
+    "esbuild": "^0.28.1",
+    "obsidian": "^1.7.2",
+    "typescript": "^5.5.4"
+  }
+}

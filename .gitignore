@@ -20,6 +20,7 @@ obj/
 TestResults/
 *.user
 *.suo
+node_modules/
 
 # IDE and OS files
 .vs/

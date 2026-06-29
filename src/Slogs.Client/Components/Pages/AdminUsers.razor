@@ -4,283 +4,565 @@
 @inject NavigationManager Navigation
 
 <PageTitle>어드민 사용자 | slogs</PageTitle>
-<SeoHead Title="어드민 사용자 | slogs" Description="slogs 가입 사용자와 LLM Wiki 사용 현황을 확인합니다." NoIndex="true" />
+<SeoHead Title="어드민 사용자 | slogs" Description="slogs 가입 사용자, LLM Wiki 통계, Obsidian Sync 통계를 확인합니다." NoIndex="true" />
 
 @if (CurrentUser is null)
 {
-    <p class="rounded-xl border border-slate-200 bg-white p-4 text-slate-500">로그인이 필요합니다. <a class="font-semibold underline" href="@GetLoginHref()">로그인</a>해 주세요.</p>
+    <p class="rounded-lg border border-slate-200 bg-white p-4 text-slate-500">로그인이 필요합니다. <a class="font-semibold underline" href="@GetLoginHref()">로그인</a>해 주세요.</p>
 }
 else if (!CurrentUser.IsAdmin)
 {
-    <p class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800">어드민 권한이 필요합니다.</p>
+    <p class="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800">어드민 권한이 필요합니다.</p>
 }
 else if (usage is null)
 {
-    <p class="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">사용자 현황을 불러오는 중입니다.</p>
+    <p class="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-500">사용자 현황을 불러오는 중입니다.</p>
 }
 else
 {
-    var users = GetVisibleUsers();
+    var activeView = ActiveView;
 
     <section class="space-y-5">
         <div class="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4">
             <div>
                 <h1 class="text-2xl font-bold text-slate-900">어드민 사용자</h1>
-                <p class="mt-1 text-sm text-slate-500">가입 사용자와 LLM Wiki 활동 현황</p>
+                <p class="mt-1 text-sm text-slate-500">@GetViewDescription(activeView)</p>
             </div>
         </div>
 
-        <section class="grid grid-cols-2 gap-3 lg:grid-cols-5" aria-label="요약">
-            <div class="rounded-lg border border-slate-200 bg-white p-3">
-                <div class="text-xs font-bold uppercase text-slate-500">가입 사용자</div>
-                <div class="mt-1 text-2xl font-bold text-slate-900">@usage.TotalUsers</div>
-            </div>
-            <div class="rounded-lg border border-slate-200 bg-white p-3">
-                <div class="text-xs font-bold uppercase text-slate-500">LLM Wiki 사용자</div>
-                <div class="mt-1 text-2xl font-bold text-slate-900">@usage.LlmWikiUserCount</div>
-            </div>
-            <div class="rounded-lg border border-slate-200 bg-white p-3">
-                <div class="text-xs font-bold uppercase text-slate-500">Wiki 엔트리</div>
-                <div class="mt-1 text-2xl font-bold text-slate-900">@usage.TotalLlmWikiEntries</div>
-            </div>
-            <div class="rounded-lg border border-slate-200 bg-white p-3">
-                <div class="text-xs font-bold uppercase text-slate-500">7일 활동</div>
-                <div class="mt-1 text-2xl font-bold text-slate-900">@usage.Recent7DayLlmWikiActivityCount</div>
-            </div>
-            <div class="rounded-lg border border-slate-200 bg-white p-3">
-                <div class="text-xs font-bold uppercase text-slate-500">30일 활동</div>
-                <div class="mt-1 text-2xl font-bold text-slate-900">@usage.Recent30DayLlmWikiActivityCount</div>
-            </div>
-        </section>
+        <nav class="flex flex-wrap gap-2" aria-label="어드민 사용자 보기">
+            <a class="@GetViewTabClass(UsersView)" href="@GetViewHref(UsersView)">사용자 관리</a>
+            <a class="@GetViewTabClass(LlmWikiView)" href="@GetViewHref(LlmWikiView)">LLM Wiki 통계</a>
+            <a class="@GetViewTabClass(ObsidianView)" href="@GetViewHref(ObsidianView)">Obsidian Sync</a>
+        </nav>
 
-        <section class="space-y-3 rounded-lg border border-slate-200 bg-white p-3" aria-label="MCP 품질 지표">
-            <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                    <h2 class="text-base font-bold text-slate-900">LLM Wiki MCP 품질</h2>
-                    <p class="text-xs font-semibold text-slate-500">@($"{FormatDate(usage.LlmWikiMcpQuality.WindowStartedAt)} 이후 감사 로그 기준")</p>
-                </div>
-                <p class="text-xs font-semibold text-slate-500">@($"최근 호출 {FormatNullableDate(usage.LlmWikiMcpQuality.LastCallAt)}")</p>
-            </div>
+        @if (activeView == UsersView)
+        {
+            var users = GetVisibleUserManagementUsers();
 
-            <div class="grid grid-cols-2 gap-3 lg:grid-cols-6">
-                <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <div class="text-xs font-bold uppercase text-slate-500">30일 호출</div>
-                    <div class="mt-1 text-2xl font-bold text-slate-900">@usage.LlmWikiMcpQuality.CallCount</div>
-                    <div class="mt-1 text-xs font-semibold text-slate-500">@($"7일 {usage.LlmWikiMcpQuality.Recent7DayCallCount}")</div>
+            <section class="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="사용자 요약">
+                <div class="rounded-lg border border-slate-200 bg-white p-3">
+                    <div class="text-xs font-bold uppercase text-slate-500">가입 사용자</div>
+                    <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.TotalUsers)</div>
                 </div>
-                <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <div class="text-xs font-bold uppercase text-slate-500">Recall/Search</div>
-                    <div class="mt-1 text-2xl font-bold text-slate-900">@usage.LlmWikiMcpQuality.SearchRecallCallCount</div>
-                    <div class="mt-1 text-xs font-semibold text-slate-500">후보 탐색 호출</div>
+                <div class="rounded-lg border border-slate-200 bg-white p-3">
+                    <div class="text-xs font-bold uppercase text-slate-500">전체 글</div>
+                    <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(TotalPostCount)</div>
                 </div>
-                <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <div class="text-xs font-bold uppercase text-slate-500">유효 결과율</div>
-                    <div class="mt-1 text-2xl font-bold text-slate-900">@($"{usage.LlmWikiMcpQuality.SearchRecallSuccessRatePercent}%")</div>
-                    <div class="mt-1 text-xs font-semibold text-slate-500">@($"빈 결과 {usage.LlmWikiMcpQuality.SearchRecallEmptyResultRatePercent}%")</div>
+                <div class="rounded-lg border border-slate-200 bg-white p-3">
+                    <div class="text-xs font-bold uppercase text-slate-500">공개 글</div>
+                    <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(TotalPublishedPostCount)</div>
                 </div>
-                <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <div class="text-xs font-bold uppercase text-slate-500">응답 속도</div>
-                    <div class="mt-1 text-2xl font-bold text-slate-900">@($"{usage.LlmWikiMcpQuality.SearchRecallAverageElapsedMs}ms")</div>
-                    <div class="mt-1 text-xs font-semibold text-slate-500">@($"p95 {usage.LlmWikiMcpQuality.SearchRecallP95ElapsedMs}ms")</div>
+                <div class="rounded-lg border border-slate-200 bg-white p-3">
+                    <div class="text-xs font-bold uppercase text-slate-500">이름 변경 가능</div>
+                    <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(RenameCandidateCount)</div>
                 </div>
-                <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <div class="text-xs font-bold uppercase text-slate-500">재조회율</div>
-                    <div class="mt-1 text-2xl font-bold text-slate-900">@($"{usage.LlmWikiMcpQuality.SearchRecallRepeatQueryRatePercent}%")</div>
-                    <div class="mt-1 text-xs font-semibold text-slate-500">@($"1초 이상 {usage.LlmWikiMcpQuality.SearchRecallSlowCallCount}")</div>
-                </div>
-                <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <div class="text-xs font-bold uppercase text-slate-500">기록 변경</div>
-                    <div class="mt-1 text-2xl font-bold text-slate-900">@usage.LlmWikiMcpQuality.MutationCallCount</div>
-                    <div class="mt-1 text-xs font-semibold text-slate-500">@($"전체 중 {usage.LlmWikiMcpQuality.MutationSharePercent}%")</div>
-                </div>
-            </div>
+            </section>
 
-            <div class="overflow-x-auto rounded-lg border border-slate-200">
-                <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
-                    <thead class="bg-slate-50 font-bold uppercase text-slate-500">
+            <section class="rounded-lg border border-slate-200 bg-white p-3">
+                <div class="flex flex-wrap items-center gap-2">
+                    <input class="min-w-56 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900"
+                           value="@userSearchText"
+                           @oninput="HandleUserSearchInputChanged"
+                           placeholder="사용자 검색"
+                           aria-label="사용자 검색어 입력" />
+                    <select class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none transition focus:border-slate-900"
+                            @bind="userSortMode"
+                            aria-label="사용자 정렬">
+                        <option value="registered">가입일순</option>
+                        <option value="profile">프로필 수정순</option>
+                        <option value="posts">글 많은순</option>
+                        <option value="name">아이디순</option>
+                    </select>
+                </div>
+                <div class="mt-2 text-xs font-semibold text-slate-500">@($"{users.Count:N0}명 표시")</div>
+                @if (!string.IsNullOrWhiteSpace(renameError))
+                {
+                    <div class="mt-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">@renameError</div>
+                }
+                @if (!string.IsNullOrWhiteSpace(renameSuccess))
+                {
+                    <div class="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">@renameSuccess</div>
+                }
+            </section>
+
+            <section class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
+                    <thead class="bg-slate-50 text-xs font-bold uppercase text-slate-500">
                         <tr>
-                            <th class="px-3 py-2">도구</th>
-                            <th class="px-3 py-2 text-right">호출</th>
-                            <th class="px-3 py-2 text-right">7일</th>
-                            <th class="px-3 py-2 text-right">성공</th>
-                            <th class="px-3 py-2 text-right">빈 결과</th>
-                            <th class="px-3 py-2 text-right">평균</th>
-                            <th class="px-3 py-2 text-right">p95</th>
-                            <th class="px-3 py-2 text-right">1초+</th>
-                            <th class="px-3 py-2">최근 호출</th>
+                            <th class="px-3 py-2">사용자</th>
+                            <th class="px-3 py-2">가입</th>
+                            <th class="px-3 py-2">프로필 수정</th>
+                            <th class="px-3 py-2 text-right">글</th>
+                            <th class="px-3 py-2">공개 페이지</th>
+                            <th class="px-3 py-2">관리</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                        @if (usage.LlmWikiMcpQuality.Tools.Count == 0)
+                        @if (users.Count == 0)
                         {
                             <tr>
-                                <td class="px-3 py-5 text-center text-sm text-slate-500" colspan="9">최근 MCP 감사 로그가 없습니다.</td>
+                                <td class="px-3 py-8 text-center text-sm text-slate-500" colspan="6">표시할 사용자가 없습니다.</td>
                             </tr>
                         }
                         else
                         {
-                            @foreach (var tool in usage.LlmWikiMcpQuality.Tools)
+                            @foreach (var user in users)
                             {
-                                <tr>
-                                    <td class="whitespace-nowrap px-3 py-2 font-bold text-slate-800">@tool.ToolName</td>
-                                    <td class="px-3 py-2 text-right font-semibold text-slate-700">@tool.CallCount</td>
-                                    <td class="px-3 py-2 text-right font-semibold text-slate-700">@tool.Recent7DayCallCount</td>
-                                    <td class="px-3 py-2 text-right font-semibold text-slate-700">@($"{tool.SuccessRatePercent}%")</td>
-                                    <td class="px-3 py-2 text-right font-semibold text-slate-700">@tool.EmptyResultCount</td>
-                                    <td class="px-3 py-2 text-right font-semibold text-slate-700">@($"{tool.AverageElapsedMs}ms")</td>
-                                    <td class="px-3 py-2 text-right font-semibold text-slate-700">@($"{tool.P95ElapsedMs}ms")</td>
-                                    <td class="px-3 py-2 text-right font-semibold text-slate-700">@tool.SlowCallCount</td>
-                                    <td class="whitespace-nowrap px-3 py-2 text-slate-600">@FormatNullableDate(tool.LastCallAt)</td>
+                                <tr class="align-top">
+                                    <td class="px-3 py-3">
+                                        <div class="font-bold text-slate-900">@user.DisplayName</div>
+                                        <div class="mt-0.5 text-xs text-slate-500">@($"@{user.UserName}")</div>
+                                        @if (!string.IsNullOrWhiteSpace(user.Email))
+                                        {
+                                            <div class="mt-0.5 text-xs text-slate-400">@user.Email</div>
+                                        }
+                                    </td>
+                                    <td class="whitespace-nowrap px-3 py-3 text-slate-600">@FormatDate(user.RegisteredAt)</td>
+                                    <td class="whitespace-nowrap px-3 py-3 text-slate-600">@FormatNullableDate(user.ProfileUpdatedAt)</td>
+                                    <td class="px-3 py-3 text-right text-slate-700">
+                                        <div class="font-bold">@FormatCount(user.PostCount)</div>
+                                        <div class="text-xs text-slate-400">@($"공개 {user.PublishedPostCount:N0} / 초안 {user.DraftPostCount:N0}")</div>
+                                    </td>
+                                    <td class="whitespace-nowrap px-3 py-3">
+                                        <a class="text-xs font-bold text-slate-700 underline decoration-slate-300 underline-offset-2 hover:text-slate-950"
+                                           href="@GetUserPublicHref(user.UserName)">열기</a>
+                                    </td>
+                                    <td class="px-3 py-3">
+                                        @if (CanRenameUser(user.UserName))
+                                        {
+                                            <div class="flex min-w-52 items-center gap-2">
+                                                <input class="w-32 rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-semibold text-slate-800 outline-none transition focus:border-slate-900"
+                                                       value="@GetRenameInput(user)"
+                                                       @oninput="e => HandleRenameInputChanged(user.UserName, e)"
+                                                       disabled="@IsAnyRenameBusy"
+                                                       aria-label="@($"{user.UserName} 새 @name")" />
+                                                <button type="button"
+                                                        class="rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                                                        disabled="@IsAnyRenameBusy"
+                                                        @onclick="() => ChangeUserNameAsync(user)">
+                                                    @(IsRenameBusy(user.UserName) ? "변경 중" : "변경")
+                                                </button>
+                                            </div>
+                                            <div class="mt-1 text-[11px] font-semibold text-slate-400">변경 후 해당 사용자는 다시 로그인해야 합니다.</div>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-xs font-semibold text-slate-400">예약 계정</span>
+                                        }
+                                    </td>
                                 </tr>
                             }
                         }
                     </tbody>
                 </table>
-            </div>
-        </section>
+            </section>
+        }
+        else if (activeView == LlmWikiView)
+        {
+            var users = GetVisibleLlmWikiUsers();
 
-        <section class="rounded-lg border border-slate-200 bg-white p-3">
-            <div class="flex flex-wrap items-center gap-2">
-                <input class="min-w-56 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900"
-                       value="@searchText"
-                       @oninput="HandleSearchInputChanged"
-                       placeholder="사용자 검색"
-                       aria-label="사용자 검색어 입력" />
-                <label class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700">
-                    <input type="checkbox" class="h-4 w-4 accent-slate-900" @bind="showLlmWikiUsersOnly" />
-                    LLM Wiki 사용자만
-                </label>
-                <select class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none transition focus:border-slate-900"
-                        @bind="sortMode"
-                        aria-label="정렬">
-                    <option value="activity">최근 활동순</option>
-                    <option value="registered">가입일순</option>
-                    <option value="entries">Wiki 엔트리순</option>
-                    <option value="name">아이디순</option>
-                </select>
-            </div>
-            <div class="mt-2 text-xs font-semibold text-slate-500">@(users.Count)명 표시</div>
-            @if (!string.IsNullOrWhiteSpace(renameError))
-            {
-                <div class="mt-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">@renameError</div>
-            }
-            @if (!string.IsNullOrWhiteSpace(renameSuccess))
-            {
-                <div class="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">@renameSuccess</div>
-            }
-        </section>
+            <section class="grid grid-cols-2 gap-3 lg:grid-cols-6" aria-label="LLM Wiki 요약">
+                <div class="rounded-lg border border-slate-200 bg-white p-3">
+                    <div class="text-xs font-bold uppercase text-slate-500">가입 사용자</div>
+                    <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.TotalUsers)</div>
+                </div>
+                <div class="rounded-lg border border-slate-200 bg-white p-3">
+                    <div class="text-xs font-bold uppercase text-slate-500">Wiki 사용자</div>
+                    <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.LlmWikiUserCount)</div>
+                </div>
+                <div class="rounded-lg border border-slate-200 bg-white p-3">
+                    <div class="text-xs font-bold uppercase text-slate-500">엔트리</div>
+                    <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.TotalLlmWikiEntries)</div>
+                </div>
+                <div class="rounded-lg border border-slate-200 bg-white p-3">
+                    <div class="text-xs font-bold uppercase text-slate-500">활동</div>
+                    <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.TotalLlmWikiActivityCount)</div>
+                </div>
+                <div class="rounded-lg border border-slate-200 bg-white p-3">
+                    <div class="text-xs font-bold uppercase text-slate-500">7일 활동</div>
+                    <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.Recent7DayLlmWikiActivityCount)</div>
+                </div>
+                <div class="rounded-lg border border-slate-200 bg-white p-3">
+                    <div class="text-xs font-bold uppercase text-slate-500">30일 활동</div>
+                    <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.Recent30DayLlmWikiActivityCount)</div>
+                </div>
+            </section>
 
-        <section class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-            <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
-                <thead class="bg-slate-50 text-xs font-bold uppercase text-slate-500">
-                    <tr>
-                        <th class="px-3 py-2">사용자</th>
-                        <th class="px-3 py-2">가입</th>
-                        <th class="px-3 py-2 text-right">글</th>
-                        <th class="px-3 py-2 text-right">Wiki</th>
-                        <th class="px-3 py-2 text-right">활동</th>
-                        <th class="px-3 py-2 text-right">7일</th>
-                        <th class="px-3 py-2 text-right">30일</th>
-                        <th class="px-3 py-2 text-right">조회</th>
-                        <th class="px-3 py-2 text-right">MCP 토큰</th>
-                        <th class="px-3 py-2">최근 Wiki 활동</th>
-                        <th class="px-3 py-2">관리</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                    @if (users.Count == 0)
-                    {
+            <section class="space-y-3 rounded-lg border border-slate-200 bg-white p-3" aria-label="MCP 품질 지표">
+                <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900">LLM Wiki MCP 품질</h2>
+                        <p class="text-xs font-semibold text-slate-500">@($"{FormatDate(usage.LlmWikiMcpQuality.WindowStartedAt)} 이후 감사 로그 기준")</p>
+                    </div>
+                    <p class="text-xs font-semibold text-slate-500">@($"최근 호출 {FormatNullableDate(usage.LlmWikiMcpQuality.LastCallAt)}")</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 lg:grid-cols-6">
+                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <div class="text-xs font-bold uppercase text-slate-500">30일 호출</div>
+                        <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.LlmWikiMcpQuality.CallCount)</div>
+                        <div class="mt-1 text-xs font-semibold text-slate-500">@($"7일 {usage.LlmWikiMcpQuality.Recent7DayCallCount:N0}")</div>
+                    </div>
+                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <div class="text-xs font-bold uppercase text-slate-500">Recall/Search</div>
+                        <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.LlmWikiMcpQuality.SearchRecallCallCount)</div>
+                        <div class="mt-1 text-xs font-semibold text-slate-500">후보 탐색 호출</div>
+                    </div>
+                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <div class="text-xs font-bold uppercase text-slate-500">유효 결과율</div>
+                        <div class="mt-1 text-2xl font-bold text-slate-900">@($"{usage.LlmWikiMcpQuality.SearchRecallSuccessRatePercent}%")</div>
+                        <div class="mt-1 text-xs font-semibold text-slate-500">@($"빈 결과 {usage.LlmWikiMcpQuality.SearchRecallEmptyResultRatePercent}%")</div>
+                    </div>
+                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <div class="text-xs font-bold uppercase text-slate-500">응답 속도</div>
+                        <div class="mt-1 text-2xl font-bold text-slate-900">@($"{usage.LlmWikiMcpQuality.SearchRecallAverageElapsedMs:N0}ms")</div>
+                        <div class="mt-1 text-xs font-semibold text-slate-500">@($"p95 {usage.LlmWikiMcpQuality.SearchRecallP95ElapsedMs:N0}ms")</div>
+                    </div>
+                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <div class="text-xs font-bold uppercase text-slate-500">재조회율</div>
+                        <div class="mt-1 text-2xl font-bold text-slate-900">@($"{usage.LlmWikiMcpQuality.SearchRecallRepeatQueryRatePercent}%")</div>
+                        <div class="mt-1 text-xs font-semibold text-slate-500">@($"1초 이상 {usage.LlmWikiMcpQuality.SearchRecallSlowCallCount:N0}")</div>
+                    </div>
+                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <div class="text-xs font-bold uppercase text-slate-500">기록 변경</div>
+                        <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.LlmWikiMcpQuality.MutationCallCount)</div>
+                        <div class="mt-1 text-xs font-semibold text-slate-500">@($"전체 중 {usage.LlmWikiMcpQuality.MutationSharePercent}%")</div>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto rounded-lg border border-slate-200">
+                    <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
+                        <thead class="bg-slate-50 font-bold uppercase text-slate-500">
+                            <tr>
+                                <th class="px-3 py-2">도구</th>
+                                <th class="px-3 py-2 text-right">호출</th>
+                                <th class="px-3 py-2 text-right">7일</th>
+                                <th class="px-3 py-2 text-right">성공</th>
+                                <th class="px-3 py-2 text-right">빈 결과</th>
+                                <th class="px-3 py-2 text-right">평균</th>
+                                <th class="px-3 py-2 text-right">p95</th>
+                                <th class="px-3 py-2 text-right">1초+</th>
+                                <th class="px-3 py-2">최근 호출</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @if (usage.LlmWikiMcpQuality.Tools.Count == 0)
+                            {
+                                <tr>
+                                    <td class="px-3 py-5 text-center text-sm text-slate-500" colspan="9">최근 MCP 감사 로그가 없습니다.</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var tool in usage.LlmWikiMcpQuality.Tools)
+                                {
+                                    <tr>
+                                        <td class="whitespace-nowrap px-3 py-2 font-bold text-slate-800">@tool.ToolName</td>
+                                        <td class="px-3 py-2 text-right font-semibold text-slate-700">@FormatCount(tool.CallCount)</td>
+                                        <td class="px-3 py-2 text-right font-semibold text-slate-700">@FormatCount(tool.Recent7DayCallCount)</td>
+                                        <td class="px-3 py-2 text-right font-semibold text-slate-700">@($"{tool.SuccessRatePercent}%")</td>
+                                        <td class="px-3 py-2 text-right font-semibold text-slate-700">@FormatCount(tool.EmptyResultCount)</td>
+                                        <td class="px-3 py-2 text-right font-semibold text-slate-700">@($"{tool.AverageElapsedMs:N0}ms")</td>
+                                        <td class="px-3 py-2 text-right font-semibold text-slate-700">@($"{tool.P95ElapsedMs:N0}ms")</td>
+                                        <td class="px-3 py-2 text-right font-semibold text-slate-700">@FormatCount(tool.SlowCallCount)</td>
+                                        <td class="whitespace-nowrap px-3 py-2 text-slate-600">@FormatNullableDate(tool.LastCallAt)</td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="rounded-lg border border-slate-200 bg-white p-3">
+                <div class="flex flex-wrap items-center gap-2">
+                    <input class="min-w-56 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900"
+                           value="@llmWikiSearchText"
+                           @oninput="HandleLlmWikiSearchInputChanged"
+                           placeholder="LLM Wiki 사용자 검색"
+                           aria-label="LLM Wiki 사용자 검색어 입력" />
+                    <label class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700">
+                        <input type="checkbox" class="h-4 w-4 accent-slate-900" @bind="showLlmWikiUsersOnly" />
+                        LLM Wiki 사용자만
+                    </label>
+                    <select class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none transition focus:border-slate-900"
+                            @bind="llmWikiSortMode"
+                            aria-label="LLM Wiki 정렬">
+                        <option value="activity">최근 활동순</option>
+                        <option value="entries">엔트리순</option>
+                        <option value="accesses">조회순</option>
+                        <option value="tokens">MCP 토큰순</option>
+                        <option value="name">아이디순</option>
+                    </select>
+                </div>
+                <div class="mt-2 text-xs font-semibold text-slate-500">@($"{users.Count:N0}명 표시")</div>
+            </section>
+
+            <section class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
+                    <thead class="bg-slate-50 text-xs font-bold uppercase text-slate-500">
                         <tr>
-                            <td class="px-3 py-8 text-center text-sm text-slate-500" colspan="11">표시할 사용자가 없습니다.</td>
+                            <th class="px-3 py-2">사용자</th>
+                            <th class="px-3 py-2 text-right">엔트리</th>
+                            <th class="px-3 py-2 text-right">소스</th>
+                            <th class="px-3 py-2 text-right">활동</th>
+                            <th class="px-3 py-2 text-right">7일</th>
+                            <th class="px-3 py-2 text-right">30일</th>
+                            <th class="px-3 py-2 text-right">조회</th>
+                            <th class="px-3 py-2 text-right">MCP 토큰</th>
+                            <th class="px-3 py-2">최근 활동</th>
+                            <th class="px-3 py-2">최근 조회</th>
                         </tr>
-                    }
-                    else
-                    {
-                        @foreach (var user in users)
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @if (users.Count == 0)
                         {
-                            <tr class="align-top">
-                                <td class="px-3 py-3">
-                                    <div class="font-bold text-slate-900">@user.DisplayName</div>
-                                    <div class="mt-0.5 text-xs text-slate-500">@($"@{user.UserName}")</div>
-                                    @if (!string.IsNullOrWhiteSpace(user.Email))
-                                    {
-                                        <div class="mt-0.5 text-xs text-slate-400">@user.Email</div>
-                                    }
-                                </td>
-                                <td class="whitespace-nowrap px-3 py-3 text-slate-600">@FormatDate(user.RegisteredAt)</td>
-                                <td class="px-3 py-3 text-right text-slate-700">
-                                    <div class="font-bold">@user.PostCount</div>
-                                    <div class="text-xs text-slate-400">@($"{user.PublishedPostCount}/{user.DraftPostCount}")</div>
-                                </td>
-                                <td class="px-3 py-3 text-right">
-                                    @if (user.UsesLlmWiki)
-                                    {
-                                        <span class="rounded-full bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">사용</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-500">미사용</span>
-                                    }
-                                    <div class="mt-1 text-xs text-slate-500">@($"{user.LlmWikiEntryCount}개")</div>
-                                </td>
-                                <td class="px-3 py-3 text-right text-slate-700">
-                                    <div class="font-bold">@user.LlmWikiActivityCount</div>
-                                    <div class="text-xs text-slate-400">@($"저장 {user.LlmWikiRememberCount} / 병합 {user.LlmWikiMergeCount} / 수정 {user.LlmWikiUpdateCount}")</div>
-                                </td>
-                                <td class="px-3 py-3 text-right font-semibold text-slate-700">@user.LlmWikiRecent7DayActivityCount</td>
-                                <td class="px-3 py-3 text-right font-semibold text-slate-700">@user.LlmWikiRecent30DayActivityCount</td>
-                                <td class="px-3 py-3 text-right font-semibold text-slate-700">@user.LlmWikiAccessCount</td>
-                                <td class="px-3 py-3 text-right text-slate-700">
-                                    <div class="font-bold">@user.ActiveMcpTokenCount</div>
-                                    @if (user.RevokedMcpTokenCount > 0)
-                                    {
-                                        <div class="text-xs text-slate-400">@($"폐기 {user.RevokedMcpTokenCount}")</div>
-                                    }
-                                </td>
-                                <td class="whitespace-nowrap px-3 py-3 text-slate-600">@FormatNullableDate(user.LastLlmWikiActivityAt)</td>
-                                <td class="px-3 py-3">
-                                    @if (CanRenameUser(user.UserName))
-                                    {
-                                        <div class="flex min-w-52 items-center gap-2">
-                                            <input class="w-32 rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-semibold text-slate-800 outline-none transition focus:border-slate-900"
-                                                   value="@GetRenameInput(user)"
-                                                   @oninput="e => HandleRenameInputChanged(user.UserName, e)"
-                                                   disabled="@IsAnyRenameBusy"
-                                                   aria-label="@($"{user.UserName} 새 @name")" />
-                                            <button type="button"
-                                                    class="rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
-                                                    disabled="@IsAnyRenameBusy"
-                                                    @onclick="() => ChangeUserNameAsync(user)">
-                                                @(IsRenameBusy(user.UserName) ? "변경 중" : "변경")
-                                            </button>
-                                        </div>
-                                        <div class="mt-1 text-[11px] font-semibold text-slate-400">변경 후 해당 사용자는 다시 로그인해야 합니다.</div>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-xs font-semibold text-slate-400">예약 계정</span>
-                                    }
-                                </td>
+                            <tr>
+                                <td class="px-3 py-8 text-center text-sm text-slate-500" colspan="10">표시할 LLM Wiki 사용자가 없습니다.</td>
                             </tr>
                         }
-                    }
-                </tbody>
-            </table>
-        </section>
+                        else
+                        {
+                            @foreach (var user in users)
+                            {
+                                <tr class="align-top">
+                                    <td class="px-3 py-3">
+                                        <div class="font-bold text-slate-900">@user.DisplayName</div>
+                                        <div class="mt-0.5 text-xs text-slate-500">@($"@{user.UserName}")</div>
+                                    </td>
+                                    <td class="px-3 py-3 text-right font-semibold text-slate-700">@FormatCount(user.LlmWikiEntryCount)</td>
+                                    <td class="px-3 py-3 text-right font-semibold text-slate-700">@FormatCount(user.LlmWikiSourceRecordCount)</td>
+                                    <td class="px-3 py-3 text-right text-slate-700">
+                                        <div class="font-bold">@FormatCount(user.LlmWikiActivityCount)</div>
+                                        <div class="text-xs text-slate-400">@($"저장 {user.LlmWikiRememberCount:N0} / 병합 {user.LlmWikiMergeCount:N0} / 수정 {user.LlmWikiUpdateCount:N0}")</div>
+                                    </td>
+                                    <td class="px-3 py-3 text-right font-semibold text-slate-700">@FormatCount(user.LlmWikiRecent7DayActivityCount)</td>
+                                    <td class="px-3 py-3 text-right font-semibold text-slate-700">@FormatCount(user.LlmWikiRecent30DayActivityCount)</td>
+                                    <td class="px-3 py-3 text-right font-semibold text-slate-700">@FormatCount(user.LlmWikiAccessCount)</td>
+                                    <td class="px-3 py-3 text-right text-slate-700">
+                                        <div class="font-bold">@FormatCount(user.ActiveMcpTokenCount)</div>
+                                        @if (user.RevokedMcpTokenCount > 0)
+                                        {
+                                            <div class="text-xs text-slate-400">@($"폐기 {user.RevokedMcpTokenCount:N0}")</div>
+                                        }
+                                    </td>
+                                    <td class="whitespace-nowrap px-3 py-3 text-slate-600">@FormatNullableDate(user.LastLlmWikiActivityAt)</td>
+                                    <td class="whitespace-nowrap px-3 py-3 text-slate-600">@FormatNullableDate(user.LastLlmWikiAccessedAt)</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </section>
+        }
+        else
+        {
+            var users = GetVisibleObsidianUsers();
+
+            <section class="grid grid-cols-2 gap-3 lg:grid-cols-6" aria-label="Obsidian Sync 요약">
+                <div class="rounded-lg border border-slate-200 bg-white p-3">
+                    <div class="text-xs font-bold uppercase text-slate-500">Sync 사용자</div>
+                    <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.ObsidianSyncUserCount)</div>
+                </div>
+                <div class="rounded-lg border border-slate-200 bg-white p-3">
+                    <div class="text-xs font-bold uppercase text-slate-500">Vault</div>
+                    <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.TotalObsidianVaults)</div>
+                </div>
+                <div class="rounded-lg border border-slate-200 bg-white p-3">
+                    <div class="text-xs font-bold uppercase text-slate-500">활성 파일</div>
+                    <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.TotalObsidianActiveFiles)</div>
+                </div>
+                <div class="rounded-lg border border-slate-200 bg-white p-3">
+                    <div class="text-xs font-bold uppercase text-slate-500">삭제 기록</div>
+                    <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.TotalObsidianDeletedFiles)</div>
+                </div>
+                <div class="rounded-lg border border-slate-200 bg-white p-3">
+                    <div class="text-xs font-bold uppercase text-slate-500">클라이언트</div>
+                    <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.TotalObsidianClients)</div>
+                </div>
+                <div class="rounded-lg border border-slate-200 bg-white p-3">
+                    <div class="text-xs font-bold uppercase text-slate-500">저장 용량</div>
+                    <div class="mt-1 text-2xl font-bold text-slate-900">@FormatBytes(usage.TotalObsidianSizeBytes)</div>
+                </div>
+            </section>
+
+            <section class="space-y-3 rounded-lg border border-slate-200 bg-white p-3" aria-label="Obsidian Sync 스토리지 한도">
+                <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900">스토리지 한도</h2>
+                        <p class="mt-1 text-xs font-semibold text-slate-500">
+                            @($"계정당 {FormatBytes(usage.ObsidianPerAccountStorageLimitBytes)} · 전체 {FormatBytes(usage.ObsidianTotalStorageCapacityBytes)}")
+                            @if (!usage.ObsidianTotalStorageCapacityConfigured)
+                            {
+                                <span> · 기본값</span>
+                            }
+                        </p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <label class="text-xs font-bold uppercase text-slate-500" for="obsidian-total-capacity">전체 한도 GiB</label>
+                        <input id="obsidian-total-capacity"
+                               type="number"
+                               min="1"
+                               step="1"
+                               class="w-32 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 outline-none transition focus:border-slate-900"
+                               @bind="obsidianTotalCapacityGiB"
+                               disabled="@isStorageSettingsBusy"
+                               aria-label="Obsidian Sync 전체 스토리지 한도 GiB" />
+                        <button type="button"
+                                class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                                disabled="@isStorageSettingsBusy"
+                                @onclick="UpdateObsidianStorageCapacityAsync">
+                            @(isStorageSettingsBusy ? "저장 중" : "저장")
+                        </button>
+                    </div>
+                </div>
+                <div class="grid gap-3 md:grid-cols-3">
+                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <div class="text-xs font-bold uppercase text-slate-500">사용량</div>
+                        <div class="mt-1 text-xl font-bold text-slate-900">@FormatBytes(usage.TotalObsidianSizeBytes)</div>
+                    </div>
+                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <div class="text-xs font-bold uppercase text-slate-500">남은 용량</div>
+                        <div class="mt-1 text-xl font-bold text-slate-900">@FormatBytes(usage.ObsidianTotalStorageRemainingBytes)</div>
+                    </div>
+                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <div class="text-xs font-bold uppercase text-slate-500">전체 사용률</div>
+                        <div class="mt-1 text-xl font-bold text-slate-900">@($"{usage.ObsidianTotalStorageUsagePercent}%")</div>
+                    </div>
+                </div>
+                <div class="h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div class="h-full rounded-full bg-slate-900" style="@GetStorageUsageBarStyle(usage.ObsidianTotalStorageUsagePercent)"></div>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(storageSettingsError))
+                {
+                    <div class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">@storageSettingsError</div>
+                }
+                @if (!string.IsNullOrWhiteSpace(storageSettingsSuccess))
+                {
+                    <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">@storageSettingsSuccess</div>
+                }
+            </section>
+
+            <section class="rounded-lg border border-slate-200 bg-white p-3">
+                <div class="flex flex-wrap items-center gap-2">
+                    <input class="min-w-56 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900"
+                           value="@obsidianSearchText"
+                           @oninput="HandleObsidianSearchInputChanged"
+                           placeholder="Obsidian Sync 사용자 검색"
+                           aria-label="Obsidian Sync 사용자 검색어 입력" />
+                    <label class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700">
+                        <input type="checkbox" class="h-4 w-4 accent-slate-900" @bind="showObsidianUsersOnly" />
+                        Obsidian Sync 사용자만
+                    </label>
+                    <select class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none transition focus:border-slate-900"
+                            @bind="obsidianSortMode"
+                            aria-label="Obsidian Sync 정렬">
+                        <option value="updated">최근 동기화순</option>
+                        <option value="vaults">Vault순</option>
+                        <option value="files">파일순</option>
+                        <option value="clients">클라이언트순</option>
+                        <option value="size">용량순</option>
+                        <option value="name">아이디순</option>
+                    </select>
+                </div>
+                <div class="mt-2 text-xs font-semibold text-slate-500">@($"{users.Count:N0}명 표시")</div>
+            </section>
+
+            <section class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
+                    <thead class="bg-slate-50 text-xs font-bold uppercase text-slate-500">
+                        <tr>
+                            <th class="px-3 py-2">사용자</th>
+                            <th class="px-3 py-2 text-right">Vault</th>
+                            <th class="px-3 py-2 text-right">파일</th>
+                            <th class="px-3 py-2 text-right">활성</th>
+                            <th class="px-3 py-2 text-right">삭제</th>
+                            <th class="px-3 py-2 text-right">클라이언트</th>
+                            <th class="px-3 py-2 text-right">Version</th>
+                            <th class="px-3 py-2 text-right">용량</th>
+                            <th class="px-3 py-2 text-right">한도</th>
+                            <th class="px-3 py-2 text-right">남음</th>
+                            <th class="px-3 py-2">최근 Vault 변경</th>
+                            <th class="px-3 py-2">최근 클라이언트</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @if (users.Count == 0)
+                        {
+                            <tr>
+                                <td class="px-3 py-8 text-center text-sm text-slate-500" colspan="12">표시할 Obsidian Sync 사용자가 없습니다.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var user in users)
+                            {
+                                <tr class="align-top">
+                                    <td class="px-3 py-3">
+                                        <div class="font-bold text-slate-900">@user.DisplayName</div>
+                                        <div class="mt-0.5 text-xs text-slate-500">@($"@{user.UserName}")</div>
+                                    </td>
+                                    <td class="px-3 py-3 text-right font-semibold text-slate-700">@FormatCount(user.ObsidianVaultCount)</td>
+                                    <td class="px-3 py-3 text-right font-semibold text-slate-700">@FormatCount(user.ObsidianFileCount)</td>
+                                    <td class="px-3 py-3 text-right font-semibold text-slate-700">@FormatCount(user.ObsidianActiveFileCount)</td>
+                                    <td class="px-3 py-3 text-right font-semibold text-slate-700">@FormatCount(user.ObsidianDeletedFileCount)</td>
+                                    <td class="px-3 py-3 text-right font-semibold text-slate-700">@FormatCount(user.ObsidianClientCount)</td>
+                                    <td class="px-3 py-3 text-right font-semibold text-slate-700">@FormatCount(user.ObsidianCurrentVersionTotal)</td>
+                                    <td class="whitespace-nowrap px-3 py-3 text-right font-semibold text-slate-700">@FormatBytes(user.ObsidianTotalSizeBytes)</td>
+                                    <td class="whitespace-nowrap px-3 py-3 text-right text-slate-700">
+                                        <div class="font-semibold">@FormatBytes(user.ObsidianStorageLimitBytes)</div>
+                                        <div class="text-xs text-slate-400">@($"{user.ObsidianStorageUsagePercent}%")</div>
+                                    </td>
+                                    <td class="whitespace-nowrap px-3 py-3 text-right font-semibold text-slate-700">@FormatBytes(user.ObsidianStorageRemainingBytes)</td>
+                                    <td class="whitespace-nowrap px-3 py-3 text-slate-600">@FormatNullableDate(user.LastObsidianVaultUpdatedAt)</td>
+                                    <td class="whitespace-nowrap px-3 py-3 text-slate-600">@FormatNullableDate(user.LastObsidianClientSeenAt)</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </section>
+        }
     </section>
 }
 
 @code {
+    private const string UsersView = "users";
+    private const string LlmWikiView = "llm-wiki";
+    private const string ObsidianView = "obsidian";
+
     private AuthUser? CurrentUser => AuthState.CurrentUser;
     private AdminUserUsageResponse? usage;
-    private string searchText = string.Empty;
-    private string sortMode = "activity";
-    private bool showLlmWikiUsersOnly;
+    private string userSearchText = string.Empty;
+    private string llmWikiSearchText = string.Empty;
+    private string obsidianSearchText = string.Empty;
+    private string userSortMode = "registered";
+    private string llmWikiSortMode = "activity";
+    private string obsidianSortMode = "updated";
+    private long obsidianTotalCapacityGiB = 1;
+    private bool showLlmWikiUsersOnly = true;
+    private bool showObsidianUsersOnly = true;
+    private bool isStorageSettingsBusy;
     private readonly Dictionary<string, string> renameInputs = new(StringComparer.OrdinalIgnoreCase);
     private string? renameBusyUserName;
     private string? renameError;
     private string? renameSuccess;
+    private string? storageSettingsError;
+    private string? storageSettingsSuccess;
     private bool IsAnyRenameBusy => !string.IsNullOrWhiteSpace(renameBusyUserName);
+    private const long GiB = 1024L * 1024 * 1024;
+
+    [SupplyParameterFromQuery(Name = "view")]
+    public string? View { get; set; }
+
+    private string ActiveView => NormalizeView(View);
+
+    private int TotalPostCount => usage?.Users.Sum(user => user.PostCount) ?? 0;
+
+    private int TotalPublishedPostCount => usage?.Users.Sum(user => user.PublishedPostCount) ?? 0;
+
+    private int RenameCandidateCount => usage?.Users.Count(user => CanRenameUser(user.UserName)) ?? 0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -297,36 +579,58 @@ else
         }
 
         usage = await ApiClient.GetAdminUserUsageAsync();
+        SyncObsidianStorageInput();
     }
 
-    private List<AdminUserUsageSummary> GetVisibleUsers()
+    private List<AdminUserUsageSummary> GetVisibleUserManagementUsers()
     {
         if (usage is null)
         {
             return [];
         }
 
-        var users = usage.Users.AsEnumerable();
+        var users = ApplySearch(usage.Users, userSearchText);
+        users = userSortMode switch
+        {
+            "profile" => users
+                .OrderByDescending(user => user.ProfileUpdatedAt ?? user.RegisteredAt)
+                .ThenBy(user => user.UserName, StringComparer.OrdinalIgnoreCase),
+            "posts" => users
+                .OrderByDescending(user => user.PostCount)
+                .ThenBy(user => user.UserName, StringComparer.OrdinalIgnoreCase),
+            "name" => users.OrderBy(user => user.UserName, StringComparer.OrdinalIgnoreCase),
+            _ => users
+                .OrderByDescending(user => user.RegisteredAt)
+                .ThenBy(user => user.UserName, StringComparer.OrdinalIgnoreCase)
+        };
+
+        return users.ToList();
+    }
+
+    private List<AdminUserUsageSummary> GetVisibleLlmWikiUsers()
+    {
+        if (usage is null)
+        {
+            return [];
+        }
+
+        var users = ApplySearch(usage.Users, llmWikiSearchText);
         if (showLlmWikiUsersOnly)
         {
             users = users.Where(user => user.UsesLlmWiki);
         }
 
-        if (!string.IsNullOrWhiteSpace(searchText))
+        users = llmWikiSortMode switch
         {
-            var query = searchText.Trim();
-            users = users.Where(user =>
-                user.UserName.Contains(query, StringComparison.OrdinalIgnoreCase)
-                || user.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase)
-                || user.Email.Contains(query, StringComparison.OrdinalIgnoreCase));
-        }
-
-        users = sortMode switch
-        {
-            "registered" => users.OrderByDescending(user => user.RegisteredAt),
             "entries" => users
                 .OrderByDescending(user => user.LlmWikiEntryCount)
                 .ThenByDescending(user => user.LlmWikiActivityCount),
+            "accesses" => users
+                .OrderByDescending(user => user.LlmWikiAccessCount)
+                .ThenByDescending(user => user.LastLlmWikiAccessedAt ?? DateTime.MinValue),
+            "tokens" => users
+                .OrderByDescending(user => user.ActiveMcpTokenCount)
+                .ThenByDescending(user => user.LastMcpTokenUsedAt ?? DateTime.MinValue),
             "name" => users.OrderBy(user => user.UserName, StringComparer.OrdinalIgnoreCase),
             _ => users
                 .OrderByDescending(user => user.LastLlmWikiActivityAt ?? user.RegisteredAt)
@@ -336,9 +640,71 @@ else
         return users.ToList();
     }
 
-    private void HandleSearchInputChanged(ChangeEventArgs e)
+    private List<AdminUserUsageSummary> GetVisibleObsidianUsers()
     {
-        searchText = e.Value?.ToString() ?? string.Empty;
+        if (usage is null)
+        {
+            return [];
+        }
+
+        var users = ApplySearch(usage.Users, obsidianSearchText);
+        if (showObsidianUsersOnly)
+        {
+            users = users.Where(user => user.UsesObsidianSync);
+        }
+
+        users = obsidianSortMode switch
+        {
+            "vaults" => users
+                .OrderByDescending(user => user.ObsidianVaultCount)
+                .ThenByDescending(GetLatestObsidianSortDate),
+            "files" => users
+                .OrderByDescending(user => user.ObsidianActiveFileCount)
+                .ThenByDescending(user => user.ObsidianFileCount),
+            "clients" => users
+                .OrderByDescending(user => user.ObsidianClientCount)
+                .ThenByDescending(user => user.LastObsidianClientSeenAt ?? DateTime.MinValue),
+            "size" => users
+                .OrderByDescending(user => user.ObsidianTotalSizeBytes)
+                .ThenByDescending(user => user.ObsidianActiveFileCount),
+            "name" => users.OrderBy(user => user.UserName, StringComparer.OrdinalIgnoreCase),
+            _ => users
+                .OrderByDescending(GetLatestObsidianSortDate)
+                .ThenBy(user => user.UserName, StringComparer.OrdinalIgnoreCase)
+        };
+
+        return users.ToList();
+    }
+
+    private static IEnumerable<AdminUserUsageSummary> ApplySearch(
+        IEnumerable<AdminUserUsageSummary> users,
+        string searchText)
+    {
+        if (string.IsNullOrWhiteSpace(searchText))
+        {
+            return users;
+        }
+
+        var query = searchText.Trim();
+        return users.Where(user =>
+            user.UserName.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || user.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || user.Email.Contains(query, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void HandleUserSearchInputChanged(ChangeEventArgs e)
+    {
+        userSearchText = e.Value?.ToString() ?? string.Empty;
+    }
+
+    private void HandleLlmWikiSearchInputChanged(ChangeEventArgs e)
+    {
+        llmWikiSearchText = e.Value?.ToString() ?? string.Empty;
+    }
+
+    private void HandleObsidianSearchInputChanged(ChangeEventArgs e)
+    {
+        obsidianSearchText = e.Value?.ToString() ?? string.Empty;
     }
 
     private string GetRenameInput(AdminUserUsageSummary user)
@@ -372,6 +738,7 @@ else
         {
             var updatedUser = await ApiClient.ChangeAdminUserNameAsync(user.UserName, requestedUserName);
             usage = await ApiClient.GetAdminUserUsageAsync();
+            SyncObsidianStorageInput();
             renameInputs.Remove(user.UserName);
             if (updatedUser is not null)
             {
@@ -396,12 +763,108 @@ else
     private bool IsRenameBusy(string userName)
         => renameBusyUserName?.Equals(userName, StringComparison.OrdinalIgnoreCase) == true;
 
+    private async Task UpdateObsidianStorageCapacityAsync()
+    {
+        if (usage is null || isStorageSettingsBusy)
+        {
+            return;
+        }
+
+        storageSettingsError = null;
+        storageSettingsSuccess = null;
+
+        if (obsidianTotalCapacityGiB < 1)
+        {
+            storageSettingsError = "전체 스토리지 한도는 1GiB 이상이어야 합니다.";
+            return;
+        }
+
+        isStorageSettingsBusy = true;
+        try
+        {
+            var capacityBytes = checked(obsidianTotalCapacityGiB * GiB);
+            await ApiClient.UpdateAdminObsidianStorageSettingsAsync(capacityBytes);
+            usage = await ApiClient.GetAdminUserUsageAsync();
+            SyncObsidianStorageInput();
+            storageSettingsSuccess = $"전체 스토리지 한도를 {FormatBytes(capacityBytes)}로 저장했습니다.";
+        }
+        catch (OverflowException)
+        {
+            storageSettingsError = "전체 스토리지 한도가 너무 큽니다.";
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException)
+        {
+            storageSettingsError = FormatStorageSettingsError(ex.Message);
+        }
+        finally
+        {
+            isStorageSettingsBusy = false;
+        }
+    }
+
+    private void SyncObsidianStorageInput()
+    {
+        if (usage is null)
+        {
+            return;
+        }
+
+        obsidianTotalCapacityGiB = Math.Max(1, (long)Math.Ceiling(usage.ObsidianTotalStorageCapacityBytes / (double)GiB));
+    }
+
     private static bool CanRenameUser(string userName)
         => !IsReservedUserName(userName);
 
     private static bool IsReservedUserName(string userName)
         => userName.Equals(AuthUser.AdminUserName, StringComparison.OrdinalIgnoreCase)
             || userName.Equals(AuthUser.AdminAuthorityUserName, StringComparison.OrdinalIgnoreCase);
+
+    private static string NormalizeView(string? view)
+        => view?.Trim().ToLowerInvariant() switch
+        {
+            LlmWikiView => LlmWikiView,
+            ObsidianView => ObsidianView,
+            _ => UsersView
+        };
+
+    private static string GetViewDescription(string view)
+        => view switch
+        {
+            LlmWikiView => "LLM Wiki 사용량과 MCP 품질 지표를 확인합니다.",
+            ObsidianView => "Obsidian Sync vault, 파일, 클라이언트 현황을 확인합니다.",
+            _ => "사용자 기본 정보와 사용자 관련 관리 기능을 확인합니다."
+        };
+
+    private string GetViewTabClass(string view)
+    {
+        const string baseClass = "rounded-lg border px-3 py-2 text-sm font-bold transition";
+        return ActiveView == view
+            ? $"{baseClass} border-slate-900 bg-slate-900 text-white"
+            : $"{baseClass} border-slate-200 bg-white text-slate-700 hover:border-slate-400 hover:text-slate-950";
+    }
+
+    private static string GetViewHref(string view)
+        => $"/admin/users?view={Uri.EscapeDataString(view)}";
+
+    private static string GetUserPublicHref(string userName)
+        => $"/@{Uri.EscapeDataString(userName)}";
+
+    private static DateTime GetLatestObsidianSortDate(AdminUserUsageSummary user)
+        => MaxNullableDate(user.LastObsidianClientSeenAt, user.LastObsidianVaultUpdatedAt) ?? user.RegisteredAt;
+
+    private static DateTime? MaxNullableDate(params DateTime?[] values)
+    {
+        DateTime? max = null;
+        foreach (var value in values)
+        {
+            if (value is not null && (max is null || value.Value > max.Value))
+            {
+                max = value.Value;
+            }
+        }
+
+        return max;
+    }
 
     private static string FormatRenameError(string error)
         => error switch
@@ -416,6 +879,46 @@ else
             "profileUserNameInvalid" => "@name은 영문, 숫자, 점, 하이픈, 밑줄만 사용할 수 있고 첫 글자는 영문 또는 숫자여야 합니다.",
             _ => "사용자 @name 변경에 실패했습니다."
         };
+
+    private static string FormatStorageSettingsError(string error)
+        => error switch
+        {
+            "adminRequired" => "어드민 권한이 필요합니다.",
+            "obsidianStorageCapacityInvalid" => "전체 스토리지 한도는 1GiB 이상, 1PiB 이하로 입력해 주세요.",
+            "obsidianStorageCapacityBelowUsage" => "전체 스토리지 한도는 현재 사용량보다 작게 설정할 수 없습니다.",
+            "obsidianStorageSettingInvalid" => "저장된 스토리지 설정 값이 올바르지 않습니다.",
+            _ => "Obsidian Sync 스토리지 설정 저장에 실패했습니다."
+        };
+
+    private static string FormatCount(int value)
+        => value.ToString("N0");
+
+    private static string FormatCount(long value)
+        => value.ToString("N0");
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes <= 0)
+        {
+            return "0 B";
+        }
+
+        var units = new[] { "B", "KB", "MB", "GB", "TB" };
+        var size = (double)bytes;
+        var unitIndex = 0;
+        while (size >= 1024 && unitIndex < units.Length - 1)
+        {
+            size /= 1024;
+            unitIndex++;
+        }
+
+        return unitIndex == 0
+            ? $"{bytes:N0} {units[unitIndex]}"
+            : $"{size:N1} {units[unitIndex]}";
+    }
+
+    private static string GetStorageUsageBarStyle(int percent)
+        => $"width: {Math.Clamp(percent, 0, 100)}%;";
 
     private string FormatDate(DateTime value)
         => value.ToLocalTime().ToString("yyyy-MM-dd");

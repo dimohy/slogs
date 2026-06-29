@@ -487,6 +487,22 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
             .AsNoTracking()
             .Select(x => new { x.OwnerUserName, x.RevokedAt, x.LastUsedAt })
             .ToListAsync();
+
+        var obsidianVaults = await db.ObsidianVaults
+            .AsNoTracking()
+            .Select(x => new { x.OwnerUserName, x.CurrentVersion, x.UpdatedAt })
+            .ToListAsync();
+
+        var obsidianFiles = await db.ObsidianVaultFiles
+            .AsNoTracking()
+            .Select(x => new { x.OwnerUserName, x.IsDeleted, x.SizeBytes })
+            .ToListAsync();
+
+        var obsidianClients = await db.ObsidianVaultClients
+            .AsNoTracking()
+            .Select(x => new { x.OwnerUserName, x.LastSeenAt })
+            .ToListAsync();
+
         var mcpAuditRows = await LoadLlmWikiMcpAuditRowsAsync(db, recent30DayStart);
 
         var postsByUser = posts
@@ -541,6 +557,38 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
                     MaxDate(x.Select(token => token.LastUsedAt))),
                 StringComparer.OrdinalIgnoreCase);
 
+        var obsidianVaultsByUser = obsidianVaults
+            .GroupBy(x => NormalizeUser(x.OwnerUserName), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                x => x.Key,
+                x => new AdminObsidianVaultUsage(
+                    x.Count(),
+                    x.Sum(vault => vault.CurrentVersion),
+                    MaxDate(x.Select(vault => (DateTime?)vault.UpdatedAt))),
+                StringComparer.OrdinalIgnoreCase);
+
+        var obsidianFilesByUser = obsidianFiles
+            .GroupBy(x => NormalizeUser(x.OwnerUserName), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                x => x.Key,
+                x => new AdminObsidianFileUsage(
+                    x.Count(),
+                    x.Count(file => !file.IsDeleted),
+                    x.Count(file => file.IsDeleted),
+                    x.Where(file => !file.IsDeleted).Sum(file => file.SizeBytes)),
+                StringComparer.OrdinalIgnoreCase);
+
+        var obsidianClientsByUser = obsidianClients
+            .GroupBy(x => NormalizeUser(x.OwnerUserName), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                x => x.Key,
+                x => new AdminObsidianClientUsage(
+                    x.Count(),
+                    MaxDate(x.Select(client => (DateTime?)client.LastSeenAt))),
+                StringComparer.OrdinalIgnoreCase);
+
+        var obsidianStorageQuota = await ObsidianStorageQuotaService.GetSnapshotAsync(db);
+
         var summaries = users
             .Select(user =>
             {
@@ -549,6 +597,9 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
                 entriesByUser.TryGetValue(userName, out var entryUsage);
                 sourcesByUser.TryGetValue(userName, out var sourceUsage);
                 tokensByUser.TryGetValue(userName, out var tokenUsage);
+                obsidianVaultsByUser.TryGetValue(userName, out var obsidianVaultUsage);
+                obsidianFilesByUser.TryGetValue(userName, out var obsidianFileUsage);
+                obsidianClientsByUser.TryGetValue(userName, out var obsidianClientUsage);
 
                 var lastLlmWikiActivityAt = MaxDate([
                     sourceUsage?.LastActivityAt,
@@ -560,6 +611,10 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
                     || sourceUsage?.ActivityCount > 0
                     || tokenUsage?.ActiveCount > 0
                     || tokenUsage?.RevokedCount > 0;
+                var usesObsidianSync = obsidianVaultUsage?.VaultCount > 0
+                    || obsidianFileUsage?.FileCount > 0
+                    || obsidianClientUsage?.ClientCount > 0;
+                var obsidianSizeBytes = obsidianFileUsage?.ActiveSizeBytes ?? 0;
 
                 return new AdminUserUsageSummary(
                     user.UserName,
@@ -582,10 +637,23 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
                     entryUsage?.AccessCount ?? 0,
                     tokenUsage?.ActiveCount ?? 0,
                     tokenUsage?.RevokedCount ?? 0,
+                    usesObsidianSync,
+                    obsidianVaultUsage?.VaultCount ?? 0,
+                    obsidianFileUsage?.FileCount ?? 0,
+                    obsidianFileUsage?.ActiveFileCount ?? 0,
+                    obsidianFileUsage?.DeletedFileCount ?? 0,
+                    obsidianClientUsage?.ClientCount ?? 0,
+                    obsidianSizeBytes,
+                    obsidianVaultUsage?.CurrentVersionTotal ?? 0,
+                    obsidianStorageQuota.PerAccountStorageLimitBytes,
+                    Math.Max(0, obsidianStorageQuota.PerAccountStorageLimitBytes - obsidianSizeBytes),
+                    ToUsagePercent(obsidianSizeBytes, obsidianStorageQuota.PerAccountStorageLimitBytes),
                     lastLlmWikiActivityAt,
                     entryUsage?.LastUpdatedAt,
                     entryUsage?.LastAccessedAt,
-                    tokenUsage?.LastUsedAt);
+                    tokenUsage?.LastUsedAt,
+                    obsidianVaultUsage?.LastUpdatedAt,
+                    obsidianClientUsage?.LastSeenAt);
             })
             .OrderByDescending(x => x.UsesLlmWiki)
             .ThenByDescending(x => x.LastLlmWikiActivityAt ?? x.RegisteredAt)
@@ -599,6 +667,18 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
             summaries.Sum(x => x.LlmWikiActivityCount),
             summaries.Sum(x => x.LlmWikiRecent7DayActivityCount),
             summaries.Sum(x => x.LlmWikiRecent30DayActivityCount),
+            summaries.Count(x => x.UsesObsidianSync),
+            summaries.Sum(x => x.ObsidianVaultCount),
+            summaries.Sum(x => x.ObsidianFileCount),
+            summaries.Sum(x => x.ObsidianActiveFileCount),
+            summaries.Sum(x => x.ObsidianDeletedFileCount),
+            summaries.Sum(x => x.ObsidianClientCount),
+            summaries.Sum(x => x.ObsidianTotalSizeBytes),
+            obsidianStorageQuota.PerAccountStorageLimitBytes,
+            obsidianStorageQuota.TotalCapacityBytes,
+            obsidianStorageQuota.TotalRemainingBytes,
+            obsidianStorageQuota.TotalUsagePercent,
+            obsidianStorageQuota.TotalCapacityConfigured,
             BuildMcpQualitySummary(mcpAuditRows, recent30DayStart, recent7DayStart),
             summaries);
     }
@@ -696,6 +776,14 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
             $@"UPDATE ""LlmWikiEntryEmbeddings"" SET ""OwnerUserName"" = {newUserName} WHERE ""OwnerUserName"" = {oldUserName};");
         await db.Database.ExecuteSqlAsync(
             $@"UPDATE ""LlmWikiEntryGraphNodes"" SET ""OwnerUserName"" = {newUserName} WHERE ""OwnerUserName"" = {oldUserName};");
+        await db.Database.ExecuteSqlAsync(
+            $@"UPDATE ""ObsidianVaults"" SET ""OwnerUserName"" = {newUserName} WHERE ""OwnerUserName"" = {oldUserName};");
+        await db.Database.ExecuteSqlAsync(
+            $@"UPDATE ""ObsidianVaultFiles"" SET ""OwnerUserName"" = {newUserName} WHERE ""OwnerUserName"" = {oldUserName};");
+        await db.Database.ExecuteSqlAsync(
+            $@"UPDATE ""ObsidianVaultClients"" SET ""OwnerUserName"" = {newUserName} WHERE ""OwnerUserName"" = {oldUserName};");
+        await db.Database.ExecuteSqlAsync(
+            $@"UPDATE ""ObsidianVaultFileVersions"" SET ""OwnerUserName"" = {newUserName} WHERE ""OwnerUserName"" = {oldUserName};");
     }
 
     private static async Task RenameUserJsonReferencesAsync(SlogsDbContext db, string oldUserName, string newUserName)
@@ -932,6 +1020,11 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
         return max;
     }
 
+    private static int ToUsagePercent(long usedBytes, long capacityBytes)
+        => capacityBytes <= 0
+            ? 0
+            : (int)Math.Clamp(Math.Ceiling(usedBytes * 100.0 / capacityBytes), 0, 100);
+
     private sealed record AdminPostUsage(
         int PostCount,
         int PublishedPostCount,
@@ -957,6 +1050,21 @@ public sealed class AuthService(IDbContextFactory<SlogsDbContext> dbFactory, IHt
         int ActiveCount,
         int RevokedCount,
         DateTime? LastUsedAt);
+
+    private sealed record AdminObsidianVaultUsage(
+        int VaultCount,
+        long CurrentVersionTotal,
+        DateTime? LastUpdatedAt);
+
+    private sealed record AdminObsidianFileUsage(
+        int FileCount,
+        int ActiveFileCount,
+        int DeletedFileCount,
+        long ActiveSizeBytes);
+
+    private sealed record AdminObsidianClientUsage(
+        int ClientCount,
+        DateTime? LastSeenAt);
 
     private sealed record AdminLlmWikiMcpAuditRow(
         string OwnerUserName,

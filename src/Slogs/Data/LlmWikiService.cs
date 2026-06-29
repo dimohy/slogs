@@ -41,6 +41,11 @@ public sealed class LlmWikiService(
     private const int MaxAuditResultIds = 5;
     private const int MaxSearchIndexRefreshPerQuery = 4;
     private const string SearchIndexVersion = "2026-06-27-public-sharing-v1";
+    private static readonly string[] AllowedTokenScopes =
+    [
+        SlogsTokenScopes.Mcp,
+        SlogsTokenScopes.ObsidianSync
+    ];
     private static readonly string[] KoreanParticleSuffixes =
     [
         "으로",
@@ -754,6 +759,7 @@ public sealed class LlmWikiService(
                 x.Id,
                 x.Name,
                 x.TokenPrefix,
+                DeserializeTokenScopes(x.ScopesJson),
                 x.CreatedAt,
                 x.LastUsedAt,
                 x.RevokedAt is not null))
@@ -763,11 +769,13 @@ public sealed class LlmWikiService(
     public async Task<LlmWikiTokenCreatedResponse> CreateTokenAsync(
         string ownerUserName,
         string? name,
+        IReadOnlyList<string>? scopes = null,
         CancellationToken cancellationToken = default)
     {
         var owner = NormalizeUser(ownerUserName);
+        var tokenScopes = NormalizeTokenScopes(scopes);
         var displayName = string.IsNullOrWhiteSpace(name)
-            ? $"Slogs MCP token {DateTime.UtcNow:yyyy-MM-dd HH:mm}"
+            ? $"Slogs {FormatTokenScopesForName(tokenScopes)} token {DateTime.UtcNow:yyyy-MM-dd HH:mm}"
             : TrimToLength(name, 80);
         var token = $"slogs_mcp_{CreateTokenSecret()}";
         var now = DateTime.UtcNow;
@@ -778,6 +786,7 @@ public sealed class LlmWikiService(
             Name = displayName,
             TokenHash = HashToken(token),
             TokenPrefix = token[..Math.Min(token.Length, 18)],
+            ScopesJson = SerializeTokenScopes(tokenScopes),
             CreatedAt = now
         };
 
@@ -785,7 +794,7 @@ public sealed class LlmWikiService(
         db.LlmWikiMcpTokens.Add(record);
         await db.SaveChangesAsync(cancellationToken);
 
-        return new LlmWikiTokenCreatedResponse(record.Id, record.Name, record.TokenPrefix, token, record.CreatedAt);
+        return new LlmWikiTokenCreatedResponse(record.Id, record.Name, record.TokenPrefix, token, tokenScopes, record.CreatedAt);
     }
 
     public async Task<bool> RevokeTokenAsync(
@@ -811,9 +820,18 @@ public sealed class LlmWikiService(
         string token,
         CancellationToken cancellationToken = default)
     {
+        var result = await AuthenticateBearerTokenAsync(token, SlogsTokenScopes.Mcp, cancellationToken);
+        return result.User;
+    }
+
+    public async Task<SlogsBearerTokenAuthenticationResult> AuthenticateBearerTokenAsync(
+        string token,
+        string requiredScope,
+        CancellationToken cancellationToken = default)
+    {
         if (string.IsNullOrWhiteSpace(token))
         {
-            return null;
+            return SlogsBearerTokenAuthenticationResult.Invalid;
         }
 
         var tokenHash = HashToken(token.Trim());
@@ -822,7 +840,13 @@ public sealed class LlmWikiService(
             .FirstOrDefaultAsync(x => x.TokenHash == tokenHash && x.RevokedAt == null, cancellationToken);
         if (tokenRecord is null)
         {
-            return null;
+            return SlogsBearerTokenAuthenticationResult.Invalid;
+        }
+
+        var scopes = DeserializeTokenScopes(tokenRecord.ScopesJson);
+        if (!HasTokenScope(scopes, requiredScope))
+        {
+            return SlogsBearerTokenAuthenticationResult.Forbidden;
         }
 
         var user = await db.Users
@@ -830,13 +854,13 @@ public sealed class LlmWikiService(
             .FirstOrDefaultAsync(x => x.UserName == tokenRecord.OwnerUserName, cancellationToken);
         if (user is null)
         {
-            return null;
+            return SlogsBearerTokenAuthenticationResult.Invalid;
         }
 
         tokenRecord.LastUsedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
 
-        return new AuthUser
+        var authUser = new AuthUser
         {
             UserName = user.UserName,
             DisplayName = string.IsNullOrWhiteSpace(user.DisplayName) ? user.UserName : user.DisplayName,
@@ -845,6 +869,7 @@ public sealed class LlmWikiService(
             Bio = user.Bio,
             RegisteredAt = user.RegisteredAt
         };
+        return SlogsBearerTokenAuthenticationResult.Success(authUser);
     }
 
     public static string FormatEntryMarkdown(LlmWikiEntryResponse entry)
@@ -1923,6 +1948,60 @@ public sealed class LlmWikiService(
     private static IReadOnlyList<string> DeserializeTags(string tagsJson)
         => JsonSerializer.Deserialize(tagsJson, GetJsonTypeInfo<string[]>()) ?? [];
 
+    private static IReadOnlyList<string> NormalizeTokenScopes(IReadOnlyList<string>? scopes)
+    {
+        var normalized = (scopes is null || scopes.Count == 0
+                ? SlogsTokenScopes.DefaultMcpScopes
+                : scopes)
+            .Select(scope => scope.Trim().ToLowerInvariant())
+            .Where(scope => !string.IsNullOrWhiteSpace(scope))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        if (normalized.Length == 0)
+        {
+            normalized = [SlogsTokenScopes.Mcp];
+        }
+
+        foreach (var scope in normalized)
+        {
+            if (!AllowedTokenScopes.Contains(scope, StringComparer.Ordinal))
+            {
+                throw new InvalidOperationException("slogsTokenScopeInvalid");
+            }
+        }
+
+        return normalized;
+    }
+
+    private static IReadOnlyList<string> DeserializeTokenScopes(string? scopesJson)
+    {
+        if (string.IsNullOrWhiteSpace(scopesJson))
+        {
+            return SlogsTokenScopes.DefaultMcpScopes;
+        }
+
+        try
+        {
+            return NormalizeTokenScopes(JsonSerializer.Deserialize(scopesJson, GetJsonTypeInfo<string[]>()) ?? []);
+        }
+        catch (JsonException)
+        {
+            return SlogsTokenScopes.DefaultMcpScopes;
+        }
+    }
+
+    private static string SerializeTokenScopes(IReadOnlyList<string> scopes)
+        => JsonSerializer.Serialize(NormalizeTokenScopes(scopes).ToArray(), GetJsonTypeInfo<string[]>());
+
+    private static bool HasTokenScope(IReadOnlyList<string> scopes, string requiredScope)
+        => scopes.Contains(requiredScope.Trim().ToLowerInvariant(), StringComparer.Ordinal);
+
+    private static string FormatTokenScopesForName(IReadOnlyList<string> scopes)
+        => scopes.Contains(SlogsTokenScopes.ObsidianSync, StringComparer.Ordinal)
+            ? "Obsidian sync"
+            : "MCP";
+
     private static JsonTypeInfo<T> GetJsonTypeInfo<T>()
         => (JsonTypeInfo<T>?)SlogsJsonSerializerContext.Default.GetTypeInfo(typeof(T))
             ?? throw new InvalidOperationException($"JSON metadata for {typeof(T).FullName} is not registered.");
@@ -1987,4 +2066,13 @@ public sealed class LlmWikiService(
 
         public DateTime UpdatedAt { get; set; } = DateTime.MinValue;
     }
+}
+
+public sealed record SlogsBearerTokenAuthenticationResult(AuthUser? User, bool IsScopeAllowed)
+{
+    public static SlogsBearerTokenAuthenticationResult Invalid { get; } = new(null, true);
+
+    public static SlogsBearerTokenAuthenticationResult Forbidden { get; } = new(null, false);
+
+    public static SlogsBearerTokenAuthenticationResult Success(AuthUser user) => new(user, true);
 }

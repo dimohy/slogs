@@ -40,6 +40,8 @@ public interface ISlogsApiBackend
     Task<IReadOnlyList<AuthUser>> GetUsersAsync(IEnumerable<string> userNames);
     Task<AuthUser> ChangeAdminUserNameAsync(string userName, AdminUserNameUpdateRequest request);
     Task<AdminUserUsageResponse> GetAdminUserUsageAsync();
+    Task<AdminObsidianStorageSettingsResponse> GetAdminObsidianStorageSettingsAsync();
+    Task<AdminObsidianStorageSettingsResponse> UpdateAdminObsidianStorageSettingsAsync(AdminObsidianStorageSettingsUpdateRequest request);
     Task<IReadOnlyList<string>> GetFollowingAsync(string followerUser);
     Task<IReadOnlyList<string>> GetFollowersAsync(string targetUser);
     Task<int> GetFollowerCountAsync(string targetUser);
@@ -50,6 +52,10 @@ public interface ISlogsApiBackend
     Task<LlmWikiEntryResponse?> UpdateLlmWikiAsync(string userName, string idOrSlug, LlmWikiUpdateRequest request);
     Task<string> GetLlmWikiLlmsTextAsync(string userName, int limit);
     Task<IReadOnlyList<LlmWikiTokenResponse>> GetLlmWikiTokensAsync(string userName);
-    Task<LlmWikiTokenCreatedResponse> CreateLlmWikiTokenAsync(string userName, string? name);
+    Task<LlmWikiTokenCreatedResponse> CreateLlmWikiTokenAsync(string userName, string? name, IReadOnlyList<string>? scopes = null);
     Task<bool> RevokeLlmWikiTokenAsync(string userName, Guid tokenId);
+    Task<IReadOnlyList<ObsidianVaultResponse>> GetObsidianVaultsAsync(string userName);
+    Task<ObsidianVaultResponse> GetOrCreateObsidianVaultAsync(string userName, ObsidianVaultCreateRequest request);
+    Task<ObsidianVaultStatusResponse?> GetObsidianVaultStatusAsync(string userName, Guid vaultId);
+    Task<IReadOnlyList<ObsidianVaultClientResponse>> GetObsidianVaultClientsAsync(string userName, Guid vaultId);
 }

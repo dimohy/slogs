@@ -387,6 +387,52 @@ public static class SlogsApiEndpoints
             return Results.Ok(await authService.GetAdminUserUsageAsync());
         });
 
+        api.MapGet("/admin/storage/obsidian", async (
+            HttpContext httpContext,
+            ObsidianStorageQuotaService storageQuotaService,
+            CancellationToken cancellationToken) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            if (user is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!user.IsAdmin)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            return Results.Ok(await storageQuotaService.GetSettingsAsync(cancellationToken));
+        });
+
+        api.MapPut("/admin/storage/obsidian", async (
+            HttpContext httpContext,
+            ObsidianStorageQuotaService storageQuotaService,
+            AdminObsidianStorageSettingsUpdateRequest request,
+            CancellationToken cancellationToken) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            if (user is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!user.IsAdmin)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            try
+            {
+                return Results.Ok(await storageQuotaService.UpdateSettingsAsync(request, cancellationToken));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        });
+
         api.MapPut("/admin/users/{userName}/name", async (
             HttpContext httpContext,
             AuthService authService,
@@ -464,6 +510,364 @@ public static class SlogsApiEndpoints
             return user is null
                 ? Results.Unauthorized()
                 : Results.Ok(await blogService.GetManageByAuthorAsync(user.UserName));
+        });
+
+        api.MapGet("/obsidian/vaults", async (
+            HttpContext httpContext,
+            ObsidianVaultService obsidianVaultService,
+            CancellationToken cancellationToken) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            return user is null
+                ? Results.Unauthorized()
+                : Results.Ok(await obsidianVaultService.GetVaultsAsync(user.UserName, cancellationToken));
+        });
+
+        api.MapPost("/obsidian/vaults", async (
+            HttpContext httpContext,
+            ObsidianVaultService obsidianVaultService,
+            ObsidianVaultCreateRequest request,
+            CancellationToken cancellationToken) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            if (user is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            try
+            {
+                return Results.Ok(await obsidianVaultService.GetOrCreateVaultAsync(user.UserName, request, cancellationToken));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        });
+
+        api.MapGet("/obsidian/vaults/{vaultId:guid}/files", async (
+            HttpContext httpContext,
+            ObsidianVaultService obsidianVaultService,
+            Guid vaultId,
+            long? sinceVersion,
+            bool? includeDeleted,
+            int? limit,
+            string? scopes,
+            CancellationToken cancellationToken) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            if (user is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (sinceVersion is < 0)
+            {
+                return Results.BadRequest(new ApiErrorResponse("obsidianSinceVersionInvalid"));
+            }
+
+            var files = await obsidianVaultService.GetFilesAsync(
+                user.UserName,
+                vaultId,
+                sinceVersion,
+                includeDeleted.GetValueOrDefault(true),
+                limit,
+                scopes,
+                cancellationToken);
+            return files is null ? Results.NotFound() : Results.Ok(files);
+        });
+
+        api.MapGet("/obsidian/vaults/{vaultId:guid}/status", async (
+            HttpContext httpContext,
+            ObsidianVaultService obsidianVaultService,
+            Guid vaultId,
+            CancellationToken cancellationToken) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            if (user is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var status = await obsidianVaultService.GetStatusAsync(user.UserName, vaultId, cancellationToken);
+            return status is null ? Results.NotFound() : Results.Ok(status);
+        });
+
+        api.MapGet("/obsidian/vaults/{vaultId:guid}/clients", async (
+            HttpContext httpContext,
+            ObsidianVaultService obsidianVaultService,
+            Guid vaultId,
+            CancellationToken cancellationToken) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            if (user is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var clients = await obsidianVaultService.GetClientsAsync(user.UserName, vaultId, cancellationToken);
+            return clients is null ? Results.NotFound() : Results.Ok(clients);
+        });
+
+        api.MapPost("/obsidian/vaults/{vaultId:guid}/clients/heartbeat", async (
+            HttpContext httpContext,
+            ObsidianVaultService obsidianVaultService,
+            Guid vaultId,
+            ObsidianVaultClientHeartbeatRequest request,
+            CancellationToken cancellationToken) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            if (user is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            try
+            {
+                var client = await obsidianVaultService.HeartbeatAsync(user.UserName, vaultId, request, cancellationToken);
+                return client is null ? Results.NotFound() : Results.Ok(client);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        });
+
+        api.MapPut("/obsidian/vaults/{vaultId:guid}/files", async (
+            HttpContext httpContext,
+            ObsidianVaultService obsidianVaultService,
+            Guid vaultId,
+            ObsidianVaultFileUpsertRequest request,
+            CancellationToken cancellationToken) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            if (user is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            try
+            {
+                var result = await obsidianVaultService.UpsertFileAsync(
+                    user.UserName,
+                    vaultId,
+                    request,
+                    cancellationToken: cancellationToken);
+                if (result is null)
+                {
+                    return Results.NotFound();
+                }
+
+                return result.IsConflict
+                    ? Results.Conflict(new ObsidianVaultConflictResponse("obsidianConflict", result.RemoteFile!))
+                    : Results.Ok(result.File);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        });
+
+        api.MapPost("/obsidian/vaults/{vaultId:guid}/files/delete", async (
+            HttpContext httpContext,
+            ObsidianVaultService obsidianVaultService,
+            Guid vaultId,
+            ObsidianVaultFileDeleteRequest request,
+            CancellationToken cancellationToken) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            if (user is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            try
+            {
+                var result = await obsidianVaultService.DeleteFileAsync(
+                    user.UserName,
+                    vaultId,
+                    request,
+                    cancellationToken: cancellationToken);
+                if (result is null)
+                {
+                    return Results.NotFound();
+                }
+
+                return result.IsConflict
+                    ? Results.Conflict(new ObsidianVaultConflictResponse("obsidianConflict", result.RemoteFile!))
+                    : Results.Ok(result.File);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        });
+
+        api.MapPut("/obsidian/vaults/{vaultId:guid}/files/batch", async (
+            HttpContext httpContext,
+            ObsidianVaultService obsidianVaultService,
+            Guid vaultId,
+            ObsidianVaultFileBatchUpsertRequest request,
+            CancellationToken cancellationToken) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            if (user is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            try
+            {
+                var result = await obsidianVaultService.UpsertFilesAsync(user.UserName, vaultId, request, cancellationToken);
+                return result is null ? Results.NotFound() : Results.Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        });
+
+        api.MapPost("/obsidian/vaults/{vaultId:guid}/files/delete/batch", async (
+            HttpContext httpContext,
+            ObsidianVaultService obsidianVaultService,
+            Guid vaultId,
+            ObsidianVaultFileBatchDeleteRequest request,
+            CancellationToken cancellationToken) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            if (user is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            try
+            {
+                var result = await obsidianVaultService.DeleteFilesAsync(user.UserName, vaultId, request, cancellationToken);
+                return result is null ? Results.NotFound() : Results.Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        });
+
+        api.MapGet("/obsidian/vaults/{vaultId:guid}/files/history", async (
+            HttpContext httpContext,
+            ObsidianVaultService obsidianVaultService,
+            Guid vaultId,
+            string path,
+            CancellationToken cancellationToken) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            if (user is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            try
+            {
+                var versions = await obsidianVaultService.GetFileHistoryAsync(user.UserName, vaultId, path, cancellationToken);
+                return versions is null ? Results.NotFound() : Results.Ok(versions);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        });
+
+        api.MapPost("/obsidian/vaults/{vaultId:guid}/files/restore", async (
+            HttpContext httpContext,
+            ObsidianVaultService obsidianVaultService,
+            Guid vaultId,
+            ObsidianVaultFileRestoreRequest request,
+            CancellationToken cancellationToken) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            if (user is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            try
+            {
+                var result = await obsidianVaultService.RestoreFileAsync(
+                    user.UserName,
+                    vaultId,
+                    request,
+                    cancellationToken: cancellationToken);
+                if (result is null)
+                {
+                    return Results.NotFound();
+                }
+
+                return result.IsConflict
+                    ? Results.Conflict(new ObsidianVaultConflictResponse("obsidianConflict", result.RemoteFile!))
+                    : Results.Ok(result.File);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        });
+
+        api.MapPost("/obsidian/vaults/{vaultId:guid}/files/map-post", async (
+            HttpContext httpContext,
+            ObsidianVaultService obsidianVaultService,
+            BlogService blogService,
+            Guid vaultId,
+            ObsidianVaultPostMappingRequest request,
+            CancellationToken cancellationToken) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            if (user is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            try
+            {
+                var result = await obsidianVaultService.MapToPostAsync(
+                    user.UserName,
+                    vaultId,
+                    request,
+                    blogService,
+                    cancellationToken);
+                return result is null ? Results.NotFound() : Results.Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        });
+
+        api.MapPost("/obsidian/vaults/{vaultId:guid}/files/map-llm-wiki", async (
+            HttpContext httpContext,
+            ObsidianVaultService obsidianVaultService,
+            LlmWikiService llmWikiService,
+            Guid vaultId,
+            ObsidianVaultLlmWikiMappingRequest request,
+            CancellationToken cancellationToken) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            if (user is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            try
+            {
+                var result = await obsidianVaultService.MapToLlmWikiAsync(
+                    user.UserName,
+                    vaultId,
+                    request,
+                    llmWikiService,
+                    cancellationToken);
+                return result is null ? Results.NotFound() : Results.Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new ApiErrorResponse(ex.Message));
+            }
         });
 
         api.MapGet("/llm-wiki/entries", async (
@@ -597,7 +1001,7 @@ public static class SlogsApiEndpoints
             var user = GetCurrentUser(httpContext);
             return user is null
                 ? Results.Unauthorized()
-                : Results.Ok(await llmWikiService.CreateTokenAsync(user.UserName, request.Name, cancellationToken));
+                : Results.Ok(await llmWikiService.CreateTokenAsync(user.UserName, request.Name, request.Scopes, cancellationToken));
         });
 
         api.MapDelete("/llm-wiki/tokens/{tokenId:guid}", async (

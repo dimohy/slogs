@@ -36,8 +36,30 @@ public sealed record AdminUserUsageResponse(
     int TotalLlmWikiActivityCount,
     int Recent7DayLlmWikiActivityCount,
     int Recent30DayLlmWikiActivityCount,
+    int ObsidianSyncUserCount,
+    int TotalObsidianVaults,
+    int TotalObsidianFiles,
+    int TotalObsidianActiveFiles,
+    int TotalObsidianDeletedFiles,
+    int TotalObsidianClients,
+    long TotalObsidianSizeBytes,
+    long ObsidianPerAccountStorageLimitBytes,
+    long ObsidianTotalStorageCapacityBytes,
+    long ObsidianTotalStorageRemainingBytes,
+    int ObsidianTotalStorageUsagePercent,
+    bool ObsidianTotalStorageCapacityConfigured,
     AdminLlmWikiMcpQualitySummary LlmWikiMcpQuality,
     IReadOnlyList<AdminUserUsageSummary> Users);
+
+public sealed record AdminObsidianStorageSettingsUpdateRequest(long TotalCapacityBytes);
+
+public sealed record AdminObsidianStorageSettingsResponse(
+    long PerAccountStorageLimitBytes,
+    long TotalCapacityBytes,
+    long TotalUsedBytes,
+    long TotalRemainingBytes,
+    int TotalUsagePercent,
+    bool TotalCapacityConfigured);
 
 public sealed record AdminLlmWikiMcpQualitySummary(
     DateTime WindowStartedAt,
@@ -87,10 +109,23 @@ public sealed record AdminUserUsageSummary(
     int LlmWikiAccessCount,
     int ActiveMcpTokenCount,
     int RevokedMcpTokenCount,
+    bool UsesObsidianSync,
+    int ObsidianVaultCount,
+    int ObsidianFileCount,
+    int ObsidianActiveFileCount,
+    int ObsidianDeletedFileCount,
+    int ObsidianClientCount,
+    long ObsidianTotalSizeBytes,
+    long ObsidianCurrentVersionTotal,
+    long ObsidianStorageLimitBytes,
+    long ObsidianStorageRemainingBytes,
+    int ObsidianStorageUsagePercent,
     DateTime? LastLlmWikiActivityAt,
     DateTime? LastLlmWikiEntryUpdatedAt,
     DateTime? LastLlmWikiAccessedAt,
-    DateTime? LastMcpTokenUsedAt);
+    DateTime? LastMcpTokenUsedAt,
+    DateTime? LastObsidianVaultUpdatedAt,
+    DateTime? LastObsidianClientSeenAt);
 
 public sealed record CommentRequest(string Content, Guid? ParentCommentId);
 
@@ -103,6 +138,177 @@ public sealed record ActionStateResponse(bool Active);
 public sealed record UpdateStateResponse(bool Updated);
 
 public sealed record EditorImageResponse(string Url, string AltText);
+
+public sealed record ObsidianVaultCreateRequest(string Name);
+
+public sealed record ObsidianVaultResponse(
+    Guid Id,
+    string Name,
+    long CurrentVersion,
+    DateTime CreatedAt,
+    DateTime UpdatedAt);
+
+public sealed record ObsidianVaultFileListResponse(
+    Guid VaultId,
+    long CurrentVersion,
+    IReadOnlyList<ObsidianVaultFileResponse> Files,
+    bool HasMore = false,
+    long? NextVersionCursor = null);
+
+public sealed record ObsidianVaultFileResponse(
+    Guid Id,
+    Guid VaultId,
+    string Path,
+    string Content,
+    string ContentHash,
+    string MediaType,
+    long SizeBytes,
+    long Version,
+    bool IsDeleted,
+    DateTime CreatedAt,
+    DateTime UpdatedAt,
+    DateTime? DeletedAt,
+    string Scope = ObsidianSyncScopes.Markdown,
+    string Kind = ObsidianVaultFileKinds.Markdown,
+    string Encoding = ObsidianVaultContentEncodings.Utf8,
+    string? MetadataJson = null,
+    string? LastClientId = null);
+
+public sealed record ObsidianVaultFileUpsertRequest(
+    string Path,
+    string Content,
+    long? BaseVersion = null,
+    string? MediaType = null,
+    string? Scope = null,
+    string? Kind = null,
+    string? Encoding = null,
+    string? MetadataJson = null);
+
+public sealed record ObsidianVaultFileDeleteRequest(
+    string Path,
+    long? BaseVersion = null,
+    string? Scope = null);
+
+public sealed record ObsidianVaultConflictResponse(string Error, ObsidianVaultFileResponse RemoteFile);
+
+public sealed record ObsidianVaultFileBatchUpsertRequest(
+    IReadOnlyList<ObsidianVaultFileUpsertRequest> Files,
+    string? ClientId = null,
+    string? ClientName = null,
+    string? ClientKind = null);
+
+public sealed record ObsidianVaultFileBatchDeleteRequest(
+    IReadOnlyList<ObsidianVaultFileDeleteRequest> Files,
+    string? ClientId = null,
+    string? ClientName = null,
+    string? ClientKind = null);
+
+public sealed record ObsidianVaultFileBatchMutationResponse(
+    Guid VaultId,
+    long CurrentVersion,
+    IReadOnlyList<ObsidianVaultFileResponse> Files,
+    IReadOnlyList<ObsidianVaultConflictResponse> Conflicts);
+
+public sealed record ObsidianVaultClientHeartbeatRequest(
+    string ClientId,
+    string ClientName,
+    string ClientKind,
+    long LastSeenVersion);
+
+public sealed record ObsidianVaultClientResponse(
+    string ClientId,
+    Guid VaultId,
+    string ClientName,
+    string ClientKind,
+    long LastSeenVersion,
+    DateTime CreatedAt,
+    DateTime LastSeenAt);
+
+public sealed record ObsidianVaultStatusResponse(
+    Guid VaultId,
+    string Name,
+    long CurrentVersion,
+    int ActiveFileCount,
+    int DeletedFileCount,
+    long TotalSizeBytes,
+    IReadOnlyList<ObsidianVaultClientResponse> Clients);
+
+public sealed record ObsidianVaultFileVersionResponse(
+    Guid FileId,
+    Guid VaultId,
+    string Path,
+    string ContentHash,
+    string MediaType,
+    long SizeBytes,
+    long Version,
+    bool IsDeleted,
+    DateTime UpdatedAt,
+    DateTime? DeletedAt,
+    string Scope,
+    string Kind,
+    string Encoding,
+    string? MetadataJson);
+
+public sealed record ObsidianVaultFileRestoreRequest(
+    string Path,
+    long? BaseVersion = null);
+
+public sealed record ObsidianVaultPostMappingRequest(
+    string Path,
+    string? Slug = null,
+    string? Title = null,
+    string? Summary = null,
+    string? Tags = null,
+    string? Series = null,
+    string? ThumbnailUrl = null,
+    bool? IsDraft = null);
+
+public sealed record ObsidianVaultPostMappingResponse(
+    string Path,
+    string Slug,
+    BlogPost Post);
+
+public sealed record ObsidianVaultLlmWikiMappingRequest(
+    string Path,
+    string? EntryIdOrSlug = null,
+    string? Title = null,
+    string? Tags = null,
+    string? CategoryPath = null,
+    bool? IsPublic = null);
+
+public sealed record ObsidianVaultLlmWikiMappingResponse(
+    string Path,
+    Guid EntryId,
+    string Slug,
+    string CategoryPath,
+    bool IsPublic);
+
+public static class ObsidianSyncScopes
+{
+    public const string Markdown = "markdown";
+
+    public const string Attachments = "attachments";
+
+    public const string Settings = "settings";
+
+    public static IReadOnlyList<string> All { get; } = [Markdown, Attachments, Settings];
+}
+
+public static class ObsidianVaultFileKinds
+{
+    public const string Markdown = "markdown";
+
+    public const string Attachment = "attachment";
+
+    public const string Setting = "setting";
+}
+
+public static class ObsidianVaultContentEncodings
+{
+    public const string Utf8 = "utf8";
+
+    public const string Base64 = "base64";
+}
 
 public sealed record LlmWikiRememberRequest(string Prompt, string? Content, string? Title, string? Tags, string? CategoryPath = null);
 
@@ -152,11 +358,20 @@ public sealed record LlmWikiSearchResult(
 
 public sealed record LlmWikiCategorySummary(string CategoryPath, int CategoryDepth, int Count, DateTime UpdatedAt);
 
-public sealed record LlmWikiTokenCreateRequest(string Name);
+public static class SlogsTokenScopes
+{
+    public const string Mcp = "mcp";
 
-public sealed record LlmWikiTokenResponse(Guid Id, string Name, string TokenPrefix, DateTime CreatedAt, DateTime? LastUsedAt, bool IsRevoked);
+    public const string ObsidianSync = "obsidian.sync";
 
-public sealed record LlmWikiTokenCreatedResponse(Guid Id, string Name, string TokenPrefix, string Token, DateTime CreatedAt);
+    public static IReadOnlyList<string> DefaultMcpScopes { get; } = [Mcp];
+}
+
+public sealed record LlmWikiTokenCreateRequest(string Name, IReadOnlyList<string>? Scopes = null);
+
+public sealed record LlmWikiTokenResponse(Guid Id, string Name, string TokenPrefix, IReadOnlyList<string> Scopes, DateTime CreatedAt, DateTime? LastUsedAt, bool IsRevoked);
+
+public sealed record LlmWikiTokenCreatedResponse(Guid Id, string Name, string TokenPrefix, string Token, IReadOnlyList<string> Scopes, DateTime CreatedAt);
 
 public sealed record TagSummary(string Tag, int Count);
 

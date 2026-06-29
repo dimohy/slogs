@@ -1,0 +1,9 @@
+{
+  "id": "obsidian-slogs-sync",
+  "name": "Slogs Sync",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Synchronize Markdown notes with a Slogs remote Obsidian vault.",
+  "author": "slogs",
+  "isDesktopOnly": false
+}

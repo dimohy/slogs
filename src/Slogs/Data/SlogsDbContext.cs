@@ -22,6 +22,14 @@ public sealed class SlogsDbContext(DbContextOptions<SlogsDbContext> options) : D
 
     public DbSet<LlmWikiMcpTokenRecord> LlmWikiMcpTokens => Set<LlmWikiMcpTokenRecord>();
 
+    public DbSet<ObsidianVaultRecord> ObsidianVaults => Set<ObsidianVaultRecord>();
+
+    public DbSet<ObsidianVaultFileRecord> ObsidianVaultFiles => Set<ObsidianVaultFileRecord>();
+
+    public DbSet<ObsidianVaultClientRecord> ObsidianVaultClients => Set<ObsidianVaultClientRecord>();
+
+    public DbSet<ObsidianVaultFileVersionRecord> ObsidianVaultFileVersions => Set<ObsidianVaultFileVersionRecord>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<PostRecord>(entity =>
@@ -162,6 +170,85 @@ public sealed class SlogsDbContext(DbContextOptions<SlogsDbContext> options) : D
             entity.Property(x => x.Name).HasMaxLength(120);
             entity.Property(x => x.TokenHash).HasMaxLength(128);
             entity.Property(x => x.TokenPrefix).HasMaxLength(32);
+            entity.Property(x => x.ScopesJson).HasColumnType("jsonb");
+            entity.HasOne<UserRecord>()
+                .WithMany()
+                .HasForeignKey(x => x.OwnerUserName)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ObsidianVaultRecord>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OwnerUserName, x.NameKey }).IsUnique();
+            entity.HasIndex(x => new { x.OwnerUserName, x.UpdatedAt });
+            entity.Property(x => x.OwnerUserName).HasMaxLength(80);
+            entity.Property(x => x.Name).HasMaxLength(120);
+            entity.Property(x => x.NameKey).HasMaxLength(120);
+            entity.HasOne<UserRecord>()
+                .WithMany()
+                .HasForeignKey(x => x.OwnerUserName)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(x => x.Files)
+                .WithOne(x => x.Vault)
+                .HasForeignKey(x => x.VaultId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(x => x.Clients)
+                .WithOne(x => x.Vault)
+                .HasForeignKey(x => x.VaultId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ObsidianVaultFileRecord>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.VaultId, x.PathKey }).IsUnique();
+            entity.HasIndex(x => new { x.OwnerUserName, x.VaultId, x.Version });
+            entity.HasIndex(x => new { x.OwnerUserName, x.VaultId, x.IsDeleted, x.UpdatedAt });
+            entity.Property(x => x.OwnerUserName).HasMaxLength(80);
+            entity.Property(x => x.Path).HasMaxLength(700);
+            entity.Property(x => x.PathKey).HasMaxLength(700);
+            entity.Property(x => x.ContentHash).HasMaxLength(64);
+            entity.Property(x => x.MediaType).HasMaxLength(120);
+            entity.Property(x => x.Scope).HasMaxLength(40);
+            entity.Property(x => x.Kind).HasMaxLength(40);
+            entity.Property(x => x.Encoding).HasMaxLength(20);
+            entity.Property(x => x.MetadataJson).HasColumnType("jsonb");
+            entity.Property(x => x.LastClientId).HasMaxLength(120);
+            entity.HasOne<UserRecord>()
+                .WithMany()
+                .HasForeignKey(x => x.OwnerUserName)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ObsidianVaultClientRecord>(entity =>
+        {
+            entity.HasKey(x => new { x.VaultId, x.ClientId });
+            entity.HasIndex(x => new { x.OwnerUserName, x.VaultId, x.LastSeenAt });
+            entity.Property(x => x.OwnerUserName).HasMaxLength(80);
+            entity.Property(x => x.ClientId).HasMaxLength(120);
+            entity.Property(x => x.ClientName).HasMaxLength(120);
+            entity.Property(x => x.ClientKind).HasMaxLength(80);
+            entity.HasOne<UserRecord>()
+                .WithMany()
+                .HasForeignKey(x => x.OwnerUserName)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ObsidianVaultFileVersionRecord>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.OwnerUserName, x.VaultId, x.PathKey, x.Version }).IsUnique();
+            entity.HasIndex(x => new { x.OwnerUserName, x.VaultId, x.Version });
+            entity.Property(x => x.OwnerUserName).HasMaxLength(80);
+            entity.Property(x => x.Path).HasMaxLength(700);
+            entity.Property(x => x.PathKey).HasMaxLength(700);
+            entity.Property(x => x.ContentHash).HasMaxLength(64);
+            entity.Property(x => x.MediaType).HasMaxLength(120);
+            entity.Property(x => x.Scope).HasMaxLength(40);
+            entity.Property(x => x.Kind).HasMaxLength(40);
+            entity.Property(x => x.Encoding).HasMaxLength(20);
+            entity.Property(x => x.MetadataJson).HasColumnType("jsonb");
             entity.HasOne<UserRecord>()
                 .WithMany()
                 .HasForeignKey(x => x.OwnerUserName)
@@ -374,9 +461,133 @@ public sealed class LlmWikiMcpTokenRecord
 
     public string TokenPrefix { get; set; } = string.Empty;
 
+    public string ScopesJson { get; set; } = "[\"mcp\"]";
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime? LastUsedAt { get; set; }
 
     public DateTime? RevokedAt { get; set; }
+}
+
+public sealed class ObsidianVaultRecord
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public string OwnerUserName { get; set; } = string.Empty;
+
+    public string Name { get; set; } = string.Empty;
+
+    public string NameKey { get; set; } = string.Empty;
+
+    public long CurrentVersion { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    public List<ObsidianVaultFileRecord> Files { get; set; } = [];
+
+    public List<ObsidianVaultClientRecord> Clients { get; set; } = [];
+}
+
+public sealed class ObsidianVaultFileRecord
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid VaultId { get; set; }
+
+    public ObsidianVaultRecord? Vault { get; set; }
+
+    public string OwnerUserName { get; set; } = string.Empty;
+
+    public string Path { get; set; } = string.Empty;
+
+    public string PathKey { get; set; } = string.Empty;
+
+    public string Content { get; set; } = string.Empty;
+
+    public string ContentHash { get; set; } = string.Empty;
+
+    public string MediaType { get; set; } = "text/markdown";
+
+    public string Scope { get; set; } = ObsidianSyncScopes.Markdown;
+
+    public string Kind { get; set; } = ObsidianVaultFileKinds.Markdown;
+
+    public string Encoding { get; set; } = ObsidianVaultContentEncodings.Utf8;
+
+    public string MetadataJson { get; set; } = "{}";
+
+    public string LastClientId { get; set; } = string.Empty;
+
+    public long SizeBytes { get; set; }
+
+    public long Version { get; set; }
+
+    public bool IsDeleted { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    public DateTime? DeletedAt { get; set; }
+}
+
+public sealed class ObsidianVaultClientRecord
+{
+    public Guid VaultId { get; set; }
+
+    public ObsidianVaultRecord? Vault { get; set; }
+
+    public string OwnerUserName { get; set; } = string.Empty;
+
+    public string ClientId { get; set; } = string.Empty;
+
+    public string ClientName { get; set; } = string.Empty;
+
+    public string ClientKind { get; set; } = string.Empty;
+
+    public long LastSeenVersion { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public DateTime LastSeenAt { get; set; } = DateTime.UtcNow;
+}
+
+public sealed class ObsidianVaultFileVersionRecord
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid FileId { get; set; }
+
+    public Guid VaultId { get; set; }
+
+    public string OwnerUserName { get; set; } = string.Empty;
+
+    public string Path { get; set; } = string.Empty;
+
+    public string PathKey { get; set; } = string.Empty;
+
+    public string ContentHash { get; set; } = string.Empty;
+
+    public string MediaType { get; set; } = "text/markdown";
+
+    public string Scope { get; set; } = ObsidianSyncScopes.Markdown;
+
+    public string Kind { get; set; } = ObsidianVaultFileKinds.Markdown;
+
+    public string Encoding { get; set; } = ObsidianVaultContentEncodings.Utf8;
+
+    public string MetadataJson { get; set; } = "{}";
+
+    public long SizeBytes { get; set; }
+
+    public long Version { get; set; }
+
+    public bool IsDeleted { get; set; }
+
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    public DateTime? DeletedAt { get; set; }
 }

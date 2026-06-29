@@ -20,7 +20,7 @@ namespace Slogs.Data.CompiledModels
                 "Slogs.Data.LlmWikiMcpTokenRecord",
                 typeof(LlmWikiMcpTokenRecord),
                 baseEntityType,
-                propertyCount: 8,
+                propertyCount: 9,
                 foreignKeyCount: 1,
                 unnamedIndexCount: 2,
                 keyCount: 1);
@@ -74,6 +74,14 @@ namespace Slogs.Data.CompiledModels
                 fieldInfo: typeof(LlmWikiMcpTokenRecord).GetField("<RevokedAt>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
                 nullable: true);
             revokedAt.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
+
+            var scopesJson = runtimeEntityType.AddProperty(
+                "ScopesJson",
+                typeof(string),
+                propertyInfo: typeof(LlmWikiMcpTokenRecord).GetProperty("ScopesJson", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
+                fieldInfo: typeof(LlmWikiMcpTokenRecord).GetField("<ScopesJson>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly));
+            scopesJson.AddAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
+            scopesJson.AddAnnotation("Relational:ColumnType", "jsonb");
 
             var tokenHash = runtimeEntityType.AddProperty(
                 "TokenHash",

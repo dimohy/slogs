@@ -191,10 +191,137 @@ public static class SlogsDbInitializer
                 "Name" character varying(120) NOT NULL,
                 "TokenHash" character varying(128) NOT NULL,
                 "TokenPrefix" character varying(32) NOT NULL,
+                "ScopesJson" jsonb NOT NULL DEFAULT '["mcp"]'::jsonb,
                 "CreatedAt" timestamp with time zone NOT NULL,
                 "LastUsedAt" timestamp with time zone NULL,
                 "RevokedAt" timestamp with time zone NULL,
                 CONSTRAINT "PK_LlmWikiMcpTokens" PRIMARY KEY ("Id")
+            );
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE "LlmWikiMcpTokens"
+            ADD COLUMN IF NOT EXISTS "ScopesJson" jsonb NOT NULL DEFAULT '["mcp"]'::jsonb;
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "SlogsSettings" (
+                "Key" character varying(120) NOT NULL,
+                "Value" text NOT NULL,
+                "UpdatedAt" timestamp with time zone NOT NULL,
+                CONSTRAINT "PK_SlogsSettings" PRIMARY KEY ("Key")
+            );
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "ObsidianVaults" (
+                "Id" uuid NOT NULL,
+                "OwnerUserName" character varying(80) NOT NULL,
+                "Name" character varying(120) NOT NULL,
+                "NameKey" character varying(120) NOT NULL,
+                "CurrentVersion" bigint NOT NULL DEFAULT 0,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "UpdatedAt" timestamp with time zone NOT NULL,
+                CONSTRAINT "PK_ObsidianVaults" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_ObsidianVaults_Users_OwnerUserName"
+                    FOREIGN KEY ("OwnerUserName") REFERENCES "Users" ("UserName") ON DELETE CASCADE
+            );
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "ObsidianVaultFiles" (
+                "Id" uuid NOT NULL,
+                "VaultId" uuid NOT NULL,
+                "OwnerUserName" character varying(80) NOT NULL,
+                "Path" character varying(700) NOT NULL,
+                "PathKey" character varying(700) NOT NULL,
+                "Content" text NOT NULL,
+                "ContentHash" character varying(64) NOT NULL,
+                "MediaType" character varying(120) NOT NULL DEFAULT 'text/markdown',
+                "Scope" character varying(40) NOT NULL DEFAULT 'markdown',
+                "Kind" character varying(40) NOT NULL DEFAULT 'markdown',
+                "Encoding" character varying(20) NOT NULL DEFAULT 'utf8',
+                "MetadataJson" jsonb NOT NULL DEFAULT '{{}}'::jsonb,
+                "LastClientId" character varying(120) NOT NULL DEFAULT '',
+                "SizeBytes" bigint NOT NULL DEFAULT 0,
+                "Version" bigint NOT NULL,
+                "IsDeleted" boolean NOT NULL DEFAULT FALSE,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "UpdatedAt" timestamp with time zone NOT NULL,
+                "DeletedAt" timestamp with time zone NULL,
+                CONSTRAINT "PK_ObsidianVaultFiles" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_ObsidianVaultFiles_ObsidianVaults_VaultId"
+                    FOREIGN KEY ("VaultId") REFERENCES "ObsidianVaults" ("Id") ON DELETE CASCADE,
+                CONSTRAINT "FK_ObsidianVaultFiles_Users_OwnerUserName"
+                    FOREIGN KEY ("OwnerUserName") REFERENCES "Users" ("UserName") ON DELETE CASCADE
+            );
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE "ObsidianVaultFiles"
+            ADD COLUMN IF NOT EXISTS "Scope" character varying(40) NOT NULL DEFAULT 'markdown';
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE "ObsidianVaultFiles"
+            ADD COLUMN IF NOT EXISTS "Kind" character varying(40) NOT NULL DEFAULT 'markdown';
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE "ObsidianVaultFiles"
+            ADD COLUMN IF NOT EXISTS "Encoding" character varying(20) NOT NULL DEFAULT 'utf8';
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE "ObsidianVaultFiles"
+            ADD COLUMN IF NOT EXISTS "MetadataJson" jsonb NOT NULL DEFAULT '{{}}'::jsonb;
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE "ObsidianVaultFiles"
+            ADD COLUMN IF NOT EXISTS "LastClientId" character varying(120) NOT NULL DEFAULT '';
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "ObsidianVaultClients" (
+                "VaultId" uuid NOT NULL,
+                "ClientId" character varying(120) NOT NULL,
+                "OwnerUserName" character varying(80) NOT NULL,
+                "ClientName" character varying(120) NOT NULL,
+                "ClientKind" character varying(80) NOT NULL,
+                "LastSeenVersion" bigint NOT NULL DEFAULT 0,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "LastSeenAt" timestamp with time zone NOT NULL,
+                CONSTRAINT "PK_ObsidianVaultClients" PRIMARY KEY ("VaultId", "ClientId"),
+                CONSTRAINT "FK_ObsidianVaultClients_ObsidianVaults_VaultId"
+                    FOREIGN KEY ("VaultId") REFERENCES "ObsidianVaults" ("Id") ON DELETE CASCADE,
+                CONSTRAINT "FK_ObsidianVaultClients_Users_OwnerUserName"
+                    FOREIGN KEY ("OwnerUserName") REFERENCES "Users" ("UserName") ON DELETE CASCADE
+            );
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "ObsidianVaultFileVersions" (
+                "Id" uuid NOT NULL,
+                "FileId" uuid NOT NULL,
+                "VaultId" uuid NOT NULL,
+                "OwnerUserName" character varying(80) NOT NULL,
+                "Path" character varying(700) NOT NULL,
+                "PathKey" character varying(700) NOT NULL,
+                "ContentHash" character varying(64) NOT NULL,
+                "MediaType" character varying(120) NOT NULL DEFAULT 'text/markdown',
+                "Scope" character varying(40) NOT NULL DEFAULT 'markdown',
+                "Kind" character varying(40) NOT NULL DEFAULT 'markdown',
+                "Encoding" character varying(20) NOT NULL DEFAULT 'utf8',
+                "MetadataJson" jsonb NOT NULL DEFAULT '{{}}'::jsonb,
+                "SizeBytes" bigint NOT NULL DEFAULT 0,
+                "Version" bigint NOT NULL,
+                "IsDeleted" boolean NOT NULL DEFAULT FALSE,
+                "UpdatedAt" timestamp with time zone NOT NULL,
+                "DeletedAt" timestamp with time zone NULL,
+                CONSTRAINT "PK_ObsidianVaultFileVersions" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_ObsidianVaultFileVersions_Users_OwnerUserName"
+                    FOREIGN KEY ("OwnerUserName") REFERENCES "Users" ("UserName") ON DELETE CASCADE
             );
             """);
         await db.Database.ExecuteSqlRawAsync(
@@ -437,6 +564,51 @@ public static class SlogsDbInitializer
             """
             CREATE INDEX IF NOT EXISTS "IX_LlmWikiMcpTokens_OwnerUserName"
             ON "LlmWikiMcpTokens" ("OwnerUserName");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_ObsidianVaults_OwnerUserName_NameKey"
+            ON "ObsidianVaults" ("OwnerUserName", "NameKey");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_ObsidianVaults_OwnerUserName_UpdatedAt"
+            ON "ObsidianVaults" ("OwnerUserName", "UpdatedAt" DESC);
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_ObsidianVaultFiles_VaultId_PathKey"
+            ON "ObsidianVaultFiles" ("VaultId", "PathKey");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_ObsidianVaultFiles_OwnerUserName_VaultId_Version"
+            ON "ObsidianVaultFiles" ("OwnerUserName", "VaultId", "Version");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_ObsidianVaultFiles_OwnerUserName_VaultId_IsDeleted_UpdatedAt"
+            ON "ObsidianVaultFiles" ("OwnerUserName", "VaultId", "IsDeleted", "UpdatedAt" DESC);
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_ObsidianVaultFiles_OwnerUserName_VaultId_Scope_Version"
+            ON "ObsidianVaultFiles" ("OwnerUserName", "VaultId", "Scope", "Version");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_ObsidianVaultClients_OwnerUserName_VaultId_LastSeenAt"
+            ON "ObsidianVaultClients" ("OwnerUserName", "VaultId", "LastSeenAt" DESC);
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_ObsidianVaultFileVersions_OwnerUserName_VaultId_PathKey_Version"
+            ON "ObsidianVaultFileVersions" ("OwnerUserName", "VaultId", "PathKey", "Version");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_ObsidianVaultFileVersions_OwnerUserName_VaultId_Version"
+            ON "ObsidianVaultFileVersions" ("OwnerUserName", "VaultId", "Version");
             """);
     }
 
