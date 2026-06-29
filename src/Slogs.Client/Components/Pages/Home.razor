@@ -16,11 +16,11 @@
          JsonLd="@(SeoMetadata.WebSiteJsonLd(Navigation.BaseUri))" />
 
 <div class="mb-4 rounded-2xl border border-slate-200 bg-white px-5 py-4">
-    <div class="flex flex-wrap gap-2">
-        <a class="@GetDiscoveryTabClass("trending")" href="/trending">트렌딩</a>
-        <a class="@GetDiscoveryTabClass("recommended")" href="/recommended">추천</a>
-        <a class="@GetDiscoveryTabClass("recent")" href="/recent">최신</a>
-        <a class="@GetDiscoveryTabClass("feed")" href="/feed">피드</a>
+    <div class="flex flex-wrap gap-2" data-enhance-nav="false">
+        <a class="@GetDiscoveryTabClass("trending")" href="@TrendingHref" @onclick="() => NavigateHomeLink(TrendingHref)" @onclick:preventDefault="true">트렌딩</a>
+        <a class="@GetDiscoveryTabClass("recommended")" href="@RecommendedHref" @onclick="() => NavigateHomeLink(RecommendedHref)" @onclick:preventDefault="true">추천</a>
+        <a class="@GetDiscoveryTabClass("recent")" href="@RecentHref" @onclick="() => NavigateHomeLink(RecentHref)" @onclick:preventDefault="true">최신</a>
+        <a class="@GetDiscoveryTabClass("feed")" href="@FeedHref" @onclick="() => NavigateHomeLink(FeedHref)" @onclick:preventDefault="true">피드</a>
     </div>
     <div class="mt-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
         <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -42,9 +42,14 @@
     </div>
 </div>
 
-<div class="mb-3 flex flex-wrap gap-2">
-    <a class="@GetFeedChipClass(null)" href="@GetHomeQuery(sort: null, feed: null)">전체</a>
-    <a class="@GetFeedChipClass("following")" href="@GetHomeQuery(sort: null, feed: "following")">팔로우</a>
+@{
+    var allFeedHref = GetHomeQuery(sort: null, feed: null);
+    var followingFeedHref = GetHomeQuery(sort: null, feed: "following");
+}
+
+<div class="mb-3 flex flex-wrap gap-2" data-enhance-nav="false">
+    <a class="@GetFeedChipClass(null)" href="@allFeedHref" @onclick="@(() => NavigateHomeLink(allFeedHref))" @onclick:preventDefault="true">전체</a>
+    <a class="@GetFeedChipClass("following")" href="@followingFeedHref" @onclick="@(() => NavigateHomeLink(followingFeedHref))" @onclick:preventDefault="true">팔로우</a>
 </div>
 
 <div class="mb-2 flex items-center justify-between gap-3 text-sm text-slate-500">
@@ -136,6 +141,10 @@ else
     }
 @code {
     private const int PageSize = 6;
+    private const string TrendingHref = "/trending";
+    private const string RecommendedHref = "/recommended";
+    private const string RecentHref = "/recent";
+    private const string FeedHref = "/feed";
 
     [SupplyParameterFromQuery(Name = "q")]
     public string? Query { get; set; }
@@ -562,6 +571,11 @@ else
     private string GetLoginReturnUrl()
     {
         return GetHomeQuery(sort: normalizedSort, feed: normalizedFeed, query: Query);
+    }
+
+    private void NavigateHomeLink(string href)
+    {
+        Navigation.NavigateTo(href, forceLoad: true);
     }
 
     private IReadOnlyList<BlogPost> SortPosts(IEnumerable<BlogPost> source)
