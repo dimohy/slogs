@@ -59,6 +59,11 @@ foreach ($file in $repoFiles) {
 Copy-Item -LiteralPath (Join-Path $repoRoot "LICENSE") -Destination (Join-Path $repoOutput "LICENSE")
 Copy-Item -LiteralPath (Join-Path $pluginRoot "scripts") -Destination (Join-Path $repoOutput "scripts") -Recurse
 
+$githubPath = Join-Path $pluginRoot ".github"
+if (Test-Path -LiteralPath $githubPath) {
+    Copy-Item -LiteralPath $githubPath -Destination (Join-Path $repoOutput ".github") -Recurse
+}
+
 $releaseFiles = @("manifest.json", "main.js")
 foreach ($file in $releaseFiles) {
     Copy-Item -LiteralPath (Join-Path $pluginRoot $file) -Destination (Join-Path $releaseOutput $file)

@@ -20,21 +20,22 @@ await esbuild.build({
 });
 
 const core = await import(`${pathToFileURL(outFile).href}?t=${Date.now()}`);
+const configDir = ".slogs-config";
 
 assert.equal(core.normalizeRemotePath("\\Notes\\ Daily.md "), "Notes/Daily.md");
-assert.equal(core.isMarkdownPath("Notes/Daily.md"), true);
-assert.equal(core.isMarkdownPath(".obsidian/app.json"), false);
-assert.equal(core.shouldSyncPath("img/logo.png", { syncAttachments: false, syncSettings: false }), false);
-assert.equal(core.shouldSyncPath("img/logo.png", { syncAttachments: true, syncSettings: false }), true);
-assert.equal(core.shouldSyncPath(".obsidian/app.json", { syncAttachments: true, syncSettings: false }), false);
-assert.equal(core.shouldSyncPath(".obsidian/app.json", { syncAttachments: true, syncSettings: true }), true);
+assert.equal(core.isMarkdownPath("Notes/Daily.md", configDir), true);
+assert.equal(core.isMarkdownPath(`${configDir}/app.json`, configDir), false);
+assert.equal(core.shouldSyncPath("img/logo.png", { syncAttachments: false, syncSettings: false }, configDir), false);
+assert.equal(core.shouldSyncPath("img/logo.png", { syncAttachments: true, syncSettings: false }, configDir), true);
+assert.equal(core.shouldSyncPath(`${configDir}/app.json`, { syncAttachments: true, syncSettings: false }, configDir), false);
+assert.equal(core.shouldSyncPath(`${configDir}/app.json`, { syncAttachments: true, syncSettings: true }, configDir), true);
 
-const attachment = core.classifyPath("img/logo.png", { syncAttachments: true, syncSettings: false });
+const attachment = core.classifyPath("img/logo.png", { syncAttachments: true, syncSettings: false }, configDir);
 assert.equal(attachment.scope, "attachments");
 assert.equal(attachment.kind, "attachment");
 assert.equal(attachment.encoding, "base64");
 
-const settings = core.classifyPath(".obsidian/app.json", { syncAttachments: false, syncSettings: true });
+const settings = core.classifyPath(`${configDir}/app.json`, { syncAttachments: false, syncSettings: true }, configDir);
 assert.equal(settings.scope, "settings");
 assert.equal(settings.kind, "setting");
 assert.equal(settings.encoding, "utf8");
@@ -57,6 +58,7 @@ const payload = core.buildUpsertPayload(
   3,
   "text/markdown",
   { syncAttachments: false, syncSettings: false },
+  configDir,
   { client: "test" });
 assert.deepEqual(
   {

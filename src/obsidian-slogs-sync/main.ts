@@ -189,7 +189,8 @@ export default class SlogsSyncPlugin extends Plugin {
 
   async pushCurrentFile(): Promise<void> {
     const activeFile = this.app.workspace.getActiveFile();
-    if (!(activeFile instanceof TFile) || !shouldSyncPath(activeFile.path, this.getFeatureFlags())) {
+    const configDir = this.getConfigDir();
+    if (!(activeFile instanceof TFile) || !shouldSyncPath(activeFile.path, this.getFeatureFlags(), configDir)) {
       new Notice("Open a synced Markdown file or enabled attachment before pushing to Slogs.");
       return;
     }
@@ -297,15 +298,16 @@ export default class SlogsSyncPlugin extends Plugin {
 
   private async collectLocalFiles(): Promise<LocalSyncFile[]> {
     const flags = this.getFeatureFlags();
+    const configDir = this.getConfigDir();
     const files: LocalSyncFile[] = [];
     for (const file of this.app.vault.getFiles()) {
-      if (shouldSyncPath(file.path, flags) && !isSettingsPath(file.path)) {
+      if (shouldSyncPath(file.path, flags, configDir) && !isSettingsPath(file.path, configDir)) {
         files.push({ path: normalizeRemotePath(file.path), source: "vault", file });
       }
     }
 
     if (flags.syncSettings) {
-      for (const path of await this.listSettingsFiles(".obsidian")) {
+      for (const path of await this.listSettingsFiles(configDir)) {
         files.push({ path, source: "settings" });
       }
     }
@@ -315,7 +317,8 @@ export default class SlogsSyncPlugin extends Plugin {
 
   private async pushLocalFile(localFile: LocalSyncFile, forceBaseVersion?: number): Promise<PushResult> {
     const flags = this.getFeatureFlags();
-    const classification = classifyPath(localFile.path, flags);
+    const configDir = this.getConfigDir();
+    const classification = classifyPath(localFile.path, flags, configDir);
     const path = classification.path;
     const state = this.settings.files[path];
     const content = await this.readLocalContent(localFile, classification.encoding);
@@ -333,6 +336,7 @@ export default class SlogsSyncPlugin extends Plugin {
       forceBaseVersion ?? state?.version ?? null,
       guessMediaType(path),
       flags,
+      configDir,
       {
         client: "obsidian-plugin",
         source: localFile.source
@@ -463,7 +467,7 @@ export default class SlogsSyncPlugin extends Plugin {
   }
 
   private async localExists(path: string): Promise<boolean> {
-    if (isSettingsPath(path)) {
+    if (isSettingsPath(path, this.getConfigDir())) {
       return await this.app.vault.adapter.exists(path);
     }
 
@@ -471,7 +475,7 @@ export default class SlogsSyncPlugin extends Plugin {
   }
 
   private async computeLocalHash(path: string, encoding: string): Promise<string> {
-    if (isSettingsPath(path)) {
+    if (isSettingsPath(path, this.getConfigDir())) {
       return sha256HexText(await this.app.vault.adapter.read(path));
     }
 
@@ -486,7 +490,7 @@ export default class SlogsSyncPlugin extends Plugin {
   }
 
   private async writeLocalContent(path: string, content: string, encoding: string): Promise<void> {
-    if (isSettingsPath(path)) {
+    if (isSettingsPath(path, this.getConfigDir())) {
       await this.ensureAdapterFolder(path);
       await this.app.vault.adapter.write(path, content);
       return;
@@ -517,7 +521,7 @@ export default class SlogsSyncPlugin extends Plugin {
   }
 
   private async deleteLocalPath(path: string): Promise<void> {
-    if (isSettingsPath(path)) {
+    if (isSettingsPath(path, this.getConfigDir())) {
       if (await this.app.vault.adapter.exists(path)) {
         await this.app.vault.adapter.remove(path);
       }
@@ -527,7 +531,7 @@ export default class SlogsSyncPlugin extends Plugin {
 
     const existing = this.app.vault.getAbstractFileByPath(path);
     if (existing instanceof TFile) {
-      await this.app.vault.delete(existing);
+      await this.app.fileManager.trashFile(existing);
     }
   }
 
@@ -554,7 +558,7 @@ export default class SlogsSyncPlugin extends Plugin {
 
   private async openCurrentSlogsPost(): Promise<void> {
     const activeFile = this.app.workspace.getActiveFile();
-    if (!(activeFile instanceof TFile) || !isMarkdownPath(activeFile.path)) {
+    if (!(activeFile instanceof TFile) || !isMarkdownPath(activeFile.path, this.getConfigDir())) {
       new Notice("Open a mapped Markdown note first.");
       return;
     }
@@ -752,6 +756,10 @@ export default class SlogsSyncPlugin extends Plugin {
     };
   }
 
+  private getConfigDir(): string {
+    return normalizeRemotePath(this.app.vault.configDir);
+  }
+
   private getEnabledScopes(): string[] {
     const scopes = [OBSIDIAN_SCOPE_MARKDOWN];
     if (this.settings.syncAttachments) {
@@ -783,7 +791,7 @@ class SlogsSyncSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Slogs server URL")
-      .setDesc("Remote Slogs server that stores the user-scoped Obsidian vault.")
+      .setDesc("Remote Slogs server that stores the user-scoped sync vault.")
       .addText(text => text
         .setPlaceholder("https://slogs.dev")
         .setValue(this.plugin.settings.serverUrl)
@@ -808,7 +816,7 @@ class SlogsSyncSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Remote vault name")
-      .setDesc("Leave empty to use the current Obsidian vault name.")
+      .setDesc("Leave empty to use the current vault name.")
       .addText(text => text
         .setPlaceholder("My Obsidian Vault")
         .setValue(this.plugin.settings.vaultName)
@@ -831,8 +839,8 @@ class SlogsSyncSettingTab extends PluginSettingTab {
         }));
 
     new Setting(containerEl)
-      .setName("Sync .obsidian settings")
-      .setDesc("Opt in to .obsidian settings sync after attachment sync is enabled.")
+      .setName("Sync settings folder")
+      .setDesc("Opt in to syncing the vault settings folder after attachment sync is enabled.")
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.syncSettings)
         .onChange(async value => {

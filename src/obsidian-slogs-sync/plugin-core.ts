@@ -39,29 +39,36 @@ export function normalizeRemotePath(path: string): string {
     .join("/");
 }
 
-export function isMarkdownPath(path: string): boolean {
+function isPathInDirectory(path: string, directory: string): boolean {
   const normalized = normalizeRemotePath(path).toLowerCase();
-  return normalized.endsWith(".md") && !normalized.startsWith(".obsidian/");
+  const normalizedDirectory = normalizeRemotePath(directory).toLowerCase();
+  return normalizedDirectory.length > 0
+    && (normalized === normalizedDirectory || normalized.startsWith(`${normalizedDirectory}/`));
 }
 
-export function isSettingsPath(path: string): boolean {
-  return normalizeRemotePath(path).toLowerCase().startsWith(".obsidian/");
+export function isMarkdownPath(path: string, configDir: string): boolean {
+  const normalized = normalizeRemotePath(path).toLowerCase();
+  return normalized.endsWith(".md") && !isSettingsPath(normalized, configDir);
 }
 
-export function isAttachmentPath(path: string): boolean {
+export function isSettingsPath(path: string, configDir: string): boolean {
+  return isPathInDirectory(path, configDir);
+}
+
+export function isAttachmentPath(path: string, configDir: string): boolean {
   const normalized = normalizeRemotePath(path);
-  return normalized.length > 0 && !isMarkdownPath(normalized) && !isSettingsPath(normalized);
+  return normalized.length > 0 && !isMarkdownPath(normalized, configDir) && !isSettingsPath(normalized, configDir);
 }
 
-export function shouldSyncPath(path: string, flags: SlogsSyncFeatureFlags): boolean {
-  return isMarkdownPath(path)
-    || (flags.syncAttachments && isAttachmentPath(path))
-    || (flags.syncSettings && isSettingsPath(path));
+export function shouldSyncPath(path: string, flags: SlogsSyncFeatureFlags, configDir: string): boolean {
+  return isMarkdownPath(path, configDir)
+    || (flags.syncAttachments && isAttachmentPath(path, configDir))
+    || (flags.syncSettings && isSettingsPath(path, configDir));
 }
 
-export function classifyPath(path: string, flags: SlogsSyncFeatureFlags): SlogsPathClassification {
+export function classifyPath(path: string, flags: SlogsSyncFeatureFlags, configDir: string): SlogsPathClassification {
   const normalized = normalizeRemotePath(path);
-  if (isMarkdownPath(normalized)) {
+  if (isMarkdownPath(normalized, configDir)) {
     return {
       path: normalized,
       scope: OBSIDIAN_SCOPE_MARKDOWN,
@@ -70,7 +77,7 @@ export function classifyPath(path: string, flags: SlogsSyncFeatureFlags): SlogsP
     };
   }
 
-  if (isSettingsPath(normalized)) {
+  if (isSettingsPath(normalized, configDir)) {
     if (!flags.syncSettings) {
       throw new Error("Settings sync is not enabled.");
     }
@@ -101,9 +108,10 @@ export function buildUpsertPayload(
   baseVersion: number | null,
   mediaType: string,
   flags: SlogsSyncFeatureFlags,
+  configDir: string,
   metadata: Record<string, string | number | boolean> = {}
 ): SlogsFileUpsertPayload {
-  const classification = classifyPath(path, flags);
+  const classification = classifyPath(path, flags, configDir);
   return {
     path: classification.path,
     content,
