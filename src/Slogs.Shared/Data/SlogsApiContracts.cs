@@ -156,6 +156,8 @@ public sealed record EditorImageResponse(string Url, string AltText);
 
 public sealed record ObsidianVaultCreateRequest(string Name);
 
+public sealed record ObsidianVaultDeleteRequest(string Name);
+
 public sealed record ObsidianVaultResponse(
     Guid Id,
     string Name,

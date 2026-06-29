@@ -524,6 +524,21 @@ public sealed class SlogsApiClient
             new ObsidianVaultCreateRequest(vaultName));
     }
 
+    public async Task<bool> DeleteObsidianVaultAsync(string userName, Guid vaultId, string vaultName)
+    {
+        var request = new ObsidianVaultDeleteRequest(vaultName);
+        if (backend is not null)
+        {
+            return await backend.DeleteObsidianVaultAsync(userName, vaultId, request);
+        }
+
+        _ = userName;
+        var response = await PostJsonAsync<UpdateStateResponse, ObsidianVaultDeleteRequest>(
+            $"api/obsidian/vaults/{vaultId}/delete",
+            request);
+        return response?.Updated == true;
+    }
+
     public async Task<ObsidianVaultStatusResponse?> GetObsidianVaultStatusAsync(string userName, Guid vaultId)
     {
         if (backend is not null)

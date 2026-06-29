@@ -551,6 +551,34 @@ public static class SlogsApiEndpoints
             }
         });
 
+        api.MapPost("/obsidian/vaults/{vaultId:guid}/delete", async (
+            HttpContext httpContext,
+            ObsidianVaultService obsidianVaultService,
+            Guid vaultId,
+            ObsidianVaultDeleteRequest request,
+            CancellationToken cancellationToken) =>
+        {
+            var user = GetCurrentUser(httpContext);
+            if (user is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            try
+            {
+                var deleted = await obsidianVaultService.DeleteVaultAsync(
+                    user.UserName,
+                    vaultId,
+                    request,
+                    cancellationToken);
+                return deleted is null ? Results.NotFound() : Results.Ok(new UpdateStateResponse(deleted.Value));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        });
+
         api.MapGet("/obsidian/vaults/{vaultId:guid}/files", async (
             HttpContext httpContext,
             ObsidianVaultService obsidianVaultService,

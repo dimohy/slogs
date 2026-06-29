@@ -181,6 +181,44 @@ public sealed class ObsidianVaultServiceTests
     }
 
     [Fact]
+    public async Task DeleteVaultRequiresExactNameAndRemovesVaultData()
+    {
+        await using var fixture = await TestFixture.CreateAsync();
+        var vault = await fixture.Obsidian.GetOrCreateVaultAsync("alice", new ObsidianVaultCreateRequest("Vault"));
+        await fixture.Obsidian.UpsertFilesAsync(
+            "alice",
+            vault.Id,
+            new ObsidianVaultFileBatchUpsertRequest(
+                [new ObsidianVaultFileUpsertRequest("Delete.md", "before")],
+                "client-1",
+                "Plugin",
+                "obsidian-plugin"));
+
+        var mismatch = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            fixture.Obsidian.DeleteVaultAsync("alice", vault.Id, new ObsidianVaultDeleteRequest("vault")));
+        var bobDelete = await fixture.Obsidian.DeleteVaultAsync("bob", vault.Id, new ObsidianVaultDeleteRequest("Vault"));
+        var existingStatus = await fixture.Obsidian.GetStatusAsync("alice", vault.Id);
+
+        Assert.Equal("obsidianVaultDeleteNameMismatch", mismatch.Message);
+        Assert.Null(bobDelete);
+        Assert.NotNull(existingStatus);
+
+        var deleted = await fixture.Obsidian.DeleteVaultAsync("alice", vault.Id, new ObsidianVaultDeleteRequest("Vault"));
+        var vaults = await fixture.Obsidian.GetVaultsAsync("alice");
+        var files = await fixture.Obsidian.GetFilesAsync("alice", vault.Id, null, includeDeleted: true);
+        var history = await fixture.Obsidian.GetFileHistoryAsync("alice", vault.Id, "Delete.md");
+        var clients = await fixture.Obsidian.GetClientsAsync("alice", vault.Id);
+        var status = await fixture.Obsidian.GetStatusAsync("alice", vault.Id);
+
+        Assert.True(deleted);
+        Assert.Empty(vaults);
+        Assert.Null(files);
+        Assert.Null(history);
+        Assert.Null(clients);
+        Assert.Null(status);
+    }
+
+    [Fact]
     public async Task AdminRenameMovesObsidianVaultFilesClientsAndHistory()
     {
         await using var fixture = await TestFixture.CreateAsync();

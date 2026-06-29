@@ -30,6 +30,7 @@ namespace Slogs.Data;
 [JsonSerializable(typeof(UpdateStateResponse))]
 [JsonSerializable(typeof(EditorImageResponse))]
 [JsonSerializable(typeof(ObsidianVaultCreateRequest))]
+[JsonSerializable(typeof(ObsidianVaultDeleteRequest))]
 [JsonSerializable(typeof(ObsidianVaultResponse))]
 [JsonSerializable(typeof(ObsidianVaultFileListResponse))]
 [JsonSerializable(typeof(ObsidianVaultFileResponse))]

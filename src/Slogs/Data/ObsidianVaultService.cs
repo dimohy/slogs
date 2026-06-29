@@ -93,6 +93,43 @@ public sealed class ObsidianVaultService(IDbContextFactory<SlogsDbContext> dbFac
         return ToVaultResponse(vault);
     }
 
+    public async Task<bool?> DeleteVaultAsync(
+        string ownerUserName,
+        Guid vaultId,
+        ObsidianVaultDeleteRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var owner = NormalizeUser(ownerUserName);
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        var vault = await db.ObsidianVaults
+            .FirstOrDefaultAsync(x => x.Id == vaultId && x.OwnerUserName == owner, cancellationToken);
+        if (vault is null)
+        {
+            return null;
+        }
+
+        if (!string.Equals(request.Name, vault.Name, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("obsidianVaultDeleteNameMismatch");
+        }
+
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await db.ObsidianVaultFileVersions
+            .Where(x => x.OwnerUserName == owner && x.VaultId == vaultId)
+            .ExecuteDeleteAsync(cancellationToken);
+        await db.ObsidianVaultClients
+            .Where(x => x.OwnerUserName == owner && x.VaultId == vaultId)
+            .ExecuteDeleteAsync(cancellationToken);
+        await db.ObsidianVaultFiles
+            .Where(x => x.OwnerUserName == owner && x.VaultId == vaultId)
+            .ExecuteDeleteAsync(cancellationToken);
+        db.ObsidianVaults.Remove(vault);
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return true;
+    }
+
     public async Task<ObsidianVaultFileListResponse?> GetFilesAsync(
         string ownerUserName,
         Guid vaultId,

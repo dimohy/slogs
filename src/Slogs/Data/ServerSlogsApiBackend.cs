@@ -200,6 +200,9 @@ public sealed class ServerSlogsApiBackend(
     public Task<ObsidianVaultResponse> GetOrCreateObsidianVaultAsync(string userName, ObsidianVaultCreateRequest request)
         => obsidianVaultService.GetOrCreateVaultAsync(ResolveUserName(userName), request);
 
+    public async Task<bool> DeleteObsidianVaultAsync(string userName, Guid vaultId, ObsidianVaultDeleteRequest request)
+        => await obsidianVaultService.DeleteVaultAsync(ResolveUserName(userName), vaultId, request) ?? false;
+
     public Task<ObsidianVaultStatusResponse?> GetObsidianVaultStatusAsync(string userName, Guid vaultId)
         => obsidianVaultService.GetStatusAsync(ResolveUserName(userName), vaultId);
 

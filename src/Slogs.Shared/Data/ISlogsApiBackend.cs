@@ -57,6 +57,7 @@ public interface ISlogsApiBackend
     Task<bool> RevokeLlmWikiTokenAsync(string userName, Guid tokenId);
     Task<IReadOnlyList<ObsidianVaultResponse>> GetObsidianVaultsAsync(string userName);
     Task<ObsidianVaultResponse> GetOrCreateObsidianVaultAsync(string userName, ObsidianVaultCreateRequest request);
+    Task<bool> DeleteObsidianVaultAsync(string userName, Guid vaultId, ObsidianVaultDeleteRequest request);
     Task<ObsidianVaultStatusResponse?> GetObsidianVaultStatusAsync(string userName, Guid vaultId);
     Task<IReadOnlyList<ObsidianVaultClientResponse>> GetObsidianVaultClientsAsync(string userName, Guid vaultId);
 }
