@@ -569,8 +569,40 @@ header.bg-white {
 }
 
 .slogs-app-header__inner {
+    max-width: 112rem;
     padding-right: 1rem;
     transition: min-height 0.18s ease, padding 0.18s ease;
+}
+
+.slogs-page-shell--reading {
+    max-width: 72rem;
+}
+
+.slogs-page-shell--wide {
+    max-width: 112rem;
+}
+
+@media (min-width: 1024px) {
+    .slogs-page-shell--wide {
+        grid-template-columns: minmax(13rem, 16rem) minmax(0, 1fr) !important;
+    }
+
+    .slogs-page-shell--wide > .slogs-desktop-sidebar,
+    .slogs-page-shell--wide > .slogs-page-main {
+        grid-column: auto / span 1 !important;
+    }
+}
+
+@media (min-width: 1280px) {
+    .slogs-app-header__inner,
+    .slogs-page-shell--wide {
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+    }
+
+    .slogs-page-shell--wide {
+        gap: 1.5rem;
+    }
 }
 
 .slogs-brand {

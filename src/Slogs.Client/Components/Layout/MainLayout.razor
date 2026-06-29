@@ -11,7 +11,7 @@
             <ReconnectModal />
         </div>
 
-        <div class="slogs-app-header__inner mx-auto flex w-full max-w-6xl flex-wrap items-center gap-3 px-4 py-3 md:flex-nowrap">
+        <div class="slogs-app-header__inner mx-auto flex w-full flex-wrap items-center gap-3 px-4 py-3 md:flex-nowrap">
             <a class="slogs-brand" href="/" aria-label="slogs 홈">
                 <img class="slogs-brand__icon" src="@Assets["favicon.svg"]" alt="" width="32" height="32" />
                 <span class="slogs-brand__wordmark">slogs</span>
@@ -121,12 +121,12 @@
         </div>
     </aside>
 
-    <div class="slogs-page-shell mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 px-4 py-4 lg:grid-cols-12">
+    <div class="@GetPageShellClass()">
         <aside class="slogs-desktop-sidebar lg:sticky lg:top-24 lg:self-start lg:col-span-4 xl:col-span-3">
             <NavMenu />
         </aside>
 
-        <main class="min-w-0 lg:col-span-8 xl:col-span-9">
+        <main class="slogs-page-main min-w-0 lg:col-span-8 xl:col-span-9">
             @Body
         </main>
     </div>
@@ -210,6 +210,23 @@
         => isMobileMenuOpen
             ? "slogs-mobile-menu-drawer is-open"
             : "slogs-mobile-menu-drawer";
+
+    private string GetPageShellClass()
+        => IsFocusedReadingPage()
+            ? "slogs-page-shell slogs-page-shell--reading mx-auto grid w-full grid-cols-1 gap-4 px-4 py-4 lg:grid-cols-12"
+            : "slogs-page-shell slogs-page-shell--wide mx-auto grid w-full grid-cols-1 gap-4 px-4 py-4 lg:grid-cols-12";
+
+    private bool IsFocusedReadingPage()
+    {
+        var path = new Uri(Navigation.Uri).AbsolutePath.Trim('/');
+        if (path.StartsWith("post/", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        return segments.Length == 2 && segments[0].StartsWith("@", StringComparison.Ordinal);
+    }
 
     private async Task Logout()
     {
