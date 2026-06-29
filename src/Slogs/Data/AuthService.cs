@@ -11,7 +11,7 @@ public sealed class AuthService(
     IHttpContextAccessor httpContextAccessor,
     ObsidianStorageQuotaService obsidianStorageQuotaService)
 {
-    private readonly object stateLock = new();
+    private readonly Lock stateLock = new();
     private AuthUser? currentUser = SlogsAuthentication.TryCreateUser(httpContextAccessor.HttpContext?.User);
 
     public AuthUser? CurrentUser
