@@ -1,8 +1,8 @@
 {
   "id": "slogs-sync",
   "name": "Slogs Sync",
-  "version": "0.1.1",
-  "minAppVersion": "1.5.0",
+  "version": "0.1.2",
+  "minAppVersion": "1.6.6",
   "description": "Synchronize Markdown notes with a Slogs remote vault.",
   "author": "dimohy",
   "authorUrl": "https://slogs.dev/@dimohy",
