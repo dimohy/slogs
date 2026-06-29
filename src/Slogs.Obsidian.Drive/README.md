@@ -12,8 +12,23 @@ The installer checks WinFsp and downloads the official WinFsp `2.2.26112` MSI fr
 
 ## Install
 
+The winget community source entry is under review. Until it is merged, install from the GitHub Release through the checked-in winget manifest:
+
 ```powershell
-winget install Dimohy.SlogsObsidianDrive
+$manifest = Join-Path $env:TEMP "SlogsObsidianDrive-winget"
+Remove-Item $manifest -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Force -Path $manifest | Out-Null
+$base = "https://raw.githubusercontent.com/dimohy/slogs/main/packaging/winget/manifests/d/Dimohy/SlogsObsidianDrive/0.1.0"
+@("Dimohy.SlogsObsidianDrive.yaml","Dimohy.SlogsObsidianDrive.locale.en-US.yaml","Dimohy.SlogsObsidianDrive.installer.yaml") | ForEach-Object {
+    Invoke-WebRequest "$base/$_" -OutFile (Join-Path $manifest $_)
+}
+winget install --manifest $manifest --accept-package-agreements --accept-source-agreements
+```
+
+After the community manifest is merged into winget-pkgs, this shorter command is enough:
+
+```powershell
+winget install --id Dimohy.SlogsObsidianDrive --exact
 ```
 
 The GitHub Release asset can also install itself:

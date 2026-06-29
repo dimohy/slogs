@@ -19,7 +19,10 @@ internal sealed record DriveOptions(
         Mount a Slogs Obsidian remote vault as a WinFsp-backed Windows drive.
 
         Install:
-          winget install Dimohy.SlogsObsidianDrive
+          Before the community winget source entry is merged:
+            winget install --manifest <downloaded Dimohy.SlogsObsidianDrive manifest folder>
+          After merge:
+            winget install --id Dimohy.SlogsObsidianDrive --exact
 
         Required:
           --vault <name>       Slogs remote vault name.
