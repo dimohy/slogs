@@ -12,6 +12,17 @@ internal static class Program
                 return 0;
             }
 
+            if (args.Any(arg => arg is "--version" or "-v"))
+            {
+                Console.WriteLine(SlogsObsidianDriveInstaller.ProductVersion);
+                return 0;
+            }
+
+            if (SlogsObsidianDriveInstaller.IsInstallerCommand(args))
+            {
+                return await SlogsObsidianDriveInstaller.RunAsync(args);
+            }
+
             var options = DriveOptions.Parse(args);
             await SlogsObsidianDriveApplication.RunAsync(options);
             return 0;

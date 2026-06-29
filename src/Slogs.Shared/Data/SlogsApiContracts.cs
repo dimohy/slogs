@@ -246,6 +246,9 @@ public sealed record ObsidianVaultStatusResponse(
     int ActiveFileCount,
     int DeletedFileCount,
     long TotalSizeBytes,
+    long AccountStorageLimitBytes,
+    long AccountStorageUsedBytes,
+    long AccountStorageRemainingBytes,
     IReadOnlyList<ObsidianVaultClientResponse> Clients);
 
 public sealed record ObsidianVaultFileVersionResponse(

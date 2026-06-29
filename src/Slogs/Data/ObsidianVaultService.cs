@@ -178,6 +178,8 @@ public sealed class ObsidianVaultService(IDbContextFactory<SlogsDbContext> dbFac
             .AsNoTracking()
             .Where(x => x.OwnerUserName == owner && x.VaultId == vaultId && !x.IsDeleted)
             .SumAsync(x => (long?)x.SizeBytes, cancellationToken) ?? 0;
+        var quotaSnapshot = await ObsidianStorageQuotaService.GetSnapshotAsync(db, cancellationToken);
+        var ownerUsedBytes = await ObsidianStorageQuotaService.GetOwnerUsedBytesAsync(db, owner, cancellationToken);
         var clients = await GetClientsCoreAsync(db, owner, vaultId, cancellationToken);
 
         return new ObsidianVaultStatusResponse(
@@ -187,6 +189,9 @@ public sealed class ObsidianVaultService(IDbContextFactory<SlogsDbContext> dbFac
             activeFileCount,
             deletedFileCount,
             totalSizeBytes,
+            quotaSnapshot.PerAccountStorageLimitBytes,
+            ownerUsedBytes,
+            Math.Max(0, quotaSnapshot.PerAccountStorageLimitBytes - ownerUsedBytes),
             clients);
     }
 

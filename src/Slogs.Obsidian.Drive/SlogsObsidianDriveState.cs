@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Slogs.Data;
 
 namespace Slogs.Obsidian.Drive;
@@ -29,11 +28,6 @@ internal sealed class SlogsObsidianDriveFileState
 
 internal sealed class SlogsObsidianDriveStateStore(string statePath)
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        WriteIndented = true
-    };
-
     public async Task<SlogsObsidianDriveState> LoadAsync(CancellationToken cancellationToken = default)
     {
         if (!File.Exists(statePath))
@@ -42,7 +36,10 @@ internal sealed class SlogsObsidianDriveStateStore(string statePath)
         }
 
         await using var stream = File.OpenRead(statePath);
-        var state = await JsonSerializer.DeserializeAsync<SlogsObsidianDriveState>(stream, JsonOptions, cancellationToken)
+        var state = await System.Text.Json.JsonSerializer.DeserializeAsync(
+                stream,
+                SlogsObsidianDriveJsonSerializerContext.Default.SlogsObsidianDriveState,
+                cancellationToken)
             ?? new SlogsObsidianDriveState();
         state.Files = new Dictionary<string, SlogsObsidianDriveFileState>(
             state.Files,
@@ -55,6 +52,10 @@ internal sealed class SlogsObsidianDriveStateStore(string statePath)
         Directory.CreateDirectory(Path.GetDirectoryName(statePath)
             ?? throw new InvalidOperationException("State path has no parent directory."));
         await using var stream = File.Create(statePath);
-        await JsonSerializer.SerializeAsync(stream, state, JsonOptions, cancellationToken);
+        await System.Text.Json.JsonSerializer.SerializeAsync(
+            stream,
+            state,
+            SlogsObsidianDriveJsonSerializerContext.Default.SlogsObsidianDriveState,
+            cancellationToken);
     }
 }

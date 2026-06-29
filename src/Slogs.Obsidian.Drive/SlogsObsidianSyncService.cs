@@ -12,8 +12,11 @@ internal sealed class SlogsObsidianSyncService(
     bool syncAttachments = false,
     bool syncSettings = false)
 {
+    private const long DefaultVolumeSizeBytes = 1L * 1024 * 1024 * 1024;
+    private readonly Lock volumeUsageLock = new();
     private readonly SemaphoreSlim syncLock = new(1, 1);
     private SlogsObsidianDriveState state = new();
+    private SlogsObsidianDriveVolumeUsage volumeUsage = new(DefaultVolumeSizeBytes, 0);
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
@@ -30,6 +33,7 @@ internal sealed class SlogsObsidianSyncService(
 
             await PullRemoteChangesCoreAsync(cancellationToken);
             await PushLocalChangesCoreAsync(cancellationToken);
+            await RefreshVolumeUsageCoreAsync(cancellationToken);
             await stateStore.SaveAsync(state, cancellationToken);
         }
         finally
@@ -64,6 +68,7 @@ internal sealed class SlogsObsidianSyncService(
         try
         {
             await PullRemoteChangesCoreAsync(cancellationToken);
+            await RefreshVolumeUsageCoreAsync(cancellationToken);
             await stateStore.SaveAsync(state, cancellationToken);
         }
         finally
@@ -78,6 +83,7 @@ internal sealed class SlogsObsidianSyncService(
         try
         {
             await PushLocalChangesCoreAsync(cancellationToken);
+            await RefreshVolumeUsageCoreAsync(cancellationToken);
             await stateStore.SaveAsync(state, cancellationToken);
         }
         finally
@@ -98,6 +104,7 @@ internal sealed class SlogsObsidianSyncService(
         try
         {
             await PushSingleFileCoreAsync(path, cancellationToken);
+            await RefreshVolumeUsageCoreAsync(cancellationToken);
             await stateStore.SaveAsync(state, cancellationToken);
         }
         finally
@@ -120,6 +127,7 @@ internal sealed class SlogsObsidianSyncService(
                 await DeleteSingleFileCoreAsync(NormalizeRemotePath(relativePath), cancellationToken);
             }
 
+            await RefreshVolumeUsageCoreAsync(cancellationToken);
             await stateStore.SaveAsync(state, cancellationToken);
         }
         finally
@@ -131,6 +139,14 @@ internal sealed class SlogsObsidianSyncService(
     public async Task RenameLocalPathAsync(CancellationToken cancellationToken = default)
     {
         await PushLocalChangesAsync(cancellationToken);
+    }
+
+    public SlogsObsidianDriveVolumeUsage GetVolumeUsage()
+    {
+        lock (volumeUsageLock)
+        {
+            return volumeUsage;
+        }
     }
 
     private async Task PullRemoteChangesCoreAsync(CancellationToken cancellationToken)
@@ -168,6 +184,20 @@ internal sealed class SlogsObsidianSyncService(
             .ToArray())
         {
             await DeleteSingleFileCoreAsync(deletedPath, cancellationToken);
+        }
+    }
+
+    private async Task RefreshVolumeUsageCoreAsync(CancellationToken cancellationToken)
+    {
+        var status = await remoteClient.GetVaultStatusAsync(state.VaultId, cancellationToken);
+        var totalSizeBytes = status.AccountStorageLimitBytes > 0
+            ? status.AccountStorageLimitBytes
+            : DefaultVolumeSizeBytes;
+        var usedSizeBytes = Math.Clamp(status.TotalSizeBytes, 0, totalSizeBytes);
+
+        lock (volumeUsageLock)
+        {
+            volumeUsage = new SlogsObsidianDriveVolumeUsage(totalSizeBytes, usedSizeBytes);
         }
     }
 
@@ -541,4 +571,9 @@ internal sealed class SlogsObsidianSyncConflictException(string message) : Inval
 {
     public static SlogsObsidianSyncConflictException ForRemoteFile(string path, ObsidianVaultFileResponse remoteFile)
         => new($"Slogs Obsidian conflict at '{path}'. Remote version {remoteFile.Version} was not overwritten.");
+}
+
+internal readonly record struct SlogsObsidianDriveVolumeUsage(long TotalSizeBytes, long UsedSizeBytes)
+{
+    public long FreeSizeBytes => Math.Max(0, TotalSizeBytes - UsedSizeBytes);
 }

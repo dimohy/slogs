@@ -31,10 +31,9 @@ internal sealed class SlogsObsidianFileSystem : FileSystemBase
         volumeInfo = default;
         try
         {
-            var root = Path.GetPathRoot(rootPath);
-            var drive = string.IsNullOrWhiteSpace(root) ? null : new DriveInfo(root);
-            volumeInfo.TotalSize = drive is null ? 1UL << 40 : (ulong)Math.Max(0L, drive.TotalSize);
-            volumeInfo.FreeSize = drive is null ? 1UL << 39 : (ulong)Math.Max(0L, drive.AvailableFreeSpace);
+            var usage = syncService.GetVolumeUsage();
+            volumeInfo.TotalSize = (ulong)Math.Max(0L, usage.TotalSizeBytes);
+            volumeInfo.FreeSize = (ulong)Math.Max(0L, usage.FreeSizeBytes);
             volumeInfo.SetVolumeLabel("Slogs Obsidian");
             return STATUS_SUCCESS;
         }

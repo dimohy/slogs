@@ -5,14 +5,28 @@ Windows-only WinFsp integration that mounts a Slogs Obsidian remote vault as a l
 ## Requirements
 
 - Windows.
-- WinFsp 2026 `2.2.26112` or a compatible 2.2 runtime installed from `https://winfsp.dev/rel/`.
+- `winget`.
 - A Slogs Bearer token with the `obsidian.sync` scope.
 
-## Run
+The installer checks WinFsp and downloads the official WinFsp `2.2.26112` MSI from GitHub if it is missing.
+
+## Install
+
+```powershell
+winget install Dimohy.SlogsObsidianDrive
+```
+
+The GitHub Release asset can also install itself:
+
+```powershell
+.\SlogsObsidianDrive-0.1.0-win-x64.exe --install
+```
+
+## Mount
 
 ```powershell
 $env:SLOGS_OBSIDIAN_TOKEN = "<obsidian.sync token>"
-dotnet run --project src\Slogs.Obsidian.Drive -- --vault "My Vault" --mount S:
+SlogsObsidianDrive --vault "My Vault" --mount S:
 ```
 
 Optional arguments:
@@ -34,3 +48,4 @@ The token is read from `--token` or `SLOGS_OBSIDIAN_TOKEN` and is not written to
 - Remote conflicts return an IO error to the calling filesystem operation and are logged without overwriting the remote file.
 - The local cache state is stored in `state.json` beside the cache `files/` directory, not inside the mounted vault root.
 - The drive checks Windows/WinFsp installation and runs WinFsp mount preflight before mounting.
+- Windows drive capacity reports the account storage limit as total capacity and the active vault file size as used space.

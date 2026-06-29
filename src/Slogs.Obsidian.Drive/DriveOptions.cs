@@ -18,6 +18,9 @@ internal sealed record DriveOptions(
         """
         Mount a Slogs Obsidian remote vault as a WinFsp-backed Windows drive.
 
+        Install:
+          winget install Dimohy.SlogsObsidianDrive
+
         Required:
           --vault <name>       Slogs remote vault name.
           --mount <X:|path>    Drive letter or NTFS directory mount point.
@@ -34,7 +37,7 @@ internal sealed record DriveOptions(
                                Sync .obsidian settings through the settings scope. Default: false.
 
         Example:
-          dotnet run --project src\Slogs.Obsidian.Drive -- --vault "My Vault" --mount S:
+          SlogsObsidianDrive --vault "My Vault" --mount S:
         """;
 
     public static DriveOptions Parse(IReadOnlyList<string> args)

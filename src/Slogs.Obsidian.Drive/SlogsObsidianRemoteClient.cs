@@ -2,23 +2,24 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using Slogs.Data;
 
 namespace Slogs.Obsidian.Drive;
 
 internal sealed class SlogsObsidianRemoteClient(HttpClient httpClient, string token)
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        TypeInfoResolver = SlogsJsonSerializerContext.Default
-    };
-
     public async Task<ObsidianVaultResponse> GetOrCreateVaultAsync(string vaultName, CancellationToken cancellationToken = default)
     {
         using var request = CreateRequest(HttpMethod.Post, "api/obsidian/vaults");
-        request.Content = JsonContent.Create(new ObsidianVaultCreateRequest(vaultName), options: JsonOptions);
+        request.Content = JsonContent.Create(
+            new ObsidianVaultCreateRequest(vaultName),
+            SlogsJsonSerializerContext.Default.ObsidianVaultCreateRequest);
         using var response = await httpClient.SendAsync(request, cancellationToken);
-        return await ReadRequiredJsonAsync<ObsidianVaultResponse>(response, cancellationToken);
+        return await ReadRequiredJsonAsync(
+            response,
+            SlogsJsonSerializerContext.Default.ObsidianVaultResponse,
+            cancellationToken);
     }
 
     public async Task<ObsidianVaultFileListResponse> GetFilesAsync(
@@ -35,7 +36,22 @@ internal sealed class SlogsObsidianRemoteClient(HttpClient httpClient, string to
         query += scopeQuery;
         using var request = CreateRequest(HttpMethod.Get, $"api/obsidian/vaults/{vaultId:D}/files?{query}");
         using var response = await httpClient.SendAsync(request, cancellationToken);
-        return await ReadRequiredJsonAsync<ObsidianVaultFileListResponse>(response, cancellationToken);
+        return await ReadRequiredJsonAsync(
+            response,
+            SlogsJsonSerializerContext.Default.ObsidianVaultFileListResponse,
+            cancellationToken);
+    }
+
+    public async Task<ObsidianVaultStatusResponse> GetVaultStatusAsync(
+        Guid vaultId,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = CreateRequest(HttpMethod.Get, $"api/obsidian/vaults/{vaultId:D}/status");
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        return await ReadRequiredJsonAsync(
+            response,
+            SlogsJsonSerializerContext.Default.ObsidianVaultStatusResponse,
+            cancellationToken);
     }
 
     public async Task<SlogsObsidianRemoteMutationResult> UpsertFileAsync(
@@ -52,7 +68,7 @@ internal sealed class SlogsObsidianRemoteClient(HttpClient httpClient, string to
         using var request = CreateRequest(HttpMethod.Put, $"api/obsidian/vaults/{vaultId:D}/files");
         request.Content = JsonContent.Create(
             new ObsidianVaultFileUpsertRequest(path, content, baseVersion, mediaType, scope, kind, encoding),
-            options: JsonOptions);
+            SlogsJsonSerializerContext.Default.ObsidianVaultFileUpsertRequest);
         using var response = await httpClient.SendAsync(request, cancellationToken);
         return await ReadMutationResultAsync(response, cancellationToken);
     }
@@ -65,7 +81,9 @@ internal sealed class SlogsObsidianRemoteClient(HttpClient httpClient, string to
         CancellationToken cancellationToken = default)
     {
         using var request = CreateRequest(HttpMethod.Post, $"api/obsidian/vaults/{vaultId:D}/files/delete");
-        request.Content = JsonContent.Create(new ObsidianVaultFileDeleteRequest(path, baseVersion, scope), options: JsonOptions);
+        request.Content = JsonContent.Create(
+            new ObsidianVaultFileDeleteRequest(path, baseVersion, scope),
+            SlogsJsonSerializerContext.Default.ObsidianVaultFileDeleteRequest);
         using var response = await httpClient.SendAsync(request, cancellationToken);
         return await ReadMutationResultAsync(response, cancellationToken);
     }
@@ -83,16 +101,25 @@ internal sealed class SlogsObsidianRemoteClient(HttpClient httpClient, string to
     {
         if (response.StatusCode == HttpStatusCode.Conflict)
         {
-            var conflict = await ReadJsonAsync<ObsidianVaultConflictResponse>(response, cancellationToken)
+            var conflict = await ReadJsonAsync(
+                    response,
+                    SlogsJsonSerializerContext.Default.ObsidianVaultConflictResponse,
+                    cancellationToken)
                 ?? throw new InvalidOperationException("Slogs API returned an empty conflict response.");
             return SlogsObsidianRemoteMutationResult.Conflict(conflict.RemoteFile);
         }
 
-        var file = await ReadRequiredJsonAsync<ObsidianVaultFileResponse>(response, cancellationToken);
+        var file = await ReadRequiredJsonAsync(
+            response,
+            SlogsJsonSerializerContext.Default.ObsidianVaultFileResponse,
+            cancellationToken);
         return SlogsObsidianRemoteMutationResult.Updated(file);
     }
 
-    private static async Task<T> ReadRequiredJsonAsync<T>(HttpResponseMessage response, CancellationToken cancellationToken)
+    private static async Task<T> ReadRequiredJsonAsync<T>(
+        HttpResponseMessage response,
+        JsonTypeInfo<T> jsonTypeInfo,
+        CancellationToken cancellationToken)
     {
         if (!response.IsSuccessStatusCode)
         {
@@ -100,18 +127,23 @@ internal sealed class SlogsObsidianRemoteClient(HttpClient httpClient, string to
             throw new InvalidOperationException(error ?? $"Slogs API returned HTTP {(int)response.StatusCode}.");
         }
 
-        var value = await response.Content.ReadFromJsonAsync<T>(JsonOptions, cancellationToken);
+        var value = await response.Content.ReadFromJsonAsync(jsonTypeInfo, cancellationToken);
         return value ?? throw new InvalidOperationException("Slogs API returned an empty response.");
     }
 
-    private static async Task<T?> ReadJsonAsync<T>(HttpResponseMessage response, CancellationToken cancellationToken)
-        => await response.Content.ReadFromJsonAsync<T>(JsonOptions, cancellationToken);
+    private static async Task<T?> ReadJsonAsync<T>(
+        HttpResponseMessage response,
+        JsonTypeInfo<T> jsonTypeInfo,
+        CancellationToken cancellationToken)
+        => await response.Content.ReadFromJsonAsync(jsonTypeInfo, cancellationToken);
 
     private static async Task<string?> ReadApiErrorCodeAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         try
         {
-            var error = await response.Content.ReadFromJsonAsync<ApiErrorResponse>(JsonOptions, cancellationToken);
+            var error = await response.Content.ReadFromJsonAsync(
+                SlogsJsonSerializerContext.Default.ApiErrorResponse,
+                cancellationToken);
             return error?.Error;
         }
         catch (JsonException)

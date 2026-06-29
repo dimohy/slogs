@@ -172,6 +172,10 @@ public sealed class ObsidianVaultServiceTests
         Assert.Empty(batch.Conflicts);
         Assert.NotNull(status);
         Assert.Equal(2, status.ActiveFileCount);
+        Assert.Equal(2, status.TotalSizeBytes);
+        Assert.Equal(ObsidianStorageQuotaService.DefaultPerAccountStorageLimitBytes, status.AccountStorageLimitBytes);
+        Assert.Equal(2, status.AccountStorageUsedBytes);
+        Assert.Equal(ObsidianStorageQuotaService.DefaultPerAccountStorageLimitBytes - 2, status.AccountStorageRemainingBytes);
         Assert.Single(status.Clients);
         Assert.Equal("client-1", status.Clients[0].ClientId);
     }

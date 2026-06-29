@@ -5,6 +5,12 @@ namespace Slogs.Obsidian.Drive;
 
 internal static class WinFspInstallation
 {
+    public static bool IsInstalled()
+        => RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            && (FindInstalledWinFspBinaries().Any(File.Exists)
+                || IsWinFspServiceRegistered()
+                || IsWinFspRegisteredAsInstalledProduct());
+
     public static void RequireInstalled()
     {
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -12,12 +18,10 @@ internal static class WinFspInstallation
             throw new InvalidOperationException("Slogs Obsidian Drive requires Windows and WinFsp.");
         }
 
-        if (!FindInstalledWinFspBinaries().Any(File.Exists)
-            && !IsWinFspServiceRegistered()
-            && !IsWinFspRegisteredAsInstalledProduct())
+        if (!IsInstalled())
         {
             throw new InvalidOperationException(
-                "WinFsp is required before mounting a Slogs Obsidian drive. Install WinFsp from https://winfsp.dev/rel/ and run this command again.");
+                "WinFsp is required before mounting a Slogs Obsidian drive. Run 'SlogsObsidianDrive --install' or install WinFsp from https://github.com/winfsp/winfsp/releases/download/v2.2B1/winfsp-2.2.26112.msi.");
         }
     }
 
