@@ -117,6 +117,129 @@ else
             }
         </div>
 
+        @if (!post.IsDraft && revisions.Count > 0)
+        {
+            var orderedRevisions = revisions.OrderByDescending(x => x.RevisionNumber).ToList();
+            var selectedNumber = selectedRevisionNumber ?? orderedRevisions[0].RevisionNumber;
+            var selectedSummary = orderedRevisions.FirstOrDefault(x => x.RevisionNumber == selectedNumber) ?? orderedRevisions[0];
+            var hasSelectedDetail = revisionDetails.TryGetValue(selectedNumber, out var selectedDetail);
+            var isSelectedLoading = loadingRevisionNumbers.Contains(selectedNumber);
+            <section id="revisions" class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-sm font-bold text-slate-900">리비전</span>
+                    <span class="text-xs font-semibold text-slate-500">@($"{revisions.Count}개")</span>
+                    <select class="rounded-full border border-slate-300 bg-white px-3 py-1 text-sm font-semibold text-slate-700"
+                            value="@selectedNumber"
+                            @onchange="OnRevisionSelectedAsync">
+                        @foreach (var revision in orderedRevisions)
+                        {
+                            <option value="@revision.RevisionNumber">@($"v{revision.RevisionNumber} · {FormatDateTime(revision.CreatedAt)}")</option>
+                        }
+                    </select>
+                    <button class="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled="@isSelectedLoading"
+                            type="button"
+                            @onclick="ShowRevisionDiffAsync">
+                        @(isSelectedLoading && revisionView == "diff" ? "불러오는 중..." : revisionView == "diff" ? "변경점 닫기" : "변경점 보기")
+                    </button>
+                    <button class="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled="@isSelectedLoading"
+                            type="button"
+                            @onclick="ShowRevisionFullAsync">
+                        @(isSelectedLoading && revisionView == "full" ? "불러오는 중..." : revisionView == "full" ? "리비전 닫기" : "리비전 보기")
+                    </button>
+                </div>
+                @if (selectedSummary.ChangedFields.Count > 0)
+                {
+                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                        @foreach (var field in selectedSummary.ChangedFields)
+                        {
+                            <span class="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold text-slate-700">@field</span>
+                        }
+                    </div>
+                }
+                @if (!string.IsNullOrWhiteSpace(revisionMessage))
+                {
+                    <div class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                        @revisionMessage
+                    </div>
+                }
+                @if (revisionView == "diff")
+                {
+                    <div class="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+                        @if (isSelectedLoading && !hasSelectedDetail)
+                        {
+                            <p class="text-sm text-slate-500">변경점을 불러오는 중입니다.</p>
+                        }
+                        else if (selectedDetail is null)
+                        {
+                            <p class="text-sm text-slate-500">변경점을 불러오지 못했습니다.</p>
+                        }
+                        else if (selectedDetail.Diffs.Count == 0)
+                        {
+                            <p class="text-sm text-slate-500">비교할 변경점이 없습니다.</p>
+                        }
+                        else
+                        {
+                            <div class="grid gap-3">
+                                @foreach (var diff in selectedDetail.Diffs)
+                                {
+                                    <div class="overflow-hidden rounded-lg border border-slate-200">
+                                        <div class="border-b border-slate-200 bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-800">@diff.Label</div>
+                                        <div class="revision-diff-code max-h-80 overflow-auto py-2 font-mono text-xs leading-relaxed">
+                                            @foreach (var line in diff.Lines)
+                                            {
+                                                <div class="@GetDiffLineClass(line.Kind)">
+                                                    <span class="revision-diff-marker">@GetDiffLinePrefix(line.Kind)</span>
+                                                    <span class="revision-diff-text">@line.Text</span>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+                @if (revisionView == "full")
+                {
+                    <div class="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+                        @if (isSelectedLoading && !hasSelectedDetail)
+                        {
+                            <p class="text-sm text-slate-500">리비전을 불러오는 중입니다.</p>
+                        }
+                        else if (selectedDetail is null)
+                        {
+                            <p class="text-sm text-slate-500">리비전을 불러오지 못했습니다.</p>
+                        }
+                        else
+                        {
+                            <div class="grid gap-2 text-sm text-slate-700">
+                                <p><span class="font-semibold text-slate-900">제목</span> @selectedDetail.Title</p>
+                                @if (!string.IsNullOrWhiteSpace(selectedDetail.Summary))
+                                {
+                                    <p><span class="font-semibold text-slate-900">요약</span> @selectedDetail.Summary</p>
+                                }
+                                @if (selectedDetail.Tags.Count > 0)
+                                {
+                                    <p><span class="font-semibold text-slate-900">태그</span> @(string.Join(", ", selectedDetail.Tags.Select(x => $"#{x}")))</p>
+                                }
+                                @if (selectedDetail.Series.Count > 0)
+                                {
+                                    <p><span class="font-semibold text-slate-900">시리즈</span> @(string.Join(", ", selectedDetail.Series))</p>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(selectedDetail.ThumbnailUrl))
+                                {
+                                    <p><span class="font-semibold text-slate-900">대표 이미지</span> <a class="break-all text-slate-700 underline" href="@selectedDetail.ThumbnailUrl" target="_blank" rel="noopener">@selectedDetail.ThumbnailUrl</a></p>
+                                }
+                            </div>
+                            <MarkdownPreview Value="@selectedDetail.Body" Class="mt-3" />
+                        }
+                    </div>
+                }
+            </section>
+        }
+
         <MarkdownPreview Value="@post.Body" Class="mt-4" />
 
         <div class="mt-4 flex flex-wrap gap-2">
@@ -167,131 +290,6 @@ else
             </div>
         }
     </article>
-
-    @if (!post.IsDraft && revisions.Count > 0)
-    {
-        <section id="revisions" class="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-            <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <h3 class="text-lg font-bold text-slate-900">리비전</h3>
-                <span class="text-sm font-semibold text-slate-500">@($"{revisions.Count}개")</span>
-            </div>
-            @if (!string.IsNullOrWhiteSpace(revisionMessage))
-            {
-                <div class="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                    @revisionMessage
-                </div>
-            }
-            <div class="grid gap-2">
-                @foreach (var revision in revisions.OrderByDescending(x => x.RevisionNumber))
-                {
-                    var revisionNumber = revision.RevisionNumber;
-                    var hasRevisionDetail = revisionDetails.TryGetValue(revisionNumber, out var revisionDetail);
-                    var isRevisionLoading = loadingRevisionNumbers.Contains(revisionNumber);
-                    var isDiffOpen = diffRevisionNumber == revisionNumber;
-                    var isFullRevisionOpen = fullRevisionNumber == revisionNumber;
-                    <article class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <div class="flex flex-wrap items-center justify-between gap-3">
-                            <span class="flex flex-wrap items-center gap-2">
-                                <span class="font-bold text-slate-900">@($"v{revision.RevisionNumber}")</span>
-                                <span class="text-sm text-slate-500">@FormatDateTime(revision.CreatedAt)</span>
-                                @foreach (var field in revision.ChangedFields)
-                                {
-                                    <span class="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold text-slate-700">@field</span>
-                                }
-                            </span>
-                            <span class="flex flex-wrap items-center gap-2">
-                                <button class="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-                                        disabled="@isRevisionLoading"
-                                        type="button"
-                                        @onclick="() => ToggleRevisionDiffAsync(revisionNumber)">
-                                    @(isRevisionLoading && isDiffOpen ? "불러오는 중..." : isDiffOpen ? "변경점 닫기" : "변경점 보기")
-                                </button>
-                                <button class="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-                                        disabled="@isRevisionLoading"
-                                        type="button"
-                                        @onclick="() => ToggleRevisionFullAsync(revisionNumber)">
-                                    @(isRevisionLoading && isFullRevisionOpen ? "불러오는 중..." : isFullRevisionOpen ? "리비전 닫기" : "리비전 보기")
-                                </button>
-                            </span>
-                        </div>
-                        @if (isDiffOpen)
-                        {
-                            <div class="mt-3 rounded-xl border border-slate-200 bg-white p-3">
-                                @if (isRevisionLoading && !hasRevisionDetail)
-                                {
-                                    <p class="text-sm text-slate-500">변경점을 불러오는 중입니다.</p>
-                                }
-                                else if (revisionDetail is null)
-                                {
-                                    <p class="text-sm text-slate-500">변경점을 불러오지 못했습니다.</p>
-                                }
-                                else if (revisionDetail.Diffs.Count == 0)
-                                {
-                                    <p class="text-sm text-slate-500">비교할 변경점이 없습니다.</p>
-                                }
-                                else
-                                {
-                                    <div class="grid gap-3">
-                                        @foreach (var diff in revisionDetail.Diffs)
-                                        {
-                                            <div class="overflow-hidden rounded-lg border border-slate-200">
-                                                <div class="border-b border-slate-200 bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-800">@diff.Label</div>
-                                                <div class="revision-diff-code max-h-80 overflow-auto py-2 font-mono text-xs leading-relaxed">
-                                                    @foreach (var line in diff.Lines)
-                                                    {
-                                                        <div class="@GetDiffLineClass(line.Kind)">
-                                                            <span class="revision-diff-marker">@GetDiffLinePrefix(line.Kind)</span>
-                                                            <span class="revision-diff-text">@line.Text</span>
-                                                        </div>
-                                                    }
-                                                </div>
-                                            </div>
-                                        }
-                                    </div>
-                                }
-                            </div>
-                        }
-                        @if (isFullRevisionOpen)
-                        {
-                            <div class="mt-3 rounded-xl border border-slate-200 bg-white p-3">
-                                @if (isRevisionLoading && !hasRevisionDetail)
-                                {
-                                    <p class="text-sm text-slate-500">리비전을 불러오는 중입니다.</p>
-                                }
-                                else if (revisionDetail is null)
-                                {
-                                    <p class="text-sm text-slate-500">리비전을 불러오지 못했습니다.</p>
-                                }
-                                else
-                                {
-                                    <div class="grid gap-2 text-sm text-slate-700">
-                                        <p><span class="font-semibold text-slate-900">제목</span> @revisionDetail.Title</p>
-                                        @if (!string.IsNullOrWhiteSpace(revisionDetail.Summary))
-                                        {
-                                            <p><span class="font-semibold text-slate-900">요약</span> @revisionDetail.Summary</p>
-                                        }
-                                        @if (revisionDetail.Tags.Count > 0)
-                                        {
-                                            <p><span class="font-semibold text-slate-900">태그</span> @(string.Join(", ", revisionDetail.Tags.Select(x => $"#{x}")))</p>
-                                        }
-                                        @if (revisionDetail.Series.Count > 0)
-                                        {
-                                            <p><span class="font-semibold text-slate-900">시리즈</span> @(string.Join(", ", revisionDetail.Series))</p>
-                                        }
-                                        @if (!string.IsNullOrWhiteSpace(revisionDetail.ThumbnailUrl))
-                                        {
-                                            <p><span class="font-semibold text-slate-900">대표 이미지</span> <a class="break-all text-slate-700 underline" href="@revisionDetail.ThumbnailUrl" target="_blank" rel="noopener">@revisionDetail.ThumbnailUrl</a></p>
-                                        }
-                                    </div>
-                                    <MarkdownPreview Value="@revisionDetail.Body" Class="mt-3" />
-                                }
-                            </div>
-                        }
-                    </article>
-                }
-            </div>
-        </section>
-    }
 
     <section id="related-posts" class="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
         <h3 class="mb-3 text-lg font-bold text-slate-900">연관 글</h3>
@@ -603,8 +601,8 @@ else
     private IReadOnlyList<PostRevisionSummaryResponse> revisions = Array.Empty<PostRevisionSummaryResponse>();
     private readonly Dictionary<int, PostRevisionResponse> revisionDetails = [];
     private readonly HashSet<int> loadingRevisionNumbers = [];
-    private int? diffRevisionNumber;
-    private int? fullRevisionNumber;
+    private int? selectedRevisionNumber;
+    private string revisionView = "none";
     private string revisionMessage = string.Empty;
     private BlogPost? previousPost;
     private BlogPost? nextPost;
@@ -1168,30 +1166,50 @@ else
         }
     }
 
-    private async Task ToggleRevisionDiffAsync(int revisionNumber)
+    private int ResolveSelectedRevisionNumber()
+        => selectedRevisionNumber ?? (revisions.Count > 0 ? revisions.Max(x => x.RevisionNumber) : 0);
+
+    private async Task OnRevisionSelectedAsync(ChangeEventArgs args)
     {
         revisionMessage = string.Empty;
-        if (diffRevisionNumber == revisionNumber)
+        if (int.TryParse(args.Value?.ToString(), out var number))
         {
-            diffRevisionNumber = null;
-            return;
+            selectedRevisionNumber = number;
+            if (revisionView != "none")
+            {
+                await EnsureRevisionDetailAsync(number);
+            }
         }
-
-        diffRevisionNumber = revisionNumber;
-        await EnsureRevisionDetailAsync(revisionNumber);
     }
 
-    private async Task ToggleRevisionFullAsync(int revisionNumber)
+    private async Task ShowRevisionDiffAsync()
     {
         revisionMessage = string.Empty;
-        if (fullRevisionNumber == revisionNumber)
+        if (revisionView == "diff")
         {
-            fullRevisionNumber = null;
+            revisionView = "none";
             return;
         }
 
-        fullRevisionNumber = revisionNumber;
-        await EnsureRevisionDetailAsync(revisionNumber);
+        revisionView = "diff";
+        var number = ResolveSelectedRevisionNumber();
+        selectedRevisionNumber = number;
+        await EnsureRevisionDetailAsync(number);
+    }
+
+    private async Task ShowRevisionFullAsync()
+    {
+        revisionMessage = string.Empty;
+        if (revisionView == "full")
+        {
+            revisionView = "none";
+            return;
+        }
+
+        revisionView = "full";
+        var number = ResolveSelectedRevisionNumber();
+        selectedRevisionNumber = number;
+        await EnsureRevisionDetailAsync(number);
     }
 
     private async Task<PostRevisionResponse?> EnsureRevisionDetailAsync(int revisionNumber)
@@ -1230,8 +1248,8 @@ else
     {
         revisionDetails.Clear();
         loadingRevisionNumbers.Clear();
-        diffRevisionNumber = null;
-        fullRevisionNumber = null;
+        selectedRevisionNumber = null;
+        revisionView = "none";
         revisionMessage = string.Empty;
     }
 
