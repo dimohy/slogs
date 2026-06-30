@@ -2,7 +2,7 @@ namespace Slogs.Data;
 
 public static class SlogsMcpPolicyPrompt
 {
-    public const string Version = "2026.06.27.6";
+    public const string Version = "2026.06.30.1";
     public const string McpPath = "/mcp";
     public const string PublicPath = "/prompts/slogs-mcp.md";
     public const string KoreanPublicPath = "/prompts/slogs-mcp.ko.md";
@@ -26,6 +26,7 @@ public static class SlogsMcpPolicyPrompt
         - LLM Wiki 항목은 기본 비공개다. 사용자가 본인의 특정 주제를 명시적으로 공개하라고 요청한 경우에만 `llm_wiki_make_public`으로 관련 항목을 공개한다. 공개 조회는 `llm_wiki_public_list/search/read/recall` 결과에 한정해 답하고, public 도구가 반환하지 않은 민감 정보는 추측하거나 private 조회로 대체하지 않는다.
         - 질문에 `@username`이 나오고 공개 LLM Wiki 정보가 맥락이면 이를 Slogs 사용자 핸들로 해석해 public 도구의 `ownerUserName`에 전달하고, 나머지 주제어를 query로 사용한다. 결과가 없으면 공개된 정보가 없다고 답한다.
         - 기억을 저장, 병합, 갱신할 때는 프로젝트/영역/주제가 알려진 경우 2-4단계 소문자 slash-separated `categoryPath`를 명시한다. 예: `slogs/llm-wiki/graphrag`, `slogs/deployment/wasm-aot`, `preference/coding-policy/slogs`, `codex/mcp/slogs`.
+        - Slogs 슬로그(블로그 글) 작성이나 업로드 요청은 기본적으로 `slogs_post_save_draft`로 게시전(소유자 전용, 공개 미노출) 상태로 저장한다. 사용자가 공개 발행을 명시적으로 요청한 경우에만 `slogs_post_publish`를 사용하고, 호출 전에 공개 발행 여부를 확인한다. `slogs_post_*`는 LLM Wiki 기억이 아니라 일반 Slogs 글을 다룬다.
         """;
 
     public const string EnglishAgentsPolicyBlock = """
@@ -39,6 +40,7 @@ public static class SlogsMcpPolicyPrompt
         - LLM Wiki entries are private by default. Only when the user explicitly asks to publish a specific topic from their own wiki may `llm_wiki_make_public` be used. Answer public questions only from `llm_wiki_public_list/search/read/recall`; do not infer sensitive information missing from public results and do not substitute private lookup results.
         - If a question contains `@username` and asks about public LLM Wiki context, treat it as a Slogs handle, pass it as `ownerUserName`, and use the remaining topic words as the query. If public tools return no results, say no public information was found.
         - When creating, merging, or updating memory, provide a 2-4 segment lowercase slash-separated `categoryPath` whenever the project/domain/topic is known. Examples: `slogs/llm-wiki/graphrag`, `slogs/deployment/wasm-aot`, `preference/coding-policy/slogs`, `codex/mcp/slogs`.
+        - Treat Slogs post (blog) authoring or upload requests as draft-first: save with `slogs_post_save_draft` as a pre-publish, owner-only post that is not publicly listed. Use `slogs_post_publish` only when the user explicitly asks to publish publicly, and confirm public publication before calling it. `slogs_post_*` tools manage normal Slogs posts, not LLM Wiki memories.
         """;
 
     public static string BuildMarkdown()

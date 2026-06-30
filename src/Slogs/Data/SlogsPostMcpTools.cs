@@ -32,7 +32,7 @@ public sealed class SlogsPostMcpTools(
     }
 
     [McpServerTool(Name = "slogs_post_save_draft")]
-    [Description("Save a Markdown Slogs post before publishing for the authenticated user. Pre-publish posts are visible only to the owner and are not publicly listed. If slug is provided, the owned pre-publish post is updated and kept pre-publish.")]
+    [Description("Default tool for creating or uploading a Slogs post from an agent. Saves a Markdown Slogs post before publishing for the authenticated user. Pre-publish posts are visible only to the owner and are not publicly listed. Prefer this over slogs_post_publish unless the user explicitly asks to publish publicly. If slug is provided, the owned pre-publish post is updated and kept pre-publish.")]
     public async Task<string> SaveDraftAsync(
         [Description("Optional owned pre-publish post slug to update. Omit to create a new pre-publish post.")] string? slug = null,
         [Description("Optional URL slug for a new or pre-publish post. Korean is supported. If omitted, Slogs derives it from the title.")] string? customSlug = null,
@@ -89,7 +89,7 @@ public sealed class SlogsPostMcpTools(
     }
 
     [McpServerTool(Name = "slogs_post_publish")]
-    [Description("Publish a Markdown Slogs post for the authenticated user. If slug is a pre-publish post, publish it. If slug is already published, create a new revision. If slug is omitted, create a new published site post. This creates normal Slogs posts, not LLM Wiki memories.")]
+    [Description("Publish a Markdown Slogs post publicly for the authenticated user. Use this only when the user explicitly asks to publish publicly; otherwise default to slogs_post_save_draft and confirm public publication before calling this. If slug is a pre-publish post, publish it. If slug is already published, create a new revision. If slug is omitted, create and publicly publish a new site post. This creates normal public Slogs posts, not LLM Wiki memories.")]
     public async Task<string> PublishAsync(
         [Description("Optional owned pre-publish or published post slug. Omit to create and publish a new post.")] string? slug = null,
         [Description("Optional URL slug for a new post or an owned pre-publish post being published. Korean is supported. Ignored for already published posts so public URLs stay stable.")] string? customSlug = null,
