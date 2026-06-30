@@ -1033,3 +1033,306 @@ window.slogsMarkdownPreview = (() => {
         render
     };
 })();
+
+(() => {
+    if (window.__slogsImageLightboxBound) {
+        return;
+    }
+
+    window.__slogsImageLightboxBound = true;
+
+    const STYLE_ID = "slogs-image-lightbox-style";
+    const contentSelector = "[data-markdown-preview], .markdown-body, .vditor-reset";
+    const MIN_SCALE = 0.1;
+    const MAX_SCALE = 8;
+    const ZOOM_STEP = 1.25;
+
+    let overlay = null;
+    let stage = null;
+    let image = null;
+    let scaleLabel = null;
+    let scale = 1;
+    let fitScale = 1;
+    let translateX = 0;
+    let translateY = 0;
+    let naturalWidth = 0;
+    let naturalHeight = 0;
+    let dragging = false;
+    let dragMoved = false;
+    let lastPointerX = 0;
+    let lastPointerY = 0;
+
+    const ensureStyle = () => {
+        if (document.getElementById(STYLE_ID)) {
+            return;
+        }
+
+        const style = document.createElement("style");
+        style.id = STYLE_ID;
+        style.textContent = `
+#slogs-image-lightbox { position: fixed; inset: 0; z-index: 9999; display: none; }
+#slogs-image-lightbox.is-open { display: block; }
+.slogs-lightbox-backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.92); }
+.slogs-lightbox-stage { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; touch-action: none; cursor: grab; }
+.slogs-lightbox-stage.is-dragging { cursor: grabbing; }
+.slogs-lightbox-img { max-width: none; max-height: none; transform-origin: center center; will-change: transform; user-select: none; -webkit-user-drag: none; }
+.slogs-lightbox-toolbar { position: absolute; top: 16px; right: 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; z-index: 2; }
+.slogs-lightbox-scale { min-width: 56px; padding: 0 6px; text-align: center; font-size: 13px; font-weight: 600; color: #e2e8f0; }
+.slogs-lightbox-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 36px; height: 36px; padding: 0 12px; border-radius: 9999px; border: 1px solid rgba(226, 232, 240, 0.5); background: rgba(15, 23, 42, 0.55); color: #f8fafc; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s ease; }
+.slogs-lightbox-btn:hover { background: rgba(51, 65, 85, 0.85); }
+.slogs-lightbox-btn--close { font-size: 18px; }
+body.slogs-lightbox-open { overflow: hidden; }
+.slogs-markdown-preview img, .markdown-body img, .vditor-reset img { cursor: zoom-in; }
+`;
+        document.head.appendChild(style);
+    };
+
+    const clampScale = (value) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, value));
+
+    const applyTransform = () => {
+        scale = clampScale(scale);
+        image.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+        if (scaleLabel) {
+            scaleLabel.textContent = `${Math.round(scale * 100)}%`;
+        }
+    };
+
+    const computeFitScale = () => {
+        if (!naturalWidth || !naturalHeight) {
+            return 1;
+        }
+
+        const margin = 0.92;
+        return Math.min(
+            (window.innerWidth * margin) / naturalWidth,
+            (window.innerHeight * margin) / naturalHeight,
+            1);
+    };
+
+    const fitToScreen = () => {
+        fitScale = computeFitScale();
+        scale = fitScale;
+        translateX = 0;
+        translateY = 0;
+        applyTransform();
+    };
+
+    const showOriginalSize = () => {
+        scale = 1;
+        translateX = 0;
+        translateY = 0;
+        applyTransform();
+    };
+
+    const zoomAt = (pointerX, pointerY, factor) => {
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2;
+        const newScale = clampScale(scale * factor);
+        const ratio = newScale / scale;
+        if (ratio === 1) {
+            return;
+        }
+
+        translateX += (pointerX - (centerX + translateX)) * (1 - ratio);
+        translateY += (pointerY - (centerY + translateY)) * (1 - ratio);
+        scale = newScale;
+        applyTransform();
+    };
+
+    const close = () => {
+        if (overlay) {
+            overlay.classList.remove("is-open");
+        }
+
+        document.body.classList.remove("slogs-lightbox-open");
+    };
+
+    const makeButton = (label, title, extraClass, onClick) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = extraClass ? `slogs-lightbox-btn ${extraClass}` : "slogs-lightbox-btn";
+        button.textContent = label;
+        button.title = title;
+        button.setAttribute("aria-label", title);
+        button.addEventListener("click", (event) => {
+            event.stopPropagation();
+            onClick();
+        });
+        return button;
+    };
+
+    const build = () => {
+        overlay = document.createElement("div");
+        overlay.id = "slogs-image-lightbox";
+
+        const backdrop = document.createElement("div");
+        backdrop.className = "slogs-lightbox-backdrop";
+        backdrop.addEventListener("click", close);
+
+        stage = document.createElement("div");
+        stage.className = "slogs-lightbox-stage";
+
+        image = document.createElement("img");
+        image.className = "slogs-lightbox-img";
+        image.draggable = false;
+        stage.appendChild(image);
+
+        const toolbar = document.createElement("div");
+        toolbar.className = "slogs-lightbox-toolbar";
+
+        scaleLabel = document.createElement("span");
+        scaleLabel.className = "slogs-lightbox-scale";
+        scaleLabel.textContent = "100%";
+
+        toolbar.appendChild(makeButton("\u2212", "축소", null, () => zoomAt(window.innerWidth / 2, window.innerHeight / 2, 1 / ZOOM_STEP)));
+        toolbar.appendChild(scaleLabel);
+        toolbar.appendChild(makeButton("+", "확대", null, () => zoomAt(window.innerWidth / 2, window.innerHeight / 2, ZOOM_STEP)));
+        toolbar.appendChild(makeButton("원본", "원본 크기", null, showOriginalSize));
+        toolbar.appendChild(makeButton("맞춤", "화면 맞춤", null, fitToScreen));
+        toolbar.appendChild(makeButton("\u00D7", "닫기", "slogs-lightbox-btn--close", close));
+
+        overlay.appendChild(backdrop);
+        overlay.appendChild(stage);
+        overlay.appendChild(toolbar);
+        document.body.appendChild(overlay);
+
+        stage.addEventListener("wheel", (event) => {
+            event.preventDefault();
+            const factor = event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
+            zoomAt(event.clientX, event.clientY, factor);
+        }, { passive: false });
+
+        stage.addEventListener("pointerdown", (event) => {
+            dragging = true;
+            dragMoved = false;
+            lastPointerX = event.clientX;
+            lastPointerY = event.clientY;
+            stage.classList.add("is-dragging");
+            stage.setPointerCapture(event.pointerId);
+        });
+
+        stage.addEventListener("pointermove", (event) => {
+            if (!dragging) {
+                return;
+            }
+
+            const deltaX = event.clientX - lastPointerX;
+            const deltaY = event.clientY - lastPointerY;
+            if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) {
+                dragMoved = true;
+            }
+
+            translateX += deltaX;
+            translateY += deltaY;
+            lastPointerX = event.clientX;
+            lastPointerY = event.clientY;
+            applyTransform();
+        });
+
+        const endDrag = (event) => {
+            if (!dragging) {
+                return;
+            }
+
+            dragging = false;
+            stage.classList.remove("is-dragging");
+            if (stage.hasPointerCapture?.(event.pointerId)) {
+                stage.releasePointerCapture(event.pointerId);
+            }
+        };
+
+        stage.addEventListener("pointerup", endDrag);
+        stage.addEventListener("pointercancel", endDrag);
+
+        stage.addEventListener("click", (event) => {
+            if (event.target === image || dragMoved) {
+                return;
+            }
+
+            close();
+        });
+    };
+
+    const open = (src, alt) => {
+        if (!src) {
+            return;
+        }
+
+        ensureStyle();
+        if (!overlay) {
+            build();
+        }
+
+        image.src = src;
+        image.alt = alt || "";
+        overlay.classList.add("is-open");
+        document.body.classList.add("slogs-lightbox-open");
+
+        const onReady = () => {
+            naturalWidth = image.naturalWidth;
+            naturalHeight = image.naturalHeight;
+            fitToScreen();
+        };
+
+        if (image.complete && image.naturalWidth) {
+            onReady();
+        } else {
+            image.onload = onReady;
+        }
+    };
+
+    document.addEventListener("click", (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLImageElement)) {
+            return;
+        }
+
+        if (overlay && overlay.contains(target)) {
+            return;
+        }
+
+        if (target.closest("a")) {
+            return;
+        }
+
+        if (!target.closest(contentSelector)) {
+            return;
+        }
+
+        event.preventDefault();
+        open(target.currentSrc || target.src, target.alt);
+    });
+
+    document.addEventListener("keydown", (event) => {
+        if (!overlay || !overlay.classList.contains("is-open")) {
+            return;
+        }
+
+        switch (event.key) {
+            case "Escape":
+                close();
+                break;
+            case "+":
+            case "=":
+                zoomAt(window.innerWidth / 2, window.innerHeight / 2, ZOOM_STEP);
+                break;
+            case "-":
+                zoomAt(window.innerWidth / 2, window.innerHeight / 2, 1 / ZOOM_STEP);
+                break;
+            case "0":
+                fitToScreen();
+                break;
+            case "1":
+                showOriginalSize();
+                break;
+            default:
+                break;
+        }
+    });
+
+    window.addEventListener("resize", () => {
+        if (overlay && overlay.classList.contains("is-open")) {
+            fitToScreen();
+        }
+    });
+})();
