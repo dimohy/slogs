@@ -6,6 +6,7 @@ import {
   PluginSettingTab,
   requestUrl,
   Setting,
+  TAbstractFile,
   TFile,
   TFolder
 } from "obsidian";
@@ -38,6 +39,9 @@ interface SlogsSyncSettings {
   syncSettings: boolean;
   enablePostMapping: boolean;
   enableLlmWikiMapping: boolean;
+  autoSyncOnStartup: boolean;
+  autoPushOnChange: boolean;
+  autoPullIntervalSeconds: number;
   files: Record<string, SlogsSyncedFileState>;
 }
 
@@ -117,11 +121,18 @@ const DEFAULT_SETTINGS: SlogsSyncSettings = {
   syncSettings: false,
   enablePostMapping: false,
   enableLlmWikiMapping: false,
+  autoSyncOnStartup: true,
+  autoPushOnChange: true,
+  autoPullIntervalSeconds: 60,
   files: {}
 };
 
 export default class SlogsSyncPlugin extends Plugin {
   settings: SlogsSyncSettings = { ...DEFAULT_SETTINGS };
+  private readonly pendingPushTimers = new Map<string, number>();
+  private readonly autoPushDebounceMs = 1500;
+  private autoPullTimer: number | null = null;
+  private suppressAutoPush = false;
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -161,6 +172,29 @@ export default class SlogsSyncPlugin extends Plugin {
     });
 
     this.addSettingTab(new SlogsSyncSettingTab(this.app, this));
+
+    this.registerEvent(this.app.vault.on("modify", file => this.handleVaultChange(file)));
+    this.registerEvent(this.app.vault.on("create", file => this.handleVaultChange(file)));
+    this.registerEvent(this.app.vault.on("delete", file => this.handleVaultChange(file)));
+    this.registerEvent(this.app.vault.on("rename", (file, oldPath) => this.handleVaultRename(file, oldPath)));
+
+    this.app.workspace.onLayoutReady(() => {
+      this.scheduleAutoPull();
+      if (this.settings.autoSyncOnStartup && this.isConfigured()) {
+        void this.startupSync();
+      }
+    });
+  }
+
+  onunload(): void {
+    for (const timer of this.pendingPushTimers.values()) {
+      window.clearTimeout(timer);
+    }
+    this.pendingPushTimers.clear();
+    if (this.autoPullTimer !== null) {
+      window.clearInterval(this.autoPullTimer);
+      this.autoPullTimer = null;
+    }
   }
 
   async loadSettings(): Promise<void> {
@@ -174,6 +208,125 @@ export default class SlogsSyncPlugin extends Plugin {
 
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
+  }
+
+  isConfigured(): boolean {
+    return Boolean(this.settings.serverUrl.trim() && this.settings.token.trim());
+  }
+
+  scheduleAutoPull(): void {
+    if (this.autoPullTimer !== null) {
+      window.clearInterval(this.autoPullTimer);
+      this.autoPullTimer = null;
+    }
+
+    const seconds = this.settings.autoPullIntervalSeconds;
+    if (seconds > 0) {
+      this.autoPullTimer = window.setInterval(() => { void this.autoPull(); }, seconds * 1000);
+      this.registerInterval(this.autoPullTimer);
+    }
+  }
+
+  private async autoPull(): Promise<void> {
+    if (!this.isConfigured()) {
+      return;
+    }
+
+    try {
+      await this.pullRemoteChanges(false);
+    } catch (error) {
+      console.error("Slogs auto-pull failed", error);
+    }
+  }
+
+  private async startupSync(): Promise<void> {
+    try {
+      const result = await this.pullRemoteChanges(false);
+      if (result.applied > 0 || result.conflicts > 0) {
+        new Notice(`Slogs startup sync: pulled ${result.applied}, conflicts ${result.conflicts}.`);
+      }
+    } catch (error) {
+      new Notice(`Slogs startup sync failed: ${toErrorMessage(error)}`);
+    }
+  }
+
+  private handleVaultChange(file: TAbstractFile): void {
+    if (!this.settings.autoPushOnChange || !this.isConfigured() || this.suppressAutoPush) {
+      return;
+    }
+
+    if (file instanceof TFolder) {
+      return;
+    }
+
+    const normalized = normalizeRemotePath(file.path);
+    const tracked = this.settings.files[normalized] !== undefined;
+    if (!tracked && !shouldSyncPath(file.path, this.getFeatureFlags(), this.getConfigDir())) {
+      return;
+    }
+
+    this.scheduleAutoPush(normalized);
+  }
+
+  private handleVaultRename(file: TAbstractFile, oldPath: string): void {
+    if (!this.settings.autoPushOnChange || !this.isConfigured() || this.suppressAutoPush) {
+      return;
+    }
+
+    const oldNormalized = normalizeRemotePath(oldPath);
+    if (this.settings.files[oldNormalized] !== undefined) {
+      this.scheduleAutoPush(oldNormalized);
+    }
+
+    if (file instanceof TFile && shouldSyncPath(file.path, this.getFeatureFlags(), this.getConfigDir())) {
+      this.scheduleAutoPush(normalizeRemotePath(file.path));
+    }
+  }
+
+  private scheduleAutoPush(path: string): void {
+    const existing = this.pendingPushTimers.get(path);
+    if (existing !== undefined) {
+      window.clearTimeout(existing);
+    }
+
+    const timer = window.setTimeout(() => {
+      this.pendingPushTimers.delete(path);
+      void this.autoPushPath(path);
+    }, this.autoPushDebounceMs);
+    this.pendingPushTimers.set(path, timer);
+  }
+
+  private async autoPushPath(path: string): Promise<void> {
+    if (!this.settings.autoPushOnChange || !this.isConfigured()) {
+      return;
+    }
+
+    try {
+      await this.ensureRemoteVault();
+      const file = this.app.vault.getAbstractFileByPath(path);
+      let result: PushResult;
+      if (file instanceof TFile) {
+        if (!shouldSyncPath(file.path, this.getFeatureFlags(), this.getConfigDir())) {
+          return;
+        }
+
+        result = await this.pushLocalFile({ path: normalizeRemotePath(file.path), source: "vault", file });
+      } else {
+        const state = this.settings.files[path];
+        if (!state || state.deleted) {
+          return;
+        }
+
+        result = await this.pushDeletedFile(path, state.version, state.scope ?? OBSIDIAN_SCOPE_MARKDOWN);
+      }
+
+      await this.saveSettings();
+      if (result === "conflict") {
+        new Notice(`Slogs auto-sync conflict on ${path}. Run "Sync all Slogs files" to resolve.`);
+      }
+    } catch (error) {
+      new Notice(`Slogs auto-push failed: ${toErrorMessage(error)}`);
+    }
   }
 
   async syncAll(): Promise<void> {
@@ -205,6 +358,7 @@ export default class SlogsSyncPlugin extends Plugin {
   }
 
   async pullRemoteChanges(showNotice = true): Promise<{ applied: number; conflicts: number }> {
+    this.suppressAutoPush = true;
     try {
       const vault = await this.ensureRemoteVault();
       let sinceVersion = this.settings.lastRemoteVersion;
@@ -247,6 +401,8 @@ export default class SlogsSyncPlugin extends Plugin {
       }
 
       throw error;
+    } finally {
+      this.suppressAutoPush = false;
     }
   }
 
@@ -866,6 +1022,39 @@ class SlogsSyncSettingTab extends PluginSettingTab {
         .onChange(async value => {
           this.plugin.settings.enableLlmWikiMapping = value;
           await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName("Auto sync on startup")
+      .setDesc("Pull remote Slogs changes once when Obsidian finishes loading.")
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.autoSyncOnStartup)
+        .onChange(async value => {
+          this.plugin.settings.autoSyncOnStartup = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName("Auto push on change")
+      .setDesc("Push a synced file to Slogs shortly after it is edited, created, deleted, or renamed.")
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.autoPushOnChange)
+        .onChange(async value => {
+          this.plugin.settings.autoPushOnChange = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName("Auto pull interval (seconds)")
+      .setDesc("Periodically pull remote Slogs changes. Set to 0 to disable periodic pulling.")
+      .addText(text => text
+        .setPlaceholder("60")
+        .setValue(String(this.plugin.settings.autoPullIntervalSeconds))
+        .onChange(async value => {
+          const parsed = Number.parseInt(value, 10);
+          this.plugin.settings.autoPullIntervalSeconds = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+          await this.plugin.saveSettings();
+          this.plugin.scheduleAutoPull();
         }));
 
     new Setting(containerEl)
