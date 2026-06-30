@@ -120,8 +120,8 @@ else
         @if (!post.IsDraft && revisions.Count > 0)
         {
             var orderedRevisions = revisions.OrderByDescending(x => x.RevisionNumber).ToList();
-            var selectedNumber = selectedRevisionNumber ?? orderedRevisions[0].RevisionNumber;
-            var selectedSummary = orderedRevisions.FirstOrDefault(x => x.RevisionNumber == selectedNumber) ?? orderedRevisions[0];
+            var latestNumber = orderedRevisions[0].RevisionNumber;
+            var selectedNumber = selectedRevisionNumber ?? latestNumber;
             var hasSelectedDetail = revisionDetails.TryGetValue(selectedNumber, out var selectedDetail);
             var isSelectedLoading = loadingRevisionNumbers.Contains(selectedNumber);
             <section id="revisions" class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
@@ -133,7 +133,8 @@ else
                             @onchange="OnRevisionSelectedAsync">
                         @foreach (var revision in orderedRevisions)
                         {
-                            <option value="@revision.RevisionNumber">@($"v{revision.RevisionNumber} · {FormatDateTime(revision.CreatedAt)}")</option>
+                            var changedSuffix = revision.ChangedFields.Count > 0 ? $" · {string.Join(", ", revision.ChangedFields)}" : "";
+                            <option value="@revision.RevisionNumber">@($"v{revision.RevisionNumber} · {FormatDateTime(revision.CreatedAt)}{changedSuffix}")</option>
                         }
                     </select>
                     <button class="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
@@ -142,22 +143,11 @@ else
                             @onclick="ShowRevisionDiffAsync">
                         @(isSelectedLoading && revisionView == "diff" ? "불러오는 중..." : revisionView == "diff" ? "변경점 닫기" : "변경점 보기")
                     </button>
-                    <button class="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-                            disabled="@isSelectedLoading"
-                            type="button"
-                            @onclick="ShowRevisionFullAsync">
-                        @(isSelectedLoading && revisionView == "full" ? "불러오는 중..." : revisionView == "full" ? "리비전 닫기" : "리비전 보기")
-                    </button>
+                    @if (selectedNumber != latestNumber)
+                    {
+                        <span class="text-xs font-semibold text-sky-700">@($"v{selectedNumber} 내용을 표시 중")</span>
+                    }
                 </div>
-                @if (selectedSummary.ChangedFields.Count > 0)
-                {
-                    <div class="mt-2 flex flex-wrap items-center gap-2">
-                        @foreach (var field in selectedSummary.ChangedFields)
-                        {
-                            <span class="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold text-slate-700">@field</span>
-                        }
-                    </div>
-                }
                 @if (!string.IsNullOrWhiteSpace(revisionMessage))
                 {
                     <div class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
@@ -201,46 +191,16 @@ else
                         }
                     </div>
                 }
-                @if (revisionView == "full")
-                {
-                    <div class="mt-3 rounded-xl border border-slate-200 bg-white p-3">
-                        @if (isSelectedLoading && !hasSelectedDetail)
-                        {
-                            <p class="text-sm text-slate-500">리비전을 불러오는 중입니다.</p>
-                        }
-                        else if (selectedDetail is null)
-                        {
-                            <p class="text-sm text-slate-500">리비전을 불러오지 못했습니다.</p>
-                        }
-                        else
-                        {
-                            <div class="grid gap-2 text-sm text-slate-700">
-                                <p><span class="font-semibold text-slate-900">제목</span> @selectedDetail.Title</p>
-                                @if (!string.IsNullOrWhiteSpace(selectedDetail.Summary))
-                                {
-                                    <p><span class="font-semibold text-slate-900">요약</span> @selectedDetail.Summary</p>
-                                }
-                                @if (selectedDetail.Tags.Count > 0)
-                                {
-                                    <p><span class="font-semibold text-slate-900">태그</span> @(string.Join(", ", selectedDetail.Tags.Select(x => $"#{x}")))</p>
-                                }
-                                @if (selectedDetail.Series.Count > 0)
-                                {
-                                    <p><span class="font-semibold text-slate-900">시리즈</span> @(string.Join(", ", selectedDetail.Series))</p>
-                                }
-                                @if (!string.IsNullOrWhiteSpace(selectedDetail.ThumbnailUrl))
-                                {
-                                    <p><span class="font-semibold text-slate-900">대표 이미지</span> <a class="break-all text-slate-700 underline" href="@selectedDetail.ThumbnailUrl" target="_blank" rel="noopener">@selectedDetail.ThumbnailUrl</a></p>
-                                }
-                            </div>
-                            <MarkdownPreview Value="@selectedDetail.Body" Class="mt-3" />
-                        }
-                    </div>
-                }
             </section>
         }
 
-        <MarkdownPreview Value="@post.Body" Class="mt-4" />
+        @{
+            var activeRevisionBody = selectedRevisionNumber is int activeRevisionNumber
+                && revisionDetails.TryGetValue(activeRevisionNumber, out var activeRevisionDetail)
+                ? activeRevisionDetail.Body
+                : post.Body;
+        }
+        <MarkdownPreview Value="@activeRevisionBody" Class="mt-4" />
 
         <div class="mt-4 flex flex-wrap gap-2">
             @if (!post.IsDraft)
@@ -1175,10 +1135,7 @@ else
         if (int.TryParse(args.Value?.ToString(), out var number))
         {
             selectedRevisionNumber = number;
-            if (revisionView != "none")
-            {
-                await EnsureRevisionDetailAsync(number);
-            }
+            await EnsureRevisionDetailAsync(number);
         }
     }
 
@@ -1192,21 +1149,6 @@ else
         }
 
         revisionView = "diff";
-        var number = ResolveSelectedRevisionNumber();
-        selectedRevisionNumber = number;
-        await EnsureRevisionDetailAsync(number);
-    }
-
-    private async Task ShowRevisionFullAsync()
-    {
-        revisionMessage = string.Empty;
-        if (revisionView == "full")
-        {
-            revisionView = "none";
-            return;
-        }
-
-        revisionView = "full";
         var number = ResolveSelectedRevisionNumber();
         selectedRevisionNumber = number;
         await EnsureRevisionDetailAsync(number);
