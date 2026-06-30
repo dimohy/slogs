@@ -142,6 +142,9 @@ nav[aria-label="main menu"] a.bg-slate-900:hover {
 .rounded-xl { border-radius: 0.375rem; }
 .rounded-2xl { border-radius: 0.5rem; }
 .rounded-3xl { border-radius: 0.75rem; }
+.rounded-full { border-radius: 0.5rem; }
+/* Keep image avatars circular even when they use the pill utility. */
+img.rounded-full { border-radius: 9999px; }
 .rounded-t-lg { border-top-left-radius: 0.25rem; border-top-right-radius: 0.25rem; }
 .rounded-t-xl { border-top-left-radius: 0.375rem; border-top-right-radius: 0.375rem; }
 .rounded-t-2xl { border-top-left-radius: 0.5rem; border-top-right-radius: 0.5rem; }
@@ -1416,7 +1419,7 @@ header.bg-white {
     align-items: center;
     gap: 0.35rem;
     border: 1px solid var(--theme-tag-border);
-    border-radius: 999px;
+    border-radius: 0.5rem;
     background: var(--theme-tag-bg);
     padding: 0.25rem 0.35rem 0.25rem 0.7rem;
     color: var(--theme-tag-text);
