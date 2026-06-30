@@ -80,10 +80,14 @@ internal static class SlogsObsidianDriveApplication
             CasePreservedNames = true,
             UnicodeOnDisk = true,
             PersistentAcls = false,
+            SectorSize = 4096,
+            SectorsPerAllocationUnit = 1,
             MaxComponentLength = 255,
             FileInfoTimeout = 1000,
             VolumeInfoTimeout = 1000,
-            DirInfoTimeout = 1000
+            DirInfoTimeout = 1000,
+            PostCleanupWhenModifiedOnly = true,
+            FlushAndPurgeOnCleanup = true
         };
 
         return host;

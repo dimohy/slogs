@@ -3,7 +3,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net11.0-windows</TargetFramework>
     <AssemblyName>SlogsObsidianDrive</AssemblyName>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <PackageId>Dimohy.SlogsObsidianDrive</PackageId>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <LangVersion>preview</LangVersion>

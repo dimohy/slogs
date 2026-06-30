@@ -598,7 +598,6 @@ internal sealed class SlogsObsidianFileSystem : FileSystemBase
     {
         _ = fileNode;
         _ = pattern;
-        _ = marker;
         fileName = default!;
         fileInfo = default;
 
@@ -612,7 +611,17 @@ internal sealed class SlogsObsidianFileSystem : FileSystemBase
 
             if (context is not IEnumerator<DirectoryEntry> enumerator)
             {
-                var entries = BuildDirectoryEntries(handle);
+                IEnumerable<DirectoryEntry> entries = BuildDirectoryEntries(handle);
+                if (!string.IsNullOrEmpty(marker))
+                {
+                    // WinFsp restarts directory enumeration with Context reset to null and the
+                    // last returned name passed as marker. Honor it so directories larger than a
+                    // single query buffer resume after the marker instead of repeating entries.
+                    entries = entries
+                        .Where(entry => entry.Name is not "." and not "..")
+                        .Where(entry => string.Compare(entry.Name, marker, StringComparison.OrdinalIgnoreCase) > 0);
+                }
+
                 context = enumerator = entries.GetEnumerator();
             }
 
