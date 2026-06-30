@@ -46,6 +46,51 @@ else
             {
                 <span class="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">게시후</span>
             }
+            @if (!post.IsDraft && revisions.Count > 0)
+            {
+                var orderedRevisions = revisions.OrderByDescending(x => x.RevisionNumber).ToList();
+                var latestNumber = orderedRevisions[0].RevisionNumber;
+                var selectedNumber = selectedRevisionNumber ?? latestNumber;
+                var selectedRevision = orderedRevisions.FirstOrDefault(x => x.RevisionNumber == selectedNumber) ?? orderedRevisions[0];
+                var isSelectedLoading = loadingRevisionNumbers.Contains(selectedNumber);
+                <div class="ml-auto flex flex-wrap items-center gap-2">
+                    <div class="relative">
+                        <button type="button"
+                                class="flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-1 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                                @onclick="ToggleRevisionMenu">
+                            <span>@($"리비전 v{selectedNumber}")</span>
+                            <span class="text-xs font-normal text-slate-400">@FormatDate(selectedRevision.CreatedAt)</span>
+                            <span class="text-xs text-slate-400">▾</span>
+                        </button>
+                        @if (isRevisionMenuOpen)
+                        {
+                            <button type="button" class="fixed inset-0 z-10 cursor-default" aria-hidden="true" tabindex="-1" @onclick="CloseRevisionMenu"></button>
+                            <div class="absolute right-0 z-20 mt-1 max-h-72 w-72 overflow-auto rounded-md border border-slate-200 bg-white p-1 shadow-lg">
+                                @foreach (var revision in orderedRevisions)
+                                {
+                                    var isActive = revision.RevisionNumber == selectedNumber;
+                                    <button type="button"
+                                            class="@($"flex w-full flex-wrap items-center gap-1.5 rounded px-2 py-1.5 text-left text-sm transition hover:bg-slate-100 {(isActive ? "bg-sky-50" : "")}")"
+                                            @onclick="() => SelectRevisionAsync(revision.RevisionNumber)">
+                                        <span class="font-bold text-slate-900">@($"v{revision.RevisionNumber}")</span>
+                                        <span class="text-xs text-slate-500">@FormatDateTime(revision.CreatedAt)</span>
+                                        @foreach (var field in revision.ChangedFields)
+                                        {
+                                            <span class="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs font-semibold text-slate-600">@field</span>
+                                        }
+                                    </button>
+                                }
+                            </div>
+                        }
+                    </div>
+                    <button class="rounded-md border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled="@isSelectedLoading"
+                            type="button"
+                            @onclick="ShowRevisionDiffAsync">
+                        @(isSelectedLoading && revisionView == "diff" ? "불러오는 중..." : revisionView == "diff" ? "변경점 닫기" : "변경점 보기")
+                    </button>
+                </div>
+            }
         </div>
         <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
             <a class="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 hover:bg-slate-100" href="/">홈</a>
@@ -117,64 +162,39 @@ else
             }
         </div>
 
-        @if (!post.IsDraft && revisions.Count > 0)
+        @if (!post.IsDraft && revisions.Count > 0 && (revisionView == "diff" || !string.IsNullOrWhiteSpace(revisionMessage)))
         {
-            var orderedRevisions = revisions.OrderByDescending(x => x.RevisionNumber).ToList();
-            var latestNumber = orderedRevisions[0].RevisionNumber;
-            var selectedNumber = selectedRevisionNumber ?? latestNumber;
-            var hasSelectedDetail = revisionDetails.TryGetValue(selectedNumber, out var selectedDetail);
-            var isSelectedLoading = loadingRevisionNumbers.Contains(selectedNumber);
-            <section id="revisions" class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <div class="flex flex-wrap items-center gap-2">
-                    <span class="text-sm font-bold text-slate-900">리비전</span>
-                    <span class="text-xs font-semibold text-slate-500">@($"{revisions.Count}개")</span>
-                    <select class="rounded-full border border-slate-300 bg-white px-3 py-1 text-sm font-semibold text-slate-700"
-                            value="@selectedNumber"
-                            @onchange="OnRevisionSelectedAsync">
-                        @foreach (var revision in orderedRevisions)
-                        {
-                            var changedSuffix = revision.ChangedFields.Count > 0 ? $" · {string.Join(", ", revision.ChangedFields)}" : "";
-                            <option value="@revision.RevisionNumber">@($"v{revision.RevisionNumber} · {FormatDateTime(revision.CreatedAt)}{changedSuffix}")</option>
-                        }
-                    </select>
-                    <button class="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-                            disabled="@isSelectedLoading"
-                            type="button"
-                            @onclick="ShowRevisionDiffAsync">
-                        @(isSelectedLoading && revisionView == "diff" ? "불러오는 중..." : revisionView == "diff" ? "변경점 닫기" : "변경점 보기")
-                    </button>
-                    @if (selectedNumber != latestNumber)
-                    {
-                        <span class="text-xs font-semibold text-sky-700">@($"v{selectedNumber} 내용을 표시 중")</span>
-                    }
-                </div>
+            var diffNumber = selectedRevisionNumber ?? revisions.Max(x => x.RevisionNumber);
+            var isDiffLoading = loadingRevisionNumbers.Contains(diffNumber);
+            var hasDiffDetail = revisionDetails.TryGetValue(diffNumber, out var diffDetail);
+            <section id="revisions" class="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3">
                 @if (!string.IsNullOrWhiteSpace(revisionMessage))
                 {
-                    <div class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                    <div class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
                         @revisionMessage
                     </div>
                 }
                 @if (revisionView == "diff")
                 {
-                    <div class="mt-3 rounded-xl border border-slate-200 bg-white p-3">
-                        @if (isSelectedLoading && !hasSelectedDetail)
+                    <div class="@(string.IsNullOrWhiteSpace(revisionMessage) ? "" : "mt-3")">
+                        @if (isDiffLoading && !hasDiffDetail)
                         {
                             <p class="text-sm text-slate-500">변경점을 불러오는 중입니다.</p>
                         }
-                        else if (selectedDetail is null)
+                        else if (diffDetail is null)
                         {
                             <p class="text-sm text-slate-500">변경점을 불러오지 못했습니다.</p>
                         }
-                        else if (selectedDetail.Diffs.Count == 0)
+                        else if (diffDetail.Diffs.Count == 0)
                         {
                             <p class="text-sm text-slate-500">비교할 변경점이 없습니다.</p>
                         }
                         else
                         {
                             <div class="grid gap-3">
-                                @foreach (var diff in selectedDetail.Diffs)
+                                @foreach (var diff in diffDetail.Diffs)
                                 {
-                                    <div class="overflow-hidden rounded-lg border border-slate-200">
+                                    <div class="overflow-hidden rounded-md border border-slate-200">
                                         <div class="border-b border-slate-200 bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-800">@diff.Label</div>
                                         <div class="revision-diff-code max-h-80 overflow-auto py-2 font-mono text-xs leading-relaxed">
                                             @foreach (var line in diff.Lines)
@@ -562,6 +582,7 @@ else
     private readonly Dictionary<int, PostRevisionResponse> revisionDetails = [];
     private readonly HashSet<int> loadingRevisionNumbers = [];
     private int? selectedRevisionNumber;
+    private bool isRevisionMenuOpen;
     private string revisionView = "none";
     private string revisionMessage = string.Empty;
     private BlogPost? previousPost;
@@ -1129,14 +1150,16 @@ else
     private int ResolveSelectedRevisionNumber()
         => selectedRevisionNumber ?? (revisions.Count > 0 ? revisions.Max(x => x.RevisionNumber) : 0);
 
-    private async Task OnRevisionSelectedAsync(ChangeEventArgs args)
+    private void ToggleRevisionMenu() => isRevisionMenuOpen = !isRevisionMenuOpen;
+
+    private void CloseRevisionMenu() => isRevisionMenuOpen = false;
+
+    private async Task SelectRevisionAsync(int number)
     {
         revisionMessage = string.Empty;
-        if (int.TryParse(args.Value?.ToString(), out var number))
-        {
-            selectedRevisionNumber = number;
-            await EnsureRevisionDetailAsync(number);
-        }
+        selectedRevisionNumber = number;
+        isRevisionMenuOpen = false;
+        await EnsureRevisionDetailAsync(number);
     }
 
     private async Task ShowRevisionDiffAsync()
@@ -1191,6 +1214,7 @@ else
         revisionDetails.Clear();
         loadingRevisionNumbers.Clear();
         selectedRevisionNumber = null;
+        isRevisionMenuOpen = false;
         revisionView = "none";
         revisionMessage = string.Empty;
     }
