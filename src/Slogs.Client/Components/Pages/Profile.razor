@@ -329,9 +329,7 @@ else
     }
 
     private static string GetPostUrl(BlogPost post)
-        => post.IsDraft
-            ? $"/edit/{Uri.EscapeDataString(post.Slug)}"
-            : $"/@{Uri.EscapeDataString(post.Author)}/{Uri.EscapeDataString(post.Slug)}";
+        => PostNavigationUrlBuilder.BuildPostUrl(post, PostNavigationUrlBuilder.PersonalMenuContext);
 
     private static string GetPostCardAriaLabel(BlogPost post)
         => post.IsDraft ? $"{post.Title} 게시전 수정" : $"{post.Title} 상세 보기";

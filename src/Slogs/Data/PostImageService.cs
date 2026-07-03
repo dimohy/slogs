@@ -39,6 +39,7 @@ public sealed class PostImageService(
         string ownerUserName,
         Guid postId,
         string markdown,
+        string? representativeImageUrl = null,
         CancellationToken cancellationToken = default)
     {
         var owner = NormalizeUser(ownerUserName);
@@ -48,6 +49,12 @@ public sealed class PostImageService(
         }
 
         var referencedUrls = ExtractReferencedUploadUrls(markdown).ToHashSet(StringComparer.Ordinal);
+        var normalizedRepresentativeUrl = EditorImageStorage.NormalizeUploadUrl(representativeImageUrl);
+        if (!string.IsNullOrWhiteSpace(normalizedRepresentativeUrl))
+        {
+            referencedUrls.Add(normalizedRepresentativeUrl);
+        }
+
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
         await db.Database.OpenConnectionAsync(cancellationToken);
 

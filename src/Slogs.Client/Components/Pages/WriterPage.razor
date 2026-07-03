@@ -367,13 +367,18 @@ else
 
     private static bool IsPriorityCardImage(int index) => index < 2;
 
-    private static string GetPostUrl(BlogPost post)
-        => post.IsDraft
-            ? $"/edit/{Uri.EscapeDataString(post.Slug)}"
-            : $"/@{Uri.EscapeDataString(post.Author)}/{Uri.EscapeDataString(post.Slug)}";
+    private string GetPostUrl(BlogPost post)
+        => PostNavigationUrlBuilder.BuildPostUrl(post, GetWriterMenuContext());
 
-    private static string GetPostCommentsUrl(BlogPost post)
-        => post.IsDraft ? GetPostUrl(post) : $"{GetPostUrl(post)}#comments";
+    private string GetPostCommentsUrl(BlogPost post)
+        => post.IsDraft
+            ? GetPostUrl(post)
+            : PostNavigationUrlBuilder.BuildCommentsUrl(post, GetWriterMenuContext());
+
+    private string GetWriterMenuContext()
+        => IsCurrentUsersPage
+            ? PostNavigationUrlBuilder.PersonalMenuContext
+            : PostNavigationUrlBuilder.GlobalMenuContext;
 
     private static string GetPostCardAriaLabel(BlogPost post)
         => post.IsDraft ? $"{post.Title} 게시전 수정" : $"{post.Title} 상세 보기";

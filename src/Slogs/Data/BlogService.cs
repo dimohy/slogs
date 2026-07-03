@@ -119,7 +119,7 @@ public sealed class BlogService(
             var nextRevisionNumber = post.Revisions.Select(x => x.RevisionNumber).DefaultIfEmpty(0).Max() + 1;
             db.PostRevisions.Add(CreateRevisionRecord(post, nextRevisionNumber, now));
             await db.SaveChangesAsync();
-            await postImageService.SyncPostImagesAsync(user, post.Id, finalBody);
+            await postImageService.SyncPostImagesAsync(user, post.Id, finalBody, post.ThumbnailUrl);
             return ToModel(post);
         }
 
@@ -143,7 +143,7 @@ public sealed class BlogService(
         }
 
         await db.SaveChangesAsync();
-        await postImageService.SyncPostImagesAsync(user, post.Id, finalBody);
+        await postImageService.SyncPostImagesAsync(user, post.Id, finalBody, post.ThumbnailUrl);
         return ToModel(post);
     }
 
@@ -520,7 +520,7 @@ public sealed class BlogService(
         }
 
         await db.SaveChangesAsync();
-        await postImageService.SyncPostImagesAsync(finalAuthor, newPost.Id, finalBody);
+        await postImageService.SyncPostImagesAsync(finalAuthor, newPost.Id, finalBody, newPost.ThumbnailUrl);
         return ToModel(newPost);
     }
 
@@ -1108,12 +1108,7 @@ public sealed class BlogService(
         var normalizedUrl = NormalizeOptionalUrl(explicitUrl);
         if (!string.IsNullOrWhiteSpace(normalizedUrl))
         {
-            var normalizedUploadUrl = EditorImageStorage.NormalizeUploadUrl(normalizedUrl);
-            if (string.IsNullOrWhiteSpace(normalizedUploadUrl)
-                || PostImageService.ExtractReferencedUploadUrls(body).Contains(normalizedUploadUrl, StringComparer.Ordinal))
-            {
-                return normalizedUrl;
-            }
+            return normalizedUrl;
         }
 
         return NormalizeOptionalUrl(MarkdownRenderer.FindFirstImage(body)?.Url);

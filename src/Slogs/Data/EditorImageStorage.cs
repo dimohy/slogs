@@ -1,3 +1,5 @@
+using System.Buffers.Binary;
+
 namespace Slogs.Data;
 
 public sealed class EditorImageStorage(IWebHostEnvironment environment)
@@ -12,8 +14,8 @@ public sealed class EditorImageStorage(IWebHostEnvironment environment)
         long imageLength,
         CancellationToken cancellationToken = default)
     {
-        var extension = GetSafeImageExtension(fileName, contentType);
-        if (extension is null)
+        var declaredExtension = GetDeclaredImageExtension(fileName, contentType);
+        if (declaredExtension is null)
         {
             throw new InvalidOperationException("PNG, JPG, GIF, WebP 이미지만 업로드할 수 있습니다.");
         }
@@ -23,17 +25,28 @@ public sealed class EditorImageStorage(IWebHostEnvironment environment)
             throw new InvalidOperationException("이미지는 5MB 이하만 업로드할 수 있습니다.");
         }
 
+        await using var buffer = new MemoryStream(checked((int)imageLength));
+        await imageStream.CopyToAsync(buffer, cancellationToken);
+        var imageBytes = buffer.ToArray();
+        if (imageBytes.LongLength != imageLength)
+        {
+            throw new InvalidOperationException("이미지 바이트 길이가 요청 정보와 일치하지 않습니다.");
+        }
+
+        var actualExtension = DetectImageExtension(imageBytes);
+        if (actualExtension is null || !IsEquivalentImageExtension(declaredExtension, actualExtension))
+        {
+            throw new InvalidOperationException("이미지 데이터가 선언된 파일 형식과 일치하지 않거나 손상되었습니다.");
+        }
+
         var uploadRoot = GetUploadRoot();
         Directory.CreateDirectory(uploadRoot);
 
         var baseName = SanitizeFileBaseName(Path.GetFileNameWithoutExtension(fileName));
-        var storedFileName = $"{DateTime.UtcNow:yyyyMMddHHmmssfff}-{baseName}-{Guid.NewGuid():N}{extension}";
+        var storedFileName = $"{DateTime.UtcNow:yyyyMMddHHmmssfff}-{baseName}-{Guid.NewGuid():N}{actualExtension}";
         var targetPath = Path.Combine(uploadRoot, storedFileName);
 
-        await using (var target = File.Create(targetPath))
-        {
-            await imageStream.CopyToAsync(target, cancellationToken);
-        }
+        await File.WriteAllBytesAsync(targetPath, imageBytes, cancellationToken);
 
         return new EditorImageResponse(
             $"/uploads/{storedFileName}",
@@ -115,17 +128,137 @@ public sealed class EditorImageStorage(IWebHostEnvironment environment)
         return Path.Combine(webRoot, "uploads");
     }
 
-    private static string? GetSafeImageExtension(string fileName, string? contentType)
+    private static string? GetDeclaredImageExtension(string fileName, string? contentType)
     {
-        var extension = Path.GetExtension(fileName).ToLowerInvariant();
-        return contentType?.ToLowerInvariant() switch
+        var normalizedContentType = string.IsNullOrWhiteSpace(contentType)
+            ? string.Empty
+            : contentType.Trim().ToLowerInvariant();
+        var contentTypeExtension = normalizedContentType switch
         {
             "image/png" => ".png",
-            "image/jpeg" => extension == ".jpeg" ? ".jpeg" : ".jpg",
+            "image/jpeg" => ".jpg",
             "image/gif" => ".gif",
             "image/webp" => ".webp",
-            _ => extension is ".png" or ".jpg" or ".jpeg" or ".gif" or ".webp" ? extension : null
+            _ => null
         };
+        if (contentTypeExtension is not null)
+        {
+            return contentTypeExtension;
+        }
+
+        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+        return extension is ".png" or ".jpg" or ".jpeg" or ".gif" or ".webp"
+            ? extension
+            : null;
+    }
+
+    private static string? DetectImageExtension(ReadOnlySpan<byte> bytes)
+    {
+        if (IsPng(bytes))
+        {
+            return ".png";
+        }
+
+        if (IsJpeg(bytes))
+        {
+            return ".jpg";
+        }
+
+        if (IsGif(bytes))
+        {
+            return ".gif";
+        }
+
+        return IsWebp(bytes) ? ".webp" : null;
+    }
+
+    private static bool IsEquivalentImageExtension(string declaredExtension, string actualExtension)
+    {
+        var normalizedDeclared = declaredExtension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase)
+            ? ".jpg"
+            : declaredExtension.ToLowerInvariant();
+        return normalizedDeclared.Equals(actualExtension, StringComparison.Ordinal);
+    }
+
+    private static bool IsPng(ReadOnlySpan<byte> bytes)
+    {
+        if (bytes.Length < 45 || !bytes[..8].SequenceEqual(PngSignature))
+        {
+            return false;
+        }
+
+        var offset = 8;
+        var isFirstChunk = true;
+        while (offset <= bytes.Length - 12)
+        {
+            var length = BinaryPrimitives.ReadUInt32BigEndian(bytes[offset..(offset + 4)]);
+            if (length > int.MaxValue)
+            {
+                return false;
+            }
+
+            offset += 4;
+            var chunkType = bytes[offset..(offset + 4)];
+            offset += 4;
+            if (isFirstChunk)
+            {
+                if (length != 13 || !chunkType.SequenceEqual("IHDR"u8))
+                {
+                    return false;
+                }
+
+                isFirstChunk = false;
+            }
+
+            var chunkLength = (int)length;
+            if (offset + chunkLength + 4 > bytes.Length)
+            {
+                return false;
+            }
+
+            offset += chunkLength;
+            offset += 4;
+
+            if (chunkType.SequenceEqual("IEND"u8))
+            {
+                return length == 0 && offset == bytes.Length;
+            }
+        }
+
+        return false;
+    }
+
+    private static ReadOnlySpan<byte> PngSignature => [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+
+    private static bool IsJpeg(ReadOnlySpan<byte> bytes)
+        => bytes.Length >= 4
+            && bytes[0] == 0xFF
+            && bytes[1] == 0xD8
+            && bytes[^2] == 0xFF
+            && bytes[^1] == 0xD9;
+
+    private static bool IsGif(ReadOnlySpan<byte> bytes)
+        => bytes.StartsWith("GIF87a"u8) || bytes.StartsWith("GIF89a"u8);
+
+    private static bool IsWebp(ReadOnlySpan<byte> bytes)
+    {
+        if (bytes.Length < 16
+            || !bytes[..4].SequenceEqual("RIFF"u8)
+            || !bytes[8..12].SequenceEqual("WEBP"u8))
+        {
+            return false;
+        }
+
+        var riffLength = BinaryPrimitives.ReadUInt32LittleEndian(bytes[4..8]);
+        if (riffLength != (uint)(bytes.Length - 8))
+        {
+            return false;
+        }
+
+        var format = bytes[12..16];
+        return format.SequenceEqual("VP8 "u8)
+            || format.SequenceEqual("VP8L"u8)
+            || format.SequenceEqual("VP8X"u8);
     }
 
     private static string SanitizeFileBaseName(string value)

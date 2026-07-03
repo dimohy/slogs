@@ -228,10 +228,10 @@
     }
 
     private static string GetPostUrl(BlogPost post)
-        => $"/@{Uri.EscapeDataString(post.Author)}/{Uri.EscapeDataString(post.Slug)}";
+        => PostNavigationUrlBuilder.BuildPostUrl(post, PostNavigationUrlBuilder.GlobalMenuContext);
 
     private static string GetPostCommentsUrl(BlogPost post)
-        => $"{GetPostUrl(post)}#comments";
+        => PostNavigationUrlBuilder.BuildCommentsUrl(post, PostNavigationUrlBuilder.GlobalMenuContext);
 
     private bool IsPostBusy(string slug, HashSet<string> busySet) => busySet.Contains(slug);
 

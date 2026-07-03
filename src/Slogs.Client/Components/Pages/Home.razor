@@ -3,11 +3,9 @@
 @page "/trending"
 @page "/recommended"
 @page "/feed"
-@implements IAsyncDisposable
 @inject SlogsApiClient ApiClient
 @inject SlogsAuthState AuthState
 @inject NavigationManager Navigation
-@inject IJSRuntime JS
 <PageTitle>slogs</PageTitle>
 <SeoHead Title="@GetSeoTitle()"
          Description="@GetSeoDescription()"
@@ -126,19 +124,12 @@ else
 }
 </section>
 
-    @if (posts.Any())
-    {
-        <div @ref="loadMoreSentinel" class="mt-4 flex min-h-12 items-center justify-center" aria-live="polite">
-            @if (isLoadingMorePosts)
-            {
-                <span class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-500">불러오는 중...</span>
-            }
-            else if (!HasMorePosts && totalCount > PageSize)
-            {
-                <span class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-500">모든 글을 불러왔습니다.</span>
-            }
-        </div>
-    }
+<InfiniteScrollSentinel Visible="@(posts.Count > 0)"
+                        HasMore="@HasMorePosts"
+                        IsLoading="@isLoadingMorePosts"
+                        OnLoadMore="LoadMorePostsAsync"
+                        ShowDoneText="@(totalCount > PageSize)"
+                        DoneText="모든 글을 불러왔습니다." />
 @code {
     private const int PageSize = 6;
     private const string TrendingHref = "/trending";
@@ -172,9 +163,6 @@ else
     private string? normalizedFeed;
     private string discoveryMode = "recent";
     private string currentStateKey = string.Empty;
-    private ElementReference loadMoreSentinel;
-    private DotNetObjectReference<Home>? infiniteScrollReference;
-    private bool infiniteScrollObserverAttached;
 
     private bool HasMorePosts => posts.Count < totalCount;
 
@@ -230,19 +218,6 @@ else
         CapturePrerenderedState(currentStateKey);
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!firstRender || posts.Count == 0 || infiniteScrollObserverAttached)
-        {
-            return;
-        }
-
-        infiniteScrollReference = DotNetObjectReference.Create(this);
-        await JS.InvokeVoidAsync("slogsInfiniteScroll.observe", loadMoreSentinel, infiniteScrollReference);
-        infiniteScrollObserverAttached = true;
-    }
-
-    [JSInvokable]
     public async Task<bool> LoadMorePostsAsync()
     {
         if (isLoadingMorePosts || !HasMorePosts)
@@ -272,25 +247,6 @@ else
         }
 
         return posts.Count > previousCount;
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        try
-        {
-            if (infiniteScrollObserverAttached)
-            {
-                await JS.InvokeVoidAsync("slogsInfiniteScroll.unobserve", loadMoreSentinel);
-            }
-        }
-        catch (JSDisconnectedException)
-        {
-        }
-        catch (InvalidOperationException)
-        {
-        }
-
-        infiniteScrollReference?.Dispose();
     }
 
     private async Task LoadPostsAsync(int minimumVisibleCount)
@@ -407,10 +363,10 @@ else
     private AuthUser? CurrentUser => AuthState.CurrentUser;
 
     private static string GetPostUrl(BlogPost post)
-        => $"/@{Uri.EscapeDataString(post.Author)}/{Uri.EscapeDataString(post.Slug)}";
+        => PostNavigationUrlBuilder.BuildPostUrl(post, PostNavigationUrlBuilder.GlobalMenuContext);
 
     private static string GetPostCommentsUrl(BlogPost post)
-        => $"{GetPostUrl(post)}#comments";
+        => PostNavigationUrlBuilder.BuildCommentsUrl(post, PostNavigationUrlBuilder.GlobalMenuContext);
 
     private async Task ToggleLikeAsync(string slug)
     {

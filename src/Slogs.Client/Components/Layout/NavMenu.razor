@@ -114,9 +114,20 @@
 
     private AuthUser? CurrentUser => AuthState.CurrentUser;
 
-    private bool ShowMyMenu => CurrentUser is not null && (IsMyAccountPath || IsCurrentUserPublicPath);
+    private bool ShowMyMenu => CurrentUser is not null
+        && !IsExplicitGlobalMenuContext
+        && (IsExplicitPersonalMenuContext || IsMyAccountPath || IsCurrentUserPublicPath);
 
     private bool ShowAdminMenu => CurrentUser?.IsAdminMode == true;
+
+    private string? ExplicitMenuContext
+        => PostNavigationUrlBuilder.NormalizeMenuContext(GetQueryValue(PostNavigationUrlBuilder.MenuContextQueryName));
+
+    private bool IsExplicitPersonalMenuContext
+        => ExplicitMenuContext == PostNavigationUrlBuilder.PersonalMenuContext;
+
+    private bool IsExplicitGlobalMenuContext
+        => ExplicitMenuContext == PostNavigationUrlBuilder.GlobalMenuContext;
 
     private bool IsMyAccountPath
         => CurrentPath.Equals("/me", StringComparison.OrdinalIgnoreCase)

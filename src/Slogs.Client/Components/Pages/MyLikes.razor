@@ -241,7 +241,7 @@ else
     }
 
     private static string GetPostUrl(BlogPost post)
-        => $"/@{Uri.EscapeDataString(post.Author)}/{Uri.EscapeDataString(post.Slug)}";
+        => PostNavigationUrlBuilder.BuildPostUrl(post, PostNavigationUrlBuilder.PersonalMenuContext);
 
     private static bool IsPriorityCardImage(int index) => index < 2;
 

@@ -100,12 +100,12 @@ else
             @if (previousPost is not null)
             {
                 <a class="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 hover:bg-slate-100"
-                   href="@GetPostUrl(previousPost)">이전 글 이동</a>
+                   href="@GetPostNavigationUrl(previousPost)">이전 글 이동</a>
             }
             @if (nextPost is not null)
             {
                 <a class="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 hover:bg-slate-100"
-                   href="@GetPostUrl(nextPost)">다음 글 이동</a>
+                   href="@GetPostNavigationUrl(nextPost)">다음 글 이동</a>
             }
         </div>
 
@@ -280,12 +280,12 @@ else
                 {
                     var item = relatedPosts[index];
             <article class="clickable-post-card rounded-2xl border border-slate-200 bg-white p-3"
-                     data-card-click-href="@GetPostUrl(item)"
+                     data-card-click-href="@GetPostNavigationUrl(item)"
                      tabindex="0"
                      role="link"
                      aria-label="@($"{item.Title} 상세 보기")">
-                <PostCardImage Post="item" PostUrl="@GetPostUrl(item)" Priority="@IsPriorityCardImage(index)" />
-                <a class="mb-2 block text-base font-bold text-slate-800 hover:underline" href="@GetPostUrl(item)">@item.Title</a>
+                <PostCardImage Post="item" PostUrl="@GetPostNavigationUrl(item)" Priority="@IsPriorityCardImage(index)" />
+                <a class="mb-2 block text-base font-bold text-slate-800 hover:underline" href="@GetPostNavigationUrl(item)">@item.Title</a>
                 <PostMetaLine Post="item" Class="flex flex-wrap items-center gap-2 text-sm text-slate-500" ShowReadTime="false" ShowViews="false" ShowSeries="false" />
             </article>
                 }
@@ -301,7 +301,7 @@ else
     {
         <section class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
             <article class="clickable-post-card rounded-2xl border border-slate-200 bg-white p-4"
-                     data-card-click-href="@(previousPost is null ? null : GetPostUrl(previousPost))"
+                     data-card-click-href="@(previousPost is null ? null : GetPostNavigationUrl(previousPost))"
                      tabindex="@(previousPost is null ? null : "0")"
                      role="@(previousPost is null ? null : "link")"
                      aria-label="@(previousPost is null ? null : $"{previousPost.Title} 상세 보기")">
@@ -312,7 +312,7 @@ else
                 }
                 else
                 {
-                    <a class="mt-2 block text-lg font-bold text-slate-900 transition hover:underline" href="@GetPostUrl(previousPost)">
+                    <a class="mt-2 block text-lg font-bold text-slate-900 transition hover:underline" href="@GetPostNavigationUrl(previousPost)">
                         @previousPost.Title
                     </a>
                     <a class="mt-1 block text-sm text-slate-500 hover:underline" href="@GetWriterUrl(previousPost.Author)">@FormatUserName(previousPost.Author)</a>
@@ -320,7 +320,7 @@ else
             </article>
 
             <article class="clickable-post-card rounded-2xl border border-slate-200 bg-white p-4"
-                     data-card-click-href="@(nextPost is null ? null : GetPostUrl(nextPost))"
+                     data-card-click-href="@(nextPost is null ? null : GetPostNavigationUrl(nextPost))"
                      tabindex="@(nextPost is null ? null : "0")"
                      role="@(nextPost is null ? null : "link")"
                      aria-label="@(nextPost is null ? null : $"{nextPost.Title} 상세 보기")">
@@ -331,7 +331,7 @@ else
                 }
                 else
                 {
-                    <a class="mt-2 block text-lg font-bold text-slate-900 transition hover:underline" href="@GetPostUrl(nextPost)">
+                    <a class="mt-2 block text-lg font-bold text-slate-900 transition hover:underline" href="@GetPostNavigationUrl(nextPost)">
                         @nextPost.Title
                     </a>
                     <a class="mt-1 block text-sm text-slate-500 hover:underline" href="@GetWriterUrl(nextPost.Author)">@FormatUserName(nextPost.Author)</a>
@@ -1276,7 +1276,34 @@ else
         && !string.Equals(CurrentUserName, post.Author, StringComparison.OrdinalIgnoreCase);
 
     private static string GetPostUrl(BlogPost targetPost)
-        => $"/@{Uri.EscapeDataString(targetPost.Author)}/{Uri.EscapeDataString(targetPost.Slug)}";
+        => PostNavigationUrlBuilder.BuildCanonicalPostUrl(targetPost);
+
+    private string GetPostNavigationUrl(BlogPost targetPost)
+        => PostNavigationUrlBuilder.BuildPostUrl(targetPost, CurrentMenuContext);
+
+    private string? CurrentMenuContext
+        => PostNavigationUrlBuilder.NormalizeMenuContext(GetQueryValue(PostNavigationUrlBuilder.MenuContextQueryName))
+            ?? GetInferredMenuContext();
+
+    private string? GetInferredMenuContext()
+    {
+        if (CurrentUser is null || post is null || !post.IsAuthor(CurrentUser.UserName))
+        {
+            return null;
+        }
+
+        var segments = new Uri(Navigation.Uri).AbsolutePath
+            .Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length != 2 || !segments[0].StartsWith("@", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var author = Uri.UnescapeDataString(segments[0][1..]);
+        return author.Equals(CurrentUser.UserName, StringComparison.OrdinalIgnoreCase)
+            ? PostNavigationUrlBuilder.PersonalMenuContext
+            : null;
+    }
 
     private static bool IsPriorityCardImage(int index) => index < 2;
 
@@ -1362,7 +1389,10 @@ else
         }
     }
 
-    private string GetEditHref() => $"/edit/{Uri.EscapeDataString(post?.Slug ?? Slug)}";
+    private string GetEditHref()
+        => PostNavigationUrlBuilder.AddMenuContext(
+            $"/edit/{Uri.EscapeDataString(post?.Slug ?? Slug)}",
+            CurrentMenuContext);
 
     private void NavigateToLogin()
     {
@@ -1383,6 +1413,29 @@ else
         }
 
         return string.IsNullOrWhiteSpace(fragment) ? path : $"{path}{fragment}";
+    }
+
+    private string? GetQueryValue(string name)
+    {
+        var query = new Uri(Navigation.Uri).Query.TrimStart('?');
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return null;
+        }
+
+        foreach (var part in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var pair = part.Split('=', 2, StringSplitOptions.None);
+            var key = Uri.UnescapeDataString(pair[0]);
+            if (!key.Equals(name, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            return pair.Length == 2 ? Uri.UnescapeDataString(pair[1]) : string.Empty;
+        }
+
+        return null;
     }
 
     private string GetLoginReturnUrl()
@@ -1591,6 +1644,12 @@ else
     {
         var normalizedSort = NormalizeCommentSortOrder(sortOrder);
         var query = new List<string>();
+        var menuContext = CurrentMenuContext;
+        if (!string.IsNullOrWhiteSpace(menuContext))
+        {
+            query.Add($"{PostNavigationUrlBuilder.MenuContextQueryName}={Uri.EscapeDataString(menuContext)}");
+        }
+
         if (!string.Equals(normalizedSort, "latest", StringComparison.OrdinalIgnoreCase))
         {
             query.Add($"commentOrder={Uri.EscapeDataString(normalizedSort)}");
@@ -1703,5 +1762,4 @@ else
         };
     }
 }
-
 
