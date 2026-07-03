@@ -10,8 +10,8 @@
          CanonicalPath="@GetWriterPath()"
          Type="profile"
          ImageUrl="@writerProfile?.ProfileImageUrl"
-         NoIndex="@(!isWriterKnown)"
-         JsonLd="@(isWriterKnown ? SeoMetadata.ProfilePageJsonLd(NavigationManager.BaseUri, GetWriterPath(), GetSloggerDisplayName(), GetSloggerSeoDescription(), writerProfile?.ProfileImageUrl) : null)" />
+         NoIndex="@ShouldNoIndexWriterPage"
+         JsonLd="@(!ShouldNoIndexWriterPage ? SeoMetadata.ProfilePageJsonLd(NavigationManager.BaseUri, GetWriterPath(), GetSloggerDisplayName(), GetSloggerSeoDescription(), writerProfile?.ProfileImageUrl) : null)" />
 
 @if (!isWriterKnown)
 {
@@ -304,6 +304,7 @@ else
     private string? normalizedSort;
     private string currentStateKey = string.Empty;
     private bool HasMorePosts => posts.Count < allVisiblePosts.Count;
+    private bool ShouldNoIndexWriterPage => !isWriterKnown || !allAuthorPosts.Any(post => !post.IsDraft);
 
     [PersistentState]
     public WriterPageState? PrerenderedState { get; set; }

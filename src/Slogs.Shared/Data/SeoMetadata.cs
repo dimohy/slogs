@@ -56,7 +56,6 @@ public static class SeoMetadata
         return string.Join('\n', [
             "User-agent: *",
             "Allow: /",
-            "Disallow: /feed",
             "Disallow: /me",
             "Disallow: /write",
             "Disallow: /edit",

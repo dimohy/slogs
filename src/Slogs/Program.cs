@@ -634,14 +634,12 @@ app.MapMethods("/post/{slug}.md", getAndHeadMethods, async (
 });
 
 app.MapMethods("/sitemap.xml", getAndHeadMethods, async (
-    BlogService blogService,
-    AuthService authService) =>
+    BlogService blogService) =>
 {
     var posts = await blogService.GetLatestAsync(500);
     var tags = await blogService.GetTagCloudAsync(200);
     var series = await blogService.GetSeriesCloudAsync(200);
     var authors = await blogService.GetAuthorCloudAsync(200);
-    var knownUsers = authService.GetUserNames();
 
     var entries = new List<SitemapEntry>
     {
@@ -670,7 +668,7 @@ app.MapMethods("/sitemap.xml", getAndHeadMethods, async (
         DateTime.UtcNow,
         "weekly",
         0.7m)));
-    entries.AddRange(authors.Select(author => author.Author).Concat(knownUsers).Distinct(StringComparer.OrdinalIgnoreCase)
+    entries.AddRange(authors.Select(author => author.Author).Distinct(StringComparer.OrdinalIgnoreCase)
         .Select(author => new SitemapEntry(
             $"/@{Uri.EscapeDataString(author)}",
             DateTime.UtcNow,
