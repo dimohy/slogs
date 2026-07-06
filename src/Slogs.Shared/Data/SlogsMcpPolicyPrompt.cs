@@ -2,7 +2,7 @@ namespace Slogs.Data;
 
 public static class SlogsMcpPolicyPrompt
 {
-    public const string Version = "2026.06.30.1";
+    public const string Version = "2026.07.06.1";
     public const string McpPath = "/mcp";
     public const string PublicPath = "/prompts/slogs-mcp.md";
     public const string KoreanPublicPath = "/prompts/slogs-mcp.ko.md";
@@ -21,6 +21,7 @@ public static class SlogsMcpPolicyPrompt
         - `recall`, `search`, `find_related`, `capture`의 Retrieval Diagnostics에서 결과 수, effectiveLimit, categoryPath, minRelevancePercent, elapsedMs를 확인한다. 결과가 엉뚱하거나 누락, 과다, 지연이면 query/categoryPath/limit/minRelevancePercent를 좁혀 다시 조회하고, 판단에 영향이 있으면 최종 답변에 짧게 밝힌다.
         - 저장 전에는 `llm_wiki_instructions`를 확인하고 `llm_wiki_capture` 또는 `llm_wiki_find_related`로 관련 항목을 찾는다. 관련 항목이 있으면 `llm_wiki_read` 후 최종 문구를 작성해 `llm_wiki_merge` 또는 `llm_wiki_update`를 사용하고, 관련 항목이 없을 때만 `llm_wiki_remember`를 사용한다.
         - 사용자가 매번 기억 여부를 말하지 않아도 장기적으로 문서화, 자동화, 재현, 의사결정에 다시 쓸 수 있는 암묵지는 저장 후보로 조용히 점검한다. 사용자 정정 용어, 판단 기준, 반복 워크플로, 운영 규칙, 검증된 원인/결정, 재시작 지점, 코드만 보고 알기 어려운 전제조건이 대표 예다.
+        - 대화가 사용자가 원치 않는 방향으로 전개되어 사용자가 정정/조정 프롬프트를 입력하면 이를 의도 보정 신호로 본다. 저장할 때는 정정 원문만 남기지 말고, 원치 않았던 전개, 사용자가 원한 방향, 다음 Agent가 피해야 할 패턴, 선제적으로 따를 판단 기준, 적용 범위를 구조화한다.
         - 기억을 병합하거나 갱신하더라도 기존 Raw Provenance를 임의로 삭제하거나 요약본만 남기지 않는다. 현재 Content/Source Prompt는 읽기 좋은 통합 기억이고, 원래 저장/merge/update 요청의 raw prompt/content/title/tags/categoryPath는 감사 가능한 근거로 보존되어야 한다.
         - 민감 정보, API 키, 비밀번호, 토큰, 일회성 로그, 임시 실행 내역, 검증되지 않은 추측, 현재 파일에서 쉽게 다시 알 수 있는 단순 사실, 이번 턴에만 의미 있는 중간 상태는 저장하지 않는다.
         - LLM Wiki 항목은 기본 비공개다. 사용자가 본인의 특정 주제를 명시적으로 공개하라고 요청한 경우에만 `llm_wiki_make_public`으로 관련 항목을 공개한다. 공개 조회는 `llm_wiki_public_list/search/read/recall` 결과에 한정해 답하고, public 도구가 반환하지 않은 민감 정보는 추측하거나 private 조회로 대체하지 않는다.
@@ -35,6 +36,7 @@ public static class SlogsMcpPolicyPrompt
         - Inspect Retrieval Diagnostics from `recall`, `search`, `find_related`, and `capture`: result count, effectiveLimit, categoryPath, minRelevancePercent, and elapsedMs. If results are unrelated, missing, too broad, too large, or slow, narrow query/categoryPath/limit/minRelevancePercent and retry. Mention the mismatch briefly when it affects the decision.
         - Before storing, call `llm_wiki_instructions`, then use `llm_wiki_capture` or `llm_wiki_find_related`. If a related entry exists, call `llm_wiki_read`, compose the final wording, and use `llm_wiki_merge` or `llm_wiki_update`. Use `llm_wiki_remember` only when no related entry fits.
         - Even when the user does not explicitly ask to remember something, quietly review durable tacit knowledge before finishing meaningful work: corrected terminology, judgment criteria, repeatable workflows, operating rules, verified causes or decisions, restart points, and prerequisites that are not obvious from code.
+        - When a conversation develops in a direction the user did not want and the user enters a correction or adjustment prompt, treat it as an intent-correction signal. Do not store only the raw correction text; structure the memory around the unwanted development, the direction the user wanted, patterns the next Agent should avoid, judgment criteria to apply proactively, and the scope where it applies.
         - When refining, merging, or updating memory, do not delete prior Raw Provenance or leave only a summary. The current Content/Source Prompt is the readable consolidated memory; raw prompt/content/title/tags/categoryPath from remember/merge/update requests must remain auditable.
         - Do not store secrets, API keys, passwords, tokens, one-time logs, temporary execution traces, unverified speculation, simple facts easily recovered from current files, or intermediate state that only matters during the current turn.
         - LLM Wiki entries are private by default. Only when the user explicitly asks to publish a specific topic from their own wiki may `llm_wiki_make_public` be used. Answer public questions only from `llm_wiki_public_list/search/read/recall`; do not infer sensitive information missing from public results and do not substitute private lookup results.
@@ -70,8 +72,10 @@ public static class SlogsMcpPolicyPrompt
 
         - 새 Agent/Codex 세션이 시작되면 먼저 `{{DefaultVersionUrl}}`의 한 줄 버전만 읽어 설치된 `SLOGS_MCP_PROMPT` 관리 블록의 `version` 또는 본문 `Prompt Version`과 비교한다.
         - 버전이 같으면 전체 프롬프트를 다시 읽지 않고, 파일을 다시 쓰지 않고, 키 요청이나 범위 선택도 반복하지 않는다.
-        - 버전이 다르거나 로컬 버전이 없을 때만 `{{DefaultKoreanPublicUrl}}` 또는 호환 URL `{{DefaultPublicUrl}}`의 전체 Markdown을 한 번 읽어 같은 지침 위치의 기존 관리 블록을 교체한다. 두 한국어 URL 차이만으로는 같은 버전에서 갱신하지 않는다.
-        - 이 동기화는 세션 시작 시 버전 차이를 발견했을 때 수행하는 1회 작업이다. 주기 실행, 백그라운드 반복 실행, Windows Scheduled Task 등록으로 구현하지 않는다.
+        - 버전이 다르거나 로컬 버전이 없으면 이것을 갱신 작업으로 판단한다. Agent가 선택된 지침 위치를 직접 편집할 수 있으면 `{{DefaultKoreanPublicUrl}}` 또는 호환 URL `{{DefaultPublicUrl}}`의 전체 Markdown을 한 번 읽고, 같은 지침 위치의 기존 `SLOGS_MCP_PROMPT` 관리 블록을 즉시 교체한다. 보고만 하고 멈추지 않는다.
+        - 이미 설치된 관리 블록을 갱신할 때는 기존 적용 범위를 유지하며 키 요청이나 범위 선택을 반복하지 않는다. 두 한국어 URL 차이만으로는 같은 버전에서 갱신하지 않는다.
+        - Agent가 선택된 지침 위치를 직접 편집할 수 없을 때만 아직 영구 반영되지 않았다고 말하고, 사용자가 붙여넣을 정확한 위치와 최신 프롬프트 URL을 안내한다.
+        - 이 동기화는 세션 시작 시 버전 차이를 발견했을 때 Agent가 수행하는 1회 작업이다. 별도 동기화 스크립트, 주기 실행, 백그라운드 반복 실행, Windows Scheduled Task로 구현하지 않는다.
         - 중복 정책을 누적하지 말고 이전 `SLOGS_MCP_PROMPT` 관리 블록을 새 블록으로 교체한다. Codex는 전역/프로젝트 `AGENTS.md`, Claude는 Project instructions 또는 `CLAUDE.md`, GitHub Copilot은 repository instructions, 그 밖의 Agent는 가장 높은 우선순위의 지속 지침 위치를 사용한다.
 
         ## 런타임 규칙
@@ -102,8 +106,10 @@ public static class SlogsMcpPolicyPrompt
 
         - When a new Agent/Codex session starts, first read only the one-line version from `{{DefaultVersionUrl}}` and compare it with the installed `SLOGS_MCP_PROMPT` managed block `version` or body `Prompt Version`.
         - If versions match, do not fetch the full prompt, rewrite files, ask for the key again, or repeat scope selection.
-        - If versions differ or no local version exists, fetch the full Markdown from `{{DefaultEnglishPublicUrl}}` once and replace the previous managed block in the same instruction location.
-        - This is a one-time session-start sync when a version difference is detected. Do not implement it as a periodic/background job or a Windows Scheduled Task.
+        - If versions differ or no local version exists, treat this as an update task. When the Agent can directly edit the selected instruction location, fetch the full Markdown from `{{DefaultEnglishPublicUrl}}` once and immediately replace the previous `SLOGS_MCP_PROMPT` managed block in the same instruction location. Do not stop after merely reporting that the server prompt is newer.
+        - When updating an already installed managed block, keep the existing scope and do not ask for the key or repeat scope selection.
+        - Only when the Agent cannot directly edit the selected instruction location should it say the update has not been permanently applied yet and provide the exact manual placement location plus latest prompt URL.
+        - This is a one-time session-start sync performed by the Agent when a version difference is detected. Do not implement it through a separate sync script, periodic/background job, or Windows Scheduled Task.
         - Do not accumulate duplicate policy blocks. Codex uses global/project `AGENTS.md`; Claude uses Project instructions or `CLAUDE.md`; GitHub Copilot uses repository instructions; other Agents should use their highest-priority durable instruction surface.
 
         ## Runtime Rules

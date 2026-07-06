@@ -40,7 +40,7 @@ Suggested topics:
 - `src/Slogs.Client`: Blazor client UI and routed pages
 - `src/Slogs.Shared`: Shared contracts, API client, auth state, Markdown and SEO helpers
 - `src/Slogs.NativeAotProbe`: Experimental NativeAOT publish probe
-- `scripts`: Local service, deployment, and Slogs MCP prompt sync scripts
+- `scripts`: Local service and deployment scripts
 - `infra/postgres`: Podman compose services for PostgreSQL and EmbeddingGemma
 - `artifacts`: Local verification output and generated runtime artifacts. This directory is intentionally not tracked.
 

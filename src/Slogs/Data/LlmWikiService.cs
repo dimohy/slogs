@@ -598,7 +598,8 @@ public sealed class LlmWikiService(
         builder.AppendLine("- Before remember, merge, or update, choose an explicit `categoryPath` such as `project/domain/topic` when the project or topic is known.");
         builder.AppendLine("- Use `llm_wiki_remember` only for genuinely new durable tacit knowledge.");
         builder.AppendLine("- Before finishing meaningful work, quietly check whether the turn produced tacit knowledge that future LLMs can document, automate, reproduce, or use for decisions.");
-        builder.AppendLine("- Store corrected terminology, judgment criteria, repeatable workflows, operating rules, verified root causes, restart points, hidden prerequisites, and runbook-worthy command flows.");
+        builder.AppendLine("- Store corrected terminology, correction or adjustment prompts, judgment criteria, repeatable workflows, operating rules, verified root causes, restart points, hidden prerequisites, and runbook-worthy command flows.");
+        builder.AppendLine("- When a user corrects an unwanted conversation direction, structure the memory around the unwanted development, intended direction, avoid-next-time pattern, proactive judgment criteria, and applicable scope instead of storing only the raw correction text.");
         builder.AppendLine("- Do not store sensitive information, one-time logs, temporary execution traces, unverified speculation, simple facts recoverable from current files, or turn-only intermediate state.");
         builder.AppendLine("- Use `llm_wiki_recall` when the user asks to continue, remember, or apply previous context.");
         builder.AppendLine();

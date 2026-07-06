@@ -1247,6 +1247,23 @@ header.bg-white {
     border-top: 1px solid #d7e0d8;
 }
 
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset .language-mermaid {
+    width: 100%;
+    margin: 1rem 0;
+    overflow-x: auto;
+    border: 1px solid #d7e0d8;
+    border-radius: 0.75rem;
+    background: #f8faf8;
+    padding: 1rem;
+}
+
+.markdown-body .slogs-markdown-preview__runtime.vditor-reset .language-mermaid svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+}
+
 .slogs-markdown-preview.is-rendered .slogs-markdown-preview__runtime {
     display: block;
 }

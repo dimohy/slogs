@@ -40,7 +40,7 @@ GitHub 저장소 소개 문구:
 - `src/Slogs.Client`: Blazor 클라이언트 UI와 라우트 페이지
 - `src/Slogs.Shared`: 공유 계약, API 클라이언트, 인증 상태, Markdown/SEO 헬퍼
 - `src/Slogs.NativeAotProbe`: 실험용 NativeAOT 게시 검증 프로젝트
-- `scripts`: 로컬 서비스, 배포, Slogs MCP 프롬프트 동기화 스크립트
+- `scripts`: 로컬 서비스와 배포 스크립트
 - `infra/postgres`: PostgreSQL과 EmbeddingGemma용 Podman compose 서비스
 - `artifacts`: 로컬 검증 결과와 생성 산출물. Git에는 포함하지 않습니다.
 

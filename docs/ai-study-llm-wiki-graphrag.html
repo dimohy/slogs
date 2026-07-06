@@ -1,0 +1,1205 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Slogs LLM Wiki GraphRAG - AI Study</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --ink: #172033;
+            --muted: #5e697c;
+            --paper: #f6f2ea;
+            --panel: #ffffff;
+            --line: #d8dde6;
+            --blue: #2563eb;
+            --green: #0f766e;
+            --rose: #be123c;
+            --amber: #b45309;
+            --violet: #6d28d9;
+            --dark: #111827;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            min-height: 100%;
+            overflow-x: hidden;
+            background: var(--paper);
+            color: var(--ink);
+            font-family: "Segoe UI", "Noto Sans KR", "Apple SD Gothic Neo", Arial, sans-serif;
+        }
+
+        body {
+            overflow: hidden;
+        }
+
+        button {
+            font: inherit;
+        }
+
+        .deck {
+            position: relative;
+            height: 100vh;
+            width: 100%;
+            background:
+                linear-gradient(90deg, rgba(37, 99, 235, 0.07), transparent 34%),
+                linear-gradient(180deg, rgba(15, 118, 110, 0.06), transparent 42%),
+                var(--paper);
+        }
+
+        .slide {
+            display: none;
+            height: 100vh;
+            width: 100%;
+            padding: 54px 76px 72px;
+        }
+
+        .slide.active {
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            gap: 28px;
+        }
+
+        .eyebrow {
+            margin: 0 0 10px;
+            color: var(--blue);
+            font-size: 0.95rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        h1,
+        h2,
+        h3,
+        p {
+            margin-top: 0;
+        }
+
+        h1 {
+            margin-bottom: 18px;
+            max-width: 1100px;
+            font-size: 4rem;
+            line-height: 1.08;
+            letter-spacing: 0;
+            overflow-wrap: normal;
+            word-break: keep-all;
+        }
+
+        h2 {
+            margin-bottom: 10px;
+            font-size: 3rem;
+            line-height: 1.18;
+            letter-spacing: 0;
+            overflow-wrap: normal;
+            word-break: keep-all;
+        }
+
+        h3 {
+            margin-bottom: 10px;
+            font-size: 1.45rem;
+            line-height: 1.35;
+            letter-spacing: 0;
+            word-break: keep-all;
+        }
+
+        p,
+        li {
+            font-size: 1.28rem;
+            line-height: 1.58;
+            overflow-wrap: normal;
+            word-break: keep-all;
+        }
+
+        ul,
+        ol {
+            margin: 0;
+            padding-left: 1.2rem;
+        }
+
+        code {
+            border: 1px solid #d6dce7;
+            border-radius: 6px;
+            background: #f8fafc;
+            padding: 2px 5px;
+            color: #1f2937;
+            font-family: "Cascadia Code", "Consolas", monospace;
+            font-size: 0.88em;
+        }
+
+        .lead {
+            max-width: 1060px;
+            color: var(--muted);
+            font-size: 1.58rem;
+            line-height: 1.58;
+        }
+
+        .content {
+            min-height: 0;
+            align-self: start;
+        }
+
+        .footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            color: #6b7280;
+            font-size: 0.95rem;
+        }
+
+        .badge-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 28px;
+        }
+
+        .badge {
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.72);
+            padding: 10px 14px;
+            color: #334155;
+            font-size: 1.05rem;
+            font-weight: 700;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 20px;
+            align-items: start;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 18px;
+            align-items: start;
+        }
+
+        .panel {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.83);
+            padding: 24px;
+            box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+        }
+
+        .panel.compact {
+            padding: 20px;
+        }
+
+        .panel strong {
+            color: #0f172a;
+        }
+
+        .number {
+            display: inline-grid;
+            width: 44px;
+            height: 44px;
+            margin-bottom: 18px;
+            place-items: center;
+            border-radius: 50%;
+            background: var(--dark);
+            color: white;
+            font-size: 1.12rem;
+            font-weight: 900;
+        }
+
+        .timeline {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 26px;
+            align-items: stretch;
+        }
+
+        .time-card {
+            min-height: 150px;
+            border-top: 5px solid var(--blue);
+        }
+
+        .time-card:nth-child(2) {
+            border-color: var(--green);
+        }
+
+        .time-card:nth-child(3) {
+            border-color: var(--amber);
+        }
+
+        .time-card:nth-child(4) {
+            border-color: var(--violet);
+        }
+
+        .time-card:nth-child(5) {
+            border-color: var(--rose);
+        }
+
+        .time-card .minute {
+            color: var(--muted);
+            font-size: 1.02rem;
+            font-weight: 800;
+        }
+
+        .flow {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+            align-items: stretch;
+        }
+
+        .flow-card {
+            position: relative;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: white;
+            padding: 24px 20px;
+            min-height: 190px;
+        }
+
+        .flow-card:not(:last-child)::after {
+            content: ">";
+            position: absolute;
+            top: 50%;
+            right: -14px;
+            width: 14px;
+            transform: translateY(-50%);
+            color: var(--blue);
+            font-weight: 900;
+        }
+
+        .flow-card .label {
+            color: var(--muted);
+            font-size: 0.9rem;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .big-word {
+            display: inline-block;
+            margin: 0 0 16px;
+            border-radius: 8px;
+            background: #111827;
+            padding: 10px 14px;
+            color: white;
+            font-size: 1.2rem;
+            font-weight: 900;
+        }
+
+        .plain-diagram {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+            align-items: stretch;
+        }
+
+        .plain-step {
+            position: relative;
+            min-height: 220px;
+            border: 2px solid var(--line);
+            border-radius: 8px;
+            background: white;
+            padding: 24px 20px;
+        }
+
+        .plain-step:not(:last-child)::after {
+            content: ">";
+            position: absolute;
+            top: 50%;
+            right: -16px;
+            z-index: 2;
+            transform: translateY(-50%);
+            color: var(--blue);
+            font-size: 2rem;
+            font-weight: 900;
+        }
+
+        .plain-step strong {
+            color: var(--blue);
+        }
+
+        .example-query {
+            border-left: 7px solid var(--green);
+            border-radius: 8px;
+            background: #ffffff;
+            padding: 24px 28px;
+            color: #111827;
+            font-size: 1.55rem;
+            font-weight: 800;
+            line-height: 1.55;
+        }
+
+        .role-list {
+            display: grid;
+            gap: 16px;
+        }
+
+        .role-row {
+            display: grid;
+            grid-template-columns: 190px minmax(0, 1fr);
+            gap: 18px;
+            align-items: start;
+            border-bottom: 1px solid var(--line);
+            padding-bottom: 16px;
+        }
+
+        .role-row:last-child {
+            border-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .role-row .role-name {
+            color: var(--blue);
+            font-size: 1.35rem;
+            font-weight: 900;
+        }
+
+        .matrix {
+            display: grid;
+            grid-template-columns: 1.05fr 1fr;
+            gap: 20px;
+            align-items: start;
+        }
+
+        .diagram {
+            position: relative;
+            min-height: 392px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.8)),
+                repeating-linear-gradient(0deg, transparent, transparent 35px, rgba(37, 99, 235, 0.07) 36px),
+                repeating-linear-gradient(90deg, transparent, transparent 35px, rgba(15, 118, 110, 0.06) 36px);
+            padding: 22px;
+            overflow: hidden;
+        }
+
+        .concept-map {
+            display: grid;
+            gap: 16px;
+        }
+
+        .concept-row {
+            display: grid;
+            grid-template-columns: 220px minmax(0, 1fr);
+            gap: 18px;
+            align-items: center;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: white;
+            padding: 18px 20px;
+        }
+
+        .concept-row .concept-label {
+            color: var(--green);
+            font-size: 1.35rem;
+            font-weight: 900;
+        }
+
+        .node {
+            position: absolute;
+            display: grid;
+            place-items: center;
+            min-width: 104px;
+            min-height: 58px;
+            border: 2px solid #1f2937;
+            border-radius: 999px;
+            background: #ffffff;
+            padding: 10px 14px;
+            text-align: center;
+            font-weight: 900;
+            line-height: 1.2;
+            box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+        }
+
+        .node.small {
+            min-width: 88px;
+            min-height: 50px;
+            font-size: 0.9rem;
+        }
+
+        .node.blue {
+            border-color: var(--blue);
+            color: var(--blue);
+        }
+
+        .node.green {
+            border-color: var(--green);
+            color: var(--green);
+        }
+
+        .node.amber {
+            border-color: var(--amber);
+            color: var(--amber);
+        }
+
+        .node.rose {
+            border-color: var(--rose);
+            color: var(--rose);
+        }
+
+        .edge {
+            position: absolute;
+            height: 2px;
+            transform-origin: left center;
+            background: rgba(31, 41, 55, 0.36);
+        }
+
+        .edge.one {
+            top: 108px;
+            left: 152px;
+            width: 164px;
+            transform: rotate(16deg);
+        }
+
+        .edge.two {
+            top: 190px;
+            left: 135px;
+            width: 206px;
+            transform: rotate(-14deg);
+        }
+
+        .edge.three {
+            top: 228px;
+            left: 310px;
+            width: 160px;
+            transform: rotate(22deg);
+        }
+
+        .edge.four {
+            top: 116px;
+            left: 360px;
+            width: 136px;
+            transform: rotate(54deg);
+        }
+
+        .score-box {
+            display: grid;
+            gap: 12px;
+        }
+
+        .score-row {
+            display: grid;
+            grid-template-columns: 160px 1fr auto;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .bar {
+            height: 16px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: #e5e7eb;
+        }
+
+        .bar span {
+            display: block;
+            height: 100%;
+            border-radius: inherit;
+        }
+
+        .bar.vector span {
+            width: 78%;
+            background: var(--blue);
+        }
+
+        .bar.direct span {
+            width: 68%;
+            background: var(--green);
+        }
+
+        .bar.expanded span {
+            width: 32%;
+            background: var(--amber);
+        }
+
+        .bar.lexical span {
+            width: 46%;
+            background: var(--violet);
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            overflow: hidden;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: white;
+        }
+
+        .table th,
+        .table td {
+            border-bottom: 1px solid var(--line);
+            padding: 14px 16px;
+            text-align: left;
+            vertical-align: top;
+            font-size: 1.14rem;
+            line-height: 1.5;
+        }
+
+        .table th {
+            background: #eef2f7;
+            color: #111827;
+            font-weight: 900;
+        }
+
+        .table tr:last-child td {
+            border-bottom: 0;
+        }
+
+        .callout {
+            border-left: 6px solid var(--blue);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.86);
+            padding: 18px 20px;
+        }
+
+        .callout.green {
+            border-left-color: var(--green);
+        }
+
+        .callout.rose {
+            border-left-color: var(--rose);
+        }
+
+        .code-card {
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: #111827;
+            padding: 18px;
+            color: #dbeafe;
+            font-family: "Cascadia Code", "Consolas", monospace;
+            font-size: 1.05rem;
+            line-height: 1.58;
+            white-space: pre-wrap;
+        }
+
+        .compare {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            align-items: start;
+        }
+
+        .compare .panel:first-child {
+            border-top: 5px solid var(--green);
+        }
+
+        .compare .panel:last-child {
+            border-top: 5px solid var(--rose);
+        }
+
+        .controls {
+            position: fixed;
+            right: 22px;
+            bottom: 18px;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid rgba(15, 23, 42, 0.14);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.85);
+            padding: 7px;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+            backdrop-filter: blur(10px);
+        }
+
+        .controls button {
+            width: 36px;
+            height: 36px;
+            border: 0;
+            border-radius: 50%;
+            background: #172033;
+            color: white;
+            cursor: pointer;
+            font-weight: 900;
+        }
+
+        .controls button:disabled {
+            opacity: 0.38;
+            cursor: default;
+        }
+
+        .counter {
+            min-width: 58px;
+            text-align: center;
+            color: #334155;
+            font-size: 0.88rem;
+            font-weight: 800;
+        }
+
+        .progress {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 30;
+            height: 5px;
+            background: rgba(15, 23, 42, 0.12);
+        }
+
+        .progress span {
+            display: block;
+            height: 100%;
+            width: 0;
+            background: linear-gradient(90deg, var(--blue), var(--green), var(--amber));
+            transition: width 160ms ease;
+        }
+
+        @media (max-width: 1100px) {
+            body {
+                overflow: auto;
+            }
+
+            .deck,
+            .slide {
+                min-height: 100vh;
+                height: auto;
+                max-width: 100vw;
+            }
+
+            .slide {
+                padding: 42px 28px 84px;
+                overflow-x: hidden;
+            }
+
+            .slide.active {
+                display: block;
+            }
+
+            h1 {
+                font-size: 2rem;
+                line-height: 1.16;
+            }
+
+            h2 {
+                font-size: 1.62rem;
+            }
+
+            .grid-2,
+            .grid-3,
+            .matrix,
+            .compare,
+            .timeline,
+            .flow {
+                grid-template-columns: 1fr;
+            }
+
+            .flow-card:not(:last-child)::after {
+                display: none;
+            }
+
+            .diagram {
+                min-height: 360px;
+            }
+        }
+
+        @media print {
+            body {
+                overflow: visible;
+                background: white;
+            }
+
+            .deck {
+                height: auto;
+                background: white;
+            }
+
+            .slide,
+            .slide.active {
+                display: grid;
+                min-height: 100vh;
+                page-break-after: always;
+                background: white;
+            }
+
+            .controls,
+            .progress {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="deck" aria-live="polite">
+        <section class="slide active" data-title="표지">
+            <header>
+                <p class="eyebrow">AI Study - 10 minute talk</p>
+                <h1>Slogs LLM Wiki: Agent를 위한 기억 검색 아키텍처</h1>
+                <p class="lead">Slogs LLM Wiki는 사람이 남긴 결정과 선호를 검색 가능한 지식 자산으로 변환하고, Agent가 다음 작업에서 필요한 맥락을 먼저 회수하도록 설계된 시스템입니다.</p>
+                <div class="badge-row">
+                    <span class="badge">Gemma: 의미를 숫자로 번역</span>
+                    <span class="badge">pgvector: 유사 기억 검색</span>
+                    <span class="badge">GraphRAG: 관계 단서 보강</span>
+                    <span class="badge">Neo4j: 완전한 KG와 비교</span>
+                </div>
+            </header>
+            <div class="content grid-2">
+                <div class="panel">
+                    <h3>핵심 메시지</h3>
+                    <p>Slogs LLM Wiki는 Neo4j 같은 완전한 지식 그래프가 아니라, <strong>Agent가 필요한 기억을 정확히 회수하도록 만든 GraphRAG 검색 인덱스</strong>입니다.</p>
+                </div>
+                <div class="panel">
+                    <h3>오늘 다룰 범위</h3>
+                    <p>Gemma, pgvector, 그래프 신호, Neo4j와의 차이를 각각의 역할과 경계 중심으로 정리합니다.</p>
+                </div>
+            </div>
+            <footer class="footer">
+                <span>Slogs AI Study deck</span>
+                <span>2026-07-03</span>
+            </footer>
+        </section>
+
+        <section class="slide" data-title="개념 구조">
+            <header>
+                <p class="eyebrow">Conceptual flow</p>
+                <h2>전체 구조는 네 단계로 볼 수 있습니다</h2>
+            </header>
+            <div class="content plain-diagram">
+                <article class="plain-step">
+                    <span class="big-word">1. 기록</span>
+                    <h3>사용자가 남긴 결정</h3>
+                    <p>“이 프로젝트는 배포할 때 AOT를 기본으로 쓰지 않는다” 같은 결정과 선호를 저장합니다.</p>
+                </article>
+                <article class="plain-step">
+                    <span class="big-word">2. 번역</span>
+                    <h3>Gemma가 의미 벡터 생성</h3>
+                    <p>문장의 의미를 <strong>768차원 벡터</strong>로 변환해 비교 가능한 형태로 만듭니다.</p>
+                </article>
+                <article class="plain-step">
+                    <span class="big-word">3. 탐색</span>
+                    <h3>pgvector가 유사 기억 검색</h3>
+                    <p>질문과 의미가 가까운 기억을 벡터 거리 기준으로 찾아냅니다.</p>
+                </article>
+                <article class="plain-step">
+                    <span class="big-word">4. 보정</span>
+                    <h3>태그와 카테고리로 재정렬</h3>
+                    <p>제목, 태그, 카테고리 같은 관계 단서를 더해 관련도가 높은 기억을 위로 올립니다.</p>
+                </article>
+            </div>
+            <footer class="footer">
+                <span>이 네 단계가 Slogs LLM Wiki GraphRAG의 기본 구조입니다.</span>
+                <span></span>
+            </footer>
+        </section>
+
+        <section class="slide" data-title="문제">
+            <header>
+                <p class="eyebrow">Why</p>
+                <h2>왜 별도의 기억 검색 계층이 필요한가</h2>
+            </header>
+            <div class="content grid-3">
+                <article class="panel">
+                    <span class="number">1</span>
+                    <h3>세션 경계가 맥락을 끊습니다</h3>
+                    <p>개발 원칙, 배포 방식, 사용자 선호는 다음 세션에서도 동일하게 적용되어야 합니다.</p>
+                </article>
+                <article class="panel">
+                    <span class="number">2</span>
+                    <h3>표현이 달라지면 검색 품질이 떨어집니다</h3>
+                    <p>“AOT 쓰지 말기”와 “non-AOT 배포 정책”은 의미상 가깝지만, 단순 문자열 검색은 이를 놓칠 수 있습니다.</p>
+                </article>
+                <article class="panel">
+                    <span class="number">3</span>
+                    <h3>요약과 출처가 함께 필요합니다</h3>
+                    <p>현재 적용할 기억은 정리본으로 읽고, 최초 입력과 변경 이력은 출처로 보존합니다.</p>
+                </article>
+            </div>
+            <footer class="footer">
+                <span>목표: Agent가 작업 전에 관련 맥락을 먼저 회수하도록 만드는 것</span>
+                <span></span>
+            </footer>
+        </section>
+
+        <section class="slide" data-title="Gemma 역할">
+            <header>
+                <p class="eyebrow">EmbeddingGemma</p>
+                <h2>Gemma의 역할은 답변이 아니라 “의미 번역”입니다</h2>
+                <p class="lead">여기서 Gemma는 생성형 답변 모델로 쓰이지 않습니다. 문장을 의미 벡터로 바꾸는 임베딩 모델입니다.</p>
+            </header>
+            <div class="content grid-2">
+                <div class="panel">
+                    <h3>의미 공간</h3>
+                    <p>임베딩은 문장을 의미 공간의 좌표로 표현합니다. 의미가 가까운 문장은 좌표도 가깝게 배치됩니다.</p>
+                </div>
+                <div class="panel role-list">
+                    <div class="role-row">
+                        <div class="role-name">입력</div>
+                        <p>“Slogs 배포는 AOT를 기본으로 쓰지 않는다”</p>
+                    </div>
+                    <div class="role-row">
+                        <div class="role-name">출력</div>
+                        <p>768개의 숫자. 사람이 읽는 문장이 아니라, 데이터베이스가 거리 계산에 사용하는 좌표입니다.</p>
+                    </div>
+                    <div class="role-row">
+                        <div class="role-name">운영</div>
+                        <p>Slogs는 외부 API가 아니라 서버 안의 EmbeddingGemma를 GPU로 실행합니다.</p>
+                    </div>
+                </div>
+            </div>
+            <footer class="footer">
+                <span>핵심 표현: Gemma는 기억을 검색 가능한 의미 벡터로 변환합니다.</span>
+                <span></span>
+            </footer>
+        </section>
+
+        <section class="slide" data-title="pgvector 역할">
+            <header>
+                <p class="eyebrow">pgvector</p>
+                <h2>pgvector는 의미 벡터에서 가까운 기억을 찾습니다</h2>
+                <p class="lead">Gemma가 숫자 좌표를 만들면, PostgreSQL의 pgvector가 그 좌표끼리 얼마나 가까운지 계산합니다.</p>
+            </header>
+            <div class="content grid-2">
+                <div class="panel">
+                    <h3>역할</h3>
+                    <p>정확한 제목 매칭이 아니라, 의미 벡터 사이의 거리 계산으로 후보 기억을 좁힙니다.</p>
+                </div>
+                <div class="panel">
+                    <h3>Slogs에서는</h3>
+                    <ul>
+                        <li>모든 LLM Wiki 항목의 의미 좌표를 저장합니다.</li>
+                        <li>질문도 같은 방식으로 좌표로 바꿉니다.</li>
+                        <li>두 좌표가 가까운 항목을 후보로 가져옵니다.</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="content callout green">
+                <strong>정리:</strong> Gemma는 의미 벡터를 만들고, pgvector는 그 벡터로 의미상 가까운 기억을 찾습니다.
+            </div>
+            <footer class="footer">
+                <span>발표 표현: pgvector는 의미 벡터 검색을 PostgreSQL 안에서 수행하게 해주는 기능입니다.</span>
+                <span></span>
+            </footer>
+        </section>
+
+        <section class="slide" data-title="GraphRAG">
+            <header>
+                <p class="eyebrow">GraphRAG</p>
+                <h2>GraphRAG는 “의미 검색”에 “관계 단서”를 더하는 방식입니다</h2>
+            </header>
+            <div class="content grid-3">
+                <article class="panel">
+                    <span class="number">R</span>
+                    <h3>Retrieval</h3>
+                    <p>AI가 답하기 전에 관련 문서나 기억을 먼저 찾아옵니다. 이게 RAG의 기본입니다.</p>
+                </article>
+                <article class="panel">
+                    <span class="number">G</span>
+                    <h3>Graph</h3>
+                    <p>태그, 카테고리, 제목처럼 기억 사이를 이어주는 단서를 함께 봅니다.</p>
+                </article>
+                <article class="panel">
+                    <span class="number">+</span>
+                    <h3>Slogs 방식</h3>
+                    <p>벡터로 후보를 찾고, 그래프 단서로 “더 그럴듯한 기억”을 위로 올립니다.</p>
+                </article>
+            </div>
+            <footer class="footer">
+                <span>GraphRAG는 그래프 DB 사용 여부가 아니라, 검색에 관계 신호를 결합하는 접근입니다.</span>
+                <span></span>
+            </footer>
+        </section>
+
+        <section class="slide" data-title="저장 과정">
+            <header>
+                <p class="eyebrow">Write path</p>
+                <h2>Slogs는 저장할 때 두 종류의 인덱스를 만듭니다</h2>
+            </header>
+            <div class="content concept-map">
+                <div class="concept-row">
+                    <div class="concept-label">현재 기억</div>
+                    <p>Agent가 바로 적용할 수 있는 정리본입니다. “앞으로 이렇게 판단하라”는 형태로 남깁니다.</p>
+                </div>
+                <div class="concept-row">
+                    <div class="concept-label">원문 출처</div>
+                    <p>사용자가 실제로 말한 내용, 병합/수정 요청을 Raw Provenance로 보존합니다.</p>
+                </div>
+                <div class="concept-row">
+                    <div class="concept-label">의미 인덱스</div>
+                    <p>Gemma가 만든 768차원 의미 벡터입니다. 유사한 기억을 찾는 데 사용합니다.</p>
+                </div>
+                <div class="concept-row">
+                    <div class="concept-label">관계 인덱스</div>
+                    <p>태그, 카테고리 경로, 제목 핵심어 같은 단서입니다. 검색 결과 순위를 보정합니다.</p>
+                </div>
+            </div>
+            <footer class="footer">
+                <span>기억 본문과 함께, 검색 품질을 높이는 인덱스를 같이 저장합니다.</span>
+                <span></span>
+            </footer>
+        </section>
+
+        <section class="slide" data-title="검색 예시">
+            <header>
+                <p class="eyebrow">Example</p>
+                <h2>예: “Slogs 배포할 때 AOT 켜도 되나요?”</h2>
+            </header>
+            <div class="content">
+                <div class="example-query">사용자 질문: “Slogs 배포할 때 AOT 켜도 되나요?”</div>
+                <div class="plain-diagram" style="margin-top: 22px;">
+                    <article class="plain-step">
+                        <span class="big-word">Gemma</span>
+                        <h3>질문의 의미 벡터 생성</h3>
+                        <p>“AOT”, “배포”, “Slogs”가 들어간 질문을 비교 가능한 의미 좌표로 변환합니다.</p>
+                    </article>
+                    <article class="plain-step">
+                        <span class="big-word">pgvector</span>
+                        <h3>유사 기억 후보 검색</h3>
+                        <p>“일상 배포는 AOT 없이 진행한다” 같은 기억이 의미상 가까운 후보로 올라옵니다.</p>
+                    </article>
+                    <article class="plain-step">
+                        <span class="big-word">GraphRAG</span>
+                        <h3>관계 단서로 순위 보정</h3>
+                        <p>카테고리 <code>slogs/deployment</code>, 태그 <code>non-aot</code>가 있으면 더 강하게 봅니다.</p>
+                    </article>
+                    <article class="plain-step">
+                        <span class="big-word">Recall</span>
+                        <h3>회상 컨텍스트 반환</h3>
+                        <p>“일상 배포는 AOT 없이 진행한다”는 기억을 짧은 맥락으로 반환합니다.</p>
+                    </article>
+                </div>
+            </div>
+            <footer class="footer">
+                <span>이 흐름이 발표에서 가장 중요한 설명 포인트입니다.</span>
+                <span></span>
+            </footer>
+        </section>
+
+        <section class="slide" data-title="관계 단서">
+            <header>
+                <p class="eyebrow">Graph signal</p>
+                <h2>여기서 “그래프”는 이런 관계 단서입니다</h2>
+                <p class="lead">관계 단서는 검색 결과의 순위를 보정하는 메타데이터로 이해하면 됩니다.</p>
+            </header>
+            <div class="content">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>단서</th>
+                            <th>역할</th>
+                            <th>예시</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>태그</td>
+                            <td>기억에 붙은 짧은 라벨입니다.</td>
+                            <td><code>deployment</code>, <code>non-aot</code></td>
+                        </tr>
+                        <tr>
+                            <td>카테고리 경로</td>
+                            <td>기억을 넣어 둔 폴더 경로처럼 작동합니다.</td>
+                            <td><code>slogs/deployment/releases</code></td>
+                        </tr>
+                        <tr>
+                            <td>제목 핵심어</td>
+                            <td>제목에 들어간 중요한 말은 본문보다 강한 단서입니다.</td>
+                            <td>“Gemma 모델을 서버에서 실행한다”</td>
+                        </tr>
+                        <tr>
+                            <td>본문 핵심어</td>
+                            <td>기억 내용 안의 반복되는 단어도 보조 단서가 됩니다.</td>
+                            <td>“GPU”, “pgvector”, “GraphRAG”</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <footer class="footer">
+                <span>발표에서는 이를 “검색 결과의 순위를 보정하는 관계 단서”로 표현합니다.</span>
+                <span></span>
+            </footer>
+        </section>
+
+        <section class="slide" data-title="완전한 지식 그래프 여부">
+            <header>
+                <p class="eyebrow">Knowledge graph?</p>
+                <h2>완전한 지식 그래프인가요?</h2>
+                <p class="lead">아니요. Slogs의 목표는 완전한 지식 그래프 구축이 아니라, Agent 기억 검색의 정확도를 높이는 것입니다.</p>
+            </header>
+            <div class="content compare">
+                <article class="panel">
+                    <h3>Slogs에 있는 것</h3>
+                    <ul>
+                        <li>기억마다 태그와 카테고리 경로가 있습니다.</li>
+                        <li>비슷한 의미를 찾는 임베딩 벡터가 있습니다.</li>
+                        <li>검색 결과를 보정하는 관계 단서가 있습니다.</li>
+                    </ul>
+                </article>
+                <article class="panel">
+                    <h3>Slogs에 없는 것</h3>
+                    <ul>
+                        <li>사람, 회사, 프로젝트를 정식 엔티티로 모델링하지 않습니다.</li>
+                        <li>관계마다 타입과 방향을 정해 저장하지 않습니다.</li>
+                        <li>복잡한 그래프 탐색 질의 엔진은 없습니다.</li>
+                    </ul>
+                </article>
+            </div>
+            <div class="content callout">
+                <strong>정확한 표현:</strong> Slogs는 “완전한 지식 그래프”가 아니라 “그래프 신호를 붙인 RAG 기억 검색”입니다.
+            </div>
+            <footer class="footer">
+                <span>이 질문은 발표에서 꼭 짚고 넘어가는 게 좋습니다.</span>
+                <span></span>
+            </footer>
+        </section>
+
+        <section class="slide" data-title="Neo4j 비교">
+            <header>
+                <p class="eyebrow">Neo4j difference</p>
+                <h2>Neo4j와는 역할이 다릅니다</h2>
+            </header>
+            <div class="content">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>구분</th>
+                            <th>Slogs LLM Wiki</th>
+                            <th>Neo4j식 지식 그래프</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>목적</td>
+                            <td>Agent가 필요한 기억을 효율적으로 회수하게 하기</td>
+                            <td>도메인 객체와 관계를 명확히 분석하기</td>
+                        </tr>
+                        <tr>
+                            <td>저장 방식</td>
+                            <td>PostgreSQL 안에 문서, 벡터, 관계 단서를 함께 저장</td>
+                            <td>노드와 관계를 그래프 DB에 명시적으로 저장</td>
+                        </tr>
+                        <tr>
+                            <td>관계 의미</td>
+                            <td>태그/카테고리/제목이 같은 기억을 더 관련 있다고 봄</td>
+                            <td>“A가 B를 사용한다”처럼 관계 타입과 방향이 있음</td>
+                        </tr>
+                        <tr>
+                            <td>강점</td>
+                            <td>운영이 단순하고 Agent 메모리 검색에 맞음</td>
+                            <td>복잡한 관계 분석과 경로 탐색에 강함</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <footer class="footer">
+                <span>정리: Slogs는 기억 검색 엔진에 가깝고, Neo4j는 관계 분석 엔진에 가깝습니다.</span>
+                <span></span>
+            </footer>
+        </section>
+
+        <section class="slide" data-title="Agent 표면">
+            <header>
+                <p class="eyebrow">Agent interface</p>
+                <h2>Agent에게는 search와 recall로 보입니다</h2>
+            </header>
+            <div class="content grid-2">
+                <article class="panel">
+                    <span class="big-word">search</span>
+                    <h3>후보를 찾을 때</h3>
+                    <p>넓은 주제에서 관련 기억 목록을 훑습니다. “어떤 기억이 있는지” 먼저 보는 용도입니다.</p>
+                </article>
+                <article class="panel">
+                    <span class="big-word">recall</span>
+                    <h3>답변에 바로 쓸 때</h3>
+                    <p>현재 질문에 필요한 기억을 압축해서 가져옵니다. Agent는 이 내용을 보고 답하거나 작업합니다.</p>
+                </article>
+            </div>
+            <div class="content callout green">
+                <strong>품질 확인:</strong> 결과 수, 관련도 기준, 걸린 시간 같은 Retrieval Diagnostics가 함께 나와서 검색이 잘 됐는지 점검할 수 있습니다.
+            </div>
+            <footer class="footer">
+                <span>발표에서는 도구 이름보다 후보 검색과 맥락 회상이라는 역할로 설명합니다.</span>
+                <span></span>
+            </footer>
+        </section>
+
+        <section class="slide" data-title="마무리">
+            <header>
+                <p class="eyebrow">Wrap up</p>
+                <h2>최종 정리</h2>
+                <p class="lead">Slogs LLM Wiki는 사람이 남긴 결정과 선호를 Gemma로 의미 좌표화하고, pgvector와 관계 단서로 다시 찾아서, Agent가 맥락을 잃지 않게 만드는 시스템입니다.</p>
+            </header>
+            <div class="content grid-3">
+                <article class="panel">
+                    <h3>Gemma</h3>
+                    <p>문장을 검색 가능한 의미 벡터로 변환합니다.</p>
+                </article>
+                <article class="panel">
+                    <h3>pgvector</h3>
+                    <p>숫자 좌표에서 가까운 기억을 찾는 검색 엔진입니다.</p>
+                </article>
+                <article class="panel">
+                    <h3>GraphRAG</h3>
+                    <p>태그, 카테고리, 제목 같은 관계 단서로 검색을 더 정확하게 만듭니다.</p>
+                </article>
+            </div>
+            <footer class="footer">
+                <span>끝</span>
+                <span></span>
+            </footer>
+        </section>
+    </main>
+
+    <nav class="controls" aria-label="slide navigation">
+        <button type="button" id="previous" title="Previous slide">&lt;</button>
+        <span class="counter" id="counter">1 / 13</span>
+        <button type="button" id="next" title="Next slide">&gt;</button>
+    </nav>
+    <div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
+
+    <script>
+        const slides = Array.from(document.querySelectorAll(".slide"));
+        const previous = document.getElementById("previous");
+        const next = document.getElementById("next");
+        const counter = document.getElementById("counter");
+        const progressBar = document.getElementById("progressBar");
+        let currentIndex = 0;
+
+        function showSlide(index) {
+            currentIndex = Math.max(0, Math.min(index, slides.length - 1));
+            slides.forEach((slide, slideIndex) => {
+                slide.classList.toggle("active", slideIndex === currentIndex);
+            });
+            previous.disabled = currentIndex === 0;
+            next.disabled = currentIndex === slides.length - 1;
+            counter.textContent = `${currentIndex + 1} / ${slides.length}`;
+            progressBar.style.width = `${((currentIndex + 1) / slides.length) * 100}%`;
+            const title = slides[currentIndex].dataset.title || "slide";
+            history.replaceState(null, "", `#${currentIndex + 1}-${encodeURIComponent(title)}`);
+        }
+
+        previous.addEventListener("click", () => showSlide(currentIndex - 1));
+        next.addEventListener("click", () => showSlide(currentIndex + 1));
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "ArrowRight" || event.key === "PageDown" || event.key === " ") {
+                event.preventDefault();
+                showSlide(currentIndex + 1);
+            }
+            if (event.key === "ArrowLeft" || event.key === "PageUp") {
+                event.preventDefault();
+                showSlide(currentIndex - 1);
+            }
+            if (event.key === "Home") {
+                event.preventDefault();
+                showSlide(0);
+            }
+            if (event.key === "End") {
+                event.preventDefault();
+                showSlide(slides.length - 1);
+            }
+        });
+
+        const initialHash = window.location.hash.match(/^#(\d+)/);
+        showSlide(initialHash ? Number.parseInt(initialHash[1], 10) - 1 : 0);
+    </script>
+</body>
+</html>

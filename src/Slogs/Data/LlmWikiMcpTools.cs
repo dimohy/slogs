@@ -59,7 +59,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
     [McpServerTool(Name = "llm_wiki_capture")]
     [Description("Start here when considering whether to remember a prompt or coding result. This does not store anything; it returns related memories and storage criteria for read, merge, update, or remember decisions.")]
     public async Task<string> CaptureAsync(
-        [Description("The current user prompt, durable preference, decision, coding request, tacit workflow knowledge, or workflow fact being considered for memory.")] string prompt,
+        [Description("The current user prompt, correction or adjustment prompt, durable preference, decision, coding request, tacit workflow knowledge, or workflow fact being considered for memory.")] string prompt,
         [Description("Optional answer, implementation result, or extra context from the current turn.")] string? content = null,
         [Description("Optional comma-separated tags to help search related memory.")] string? tags = null,
         [Description("Maximum number of related entries to return.")] int limit = 5)
@@ -81,7 +81,8 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         builder.AppendLine("- Choose an explicit `categoryPath` such as `project/domain/topic` before remember, merge, or update when the project/topic is known.");
         builder.AppendLine("- If none match and the information is durable tacit knowledge, call `llm_wiki_remember` with that `categoryPath`.");
         builder.AppendLine("- Raw prompt/content/title/tags/categoryPath submitted through remember, merge, and update are preserved as Raw Provenance for later audit; do not remove prior raw evidence when composing merged wording.");
-        builder.AppendLine("- Durable tacit knowledge means future LLMs can use it to document, automate, reproduce, or make decisions: corrected terminology, judgment criteria, repeatable workflows, operating rules, verified root causes, restart points, hidden prerequisites, or runbook-worthy command flows.");
+        builder.AppendLine("- Durable tacit knowledge means future LLMs can use it to document, automate, reproduce, or make decisions: corrected terminology, correction or adjustment prompts, judgment criteria, repeatable workflows, operating rules, verified root causes, restart points, hidden prerequisites, or runbook-worthy command flows.");
+        builder.AppendLine("- If the user corrected an unwanted conversation direction, structure the memory around the unwanted development, the intended direction, avoid-next-time pattern, proactive judgment criteria, and applicable scope rather than storing only the raw correction text.");
         builder.AppendLine("- Do not store sensitive information, one-time logs, temporary execution traces, unverified speculation, simple facts recoverable from current files, or intermediate state that only matters in this turn.");
         builder.AppendLine("- Avoid interrupting the user for routine memory choices; ask only when sensitivity or scope is genuinely ambiguous.");
         builder.AppendLine();
