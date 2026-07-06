@@ -13,45 +13,21 @@
          NoIndex="@ShouldNoIndex"
          JsonLd="@(SeoMetadata.WebSiteJsonLd(Navigation.BaseUri))" />
 
-<div class="mb-4 rounded-2xl border border-slate-200 bg-white px-5 py-4">
-    <div class="flex flex-wrap gap-2" data-enhance-nav="false">
-        <a class="@GetDiscoveryTabClass("trending")" href="@TrendingHref" @onclick="() => NavigateHomeLink(TrendingHref)" @onclick:preventDefault="true">트렌딩</a>
-        <a class="@GetDiscoveryTabClass("recommended")" href="@RecommendedHref" @onclick="() => NavigateHomeLink(RecommendedHref)" @onclick:preventDefault="true">추천</a>
-        <a class="@GetDiscoveryTabClass("recent")" href="@RecentHref" @onclick="() => NavigateHomeLink(RecentHref)" @onclick:preventDefault="true">최신</a>
-        <a class="@GetDiscoveryTabClass("feed")" href="@FeedHref" @onclick="() => NavigateHomeLink(FeedHref)" @onclick:preventDefault="true">피드</a>
+<div class="slogs-home-tabs mb-4 flex flex-wrap items-center gap-2" data-enhance-nav="false">
+    <div class="flex flex-wrap gap-2">
+        <a class="@GetDiscoveryTabClass("trending")" href="@TrendingHref" @onclick="() => NavigateHomeLink(TrendingHref)" @onclick:preventDefault="true">반응 로그</a>
+        <a class="@GetDiscoveryTabClass("recommended")" href="@RecommendedHref" @onclick="() => NavigateHomeLink(RecommendedHref)" @onclick:preventDefault="true">추천 회상</a>
+        <a class="@GetDiscoveryTabClass("recent")" href="@RecentHref" @onclick="() => NavigateHomeLink(RecentHref)" @onclick:preventDefault="true">새 로그</a>
+        <a class="@GetDiscoveryTabClass("feed")" href="@FeedHref" @onclick="() => NavigateHomeLink(FeedHref)" @onclick:preventDefault="true">팔로우 로그</a>
     </div>
-    <div class="mt-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
-        <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <h1 class="text-xl font-bold text-slate-900">
-                @(string.IsNullOrWhiteSpace(Query)
-                    ? GetDiscoveryTitle()
-                    : $"\"{GetDisplayedQuery()}\" 검색 결과")
-            </h1>
-            <p class="text-sm text-slate-500">@GetDiscoveryDescription()</p>
-        </div>
 
-        @if (!string.IsNullOrWhiteSpace(Query))
-        {
-            <a class="inline-flex rounded-full border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-               href="@GetHomeQuery(sort: normalizedSort, feed: normalizedFeed)">
-                검색 초기화
-            </a>
-        }
-    </div>
-</div>
-
-@{
-    var allFeedHref = GetHomeQuery(sort: null, feed: null);
-    var followingFeedHref = GetHomeQuery(sort: null, feed: "following");
-}
-
-<div class="mb-3 flex flex-wrap gap-2" data-enhance-nav="false">
-    <a class="@GetFeedChipClass(null)" href="@allFeedHref" @onclick="@(() => NavigateHomeLink(allFeedHref))" @onclick:preventDefault="true">전체</a>
-    <a class="@GetFeedChipClass("following")" href="@followingFeedHref" @onclick="@(() => NavigateHomeLink(followingFeedHref))" @onclick:preventDefault="true">팔로우</a>
-</div>
-
-<div class="mb-2 flex items-center justify-between gap-3 text-sm text-slate-500">
-    <span>@($"{totalCount}개 글")</span>
+    @if (!string.IsNullOrWhiteSpace(Query))
+    {
+        <a class="inline-flex rounded-full border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+           href="@GetHomeQuery(sort: normalizedSort, feed: normalizedFeed)">
+            회상 초기화
+        </a>
+    }
 </div>
 
     @if (!string.IsNullOrWhiteSpace(displayedSearchMessage))
@@ -74,16 +50,16 @@
     @if (IsFollowingFeed && string.IsNullOrWhiteSpace(Query) && CurrentUser is not null)
     {
         <div class="slogs-post-list-empty rounded-2xl border border-slate-200 bg-white p-4">
-            <p class="text-slate-500">팔로우한 작성자의 최신 글이 아직 없습니다.</p>
+            <p class="text-slate-500">팔로우한 슬로거의 공개 로그가 아직 없습니다.</p>
             <a class="mt-2 inline-block rounded-full border border-slate-300 bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
                href="/writer">
-                작성자 찾아보기
+                슬로거 찾아보기
             </a>
         </div>
     }
     else
     {
-        <p class="slogs-post-list-empty rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">조건에 맞는 글이 없습니다.</p>
+        <p class="slogs-post-list-empty rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">조건에 맞는 로그가 없습니다.</p>
     }
 }
 else
@@ -96,7 +72,7 @@ else
                  data-card-click-href="@GetPostUrl(post)"
                  tabindex="0"
                  role="link"
-                 aria-label="@($"{post.Title} 상세 보기")">
+                 aria-label="@($"{post.Title} 로그 열기")">
             <PostCardImage Post="post" PostUrl="@GetPostUrl(post)" Priority="@IsPriorityCardImage(index)" />
             <PostMetaLine Post="post" />
 
@@ -129,7 +105,7 @@ else
                         IsLoading="@isLoadingMorePosts"
                         OnLoadMore="LoadMorePostsAsync"
                         ShowDoneText="@(totalCount > PageSize)"
-                        DoneText="모든 글을 불러왔습니다." />
+                        DoneText="모든 로그를 불러왔습니다." />
 @code {
     private const int PageSize = 6;
     private const string TrendingHref = "/trending";
@@ -277,22 +253,22 @@ else
 
         if (string.IsNullOrWhiteSpace(Query) && IsFollowingFeed && CurrentUser is null)
         {
-            displayedSearchMessage = "팔로우 피드는 로그인 후 이용 가능합니다.";
+            displayedSearchMessage = "팔로우 로그 스트림은 로그인 후 이용 가능합니다.";
         }
         else if (string.IsNullOrWhiteSpace(Query) && IsFollowingFeed && !allPosts.Any())
         {
-            displayedSearchMessage = "팔로우한 작성자가 없습니다. 작성자 페이지에서 팔로우해 보세요.";
+            displayedSearchMessage = "팔로우한 슬로거가 없습니다. 슬로거 홈에서 팔로우해 보세요.";
         }
 
         if (IsSearchOnlyPrefix(Query))
         {
-            displayedSearchMessage = $"{GetDisplayedQuery()} 뒤에 검색어를 입력해 주세요.";
+            displayedSearchMessage = $"{GetDisplayedQuery()} 뒤에 회상할 단서를 입력해 주세요.";
         }
         else if (!string.IsNullOrWhiteSpace(Query) && allPosts.Count == 0)
         {
             displayedSearchMessage = IsFollowingFeed
-                ? $"팔로우 피드에서 \"{GetDisplayedQuery()}\"에 대한 검색 결과가 없습니다."
-                : $"\"{GetDisplayedQuery()}\"에 대한 검색 결과가 없습니다.";
+                ? $"팔로우 로그 스트림에서 \"{GetDisplayedQuery()}\"에 대한 회상 결과가 없습니다."
+                : $"\"{GetDisplayedQuery()}\"에 대한 회상 결과가 없습니다.";
         }
 
         allPosts = SortPosts(allPosts);
@@ -477,10 +453,10 @@ else
     {
         return discoveryMode switch
         {
-            "trending" => "트렌딩",
-            "recommended" => "추천 글",
-            "feed" => "팔로우 피드",
-            _ => "최신 글"
+            "trending" => "반응이 모이는 로그",
+            "recommended" => "의미로 추천된 로그",
+            "feed" => "팔로우 로그 스트림",
+            _ => "새 로그 스트림"
         };
     }
 
@@ -488,10 +464,10 @@ else
     {
         return discoveryMode switch
         {
-            "trending" => "slogs에서 반응이 높은 글을 먼저 보여줍니다.",
-            "recommended" => "참여도와 글 정보를 바탕으로 읽을 만한 글을 추천합니다.",
-            "feed" => "팔로우한 작성자의 글만 모아 봅니다.",
-            _ => "slogs에 올라온 새 글을 빠르게 살펴봅니다."
+            "trending" => "조회, 대화 흔적, 공감으로 다시 이어지는 공개 로그를 먼저 봅니다.",
+            "recommended" => "참여 신호와 태그, 시리즈, 읽기 시간을 조합해 이어 읽을 로그를 고릅니다.",
+            "feed" => "팔로우한 슬로거가 남긴 공개 로그 흐름만 따라갑니다.",
+            _ => "사람과 AI가 이어 쓰는 공개 지식 로그 흐름입니다."
         };
     }
 
@@ -499,14 +475,14 @@ else
     {
         return string.IsNullOrWhiteSpace(Query)
             ? $"{GetDiscoveryTitle()} | slogs"
-            : $"{GetDisplayedQuery()} 검색 결과 | slogs";
+            : $"{GetDisplayedQuery()} 의미 회상 결과 | slogs";
     }
 
     private string GetSeoDescription()
     {
         return string.IsNullOrWhiteSpace(Query)
             ? GetDiscoveryDescription()
-            : $"slogs에서 {GetDisplayedQuery()} 검색 결과를 확인합니다.";
+            : $"slogs에서 {GetDisplayedQuery()} 의미 회상 결과를 확인합니다.";
     }
 
     private string GetSeoCanonicalPath()
@@ -651,20 +627,6 @@ else
         var isActive = (target == "latest" ? string.IsNullOrWhiteSpace(current) || current == "latest" : current == target);
 
         return isActive
-            ? "rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white"
-            : "rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100";
-    }
-
-    private string GetFeedChipClass(string? feed)
-    {
-        if (string.IsNullOrWhiteSpace(feed))
-        {
-            return string.IsNullOrWhiteSpace(normalizedFeed)
-                ? "rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white"
-                : "rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100";
-        }
-
-        return string.Equals(feed, normalizedFeed, StringComparison.OrdinalIgnoreCase)
             ? "rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white"
             : "rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100";
     }

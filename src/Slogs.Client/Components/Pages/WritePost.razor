@@ -2,8 +2,8 @@
 @inject SlogsApiClient ApiClient
 @inject SlogsAuthState AuthState
 @inject NavigationManager Navigation
-<PageTitle>글쓰기</PageTitle>
-<SeoHead Title="글쓰기 | slogs" Description="slogs에 새 글을 작성합니다." NoIndex="true" />
+<PageTitle>로그 남기기</PageTitle>
+<SeoHead Title="로그 남기기 | slogs" Description="slogs에 새 로그를 남깁니다." NoIndex="true" />
 
 @if (CurrentUser is null)
 {
@@ -11,7 +11,7 @@
 }
 else
 {
-    <h1 class="text-2xl font-bold text-slate-900">새 글 쓰기</h1>
+    <h1 class="text-2xl font-bold text-slate-900">새 로그 남기기</h1>
 
     <div class="mt-4 grid min-w-0 gap-3">
         <label class="text-sm font-semibold text-slate-700" for="write-title">제목</label>
@@ -55,7 +55,7 @@ else
             </button>
             <button class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                     type="button" @onclick="Publish" disabled="@isSaving">
-                @((isSaving && savingAction == "publish") ? "게시 중..." : "게시")
+                @((isSaving && savingAction == "publish") ? "공유 중..." : "공개 공유")
             </button>
             <button class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
                     type="button" @onclick="Cancel">취소</button>

@@ -2,8 +2,8 @@
 @inject SlogsAuthState AuthState
 @inject NavigationManager Navigation
 
-<PageTitle>설정</PageTitle>
-<SeoHead Title="설정 | slogs" Description="Slogs 계정, 프로필, Slogs MCP 연결을 설정합니다." NoIndex="true" />
+<PageTitle>지식 로그 연결</PageTitle>
+<SeoHead Title="지식 로그 연결 | slogs" Description="Slogs 계정, Agent/MCP, LLM Wiki, Obsidian Sync 연결을 설정합니다." NoIndex="true" />
 
 @if (CurrentUser is null)
 {
@@ -14,10 +14,44 @@ else
     <section class="space-y-5">
         <div class="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4">
             <div>
-                <h1 class="text-2xl font-bold text-slate-900">설정</h1>
-                <p class="mt-1 text-sm text-slate-500">@CurrentUser.DisplayName 님의 계정과 Slogs MCP 연결을 관리합니다.</p>
+                <h1 class="text-2xl font-bold text-slate-900">지식 로그 연결</h1>
+                <p class="mt-1 text-sm text-slate-500">@CurrentUser.DisplayName 님의 프로필, Agent, 기억, 로컬 노트, 공개 로그 흐름을 관리합니다.</p>
             </div>
         </div>
+
+        <section class="settings-connection-layer rounded-2xl border border-slate-200 bg-white p-5" data-settings-connection-layer>
+            <div class="max-w-3xl">
+                <p class="text-xs font-bold text-slate-500">연결 계층</p>
+                <h2 class="mt-1 text-xl font-black text-slate-900">기억과 노트가 로그로 이어지는 경로</h2>
+                <p class="mt-2 text-sm leading-6 text-slate-600">Agent는 비공개 기억을 회상하고, Obsidian은 로컬 노트를 원격 Vault에 남기며, 검토된 단서는 게시전 로그와 공개 공유로 이어집니다.</p>
+            </div>
+            <div class="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4" data-settings-connection-flow>
+                <a class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 transition hover:bg-slate-100"
+                   href="/me/settings#agent-mcp-connection"
+                   data-settings-connection-step="agent">
+                    <span class="block text-sm font-black text-slate-900">Agent / MCP</span>
+                    <span class="mt-1 block text-xs leading-5 text-slate-500">회상, 초안, 명시적 공유를 수행합니다.</span>
+                </a>
+                <a class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 transition hover:bg-slate-100"
+                   href="/me/llm-wiki/search"
+                   data-settings-connection-step="memory">
+                    <span class="block text-sm font-black text-slate-900">LLM Wiki 회상</span>
+                    <span class="mt-1 block text-xs leading-5 text-slate-500">판단 기준과 작업 맥락을 찾습니다.</span>
+                </a>
+                <a class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 transition hover:bg-slate-100"
+                   href="/me/settings#obsidian-sync-connection"
+                   data-settings-connection-step="obsidian">
+                    <span class="block text-sm font-black text-slate-900">Obsidian Sync</span>
+                    <span class="mt-1 block text-xs leading-5 text-slate-500">로컬 Markdown을 원격 Vault에 남깁니다.</span>
+                </a>
+                <a class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 transition hover:bg-slate-100"
+                   href="/write"
+                   data-settings-connection-step="log">
+                    <span class="block text-sm font-black text-slate-900">Slogs 로그</span>
+                    <span class="mt-1 block text-xs leading-5 text-slate-500">게시전 검토 후 리비전으로 공유합니다.</span>
+                </a>
+            </div>
+        </section>
 
         <ProfileSettingsForm />
         <LlmWikiMcpSettings />

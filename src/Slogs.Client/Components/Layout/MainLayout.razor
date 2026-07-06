@@ -14,17 +14,20 @@
         <div class="slogs-app-header__inner mx-auto flex w-full flex-wrap items-center gap-3 px-4 py-3 md:flex-nowrap">
             <a class="slogs-brand" href="/" aria-label="slogs 홈">
                 <img class="slogs-brand__icon" src="@Assets["favicon.svg"]" alt="" width="32" height="32" />
-                <span class="slogs-brand__wordmark">slogs</span>
+                <span class="slogs-brand__text">
+                    <span class="slogs-brand__wordmark">slogs</span>
+                    <span class="slogs-brand__tagline">사람과 AI가 이어 쓰는 지식 로그</span>
+                </span>
             </a>
 
-            <div class="slogs-header-search order-3 flex w-full min-w-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 xl:order-none xl:w-auto xl:flex-1">
+            <div class="slogs-header-search order-3 flex min-w-0 items-center gap-2 border border-slate-200 bg-white px-3 py-2 xl:order-none">
                 <input class="min-w-0 flex-1 border-0 bg-transparent text-sm text-slate-700 outline-none"
-                       @bind="searchTerm" @bind:event="oninput" placeholder="검색어, #태그, @@작성자, series:시리즈"
-                       aria-label="전역 검색어 입력"
+                       @bind="searchTerm" @bind:event="oninput" placeholder="키워드, #태그, @@@@슬로거"
+                       aria-label="전역 의미 회상어 입력"
                        @onkeydown="HandleSearchKeyDown" />
                 <button class="rounded-full bg-slate-900 px-3 py-1 text-sm font-semibold text-white transition hover:bg-slate-800"
                         type="button" @onclick="GoSearch">
-                    검색
+                    회상
                 </button>
             </div>
 
@@ -36,10 +39,10 @@
                 }
                 else
                 {
-                    <a class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
-                       href="/me">내 글</a>
-                    <a class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
-                       href="/write">글쓰기</a>
+                    <a class="slogs-header-auth-shortcut rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
+                       href="/me">내 로그</a>
+                    <a class="slogs-header-auth-shortcut rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
+                       href="/write">로그 남기기</a>
                     <details class="slogs-account-menu relative">
                         <summary class="list-none rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-200">
                             @CurrentUser.DisplayName

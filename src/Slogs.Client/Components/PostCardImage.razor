@@ -4,7 +4,7 @@
 {
     <a class="post-card-media mb-3 block overflow-hidden rounded-xl border border-slate-200 bg-slate-100"
        href="@PostUrl"
-       aria-label="@($"{Post.Title} 대표 이미지로 상세 보기")">
+       aria-label="@($"{Post.Title} 대표 이미지로 로그 열기")">
         <img src="@image.Url"
              alt="@GetAltText()"
              loading="@LoadingMode"
@@ -84,7 +84,7 @@
             return image.AltText;
         }
 
-        return string.IsNullOrWhiteSpace(Post.Title) ? "포스트 이미지" : Post.Title;
+        return string.IsNullOrWhiteSpace(Post.Title) ? "로그 이미지" : Post.Title;
     }
 
     private void HandleImageError()

@@ -4,24 +4,24 @@
 @inject NavigationManager NavigationManager
 
 <PageTitle>태그 - @Tag</PageTitle>
-<SeoHead Title="@($"#{Tag} 글 | slogs")"
-         Description="@($"slogs에서 #{Tag} 태그가 붙은 개발 글 {totalCount}개를 확인합니다.")"
+<SeoHead Title="@($"#{Tag} 로그 | slogs")"
+         Description="@($"slogs에서 #{Tag} 단서가 붙은 공개 로그 {totalCount}개를 확인합니다.")"
          CanonicalPath="@GetTagPath()"
          NoIndex="@(totalCount == 0)"
-         JsonLd="@(SeoMetadata.CollectionPageJsonLd(NavigationManager.BaseUri, GetTagPath(), $"#{Tag} 글", $"slogs에서 #{Tag} 태그가 붙은 개발 글을 확인합니다."))" />
+         JsonLd="@(SeoMetadata.CollectionPageJsonLd(NavigationManager.BaseUri, GetTagPath(), $"#{Tag} 로그", $"slogs에서 #{Tag} 단서가 붙은 공개 로그를 확인합니다."))" />
 
 <h1 class="text-2xl font-bold text-slate-900">#@Tag</h1>
 
 <div class="mb-3 mt-1 flex flex-wrap gap-2">
     <a class="@GetSortChipClass(null)" href="@GetSortQuery(null)">최신</a>
-    <a class="@GetSortChipClass("popular")" href="@GetSortQuery("popular")">인기</a>
+    <a class="@GetSortChipClass("popular")" href="@GetSortQuery("popular")">반응</a>
     <a class="@GetSortChipClass("updated")" href="@GetSortQuery("updated")">최신 업데이트</a>
 </div>
 
 <section class="slogs-post-list-grid mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
     @if (!posts.Any())
     {
-        <p class="slogs-post-list-empty rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">해당 태그 글이 없습니다.</p>
+        <p class="slogs-post-list-empty rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">해당 단서 로그가 없습니다.</p>
     }
     else
     {
@@ -32,7 +32,7 @@
                      data-card-click-href="@GetPostUrl(post)"
                      tabindex="0"
                      role="link"
-                     aria-label="@($"{post.Title} 상세 보기")">
+                     aria-label="@($"{post.Title} 로그 열기")">
                 <PostCardImage Post="post" PostUrl="@GetPostUrl(post)" Priority="@IsPriorityCardImage(index)" />
                 <a class="mb-2 block text-xl font-bold text-slate-900 hover:underline" href="@GetPostUrl(post)">@post.Title</a>
                 <PostMetaLine Post="post" ShowComments="true" />
@@ -62,7 +62,7 @@
                         IsLoading="@isLoadingMorePosts"
                         OnLoadMore="LoadMorePostsAsync"
                         ShowDoneText="@(allPosts.Count > PageSize)"
-                        DoneText="모든 글을 불러왔습니다." />
+                        DoneText="모든 로그를 불러왔습니다." />
 
 @code {
     private const int PageSize = 6;

@@ -44,6 +44,7 @@ else
                         }
                     </div>
                     <div class="slogger-hero__copy">
+                        <p class="slogger-hero__eyebrow">public knowledge-log home</p>
                         <h1 class="slogger-hero__name">@GetSloggerDisplayName()</h1>
                         <p class="slogger-hero__address">@GetSloggerAddress()</p>
                     </div>
@@ -72,25 +73,29 @@ else
 
             <p class="mt-5 max-w-3xl text-base leading-7 text-slate-700">@GetSloggerBio()</p>
 
+            <div class="mt-4" aria-label="slogger knowledge-log signals">
+                <span class="text-sm font-semibold text-slate-500">생각, 작업, 판단, 검증이 시간순 로그로 이어집니다.</span>
+            </div>
+
             <div class="mt-5 grid grid-cols-2 gap-2 md:grid-cols-5">
                 <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
-                    <p class="text-xs font-semibold text-slate-500">글</p>
+                    <p class="text-xs font-semibold text-slate-500">공개 로그</p>
                     <p class="mt-1 text-xl font-black text-slate-900">@totalCount</p>
                 </div>
                 <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
-                    <p class="text-xs font-semibold text-slate-500">좋아요</p>
+                    <p class="text-xs font-semibold text-slate-500">공감 신호</p>
                     <p class="mt-1 text-xl font-black text-slate-900">@totalLikeCount</p>
                 </div>
                 <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
-                    <p class="text-xs font-semibold text-slate-500">댓글</p>
+                    <p class="text-xs font-semibold text-slate-500">대화 흔적</p>
                     <p class="mt-1 text-xl font-black text-slate-900">@totalCommentCount</p>
                 </div>
                 <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
-                    <p class="text-xs font-semibold text-slate-500">조회</p>
+                    <p class="text-xs font-semibold text-slate-500">회상 진입</p>
                     <p class="mt-1 text-xl font-black text-slate-900">@totalViewCount</p>
                 </div>
                 <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
-                    <p class="text-xs font-semibold text-slate-500">가입</p>
+                    <p class="text-xs font-semibold text-slate-500">시작 지점</p>
                     <p class="mt-1 text-base font-black text-slate-900">@FormatDate(writerProfile?.RegisteredAt ?? DateTime.UtcNow)</p>
                 </div>
             </div>
@@ -101,20 +106,20 @@ else
         <article class="rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-2">
             <div class="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                    <p class="text-xs font-bold text-slate-500">대표</p>
-                    <h2 class="mt-1 text-xl font-black text-slate-900">대표 글</h2>
+                    <p class="text-xs font-bold text-slate-500">featured memory node</p>
+                    <h2 class="mt-1 text-xl font-black text-slate-900">대표 지식 로그</h2>
                 </div>
                 @if (featuredPost is not null)
                 {
                     <a class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-                       href="@GetPostUrl(featuredPost)">읽기</a>
+                       href="@GetPostUrl(featuredPost)">로그 열기</a>
                 }
             </div>
 
             @if (featuredPost is null)
             {
                 <div class="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5">
-                    <p class="text-sm font-semibold text-slate-500">대표로 보여줄 글이 없습니다.</p>
+                    <p class="text-sm font-semibold text-slate-500">대표로 보여줄 공개 로그가 없습니다.</p>
                 </div>
             }
             else
@@ -135,19 +140,19 @@ else
         </article>
 
         <aside class="rounded-2xl border border-slate-200 bg-white p-5">
-            <p class="text-xs font-bold text-slate-500">프로필</p>
-            <h2 class="mt-1 text-xl font-black text-slate-900">슬로거 카드</h2>
+            <p class="text-xs font-bold text-slate-500">로그 출처</p>
+            <h2 class="mt-1 text-xl font-black text-slate-900">로그 단서</h2>
             <dl class="mt-4 grid gap-3 text-sm">
                 <div>
-                    <dt class="font-semibold text-slate-500">주소</dt>
+                    <dt class="font-semibold text-slate-500">공개 주소</dt>
                     <dd class="mt-1 font-bold text-slate-900">@GetSloggerAddress()</dd>
                 </div>
                 <div>
-                    <dt class="font-semibold text-slate-500">관심 태그</dt>
+                    <dt class="font-semibold text-slate-500">반복 단서</dt>
                     <dd class="mt-2 flex flex-wrap gap-2">
                         @if (tagCloud.Count == 0)
                         {
-                            <span class="text-slate-500">태그 없음</span>
+                            <span class="text-slate-500">아직 드러난 단서가 없습니다.</span>
                         }
                         else
                         {
@@ -160,11 +165,11 @@ else
                     </dd>
                 </div>
                 <div>
-                    <dt class="font-semibold text-slate-500">시리즈</dt>
+                    <dt class="font-semibold text-slate-500">로그 시리즈</dt>
                     <dd class="mt-2 flex flex-wrap gap-2">
                         @if (seriesCloud.Count == 0)
                         {
-                            <span class="text-slate-500">시리즈 없음</span>
+                            <span class="text-slate-500">묶인 로그 시리즈가 없습니다.</span>
                         }
                         else
                         {
@@ -183,14 +188,14 @@ else
     <section class="mt-4 rounded-2xl border border-slate-200 bg-white p-5">
         <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
-                <p class="text-xs font-bold text-slate-500">보관함</p>
-                <h2 class="mt-1 text-xl font-black text-slate-900">글 보관함</h2>
-                <p class="mt-1 text-sm text-slate-500">@($"{totalCount}개 글")</p>
+                <p class="text-xs font-bold text-slate-500">chronological log stream</p>
+                <h2 class="mt-1 text-xl font-black text-slate-900">공개 로그 스트림</h2>
+                <p class="mt-1 text-sm text-slate-500">@($"{totalCount}개 로그가 시간과 의미를 따라 이어집니다.")</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <a class="@GetSortChipClass(null)" href="@GetSortQuery(null)">최신</a>
-                <a class="@GetSortChipClass("popular")" href="@GetSortQuery("popular")">인기</a>
-                <a class="@GetSortChipClass("updated")" href="@GetSortQuery("updated")">최신 업데이트</a>
+                <a class="@GetSortChipClass(null)" href="@GetSortQuery(null)">새 로그</a>
+                <a class="@GetSortChipClass("popular")" href="@GetSortQuery("popular")">반응 로그</a>
+                <a class="@GetSortChipClass("updated")" href="@GetSortQuery("updated")">갱신 로그</a>
             </div>
         </div>
 
@@ -198,7 +203,7 @@ else
             @if (!posts.Any())
             {
                 <div class="slogs-post-list-empty rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 md:col-span-2">
-                    <p class="text-sm font-semibold text-slate-500">발행한 글이 없습니다.</p>
+                    <p class="text-sm font-semibold text-slate-500">공개된 로그가 없습니다.</p>
                 </div>
             }
             else
@@ -248,7 +253,7 @@ else
                         {
                             <div class="mt-3">
                                 <a class="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
-                                   href="@GetPostUrl(post)">게시전 수정</a>
+                                   href="@GetPostUrl(post)">게시전 로그 수정</a>
                             </div>
                         }
                         else
@@ -272,7 +277,7 @@ else
                             IsLoading="@isLoadingMorePosts"
                             OnLoadMore="LoadMorePostsAsync"
                             ShowDoneText="@(allVisiblePosts.Count > PageSize)"
-                            DoneText="모든 글을 불러왔습니다." />
+                            DoneText="모든 로그를 불러왔습니다." />
 }
 
 @code {
@@ -382,7 +387,7 @@ else
             : PostNavigationUrlBuilder.GlobalMenuContext;
 
     private static string GetPostCardAriaLabel(BlogPost post)
-        => post.IsDraft ? $"{post.Title} 게시전 수정" : $"{post.Title} 상세 보기";
+        => post.IsDraft ? $"{post.Title} 게시전 로그 수정" : $"{post.Title} 로그 열기";
 
     private static bool IsWriterIdentity(string? left, string? right)
         => NormalizeWriterIdentity(left).Equals(NormalizeWriterIdentity(right), StringComparison.OrdinalIgnoreCase);
@@ -543,7 +548,7 @@ else
             UserName = userName,
             DisplayName = string.IsNullOrWhiteSpace(writer) ? userName : writer,
             Email = string.Empty,
-            Bio = "slogs에서 글을 발행하는 슬로거입니다.",
+            Bio = "slogs에서 생각과 작업의 로그를 남기는 슬로거입니다.",
             RegisteredAt = posts.OrderBy(x => x.PublishedAt).FirstOrDefault()?.PublishedAt ?? DateTime.UtcNow
         };
     }
@@ -649,13 +654,13 @@ else
     private string GetSloggerBio()
     {
         return string.IsNullOrWhiteSpace(writerProfile?.Bio)
-            ? "slogs에서 생각과 작업 기록을 발행하는 슬로거입니다."
+            ? "slogs에서 생각, 작업, 판단, 검증의 로그를 남기는 슬로거입니다."
             : writerProfile.Bio;
     }
 
     private string GetSloggerSeoDescription()
     {
-        return $"{GetSloggerDisplayName()}의 slogs 홈입니다. {GetSloggerBio()} 발행 글 {totalCount}개, 팔로워 {followerCount}명.";
+        return $"{GetSloggerDisplayName()}의 slogs 공개 지식 로그 홈입니다. {GetSloggerBio()} 공개 로그 {totalCount}개, 팔로워 {followerCount}명.";
     }
 
     private string GetInitials()

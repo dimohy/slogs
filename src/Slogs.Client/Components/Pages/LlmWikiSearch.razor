@@ -3,8 +3,8 @@
 @inject SlogsApiClient ApiClient
 @inject NavigationManager Navigation
 
-<PageTitle>LLM Wiki 검색</PageTitle>
-<SeoHead Title="LLM Wiki 검색 | slogs" Description="개인 LLM Wiki를 검색하고 읽습니다." NoIndex="true" />
+<PageTitle>의미 회상</PageTitle>
+<SeoHead Title="의미 회상 | slogs" Description="개인 LLM Wiki 기억을 회상하고 Slogs 로그 초안으로 이어 씁니다." NoIndex="true" />
 
 @if (CurrentUser is null)
 {
@@ -15,17 +15,36 @@ else
     <section class="space-y-5">
         <div class="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4">
             <div>
-                <h1 class="text-2xl font-bold text-slate-900">LLM Wiki 검색</h1>
-                <p class="mt-1 text-sm text-slate-500">@CurrentUser.DisplayName 님의 LLM Wiki를 검색하고 읽습니다.</p>
+                <p class="text-xs font-bold text-slate-500">비공개 기억 회상</p>
+                <h1 class="mt-1 text-2xl font-bold text-slate-900">의미 회상</h1>
+                <p class="mt-1 text-sm text-slate-500">@CurrentUser.DisplayName 님의 판단과 작업 맥락을 찾아 게시전 로그 초안으로 이어 씁니다.</p>
             </div>
         </div>
 
+        <section class="llm-wiki-flow-panel rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" data-llm-wiki-recall-bridge="true">
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                    <p class="text-xs font-bold text-slate-500">기억에서 로그로</p>
+                    <h2 class="mt-1 text-lg font-bold text-slate-900">선택한 기억을 게시전 로그로 이어쓰기</h2>
+                </div>
+                <p class="max-w-2xl text-sm leading-6 text-slate-600">
+                    비공개 기억을 바로 공개하지 않고 초안으로 옮긴 뒤, 민감한 단서와 내부 맥락을 정리하고 리비전으로 공유 여부를 결정합니다.
+                </p>
+            </div>
+            <div class="llm-wiki-flow-panel__steps mt-4">
+                <span>비공개 기억</span>
+                <span>의미 회상</span>
+                <span>게시전 로그</span>
+                <span>리비전 공유</span>
+            </div>
+        </section>
+
         <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <h2 class="text-lg font-bold text-slate-900">검색</h2>
+                <h2 class="text-lg font-bold text-slate-900">기억 회상</h2>
                 <div class="flex min-w-0 flex-1 gap-2 md:max-w-lg">
                     <input class="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-500"
-                           placeholder="검색어"
+                           placeholder="의미, 판단 기준, 프로젝트 맥락"
                            @bind="searchQuery"
                            @bind:event="oninput"
                            @onkeydown="HandleSearchKeyDown" />
@@ -33,7 +52,7 @@ else
                             type="button"
                             disabled="@isSearching"
                             @onclick="SearchEntriesAsync">
-                        @(isSearching ? "검색 중..." : "검색")
+                        @(isSearching ? "회상 중..." : "회상")
                     </button>
                 </div>
             </div>
@@ -42,7 +61,7 @@ else
                 <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <p class="text-sm font-bold text-slate-900">카테고리</p>
-                        <p class="mt-1 text-xs text-slate-500">카테고리로 좁힌 뒤 아래 카드 그리드에서 Wiki를 선택합니다.</p>
+                        <p class="mt-1 text-xs text-slate-500">카테고리로 좁힌 뒤 아래 카드 그리드에서 이어 쓸 기억을 선택합니다.</p>
                     </div>
                     <span class="w-fit rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-slate-500">@($"{categories.Count}개")</span>
                 </div>
@@ -93,7 +112,7 @@ else
                     <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                             <p class="text-sm font-bold text-slate-900">@GetCategoryBreadcrumb(activeCategoryPath ?? string.Empty)</p>
-                            <h3 class="mt-1 text-lg font-bold text-slate-900">Wiki 카드</h3>
+                            <h3 class="mt-1 text-lg font-bold text-slate-900">기억 카드</h3>
                         </div>
                         <p class="text-xs font-semibold text-slate-500">@($"{results.Count}개 표시 중")</p>
                     </div>
@@ -141,6 +160,7 @@ else
                                     <span class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                                         <span>@FormatDateTime(result.UpdatedAt)</span>
                                         <span>@($"{result.AccessCount}회 열람")</span>
+                                        <span>@(result.IsPublic ? "공개 Wiki" : "비공개 기억")</span>
                                     </span>
                                     @if (!string.IsNullOrWhiteSpace(result.Summary))
                                     {
@@ -193,15 +213,35 @@ else
                             <span class="shrink-0 text-slate-400">@($"깊이 {selectedEntry.CategoryDepth}")</span>
                         </p>
                         <h3 id="llm-wiki-detail-title" class="break-words text-xl font-bold text-slate-900">@selectedEntry.Title</h3>
-                        <p class="mt-1 text-xs text-slate-500">@FormatDateTime(selectedEntry.UpdatedAt)</p>
+                        <p class="mt-1 text-xs text-slate-500">@FormatDateTime(selectedEntry.UpdatedAt) · @(selectedEntry.IsPublic ? "공개 Wiki" : "비공개 기억")</p>
                     </div>
-                    <button class="shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
-                            type="button"
-                            @onclick="CloseSelectedEntry">
-                        닫기
-                    </button>
+                    <div class="flex shrink-0 flex-wrap justify-end gap-2">
+                        <button class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                type="button"
+                                data-llm-wiki-draft-action="true"
+                                disabled="@isCreatingDraftFromEntry"
+                                @onclick="CreateDraftFromSelectedEntryAsync">
+                            @(isCreatingDraftFromEntry ? "초안 생성 중..." : "로그 초안으로 이어쓰기")
+                        </button>
+                        <button class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+                                type="button"
+                                @onclick="CloseSelectedEntry">
+                            닫기
+                        </button>
+                    </div>
                 </div>
                 <div class="space-y-4 overflow-y-auto px-5 py-4">
+                    <div class="rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-sm leading-6 text-teal-900"
+                         data-llm-wiki-draft-safety-note="true">
+                        <span class="font-bold">게시전 로그 초안</span>
+                        선택한 기억은 바로 공개되지 않습니다. 편집 화면에서 민감한 단서와 내부 맥락을 정리한 뒤 공개 여부를 결정합니다.
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(draftMessage))
+                    {
+                        <div class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-900">
+                            @draftMessage
+                        </div>
+                    }
                     @if (selectedEntry.Tags.Count > 0)
                     {
                         <div class="flex flex-wrap gap-1">
@@ -212,20 +252,20 @@ else
                         </div>
                     }
                     <div>
-                        <p class="text-xs font-bold uppercase text-slate-500">Prompt</p>
+                        <p class="text-xs font-bold uppercase text-slate-500">원문 프롬프트</p>
                         <pre class="mt-1 whitespace-pre-wrap break-words rounded-lg bg-slate-50 p-3 text-sm leading-6 text-slate-800">@selectedEntry.SourcePrompt</pre>
                     </div>
                     @if (!string.IsNullOrWhiteSpace(selectedEntry.Content))
                     {
                         <div>
-                            <p class="text-xs font-bold uppercase text-slate-500">Content</p>
+                            <p class="text-xs font-bold uppercase text-slate-500">정리된 내용</p>
                             <pre class="mt-1 whitespace-pre-wrap break-words rounded-lg bg-slate-50 p-3 text-sm leading-6 text-slate-800">@selectedEntry.Content</pre>
                         </div>
                     }
                     @if (selectedEntry.Sources.Count > 0)
                     {
                         <div>
-                            <p class="text-xs font-bold uppercase text-slate-500">Raw Provenance</p>
+                            <p class="text-xs font-bold uppercase text-slate-500">원천 기록</p>
                             <div class="mt-1 grid gap-2">
                                 @foreach (var source in selectedEntry.Sources.OrderBy(x => x.CreatedAt))
                                 {
@@ -255,13 +295,13 @@ else
                                                 </div>
                                             }
                                             <div>
-                                                <p class="text-xs font-bold uppercase text-slate-500">Raw Prompt</p>
+                                                <p class="text-xs font-bold uppercase text-slate-500">원문 프롬프트</p>
                                                 <pre class="mt-1 whitespace-pre-wrap break-words rounded-lg bg-white p-3 text-sm leading-6 text-slate-800">@source.Prompt</pre>
                                             </div>
                                             @if (source.Content is not null)
                                             {
                                                 <div>
-                                                    <p class="text-xs font-bold uppercase text-slate-500">Raw Content</p>
+                                                    <p class="text-xs font-bold uppercase text-slate-500">원문 내용</p>
                                                     <pre class="mt-1 whitespace-pre-wrap break-words rounded-lg bg-white p-3 text-sm leading-6 text-slate-800">@source.Content</pre>
                                                 </div>
                                             }
@@ -291,7 +331,9 @@ else
     private bool isLoading;
     private bool isSearching;
     private bool isLoadingMore;
+    private bool isCreatingDraftFromEntry;
     private bool hasMoreResults;
+    private string draftMessage = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -416,10 +458,36 @@ else
         }
 
         selectedEntry = await ApiClient.GetLlmWikiEntryAsync(CurrentUser.UserName, result.Id.ToString());
+        draftMessage = string.Empty;
     }
 
     private void CloseSelectedEntry()
-        => selectedEntry = null;
+    {
+        selectedEntry = null;
+        draftMessage = string.Empty;
+    }
+
+    private async Task CreateDraftFromSelectedEntryAsync()
+    {
+        if (CurrentUser is null || selectedEntry is null || isCreatingDraftFromEntry)
+        {
+            return;
+        }
+
+        isCreatingDraftFromEntry = true;
+        draftMessage = string.Empty;
+        var draft = await ApiClient.CreatePostAsync(
+            BuildDraftTitle(selectedEntry),
+            CurrentUser.UserName,
+            BuildDraftSummary(selectedEntry),
+            BuildDraftBody(selectedEntry),
+            BuildDraftTags(selectedEntry),
+            "LLM Wiki 회상",
+            thumbnailUrl: null,
+            isDraft: true);
+
+        Navigation.NavigateTo($"/edit/{Uri.EscapeDataString(draft.Slug)}");
+    }
 
     private async Task HandleSearchKeyDown(KeyboardEventArgs e)
     {
@@ -443,7 +511,7 @@ else
     {
         if (isLoading || isSearching)
         {
-            return "검색 중입니다.";
+            return "회상 중입니다.";
         }
 
         if (!string.IsNullOrWhiteSpace(activeCategoryPath) && string.IsNullOrWhiteSpace(activeSearchQuery))
@@ -453,7 +521,7 @@ else
 
         return string.IsNullOrWhiteSpace(activeSearchQuery)
             ? "저장된 LLM Wiki가 없습니다."
-            : "검색 결과가 없습니다.";
+            : "회상 결과가 없습니다.";
     }
 
     private string GetResultButtonClass(LlmWikiSearchResult result)
@@ -509,4 +577,100 @@ else
 
         return text.Length <= maxLength ? text : text[..maxLength] + "...";
     }
+
+    private static string BuildDraftTitle(LlmWikiEntryResponse entry)
+        => $"회상 로그: {entry.Title}".Trim();
+
+    private static string BuildDraftSummary(LlmWikiEntryResponse entry)
+    {
+        var source = !string.IsNullOrWhiteSpace(entry.Summary)
+            ? entry.Summary
+            : !string.IsNullOrWhiteSpace(entry.Content)
+                ? entry.Content
+                : entry.SourcePrompt;
+
+        return Shorten(CollapseWhitespace(source), 140);
+    }
+
+    private static string BuildDraftTags(LlmWikiEntryResponse entry)
+    {
+        var tags = entry.Tags
+            .Where(tag => !string.IsNullOrWhiteSpace(tag))
+            .Select(tag => tag.Trim().TrimStart('#'))
+            .Where(tag => !string.IsNullOrWhiteSpace(tag))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(3)
+            .ToList();
+
+        foreach (var tag in new[] { "llm-wiki", "회상로그" })
+        {
+            if (tags.Count >= 5)
+            {
+                break;
+            }
+
+            if (!tags.Contains(tag, StringComparer.OrdinalIgnoreCase))
+            {
+                tags.Add(tag);
+            }
+        }
+
+        return string.Join(", ", tags);
+    }
+
+    private static string BuildDraftBody(LlmWikiEntryResponse entry)
+    {
+        var prompt = entry.SourcePrompt.Trim();
+        var categoryPath = string.IsNullOrWhiteSpace(entry.CategoryPath) ? "general" : entry.CategoryPath;
+        var visibility = entry.IsPublic ? "공개 Wiki" : "비공개 기억";
+        var contentSection = string.IsNullOrWhiteSpace(entry.Content)
+            ? string.Empty
+            : $"""
+
+        ### 정리된 내용
+
+        {entry.Content.Trim()}
+        """;
+
+        return $"""
+        > 이 초안은 Slogs LLM Wiki에서 이어온 게시전 로그입니다. 공개 전에 민감한 단서와 내부 맥락을 정리하세요.
+
+        # {entry.Title}
+
+        ## 기억 단서
+
+        - 기억 범주: `{categoryPath}`
+        - 기억 ID: `{entry.Id}`
+        - 현재 상태: {visibility}
+        - 회상 요약: {BuildDraftSummary(entry)}
+
+        ## 공개 로그로 정리할 흐름
+
+        ### 시작된 생각과 작업
+
+        이 기억이 어떤 생각, 작업, 판단에서 시작됐는지 정리합니다.
+
+        ### 검증된 근거
+
+        공개해도 되는 근거, 결과, 확인 방법을 분리합니다.
+
+        ### 공개 전에 덜어낼 내부 맥락
+
+        민감한 단서, 개인 정보, 내부 실행 내역을 제거하거나 일반화합니다.
+
+        ### 다음 리비전
+
+        이 로그에서 이어질 작업이나 다시 확인할 지점을 남깁니다.
+
+        ## 원본 기억
+
+        ### 원문 프롬프트
+
+        {prompt}
+        {contentSection}
+        """;
+    }
+
+    private static string CollapseWhitespace(string text)
+        => string.Join(" ", text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 }
