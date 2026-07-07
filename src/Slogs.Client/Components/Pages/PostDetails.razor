@@ -149,9 +149,9 @@ else
                 <SlogsIcon Name="clock" Class="h-3.5 w-3.5" />
                 <span>@post.ReadTimeMinutes 분</span>
             </span>
-            <span class="inline-flex items-center gap-1">
+            <span class="inline-flex items-center gap-1" title="회상 접근">
                 <SlogsIcon Name="eye" Class="h-3.5 w-3.5" />
-                <span>@post.ViewCount</span>
+                <span>@FormatRecallAccessCount(post.ViewCount)</span>
             </span>
             @if (CanFollowAuthor)
             {
@@ -170,6 +170,19 @@ else
             {
                 <span>수정 @FormatDateTime(post.UpdatedAt)</span>
             }
+        </div>
+
+        <div class="post-detail-flowline mt-4" aria-label="로그 노드 흐름 요약">
+            <div class="min-w-0">
+                <p class="text-xs font-bold text-slate-500">노드 흐름 요약</p>
+                <p class="mt-1 text-sm font-semibold text-slate-700">@GetPostNodeFlowDescription(post, latestRevisionNumberForNode)</p>
+            </div>
+            <div class="post-detail-flowline__signals" aria-label="로그 노드 흐름 신호">
+                <span>@GetPrimaryClueSignal(post)</span>
+                <span>@GetPrimarySeriesSignal(post)</span>
+                <span>@GetRevisionFlowSignal(post, latestRevisionNumberForNode)</span>
+                <span>@GetLinkedLogSignal()</span>
+            </div>
         </div>
 
         <p class="mt-3 text-slate-700">@post.Summary</p>
@@ -426,7 +439,7 @@ else
                             {
                                 <span>·</span>
                                 <button class="text-slate-700 transition hover:text-slate-900" type="button" disabled="@isCommentSaving" @onclick="() => StartReply(comment.Id)">
-                                    답글
+                                    대화 잇기
                                 </button>
                             }
                             @if (CanEditComment(comment))
@@ -493,17 +506,17 @@ else
                     @if (replyingToCommentId == comment.Id)
                     {
                         <div class="mt-2 rounded-2xl border border-slate-300 bg-slate-50 p-3">
-                            <p class="mb-1 text-xs text-slate-500">[@FormatUserName(comment.Author)] 대화 흔적에 대한 답글</p>
+                            <p class="mb-1 text-xs text-slate-500">[@FormatUserName(comment.Author)] 대화 흔적에 이어 남기기</p>
                             <div class="text-right text-xs text-slate-500">@($"{replyComment?.Length ?? 0}/1000")</div>
                             <textarea class="min-h-20 w-full rounded-xl border border-slate-300 p-3 text-sm"
                                       disabled="@isCommentSaving"
                                       rows="3" maxlength="1000" @bind="replyComment" @bind:event="oninput"
-                                      placeholder="대화 흔적에 답글을 남겨주세요"
+                                      placeholder="대화 흔적에 이어 남겨주세요"
                                       @onkeydown="(e) => HandleReplyKeyDown(e, comment.Id)"></textarea>
                             <div class="mt-2 flex flex-wrap gap-2">
                                 <button class="rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                                         type="button" @onclick="() => SubmitReply(comment.Id)" disabled="@(string.IsNullOrWhiteSpace(replyComment) || isCommentSaving)">
-                                    답글 남기기
+                                    대화 잇기
                                 </button>
                                 <button class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
                                         type="button" @onclick="CancelReply">
@@ -539,7 +552,7 @@ else
                             @if (pendingDeleteCommentId == reply.Id)
                             {
                                 <div class="mt-2 rounded-lg border border-rose-200 bg-rose-50 p-2 text-sm text-rose-800">
-                                    <p class="mb-2">이 답글 흔적을 삭제할까요?</p>
+                                    <p class="mb-2">이 이어진 대화 흔적을 삭제할까요?</p>
                                     <div class="flex flex-wrap gap-2">
                                         <button class="rounded-full border border-rose-300 bg-rose-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-rose-700"
                                                 type="button" @onclick="ConfirmDeleteComment">
@@ -716,7 +729,7 @@ else
 
         if (post is null || post.Comments.All(x => x.Id != parentCommentId))
         {
-            message = "답글 대상을 찾을 수 없습니다.";
+            message = "이어갈 대화 흔적을 찾을 수 없습니다.";
             return;
         }
 
@@ -1075,7 +1088,7 @@ else
                 return;
             }
 
-            message = "답글 내용을 입력해 주세요.";
+            message = "이어 남길 대화 흔적을 입력해 주세요.";
             return;
         }
 
@@ -1088,7 +1101,7 @@ else
 
         if (post is null || !post.Comments.Any(x => x.Id == parentCommentId))
         {
-            message = "답글 대상을 찾을 수 없습니다.";
+            message = "이어갈 대화 흔적을 찾을 수 없습니다.";
             return;
         }
 
@@ -1102,14 +1115,14 @@ else
             var comment = await ApiClient.AddCommentAsync(Slug, CurrentUser.UserName, CurrentUserDisplayName, trimmedReply, parentCommentId);
             if (comment is null)
             {
-                message = "답글 등록에 실패했습니다.";
+                message = "이어진 대화 흔적을 남기지 못했습니다.";
                 return;
             }
 
             replyComment = string.Empty;
             replyingToCommentId = null;
             await RefreshPostAsync();
-            message = "답글이 등록되었습니다.";
+            message = "대화 흔적이 이어졌습니다.";
         }
         finally
         {
@@ -1491,6 +1504,28 @@ else
     private static string FormatDate(DateTime dateTime) => ToKoreaTime(dateTime).ToString("yyyy.MM.dd");
 
     private static string FormatDateTime(DateTime dateTime) => ToKoreaTime(dateTime).ToString("yyyy.MM.dd HH:mm");
+
+    private static string FormatRecallAccessCount(int viewCount) => $"{viewCount:N0} 회상 접근";
+
+    private string GetPostNodeFlowDescription(BlogPost currentPost, int latestRevisionNumber)
+    {
+        var clue = currentPost.Tags.Count == 0 ? "단서 축적 전" : $"#{currentPost.Tags[0]} 단서";
+        var series = currentPost.Series.Count == 0 ? "시리즈 밖 흐름" : $"{currentPost.Series[0]} 시리즈";
+        var revision = GetRevisionFlowSignal(currentPost, latestRevisionNumber);
+        return $"본문과 대화 흔적은 {FormatUserName(currentPost.Author)}의 {clue}, {series}, {revision}에 이어진 지식 로그 노드입니다.";
+    }
+
+    private static string GetPrimaryClueSignal(BlogPost currentPost)
+        => currentPost.Tags.Count == 0 ? "단서 축적 전" : $"주요 단서 #{currentPost.Tags[0]}";
+
+    private static string GetPrimarySeriesSignal(BlogPost currentPost)
+        => currentPost.Series.Count == 0 ? "시리즈 밖 흐름" : $"로그 시리즈 {currentPost.Series[0]}";
+
+    private static string GetRevisionFlowSignal(BlogPost currentPost, int latestRevisionNumber)
+        => currentPost.IsDraft ? "게시전 기억" : $"리비전 흐름 v{latestRevisionNumber}";
+
+    private string GetLinkedLogSignal()
+        => $"{relatedPosts.Count:N0}개 연결 로그";
 
     private static string Shorten(string value, int maxLength)
     {

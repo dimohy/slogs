@@ -4,7 +4,7 @@
 @inject NavigationManager Navigation
 
 <PageTitle>내 공개 로그</PageTitle>
-<SeoHead Title="내 공개 로그 | slogs" Description="내가 남긴 slogs 로그와 게시전 초안을 관리합니다." NoIndex="true" />
+<SeoHead Title="내 공개 로그 | slogs" Description="내가 남긴 slogs 공개 로그와 소유자 전용 게시전 로그 흐름을 이어 봅니다." NoIndex="true" />
 
 @if (CurrentUser is null)
 {
@@ -16,7 +16,7 @@ else
         <div class="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4">
             <div>
                 <h1 class="text-2xl font-bold text-slate-900">내 공개 로그</h1>
-                <p class="mt-1 text-sm text-slate-500">@CurrentUser.DisplayName 님이 남긴 공개 로그와 게시전 초안을 관리합니다.</p>
+                <p class="mt-1 text-sm text-slate-500">@CurrentUser.DisplayName 님이 남긴 공개 로그와 소유자 전용 게시전 로그 흐름을 이어 봅니다.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 @if (totalCount > 0)
@@ -87,9 +87,9 @@ else
                                 <SlogsIcon Name="clock" Class="h-3.5 w-3.5" />
                                 <span>@post.ReadTimeMinutes 분</span>
                             </span>
-                            <span class="inline-flex items-center gap-1">
+                            <span class="inline-flex items-center gap-1" title="회상 접근">
                                 <SlogsIcon Name="eye" Class="h-3.5 w-3.5" />
-                                <span>@post.ViewCount</span>
+                                <span>@FormatRecallAccessCount(post.ViewCount)</span>
                             </span>
                         </div>
                         @if (!string.IsNullOrWhiteSpace(post.Summary))
@@ -334,6 +334,8 @@ else
     private static bool IsPriorityCardImage(int index) => index < 2;
 
     private static string FormatDate(DateTime dateTime) => dateTime.ToLocalTime().ToString("yyyy.MM.dd");
+
+    private static string FormatRecallAccessCount(int viewCount) => $"{viewCount:N0} 회상 접근";
 
     private static string Shorten(string text, int maxLength)
     {

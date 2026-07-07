@@ -16,7 +16,8 @@ public sealed class RouteIdentitySmokeTests
             "지식 로그 홈",
             "내 로그",
             "내 공개 로그",
-            "LLM Wiki 사용법",
+            "비공개 기억",
+            "기억 연결 가이드",
             "의미 회상",
             "저장 로그",
             "공감 로그",
@@ -74,7 +75,7 @@ public sealed class RouteIdentitySmokeTests
             ("MyBookmarks.razor", "/me/bookmarks", "저장 로그"),
             ("MyLikes.razor", "/me/likes", "공감 로그"),
             ("Settings.razor", "/me/settings", "연결"),
-            ("LlmWiki.razor", "/me/llm-wiki", "LLM Wiki 회상 흐름"),
+            ("LlmWiki.razor", "/me/llm-wiki", "LLM Wiki 기억 연결"),
             ("LlmWikiSearch.razor", "/me/llm-wiki/search", "의미 회상"),
             ("WritePost.razor", "/write", "새 로그 남기기"),
             ("EditPost.razor", "/edit/{Slug}", "로그 수정")
@@ -97,12 +98,14 @@ public sealed class RouteIdentitySmokeTests
     {
         var writerPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "WriterPage.razor"));
 
-        Assert.Contains("public knowledge-log home", writerPage);
+        Assert.Contains("공개 지식 로그 홈", writerPage);
+        Assert.Contains("지식 흐름 요약", writerPage);
         Assert.Contains("공개 로그 스트림", writerPage);
         Assert.Contains("<PostFlowSignals Post=\"featuredPost\"", writerPage);
         Assert.Contains("<PostLogCard @key=\"post.Id\"", writerPage);
         Assert.Contains("ShowAuthor=\"false\"", writerPage);
         Assert.Contains("DraftActionText=\"게시전 로그 수정\"", writerPage);
+        Assert.DoesNotContain("public knowledge-log home", writerPage);
         Assert.DoesNotContain("aria-label=\"@GetPostCardAriaLabel(post)\"", writerPage);
         Assert.DoesNotContain("<PostActionBar Post=\"post\"", writerPage);
     }

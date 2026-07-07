@@ -7,6 +7,10 @@ namespace Slogs.Data;
 public static class SlogsDbInitializer
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private const string CsharpPatternLogSlug = "modern-csharp-component-patterns";
+    private const string CsharpPatternLogTitle = "C# 14 패턴으로 작업 판단 로그 남기기";
+    private const string CsharpPatternLogSummary = "최신 C# 문법을 적용한 이유, 검증 흔적, 리비전 단서를 함께 남기는 작업 로그입니다.";
+    private const string CsharpPatternLogBody = "# C# 작업 판단 로그\n\n초기화 구문, 패턴 매칭, 컬렉션 표기법을 적용할 때는 코드량만 줄이는 것이 아니라 선택 이유와 검증 결과를 함께 남겨야 다음 리비전에서 판단을 회상할 수 있습니다.";
 
     public static async Task InitializeAsync(IServiceProvider services)
     {
@@ -747,7 +751,7 @@ public static class SlogsDbInitializer
             CreateComment("kevin", "단서 라우팅 동작은 실제 서비스에서 중요합니다.", now.AddDays(-2).AddHours(-8)),
             CreateComment("rose", "좋은 정렬 기준을 같이 고민하면 유저 피드백이 더 좋아져요.", now.AddDays(-2).AddHours(-6)),
             CreateComment("nate", "문서 정리 방식이 깔끔해서 이해가 빠르네요.", now.AddDays(-2).AddHours(-4)),
-            CreateComment("lee", "대화 흔적의 답글 기능도 넣으면 더 풍부해질 듯합니다.", now.AddDays(-2).AddHours(-2)),
+            CreateComment("lee", "대화 흔적을 이어 남기는 흐름도 넣으면 더 풍부해질 듯합니다.", now.AddDays(-2).AddHours(-2)),
             CreateComment("sora", "실전에서 캐시 전략만 보완하면 충분히 배포 가능한 수준입니다.", now.AddDays(-1).AddHours(-10)),
             CreateComment("hyun", "좋은 로그 감사합니다. 바로 따라 해보겠습니다.", now.AddDays(-1).AddHours(-8))
         ]);
@@ -756,14 +760,14 @@ public static class SlogsDbInitializer
             firstPost,
             new PostRecord
             {
-                Title = "C# 14의 최신 패턴으로 컴포넌트 정리하기",
+                Title = CsharpPatternLogTitle,
                 Author = "junho",
-                Summary = "최신 C# 문법을 이용해 서비스와 라우팅 코드를 간결하게 유지하는 기법을 정리합니다.",
-                Body = "# 최신 C#로 정리\n\n초기화 구문, 패턴 매칭, 컬렉션 표기법을 활용해 코드량을 줄이고 가독성을 높일 수 있습니다.",
-                ThumbnailUrl = GetDefaultThumbnailUrl("modern-csharp-component-patterns"),
+                Summary = CsharpPatternLogSummary,
+                Body = CsharpPatternLogBody,
+                ThumbnailUrl = GetDefaultThumbnailUrl(CsharpPatternLogSlug),
                 PublishedAt = now.AddDays(-2),
                 UpdatedAt = now,
-                Slug = "modern-csharp-component-patterns",
+                Slug = CsharpPatternLogSlug,
                 TagsJson = ToJson(["csharp", "programming", "architecture"]),
                 SeriesJson = ToJson(["아키텍처 노트"]),
                 LikedByJson = ToJson(["guest", "admin"]),
@@ -824,7 +828,7 @@ public static class SlogsDbInitializer
                     "글 제목이 잘 보이도록 헤더 고정도 좋은 패턴 같아요." => "로그 제목이 잘 보이도록 헤더 고정도 좋은 패턴 같아요.",
                     "댓글 페이지네이션이 필요한 구간이 생길 것 같아요." => "대화 흔적 페이지네이션이 필요한 구간이 생길 것 같아요.",
                     "태그 라우팅 동작은 실제 서비스에서 중요합니다." => "단서 라우팅 동작은 실제 서비스에서 중요합니다.",
-                    "댓글의 답글 기능도 넣으면 더 풍부해질 듯합니다." => "대화 흔적의 답글 기능도 넣으면 더 풍부해질 듯합니다.",
+                    var content when IsLegacyReplyFeatureComment(content) => "대화 흔적을 이어 남기는 흐름도 넣으면 더 풍부해질 듯합니다.",
                     "좋은 글 감사합니다. 바로 따라 해보겠습니다." => "좋은 로그 감사합니다. 바로 따라 해보겠습니다.",
                     _ => comment.Content
                 };
@@ -841,6 +845,27 @@ public static class SlogsDbInitializer
                     revision.Body = seedPost.Body;
                     revision.ThumbnailUrl = seedPost.ThumbnailUrl;
                     revision.SeriesJson = seedPost.SeriesJson;
+                    changed = true;
+                }
+            }
+        }
+
+        var csharpPost = await db.Posts
+            .Include(x => x.Revisions)
+            .FirstOrDefaultAsync(x => x.Author == "junho" && x.Slug == CsharpPatternLogSlug);
+        if (csharpPost is not null)
+        {
+            if (IsLegacyCsharpPatternLog(csharpPost))
+            {
+                ApplyCsharpPatternLogIdentity(csharpPost);
+                changed = true;
+            }
+
+            foreach (var revision in csharpPost.Revisions)
+            {
+                if (IsLegacyCsharpPatternLog(revision))
+                {
+                    ApplyCsharpPatternLogIdentity(revision);
                     changed = true;
                 }
             }
@@ -1043,6 +1068,36 @@ public static class SlogsDbInitializer
             or "C# 언어 기능과 아키텍처 패턴을 기록합니다."
             or "회상, 탐색, 로그 작성 UX를 실험하고 공유합니다."
             or "slogs에서 개발 경험과 학습 흐름을 지식 로그로 공유합니다.";
+
+    private static bool IsLegacyReplyFeatureComment(string content)
+        => content.Contains(string.Concat("답", "글", " 기능"), StringComparison.Ordinal)
+            && content.Contains("더 풍부해질 듯합니다.", StringComparison.Ordinal);
+
+    private static bool IsLegacyCsharpPatternLog(PostRecord post)
+        => post.Title == "C# 14의 최신 패턴으로 컴포넌트 정리하기"
+            || post.Summary.Contains("서비스와 라우팅 코드를 간결하게 유지", StringComparison.Ordinal)
+            || post.Body.StartsWith("# 최신 C#로 정리", StringComparison.Ordinal);
+
+    private static bool IsLegacyCsharpPatternLog(PostRevisionRecord revision)
+        => revision.Title == "C# 14의 최신 패턴으로 컴포넌트 정리하기"
+            || revision.Summary.Contains("서비스와 라우팅 코드를 간결하게 유지", StringComparison.Ordinal)
+            || revision.Body.StartsWith("# 최신 C#로 정리", StringComparison.Ordinal);
+
+    private static void ApplyCsharpPatternLogIdentity(PostRecord post)
+    {
+        post.Title = CsharpPatternLogTitle;
+        post.Summary = CsharpPatternLogSummary;
+        post.Body = CsharpPatternLogBody;
+        post.ThumbnailUrl = GetDefaultThumbnailUrl(CsharpPatternLogSlug);
+    }
+
+    private static void ApplyCsharpPatternLogIdentity(PostRevisionRecord revision)
+    {
+        revision.Title = CsharpPatternLogTitle;
+        revision.Summary = CsharpPatternLogSummary;
+        revision.Body = CsharpPatternLogBody;
+        revision.ThumbnailUrl = GetDefaultThumbnailUrl(CsharpPatternLogSlug);
+    }
 
     private static string GetDefaultThumbnailUrl(string slug)
     {

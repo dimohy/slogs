@@ -46,6 +46,18 @@ public sealed class StaticAssetIdentityTests
     }
 
     [Fact]
+    public void SeedDefaultConversationCopyUsesTraceFlowWording()
+    {
+        var initializer = File.ReadAllText(FindRepoFile("src", "Slogs", "Data", "SlogsDbInitializer.cs"));
+
+        Assert.Contains("대화 흔적을 이어 남기는 흐름도 넣으면 더 풍부해질 듯합니다.", initializer);
+        Assert.Contains("IsLegacyReplyFeatureComment", initializer);
+        Assert.DoesNotContain("대화 흔적의 답글", initializer);
+        Assert.DoesNotContain("답글 기능", initializer);
+        Assert.DoesNotContain("댓글의 답글", initializer);
+    }
+
+    [Fact]
     public void UserFacingFailureMessagesUseLogAndRecallWording()
     {
         var apiClient = File.ReadAllText(FindRepoFile("src", "Slogs.Shared", "Data", "SlogsApiClient.cs"));
@@ -98,7 +110,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("<PageTitle>어드민 슬로거 흐름 | slogs</PageTitle>", adminUsersPage);
         Assert.Contains(">어드민 슬로거 흐름</h1>", adminUsersPage);
         Assert.Contains("aria-label=\"어드민 슬로거 흐름 보기\"", adminUsersPage);
-        Assert.Contains(">슬로거 관리</a>", adminUsersPage);
+        Assert.Contains(">슬로거 홈 흐름</a>", adminUsersPage);
         Assert.Contains(">기억 회상 지표</a>", adminUsersPage);
         Assert.Contains(">노트 Vault 흐름</a>", adminUsersPage);
         Assert.Contains("aria-label=\"슬로거 요약\"", adminUsersPage);
@@ -111,21 +123,23 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("aria-label=\"Obsidian Sync 슬로거 단서 입력\"", adminUsersPage);
         Assert.Contains("기억 슬로거만", adminUsersPage);
         Assert.Contains("노트 Sync 슬로거만", adminUsersPage);
-        Assert.Contains("슬로거 홈, 공개 로그, 게시전 로그 관리 신호를 확인합니다.", adminUsersPage);
-        Assert.Contains("비공개 기억, 회상 접근, MCP 호출 품질 신호를 확인합니다.", adminUsersPage);
+        Assert.Contains("슬로거 홈, 공개 로그, 게시전 로그 흐름 신호를 확인합니다.", adminUsersPage);
+        Assert.Contains("비공개 기억, 회상 접근, Agent 연결 품질 신호를 확인합니다.", adminUsersPage);
         Assert.Contains("로컬 노트 Vault, 노트 원문, 연결 기기 흐름을 확인합니다.", adminUsersPage);
         Assert.Contains(">슬로거</div>", navMenu);
-        Assert.Contains(">슬로거 관리</a>", navMenu);
+        Assert.Contains(">슬로거 홈 흐름</a>", navMenu);
         Assert.Contains(">기억 회상</a>", navMenu);
         Assert.Contains(">노트 Vault 흐름</a>", navMenu);
         Assert.Contains("<option value=\"entries\">기억 엔트리순</option>", adminUsersPage);
         Assert.Contains("<option value=\"accesses\">회상 접근순</option>", adminUsersPage);
+        Assert.Contains("<option value=\"tokens\">Agent 연결순</option>", adminUsersPage);
         Assert.Contains(">기억 엔트리</th>", adminUsersPage);
         Assert.Contains(">근거 소스</th>", adminUsersPage);
         Assert.Contains(">기억 활동</th>", adminUsersPage);
         Assert.Contains(">7일 기억</th>", adminUsersPage);
         Assert.Contains(">30일 기억</th>", adminUsersPage);
         Assert.Contains(">회상 접근</th>", adminUsersPage);
+        Assert.Contains(">Agent 연결</th>", adminUsersPage);
         Assert.Contains(">최근 기억</th>", adminUsersPage);
         Assert.Contains(">최근 회상</th>", adminUsersPage);
         Assert.Contains("공개 로그 {user.PublishedPostCount:N0} / 게시전 로그 {user.DraftPostCount:N0}", adminUsersPage);
@@ -148,9 +162,15 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("노트 Sync 사용자만", adminUsersPage);
         Assert.DoesNotContain("사용자 기본 정보와 사용자 관련 관리 기능을 확인합니다.", adminUsersPage);
         Assert.DoesNotContain(">사용자 관리</a>", navMenu);
+        Assert.DoesNotContain(">슬로거 관리</a>", adminUsersPage);
+        Assert.DoesNotContain(">슬로거 관리</a>", navMenu);
         Assert.DoesNotContain(">LLM Wiki 통계</a>", adminUsersPage);
         Assert.DoesNotContain(">Obsidian Sync</a>", adminUsersPage);
         Assert.DoesNotContain("LLM Wiki 사용량과 MCP 품질 지표를 확인합니다.", adminUsersPage);
+        Assert.DoesNotContain("MCP 호출 품질 신호", adminUsersPage);
+        Assert.DoesNotContain("MCP 토큰순", adminUsersPage);
+        Assert.DoesNotContain(">MCP 토큰</th>", adminUsersPage);
+        Assert.DoesNotContain("게시전 로그 관리 신호", adminUsersPage);
         Assert.DoesNotContain("Obsidian Sync 노트 Vault, 노트 원문, 연결 기기 흐름을 확인합니다.", adminUsersPage);
         Assert.DoesNotContain(">LLM Wiki</a>", navMenu);
         Assert.DoesNotContain(">Obsidian Sync</a>", navMenu);
@@ -195,18 +215,75 @@ public sealed class StaticAssetIdentityTests
     }
 
     [Fact]
+    public void LlmWikiMemoryToLogBridgeUsesPrePublishLogWording()
+    {
+        var llmWikiGuidePage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "LlmWiki.razor"));
+        var llmWikiSearchPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "LlmWikiSearch.razor"));
+
+        Assert.Contains("개인 LLM Wiki 기억을 회상하고 Slogs 게시전 로그로 이어 씁니다.", llmWikiSearchPage);
+        Assert.Contains("소유자 전용 게시전 로그로 이어 씁니다.", llmWikiSearchPage);
+        Assert.Contains("비공개 기억을 바로 공개하지 않고 소유자 전용 게시전 로그로 옮긴 뒤", llmWikiSearchPage);
+        Assert.Contains("게시전 로그로 이어쓰기", llmWikiSearchPage);
+        Assert.Contains("게시전 로그 여는 중...", llmWikiSearchPage);
+        Assert.Contains("data-llm-wiki-draft-action-boundary=\"true\"", llmWikiSearchPage);
+        Assert.Contains("비공개 기억 -> 소유자 전용 게시전 로그 -> 검토 후 공개 공유", llmWikiSearchPage);
+        Assert.Contains("소유자 전용 게시전 로그", llmWikiSearchPage);
+        Assert.Contains("이 게시전 로그는 Slogs LLM Wiki에서 이어온 소유자 전용 흐름입니다.", llmWikiSearchPage);
+        Assert.Contains("소유자 전용 게시전 로그로 이어집니다.", llmWikiGuidePage);
+        Assert.Contains("<span>게시전 로그</span>", llmWikiGuidePage);
+
+        Assert.DoesNotContain("Slogs 로그 초안으로 이어 씁니다.", llmWikiSearchPage);
+        Assert.DoesNotContain("게시전 로그 초안", llmWikiSearchPage);
+        Assert.DoesNotContain("초안 생성 중...", llmWikiSearchPage);
+        Assert.DoesNotContain("로그 초안으로 이어쓰기", llmWikiSearchPage);
+        Assert.DoesNotContain("이 초안은 Slogs LLM Wiki", llmWikiSearchPage);
+        Assert.DoesNotContain("소유자 전용 로그 초안", llmWikiGuidePage);
+        Assert.DoesNotContain("<span>로그 초안</span>", llmWikiGuidePage);
+        Assert.DoesNotContain("즉시 공개", llmWikiSearchPage);
+    }
+
+    [Fact]
+    public void LlmWikiUsageGuideFramesToolNamesAsRecallFlow()
+    {
+        var llmWikiGuidePage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "LlmWiki.razor"));
+        var navMenu = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Layout", "NavMenu.razor"));
+
+        Assert.Contains("LLM Wiki 기억 연결", llmWikiGuidePage);
+        Assert.Contains("비공개 기억을 Agent 회상과 Slogs 게시전 로그로 이어 두는 연결면입니다.", llmWikiGuidePage);
+        Assert.Contains(">비공개 기억</div>", navMenu);
+        Assert.Contains("기억 연결 가이드", navMenu);
+        Assert.Contains("search</code> 도구는 회상 후보 흐름을 압축해 보여 주고", llmWikiGuidePage);
+        Assert.Contains("recall</code> 도구는 답변/구현에 바로 적용할 기억 맥락으로 이어 줍니다.", llmWikiGuidePage);
+        Assert.Contains("tool_search</code> 같은 도구 노출 확인", llmWikiGuidePage);
+        Assert.Contains("search</code>로 작은 회상 후보 흐름을 잡습니다.", llmWikiGuidePage);
+        Assert.Contains("답변이나 구현에 바로 적용할 기억 맥락은 낮은 limit의", llmWikiGuidePage);
+
+        Assert.DoesNotContain("LLM Wiki 사용법", navMenu);
+        Assert.DoesNotContain("님의 기억을 회상하고 Slogs 로그로 이어 쓰는 방법입니다.", llmWikiGuidePage);
+        Assert.DoesNotContain("회상 후보 요약 목록", llmWikiGuidePage);
+        Assert.DoesNotContain("초기 목록", llmWikiGuidePage);
+        Assert.DoesNotContain("작은 회상 후보 목록", llmWikiGuidePage);
+        Assert.DoesNotContain("압축 컨텍스트로 구분합니다.", llmWikiGuidePage);
+    }
+
+    [Fact]
     public void SettingsPageFramesConnectionLayerAsKnowledgeLogFlow()
     {
         var settingsPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "Settings.razor"));
+        var settingsComponent = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "LlmWikiMcpSettings.razor"));
 
         Assert.Contains("지식 로그 연결", settingsPage);
         Assert.Contains("공개 로그 흐름을 한 연결 계층으로 이어 둡니다.", settingsPage);
         Assert.Contains("프로필, Agent, 기억, 로컬 노트, 공개 로그 흐름을 한 연결 계층으로 이어 둡니다.", settingsPage);
         Assert.Contains("기억과 노트가 로그로 이어지는 경로", settingsPage);
         Assert.Contains("Agent는 비공개 기억을 회상하고, Obsidian은 로컬 노트를 원격 노트 Vault에 남기며", settingsPage);
+        Assert.Contains("비공개 기억을 회상해 소유자 전용 게시전 로그로 이어 둡니다.", settingsPage);
+        Assert.Contains("검토 가능한 소유자 전용 게시전 로그를 만들고", settingsComponent);
 
         Assert.DoesNotContain("공개 로그 연결을 설정합니다.", settingsPage);
         Assert.DoesNotContain("공개 로그 흐름을 관리합니다.", settingsPage);
+        Assert.DoesNotContain("게시전 로그 초안", settingsPage);
+        Assert.DoesNotContain("게시전 로그 초안", settingsComponent);
     }
 
     [Fact]
@@ -331,31 +408,35 @@ public sealed class StaticAssetIdentityTests
 
         Assert.Contains("class=\"slogs-header-tools\"", mainLayout);
         Assert.Contains("class=\"slogs-account-menu relative\"", mainLayout);
-        Assert.Contains("grid-template-areas: \"brand recall actions\";", appCss);
-        Assert.Contains("grid-template-columns: minmax(0, max-content) minmax(12rem, 1fr) max-content;", appCss);
+        Assert.Contains("grid-template-areas: \"brand tools\";", appCss);
+        Assert.Contains("grid-template-columns: minmax(0, max-content) minmax(0, 1fr);", appCss);
         Assert.Contains("grid-area: brand;", appCss);
+        Assert.Contains("grid-area: tools;", appCss);
         Assert.Contains("grid-area: recall;", appCss);
         Assert.Contains("grid-area: actions;", appCss);
         Assert.Contains("justify-self: end;", appCss);
         Assert.Contains(".slogs-header-tools", appCss);
+        Assert.Contains("display: flex;", appCss);
         Assert.Contains("display: contents;", appCss);
+        Assert.Contains("flex-wrap: nowrap;", appCss);
+        Assert.Contains("max-width: 100%;", appCss);
         Assert.Contains(".slogs-account-menu > summary", appCss);
         Assert.Contains("max-width: min(17rem, 34vw);", appCss);
-        Assert.Contains("grid-template-columns: minmax(0, max-content) minmax(0, 1fr) max-content;", appCss);
         Assert.Contains("min-width: 0;", appCss);
         Assert.Contains("max-width: 4.85rem;", appCss);
         Assert.Contains("max-width: 4.25rem;", appCss);
-        Assert.DoesNotContain("grid-template-areas: \"brand tools\";", appCss);
-        Assert.DoesNotContain("grid-area: tools;", appCss);
-        Assert.DoesNotContain("flex-wrap: nowrap;", appCss);
-        Assert.DoesNotContain("max-width: min(68rem, 100%);", appCss);
-        Assert.DoesNotContain("flex: 1 1 36rem;", appCss);
-        Assert.DoesNotContain("min-width: 18rem;", appCss);
-        Assert.DoesNotContain("flex-basis: 32rem;", appCss);
-        Assert.DoesNotContain("min-width: 14rem;", appCss);
-        Assert.DoesNotContain("min-width: 8rem;", appCss);
-        Assert.DoesNotContain("min-width: 7rem;", appCss);
-        Assert.DoesNotContain("min-width: 6rem;", appCss);
+        Assert.Contains("width: min(68rem, 100%);", appCss);
+        Assert.Contains("flex: 1 1 36rem;", appCss);
+        Assert.Contains("min-width: 18rem;", appCss);
+        Assert.Contains("flex-basis: 32rem;", appCss);
+        Assert.Contains("min-width: 14rem;", appCss);
+        Assert.Contains("@media (max-width: 900px)", appCss);
+        Assert.Contains(".slogs-brand__tagline {\n        display: none;\n    }", appCss);
+        Assert.Contains("min-width: 8rem;", appCss);
+        Assert.Contains("min-width: 7rem;", appCss);
+        Assert.Contains("min-width: 6rem;", appCss);
+        Assert.DoesNotContain("grid-template-areas: \"brand recall actions\";", appCss);
+        Assert.DoesNotContain("grid-template-columns: minmax(0, max-content) minmax(12rem, 1fr) max-content;", appCss);
         Assert.DoesNotContain("grid-template-columns: max-content minmax(0, 1fr);", appCss);
         Assert.DoesNotContain("grid-template-columns: max-content minmax(0, 1fr) max-content;", appCss);
         Assert.DoesNotContain("grid-template-columns: minmax(11rem, max-content) minmax(14rem, 1fr) max-content;", appCss);
@@ -382,13 +463,130 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("공개 로그와 지식 로그 홈", program);
         Assert.DoesNotContain("글과 프로필", program);
 
+        Assert.Contains("소유자 전용 게시전 로그 흐름을 이어 봅니다.", profilePage);
         Assert.Contains("<PostFlowSignals Post=\"post\" />", profilePage);
         Assert.Contains("게시전 로그 수정", profilePage);
         Assert.Contains("새 리비전 남기기", profilePage);
+        Assert.DoesNotContain("게시전 초안", profilePage);
         Assert.DoesNotContain("SlogsIcon Name=\"heart\"", profilePage);
         Assert.DoesNotContain("SlogsIcon Name=\"message-circle\"", profilePage);
         Assert.DoesNotContain("로그 시리즈: @series", profilePage);
         Assert.DoesNotContain("FormatUserName", profilePage);
+    }
+
+    [Fact]
+    public void PublicLogViewCountsUseRecallAccessWording()
+    {
+        var postMetaLine = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "PostMetaLine.razor"));
+        var homePage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "Home.razor"));
+        var postDetailsPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "PostDetails.razor"));
+        var profilePage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "Profile.razor"));
+        var writerPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "WriterPage.razor"));
+
+        Assert.Contains("FormatRecallAccessCount(Post.ViewCount)", postMetaLine);
+        Assert.Contains("title=\"회상 접근\"", postMetaLine);
+        Assert.Contains("회상 접근, 대화 흔적, 공감으로 다시 이어지는 공개 로그", homePage);
+        Assert.Contains("FormatRecallAccessCount(post.ViewCount)", postDetailsPage);
+        Assert.Contains("FormatRecallAccessCount(post.ViewCount)", profilePage);
+        Assert.Contains("회상 접근", writerPage);
+
+        Assert.DoesNotContain("<span>@Post.ViewCount</span>", postMetaLine);
+        Assert.DoesNotContain("<span>@post.ViewCount</span>", postDetailsPage);
+        Assert.DoesNotContain("<span>@post.ViewCount</span>", profilePage);
+        Assert.DoesNotContain("조회, 대화 흔적, 공감", homePage);
+        Assert.DoesNotContain("회상 진입", writerPage);
+    }
+
+    [Fact]
+    public void HomeFirstScreenExposesCompactKnowledgeLogFlowStatus()
+    {
+        var homePage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "Home.razor"));
+        var appCss = File.ReadAllText(FindRepoFile("src", "Slogs", "wwwroot", "app.css"));
+
+        Assert.Contains("slogs-home-flowline", homePage);
+        Assert.Contains("aria-label=\"현재 지식 로그 흐름\"", homePage);
+        Assert.Contains("현재 흐름", homePage);
+        Assert.Contains("GetVisibleFlowTitle()", homePage);
+        Assert.Contains("GetVisibleFlowDescription()", homePage);
+        Assert.Contains("FormatLogNodeCount(totalCount)", homePage);
+        Assert.Contains("GetFlowScopeLabel()", homePage);
+        Assert.Contains("개 로그 노드", homePage);
+        Assert.Contains("의미 회상", homePage);
+        Assert.Contains("사람과 AI가 이어 쓰는 공개 지식 로그 흐름입니다.", homePage);
+
+        Assert.Contains(".slogs-home-flowline", appCss);
+        Assert.Contains("border-top: 1px solid var(--theme-border);", appCss);
+        Assert.Contains("border-bottom: 1px solid var(--theme-border);", appCss);
+        Assert.Contains(".slogs-home-flowline__signals", appCss);
+        Assert.Contains("@media (max-width: 640px)", appCss);
+
+        Assert.DoesNotContain("slogs-home-hero", homePage);
+        Assert.DoesNotContain("마케팅", homePage);
+    }
+
+    [Fact]
+    public void WriterHomeHeroExposesKnowledgeFlowSummarySignals()
+    {
+        var writerPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "WriterPage.razor"));
+        var appCss = File.ReadAllText(FindRepoFile("src", "Slogs", "wwwroot", "app.css"));
+
+        Assert.Contains("slogger-flowline", writerPage);
+        Assert.Contains("aria-label=\"슬로거 지식 흐름 요약\"", writerPage);
+        Assert.Contains("지식 흐름 요약", writerPage);
+        Assert.Contains("GetSloggerFlowDescription()", writerPage);
+        Assert.Contains("GetFeaturedLogSignal()", writerPage);
+        Assert.Contains("GetPrimaryClueSignal()", writerPage);
+        Assert.Contains("GetPrimarySeriesSignal()", writerPage);
+        Assert.Contains("공개 지식 로그 홈", writerPage);
+        Assert.Contains("대표 기억 노드", writerPage);
+        Assert.Contains("시간순 로그 흐름", writerPage);
+        Assert.Contains("대표 로그 연결", writerPage);
+        Assert.Contains("주요 단서 #", writerPage);
+        Assert.Contains("주요 시리즈", writerPage);
+        Assert.Contains("생각과 작업 판단 흐름을 회상합니다.", writerPage);
+
+        Assert.Contains(".slogger-flowline", appCss);
+        Assert.Contains(".slogger-flowline__signals", appCss);
+        Assert.Contains("border-top: 1px solid var(--theme-border);", appCss);
+        Assert.Contains("border-bottom: 1px solid var(--theme-border);", appCss);
+        Assert.Contains("@media (max-width: 640px)", appCss);
+
+        Assert.DoesNotContain("slogger-hero-card", writerPage);
+        Assert.DoesNotContain("profile metrics", writerPage);
+        Assert.DoesNotContain("public knowledge-log home", writerPage);
+        Assert.DoesNotContain("featured memory node", writerPage);
+        Assert.DoesNotContain("chronological log stream", writerPage);
+    }
+
+    [Fact]
+    public void PostDetailFirstViewExposesKnowledgeNodeFlowSummary()
+    {
+        var postDetailsPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "PostDetails.razor"));
+        var appCss = File.ReadAllText(FindRepoFile("src", "Slogs", "wwwroot", "app.css"));
+
+        Assert.Contains("post-detail-flowline", postDetailsPage);
+        Assert.Contains("aria-label=\"로그 노드 흐름 요약\"", postDetailsPage);
+        Assert.Contains("노드 흐름 요약", postDetailsPage);
+        Assert.Contains("GetPostNodeFlowDescription(post, latestRevisionNumberForNode)", postDetailsPage);
+        Assert.Contains("GetPrimaryClueSignal(post)", postDetailsPage);
+        Assert.Contains("GetPrimarySeriesSignal(post)", postDetailsPage);
+        Assert.Contains("GetRevisionFlowSignal(post, latestRevisionNumberForNode)", postDetailsPage);
+        Assert.Contains("GetLinkedLogSignal()", postDetailsPage);
+        Assert.Contains("본문과 대화 흔적은", postDetailsPage);
+        Assert.Contains("이어진 지식 로그 노드입니다.", postDetailsPage);
+        Assert.Contains("주요 단서 #", postDetailsPage);
+        Assert.Contains("로그 시리즈", postDetailsPage);
+        Assert.Contains("리비전 흐름 v", postDetailsPage);
+        Assert.Contains("개 연결 로그", postDetailsPage);
+
+        Assert.Contains(".post-detail-flowline", appCss);
+        Assert.Contains(".post-detail-flowline__signals", appCss);
+        Assert.Contains("border-top: 1px solid var(--theme-border);", appCss);
+        Assert.Contains("border-bottom: 1px solid var(--theme-border);", appCss);
+        Assert.Contains("@media (max-width: 640px)", appCss);
+
+        Assert.DoesNotContain("post-detail-article-summary-card", postDetailsPage);
+        Assert.DoesNotContain("관련 글", postDetailsPage);
     }
 
     [Fact]
@@ -406,7 +604,15 @@ public sealed class StaticAssetIdentityTests
             Assert.Contains("<PostLogCard", page);
             Assert.Contains("<ActionContent>", page);
             Assert.Contains("SummaryMaxLength=\"140\"", page);
+            Assert.Contains("CommentsUrl=\"@GetPostCommentsUrl(post)\"", page);
+            Assert.Contains("href=\"@GetPostCommentsUrl(post)\"", page);
+            Assert.Contains("SlogsIcon Name=\"message-circle\"", page);
+            Assert.Contains("대화 흔적", page);
+            Assert.Contains("PostNavigationUrlBuilder.BuildPostUrl(post, PostNavigationUrlBuilder.PersonalMenuContext)", page);
+            Assert.Contains("PostNavigationUrlBuilder.BuildCommentsUrl(post, PostNavigationUrlBuilder.PersonalMenuContext)", page);
             Assert.DoesNotContain("<PostMetaLine", page);
+            Assert.DoesNotContain("#conversation", page);
+            Assert.DoesNotContain("GetPostUrl(post)}#comments", page);
         }
 
         Assert.Contains("저장 로그", bookmarksPage);
@@ -507,6 +713,27 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("명 팔로워", postDetailsPage);
         Assert.DoesNotContain(">팔로우<", postDetailsPage);
         Assert.DoesNotContain("팔로우 해제", postDetailsPage);
+    }
+
+    [Fact]
+    public void PostDetailReplyFlowUsesContinuingConversationTraceLanguage()
+    {
+        var postDetailsPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "PostDetails.razor"));
+
+        Assert.Contains("대화 잇기", postDetailsPage);
+        Assert.Contains("대화 흔적에 이어 남기기", postDetailsPage);
+        Assert.Contains("placeholder=\"대화 흔적에 이어 남겨주세요\"", postDetailsPage);
+        Assert.Contains("이 이어진 대화 흔적을 삭제할까요?", postDetailsPage);
+        Assert.Contains("이어갈 대화 흔적을 찾을 수 없습니다.", postDetailsPage);
+        Assert.Contains("이어 남길 대화 흔적을 입력해 주세요.", postDetailsPage);
+        Assert.Contains("이어진 대화 흔적을 남기지 못했습니다.", postDetailsPage);
+        Assert.Contains("대화 흔적이 이어졌습니다.", postDetailsPage);
+        Assert.DoesNotContain("답글", postDetailsPage);
+        Assert.DoesNotContain("대화 흔적에 대한", postDetailsPage);
+        Assert.DoesNotContain("대화 흔적에 답글", postDetailsPage);
+        Assert.DoesNotContain("답글 대상을", postDetailsPage);
+        Assert.DoesNotContain("답글 내용을", postDetailsPage);
+        Assert.DoesNotContain("답글 등록", postDetailsPage);
     }
 
     [Fact]

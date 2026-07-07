@@ -34,9 +34,9 @@
     }
     @if (ShowViews)
     {
-        <span class="inline-flex items-center gap-1">
+        <span class="inline-flex items-center gap-1" title="회상 접근">
             <SlogsIcon Name="eye" Class="h-3.5 w-3.5" />
-            <span>@Post.ViewCount</span>
+            <span>@FormatRecallAccessCount(Post.ViewCount)</span>
         </span>
     }
     @if (ShowSeries && Post.Series.Count > 0)
@@ -76,4 +76,7 @@
 
     private static string FormatDate(DateTime dateTime)
         => dateTime.ToLocalTime().ToString("yyyy.MM.dd");
+
+    private static string FormatRecallAccessCount(int viewCount)
+        => $"{viewCount:N0} 회상 접근";
 }

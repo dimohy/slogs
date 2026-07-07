@@ -3,8 +3,8 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
-<PageTitle>LLM Wiki 회상 흐름</PageTitle>
-<SeoHead Title="LLM Wiki 회상 흐름 | slogs" Description="Slogs LLM Wiki가 비공개 기억을 의미로 회상하고 게시전 로그로 이어 쓰는 흐름을 확인합니다." NoIndex="true" />
+<PageTitle>LLM Wiki 기억 연결</PageTitle>
+<SeoHead Title="LLM Wiki 기억 연결 | slogs" Description="Slogs LLM Wiki가 비공개 기억을 Agent 회상과 게시전 로그로 이어 쓰는 흐름을 확인합니다." NoIndex="true" />
 
 @if (CurrentUser is null)
 {
@@ -16,8 +16,8 @@ else
         <div class="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4">
             <div>
                 <p class="text-xs font-bold text-slate-500">slogs 기억 계층</p>
-                <h1 class="mt-1 text-2xl font-bold text-slate-900">LLM Wiki 회상 흐름</h1>
-                <p class="mt-1 text-sm text-slate-500">@CurrentUser.DisplayName 님의 기억을 회상하고 Slogs 로그로 이어 쓰는 방법입니다.</p>
+                <h1 class="mt-1 text-2xl font-bold text-slate-900">LLM Wiki 기억 연결</h1>
+                <p class="mt-1 text-sm text-slate-500">@CurrentUser.DisplayName 님의 비공개 기억을 Agent 회상과 Slogs 게시전 로그로 이어 두는 연결면입니다.</p>
             </div>
         </div>
 
@@ -26,13 +26,13 @@ else
                 <p class="text-xs font-bold text-slate-500">기억에서 로그로</p>
                 <h2 class="mt-1 text-lg font-bold text-slate-900">LLM Wiki는 공개 로그 뒤의 기억 계층입니다</h2>
                 <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                    Agent가 남긴 판단 기준과 작업 맥락은 비공개 기억으로 축적되고, 필요한 순간 의미 회상에서 소유자 전용 로그 초안으로 이어집니다. 공개는 초안을 검토하고 리비전으로 남긴 뒤 사용자가 결정합니다.
+                    Agent가 남긴 판단 기준과 작업 맥락은 비공개 기억으로 축적되고, 필요한 순간 의미 회상에서 소유자 전용 게시전 로그로 이어집니다. 공개는 게시전 로그를 검토하고 리비전으로 남긴 뒤 사용자가 결정합니다.
                 </p>
             </div>
             <div class="llm-wiki-flow-panel__steps mt-4">
                 <span>기억 저장</span>
                 <span>의미 회상</span>
-                <span>로그 초안</span>
+                <span>게시전 로그</span>
                 <span>공개 공유</span>
             </div>
             <div class="mt-4">
@@ -72,7 +72,7 @@ else
                     <h3 class="text-sm font-bold text-slate-900">LLM Agent 정책에 반영할 핵심</h3>
                     <ul class="mt-2 list-disc space-y-1.5 pl-5 text-sm leading-6 text-slate-600">
                         <li>이전 결정, 선호, 판단 기준, 프로젝트 맥락이 관련되면 Slogs LLM Wiki를 먼저 조회합니다.</li>
-                        <li><code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">search</code> 도구는 회상 후보 요약 목록, <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">recall</code> 도구는 답변/구현에 바로 적용할 압축 컨텍스트로 구분합니다.</li>
+                        <li><code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">search</code> 도구는 회상 후보 흐름을 압축해 보여 주고, <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">recall</code> 도구는 답변/구현에 바로 적용할 기억 맥락으로 이어 줍니다.</li>
                         <li>MCP 응답의 Retrieval Diagnostics로 결과 수, limit, categoryPath, minRelevancePercent, elapsedMs를 확인해 회상 품질을 평가합니다.</li>
                         <li>작업을 마치기 전, 장기적으로 문서화나 자동화에 도움이 될 암묵지 저장 후보를 조용히 점검합니다.</li>
                         <li>사용자가 원치 않는 전개를 정정하거나 조정하면 원치 않았던 흐름, 원한 방향, 다음에 피할 패턴, 적용 범위를 구조화해 기억하도록 안내합니다.</li>
@@ -90,9 +90,9 @@ else
                     <h3 class="text-sm font-bold text-slate-900">Agent 동작 흐름</h3>
                     <ol class="mt-2 list-decimal space-y-1.5 pl-5 text-sm leading-6 text-slate-600">
                         <li>사용자 요청이 이전 맥락과 관련되는지 판단합니다.</li>
-                        <li>Slogs 도구가 초기 목록에 없으면 <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">tool_search</code> 같은 도구 노출 확인으로 먼저 사용 가능 여부를 확인합니다.</li>
-                        <li>넓거나 애매한 요청은 먼저 <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">search</code>로 작은 회상 후보 목록을 확인합니다.</li>
-                        <li>답변이나 구현에 바로 적용할 맥락은 낮은 limit의 <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">recall</code>로 불러옵니다.</li>
+                        <li>Slogs 도구가 처음 보이지 않으면 <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">tool_search</code> 같은 도구 노출 확인으로 먼저 사용 가능 여부를 확인합니다.</li>
+                        <li>넓거나 애매한 요청은 먼저 <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">search</code>로 작은 회상 후보 흐름을 잡습니다.</li>
+                        <li>답변이나 구현에 바로 적용할 기억 맥락은 낮은 limit의 <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">recall</code>로 불러옵니다.</li>
                         <li>관련도, 제목, 요약, 태그, Retrieval Diagnostics를 보고 현재 작업에 필요한 기억을 선별합니다.</li>
                         <li>상위 결과가 엉뚱하거나 느리거나 너무 크면 query, categoryPath, limit, minRelevancePercent를 좁혀 다시 조회합니다.</li>
                         <li>새 기억이 필요하면 <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">capture/find_related</code> 후 <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">categoryPath</code>를 정하고 저장합니다.</li>

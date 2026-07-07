@@ -13,7 +13,7 @@
             <div class="text-sm font-bold text-slate-900">슬로거</div>
             <div class="mt-2 grid gap-1">
                 <a class="@GetAdminMenuLinkClass(AdminUsersView)"
-                   href="@GetAdminMenuHref(AdminUsersView)">슬로거 관리</a>
+                   href="@GetAdminMenuHref(AdminUsersView)">슬로거 홈 흐름</a>
                 <a class="@GetAdminMenuLinkClass(AdminLlmWikiView)"
                    href="@GetAdminMenuHref(AdminLlmWikiView)">기억 회상</a>
                 <a class="@GetAdminMenuLinkClass(AdminObsidianView)"
@@ -28,12 +28,12 @@
         <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
                  ActiveClass="bg-slate-900 text-white" href="/me" Match="NavLinkMatch.All">내 공개 로그</NavLink>
         <div class="mb-1 px-3 py-2">
-            <div class="text-sm font-bold text-slate-900">LLM Wiki</div>
+            <div class="text-sm font-bold text-slate-900">비공개 기억</div>
             <div class="mt-2 grid gap-1">
                 <NavLink class="block rounded-md px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
                          ActiveClass="bg-slate-900 text-white hover:bg-slate-900 hover:text-white"
                          href="/me/llm-wiki"
-                         Match="NavLinkMatch.All">LLM Wiki 사용법</NavLink>
+                         Match="NavLinkMatch.All">기억 연결 가이드</NavLink>
                 <NavLink class="block rounded-md px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
                          ActiveClass="bg-slate-900 text-white hover:bg-slate-900 hover:text-white"
                          href="/me/llm-wiki/search"
