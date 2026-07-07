@@ -374,11 +374,23 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("Agent는 비공개 기억을 회상하고, Obsidian은 로컬 노트를 원격 노트 Vault에 남기며", settingsPage);
         Assert.Contains("비공개 기억을 회상해 소유자 전용 게시전 로그로 이어 둡니다.", settingsPage);
         Assert.Contains("검토 가능한 소유자 전용 게시전 로그를 만들고", settingsComponent);
+        Assert.Contains("Slogs MCP 연결 주소", settingsComponent);
+        Assert.Contains("Agent 회상 권한 헤더", settingsComponent);
+        Assert.Contains("Agent 연결 설정 예시", settingsComponent);
+        Assert.Contains("노트 Vault 플러그인 ID", settingsComponent);
+        Assert.Contains("Slogs Drive 설치 흐름", settingsComponent);
+        Assert.Contains("Slogs Drive 실행 흐름", settingsComponent);
 
         Assert.DoesNotContain("공개 로그 연결을 설정합니다.", settingsPage);
         Assert.DoesNotContain("공개 로그 흐름을 관리합니다.", settingsPage);
         Assert.DoesNotContain("게시전 로그 초안", settingsPage);
         Assert.DoesNotContain("게시전 로그 초안", settingsComponent);
+        Assert.DoesNotContain(">Endpoint</p>", settingsComponent);
+        Assert.DoesNotContain(">Authorization Header</p>", settingsComponent);
+        Assert.DoesNotContain(">Client Config Example</p>", settingsComponent);
+        Assert.DoesNotContain(">Plugin ID</p>", settingsComponent);
+        Assert.DoesNotContain(">Drive install</p>", settingsComponent);
+        Assert.DoesNotContain(">Drive run</p>", settingsComponent);
     }
 
     [Fact]
