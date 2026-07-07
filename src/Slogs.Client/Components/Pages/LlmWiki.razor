@@ -71,12 +71,12 @@ else
                 <div>
                     <h3 class="text-sm font-bold text-slate-900">LLM Agent 정책에 반영할 핵심</h3>
                     <ul class="mt-2 list-disc space-y-1.5 pl-5 text-sm leading-6 text-slate-600">
-                        <li>이전 결정, 선호, 판단 기준, 프로젝트 맥락이 관련되면 Slogs LLM Wiki를 먼저 조회합니다.</li>
+                        <li>이전 결정, 선호, 판단 기준, 프로젝트 맥락이 관련되면 Slogs LLM Wiki에서 먼저 관련 기억을 회상합니다.</li>
                         <li><code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">search</code> 도구는 회상 후보 흐름을 압축해 보여 주고, <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">recall</code> 도구는 답변/구현에 바로 적용할 기억 맥락으로 이어 줍니다.</li>
-                        <li>MCP 응답의 Retrieval Diagnostics로 결과 수, limit, categoryPath, minRelevancePercent, elapsedMs를 확인해 회상 품질을 평가합니다.</li>
+                        <li>MCP 회상 응답의 Retrieval Diagnostics로 결과 수, limit, categoryPath, minRelevancePercent, elapsedMs를 확인해 회상 품질을 평가합니다.</li>
                         <li>작업을 마치기 전, 장기적으로 문서화나 자동화에 도움이 될 암묵지 저장 후보를 조용히 점검합니다.</li>
                         <li>사용자가 원치 않는 전개를 정정하거나 조정하면 원치 않았던 흐름, 원한 방향, 다음에 피할 패턴, 적용 범위를 구조화해 기억하도록 안내합니다.</li>
-                        <li>저장 전에는 관련 기억을 먼저 찾고, 중복이면 새 항목이 아니라 기존 항목을 merge/update합니다.</li>
+                        <li>저장 전에는 관련 기억을 먼저 회상하고, 중복이면 새 항목이 아니라 기존 항목을 merge/update합니다.</li>
                         <li>정제된 현재 기억과 별도로 원래 저장/병합/갱신 요청은 Raw Provenance에 남겨 회상 품질과 병합 품질을 검증합니다.</li>
                         <li>저장, 병합, 갱신 시 프로젝트/영역/주제를 나타내는 <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">categoryPath</code>를 명시합니다.</li>
                         <li>복사한 프롬프트는 Slogs MCP 키 입력과 전역/프로젝트/현재 세션 범위 선택을 안내하고, 선택한 범위에 맞춰 MCP 연결도 함께 설정하도록 합니다.</li>
@@ -94,7 +94,7 @@ else
                         <li>넓거나 애매한 요청은 먼저 <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">search</code>로 작은 회상 후보 흐름을 잡습니다.</li>
                         <li>답변이나 구현에 바로 적용할 기억 맥락은 낮은 limit의 <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">recall</code>로 불러옵니다.</li>
                         <li>관련도, 제목, 요약, 태그, Retrieval Diagnostics를 보고 현재 작업에 필요한 기억을 선별합니다.</li>
-                        <li>상위 결과가 엉뚱하거나 느리거나 너무 크면 query, categoryPath, limit, minRelevancePercent를 좁혀 다시 조회합니다.</li>
+                        <li>상위 기억이 엉뚱하거나 느리거나 너무 크면 query, categoryPath, limit, minRelevancePercent를 좁혀 다시 회상합니다.</li>
                         <li>새 기억이 필요하면 <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">capture/find_related</code> 후 <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">categoryPath</code>를 정하고 저장합니다.</li>
                         <li>항목을 열어 Raw Provenance의 원문 근거와 현재 통합 기억이 일치하는지 점검합니다.</li>
                         <li>일회성 로그, 임시 실행 내역, 검증되지 않은 추측, 현재 파일에서 쉽게 복구 가능한 단순 사실은 저장하지 않습니다.</li>

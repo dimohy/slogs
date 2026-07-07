@@ -1326,31 +1326,6 @@ header.bg-white {
     }
 }
 
-@media (max-width: 340px) {
-    .slogs-app-header__inner {
-        grid-template-areas:
-            "brand actions"
-            "recall recall";
-        grid-template-columns: minmax(0, 1fr) auto;
-    }
-
-    .slogs-header-tools {
-        display: contents;
-    }
-
-    .slogs-header-actions {
-        grid-area: actions;
-    }
-
-    .slogs-header-recall {
-        grid-area: recall;
-        justify-self: stretch;
-        min-width: 0;
-        width: 100%;
-        max-width: none;
-    }
-}
-
 @media (max-width: 520px) {
     .slogs-app-header__inner {
         gap: 0.6rem;
@@ -1413,6 +1388,59 @@ header.bg-white {
     .slogs-mobile-menu-toggle {
         width: 2.2rem;
         height: 2.2rem;
+    }
+}
+
+@media (max-width: 360px) {
+    .slogs-brand {
+        gap: 0;
+        max-width: 2.15rem;
+    }
+
+    .slogs-brand__text {
+        display: none;
+    }
+}
+
+@media (max-width: 300px) {
+    .slogs-app-header__inner {
+        grid-template-areas: "brand tools";
+        grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+        gap: 0.35rem;
+        padding-left: 0.55rem;
+        padding-right: 0.55rem;
+    }
+
+    .slogs-header-tools {
+        display: flex;
+        gap: 0.25rem;
+    }
+
+    .slogs-header-actions {
+        grid-area: actions;
+        gap: 0.25rem;
+    }
+
+    .slogs-header-actions > a,
+    .slogs-header-actions > .relative > button,
+    .slogs-account-menu > summary {
+        padding-left: 0.45rem;
+        padding-right: 0.45rem;
+        font-size: 0.78rem;
+    }
+
+    .slogs-header-recall {
+        grid-area: recall;
+        min-width: 5rem;
+        width: 100%;
+        max-width: 100%;
+        padding-left: 0.45rem;
+        padding-right: 0.4rem;
+    }
+
+    .slogs-header-recall__button {
+        width: 1.75rem;
+        height: 1.75rem;
     }
 }
 

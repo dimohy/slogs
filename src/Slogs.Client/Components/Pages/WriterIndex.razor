@@ -2,14 +2,14 @@
 @inject SlogsApiClient ApiClient
 @inject NavigationManager Navigation
 
-<PageTitle>슬로거</PageTitle>
-<SeoHead Title="슬로거 | slogs"
-         Description="slogs에서 공개 지식 로그를 남기는 슬로거를 찾고 로그 홈으로 이동합니다."
+<PageTitle>슬로거 홈 흐름</PageTitle>
+<SeoHead Title="슬로거 홈 흐름 | slogs"
+         Description="slogs에서 공개 지식 로그를 남기는 슬로거의 로그 홈 흐름을 회상합니다."
          CanonicalPath="/writer"
          NoIndex="@(!string.IsNullOrWhiteSpace(Query))"
-         JsonLd="@(SeoMetadata.CollectionPageJsonLd(Navigation.BaseUri, "/writer", "slogs 슬로거", "slogs에서 공개 지식 로그를 남기는 슬로거를 찾고 로그 홈으로 이동합니다."))" />
+         JsonLd="@(SeoMetadata.CollectionPageJsonLd(Navigation.BaseUri, "/writer", "slogs 슬로거 홈 흐름", "slogs에서 공개 지식 로그를 남기는 슬로거의 로그 홈 흐름을 회상합니다."))" />
 
-<h1 class="text-2xl font-bold text-slate-900">슬로거</h1>
+<h1 class="text-2xl font-bold text-slate-900">슬로거 홈 흐름</h1>
 <p class="mb-3 text-sm text-slate-500">공개 지식 로그를 남기는 사람들의 로그 홈을 살펴봅니다.</p>
 
 <div class="mb-4 flex flex-wrap gap-2">
@@ -33,8 +33,8 @@
 </div>
 
 <div class="mb-4 flex flex-wrap gap-2">
-    <a class="@GetSortChipClass(null)" href="@GetListQuery(null)">로그 수</a>
-    <a class="@GetSortChipClass("name")" href='@GetListQuery("name")'>이름순</a>
+    <a class="@GetSortChipClass(null)" href="@GetListQuery(null)">로그 흐름순</a>
+    <a class="@GetSortChipClass("name")" href='@GetListQuery("name")'>@@주소순</a>
 </div>
 
 <section class="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -51,7 +51,7 @@
             <a class="group rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
                href="@($"/@{Uri.EscapeDataString(item.Author)}")">
                 @FormatUserName(item.Author)
-                <span class="ml-2 text-xs text-slate-500 transition group-hover:text-slate-200">(@item.Count)</span>
+                <span class="ml-2 text-xs text-slate-500 transition group-hover:text-slate-200">@($"{item.Count}개 로그")</span>
             </a>
         }
     }
@@ -62,7 +62,7 @@
                         IsLoading="@isLoadingMoreWriters"
                         OnLoadMore="LoadMoreWritersAsync"
                         ShowDoneText="@(allWriters.Count > PageSize)"
-                        DoneText="모든 슬로거를 불러왔습니다." />
+                        DoneText="모든 슬로거 홈 흐름을 불러왔습니다." />
 
 @code {
     private const int PageSize = 12;
@@ -152,7 +152,7 @@
             return $"\"{Query.Trim()}\"에 대한 슬로거 회상 결과가 없습니다.";
         }
 
-        return "공개 로그를 남긴 슬로거가 아직 없습니다.";
+        return "공개 로그 흐름을 남긴 슬로거가 아직 없습니다.";
     }
 
     private string GetSearchResultHref()

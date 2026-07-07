@@ -274,19 +274,19 @@ else
                 <button class="rounded-full border border-rose-300 px-3 py-1.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-50"
                         disabled="@isDeletingPost"
                         type="button" @onclick="ShowDeleteConfirm">
-                    @(isDeletingPost ? "삭제 중..." : "삭제")
+                    @(isDeletingPost ? "로그 지우는 중..." : "로그 지우기")
                 </button>
             }
         </div>
         @if (showDeleteConfirm)
         {
             <div class="mt-3 flex flex-col gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3">
-                <p class="text-sm font-semibold text-rose-900">이 로그를 정말 삭제하시겠습니까?</p>
+                <p class="text-sm font-semibold text-rose-900">이 로그 흐름을 지울까요?</p>
                 <div class="flex flex-wrap gap-2">
                     <button class="rounded-full border border-rose-300 bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-rose-700"
                             disabled="@isDeletingPost"
                             type="button" @onclick="DeletePost">
-                        @(isDeletingPost ? "삭제 중..." : "삭제 진행")
+                        @(isDeletingPost ? "로그 지우는 중..." : "로그 지우기 진행")
                     </button>
                     <button class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold transition hover:bg-slate-100"
                             disabled="@isDeletingPost"
@@ -389,11 +389,11 @@ else
     }
 
     <section id="comments" class="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-        <h3 class="mb-3 text-lg font-bold text-slate-900">대화 흔적 (@post.CommentCount)</h3>
+        <h3 class="mb-3 text-lg font-bold text-slate-900">대화 흔적 흐름 (@post.CommentCount)</h3>
 
         @if (CurrentUser is null)
         {
-            <p class="text-sm text-slate-500">대화 흔적을 남기려면 <a class="font-semibold underline" href="@GetLoginReturnUrl()">로그인</a>해 주세요.</p>
+            <p class="text-sm text-slate-500">이 로그 노드에 대화 흔적을 남기려면 <a class="font-semibold underline" href="@GetLoginReturnUrl()">로그인</a>해 주세요.</p>
         }
         else
         {
@@ -403,10 +403,10 @@ else
                     <textarea class="comment-compose__input rounded-2xl border border-slate-300 p-3 text-sm"
                               disabled="@isCommentSaving"
                               rows="4" maxlength="1000" @bind="newComment" @bind:event="oninput"
-                              @onkeydown="HandleCommentKeyDown" placeholder="대화 흔적을 남겨주세요"></textarea>
+                              @onkeydown="HandleCommentKeyDown" placeholder="이 로그 노드에 이어질 대화 흔적을 남겨주세요"></textarea>
                     <button class="comment-compose__submit rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                             @onclick="SubmitComment" disabled="@(!CanSubmitComment)">
-                        남기기
+                        흔적 남기기
                     </button>
                 </div>
             </div>
@@ -414,18 +414,18 @@ else
 
         @if (!post.Comments.Any())
         {
-            <p class="mt-3 text-sm text-slate-500">첫 번째 대화 흔적을 남겨 보세요.</p>
+            <p class="mt-3 text-sm text-slate-500">아직 이어진 대화 흔적이 없습니다. 첫 흐름을 남겨 보세요.</p>
         }
         else
         {
             <div class="mt-2 flex flex-wrap gap-2 text-sm">
-                <a class="@GetCommentSortChipClass("latest")" href="@GetCommentSortHref("latest")">최신순</a>
-                <a class="@GetCommentSortChipClass("oldest")" href="@GetCommentSortHref("oldest")">오래된순</a>
+                <a class="@GetCommentSortChipClass("latest")" href="@GetCommentSortHref("latest")">최근 흔적</a>
+                <a class="@GetCommentSortChipClass("oldest")" href="@GetCommentSortHref("oldest")">처음 흔적</a>
             </div>
 
             @if (commentTotalCount > 0)
             {
-                <p class="mt-1 text-xs text-slate-500">@($"정렬: {GetCommentSortLabel(commentSortOrder)} · 상위 대화 {commentTotalCount}개")</p>
+                <p class="mt-1 text-xs text-slate-500">@($"흐름 기준: {GetCommentSortLabel(commentSortOrder)} · 대화 흔적 {commentTotalCount}개")</p>
             }
             <div class="mt-3 flex flex-col gap-2">
                 @foreach (var comment in topLevelComments)
@@ -446,14 +446,14 @@ else
                             {
                                 <span>·</span>
                                 <button class="text-slate-700 transition hover:text-slate-900" type="button" disabled="@isCommentSaving" @onclick="() => StartEditComment(comment.Id)">
-                                    수정
+                                    흔적 다듬기
                                 </button>
                             }
                             @if (CanDeleteComment(comment))
                             {
                                 <span>·</span>
                                 <button class="text-rose-600 transition hover:text-rose-700" type="button" disabled="@isCommentSaving" @onclick="() => RequestDeleteComment(comment.Id)">
-                                    삭제
+                                    흔적 지우기
                                 </button>
                             }
                         </div>
@@ -461,11 +461,11 @@ else
                         @if (pendingDeleteCommentId == comment.Id)
                         {
                             <div class="mt-2 rounded-lg border border-rose-200 bg-rose-50 p-2 text-sm text-rose-800">
-                                <p class="mb-2">이 대화 흔적을 삭제할까요?</p>
+                                <p class="mb-2">이 대화 흔적을 지울까요?</p>
                                 <div class="flex flex-wrap gap-2">
                                     <button class="rounded-full border border-rose-300 bg-rose-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-rose-700"
                                             type="button" disabled="@isCommentSaving" @onclick="ConfirmDeleteComment">
-                                        삭제
+                                        흔적 지우기
                                     </button>
                                     <button class="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold transition hover:bg-slate-100"
                                             type="button" @onclick="CancelDeleteComment">
@@ -486,7 +486,7 @@ else
                                 <button class="rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                                         type="button" @onclick="() => SubmitEditComment(comment.Id)"
                                         disabled="@(string.IsNullOrWhiteSpace(editingCommentText) || isCommentSaving)">
-                                    수정 저장
+                                    흔적 갱신
                                 </button>
                                 <button class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
                                         type="button" @onclick="CancelEditComment">
@@ -499,7 +499,7 @@ else
                             <p class="mt-1 text-slate-700">@comment.Content</p>
                             @if (comment.IsEdited)
                             {
-                                <p class="text-xs text-slate-400">수정됨</p>
+                                <p class="text-xs text-slate-400">흔적 갱신됨</p>
                             }
                         }
                     </article>
@@ -537,14 +537,14 @@ else
                             {
                                 <span>·</span>
                                     <button class="text-rose-600 transition hover:bg-rose-200 hover:text-rose-700" type="button" disabled="@isCommentSaving" @onclick="() => RequestDeleteComment(reply.Id)">
-                                    삭제
+                                    흔적 지우기
                                 </button>
                             }
                             @if (CanEditComment(reply))
                             {
                                 <span>·</span>
                                     <button class="text-slate-700 transition hover:bg-slate-100 hover:text-slate-900" type="button" disabled="@isCommentSaving" @onclick="() => StartEditComment(reply.Id)">
-                                    수정
+                                    흔적 다듬기
                                 </button>
                             }
                             </div>
@@ -552,11 +552,11 @@ else
                             @if (pendingDeleteCommentId == reply.Id)
                             {
                                 <div class="mt-2 rounded-lg border border-rose-200 bg-rose-50 p-2 text-sm text-rose-800">
-                                    <p class="mb-2">이 이어진 대화 흔적을 삭제할까요?</p>
+                                    <p class="mb-2">이 이어진 대화 흔적을 지울까요?</p>
                                     <div class="flex flex-wrap gap-2">
                                         <button class="rounded-full border border-rose-300 bg-rose-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-rose-700"
                                                 type="button" @onclick="ConfirmDeleteComment">
-                                            삭제
+                                            흔적 지우기
                                         </button>
                                         <button class="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold transition hover:bg-slate-100"
                                                 type="button" @onclick="CancelDeleteComment">
@@ -577,7 +577,7 @@ else
                                     <button class="rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                                             type="button" @onclick="() => SubmitEditComment(reply.Id)"
                                             disabled="@(string.IsNullOrWhiteSpace(editingCommentText) || isCommentSaving)">
-                                        수정 저장
+                                        흔적 갱신
                                     </button>
                                     <button class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
                                             type="button" @onclick="CancelEditComment">
@@ -590,7 +590,7 @@ else
                                 <p class="mt-1 text-slate-700">@reply.Content</p>
                                 @if (reply.IsEdited)
                                 {
-                                    <p class="text-xs text-slate-400">수정됨</p>
+                                    <p class="text-xs text-slate-400">흔적 갱신됨</p>
                                 }
                             }
                         </article>
@@ -603,7 +603,7 @@ else
                                     IsLoading="@isLoadingMoreComments"
                                     OnLoadMore="LoadMoreCommentsAsync"
                                     ShowDoneText="@(allTopLevelComments.Count > CommentPageSize)"
-                                    DoneText="모든 대화 흔적을 불러왔습니다." />
+                                    DoneText="모든 대화 흔적 흐름을 불러왔습니다." />
         }
     </section>
 }
@@ -769,7 +769,7 @@ else
 
         if (!CanEditComment(target))
         {
-            message = "수정 권한이 없습니다.";
+            message = "대화 흔적을 다듬을 권한이 없습니다.";
             return;
         }
 
@@ -1139,7 +1139,7 @@ else
 
         if (CurrentUser is null || post is null)
         {
-            message = "수정할 수 없습니다.";
+            message = "대화 흔적을 다듬을 수 없습니다.";
             NavigateToLogin();
             return;
         }
@@ -1166,7 +1166,7 @@ else
 
         if (!CanEditComment(target))
         {
-            message = "수정 권한이 없습니다.";
+            message = "대화 흔적을 다듬을 권한이 없습니다.";
             return;
         }
 
@@ -1180,14 +1180,14 @@ else
             var updated = await ApiClient.UpdateCommentAsync(Slug, commentId, CurrentUser.UserName, trimmed);
             if (!updated)
             {
-                message = "대화 흔적 수정에 실패했습니다.";
+                message = "대화 흔적을 갱신하지 못했습니다.";
                 return;
             }
 
             editingCommentId = null;
             editingCommentText = string.Empty;
             await RefreshPostAsync();
-            message = "대화 흔적이 수정되었습니다.";
+            message = "대화 흔적이 갱신되었습니다.";
         }
         finally
         {
@@ -1391,7 +1391,7 @@ else
         message = string.Empty;
         if (!CanEditCurrentPost)
         {
-            message = "삭제 권한이 없습니다.";
+            message = "로그를 지울 권한이 없습니다.";
             return;
         }
 
@@ -1413,7 +1413,7 @@ else
 
         if (post is null || CurrentUser is null || !post.IsAuthor(CurrentUser.UserName))
         {
-            message = "삭제 권한이 없습니다.";
+            message = "로그를 지울 권한이 없습니다.";
             showDeleteConfirm = false;
             return;
         }
@@ -1428,7 +1428,7 @@ else
             if (!deleted)
             {
                 showDeleteConfirm = false;
-                message = "삭제에 실패했습니다.";
+                message = "로그를 지우지 못했습니다.";
                 return;
             }
 
@@ -1437,7 +1437,7 @@ else
         catch (Exception ex)
         {
             showDeleteConfirm = false;
-            message = $"삭제 요청 중 오류가 발생했습니다: {ex.Message}";
+            message = $"로그 지우기 요청 중 오류가 발생했습니다: {ex.Message}";
         }
         finally
         {
@@ -1570,13 +1570,13 @@ else
         var target = FindComment(commentId);
         if (target is null)
         {
-            message = "삭제할 대화 흔적을 찾을 수 없습니다.";
+            message = "지울 대화 흔적을 찾을 수 없습니다.";
             return;
         }
 
         if (!CanDeleteComment(target))
         {
-            message = "삭제 권한이 없습니다.";
+            message = "대화 흔적을 지울 권한이 없습니다.";
             return;
         }
 
@@ -1641,7 +1641,7 @@ else
         var target = FindComment(commentId);
         if (target is null)
         {
-            message = "삭제할 대화 흔적을 찾을 수 없습니다.";
+            message = "지울 대화 흔적을 찾을 수 없습니다.";
             pendingDeleteCommentId = null;
             return;
         }
@@ -1658,14 +1658,14 @@ else
         var deleted = await ApiClient.RemoveCommentAsync(post.Slug, commentId, CurrentUser.UserName);
         if (!deleted)
         {
-            message = "대화 흔적 삭제에 실패했습니다.";
+            message = "대화 흔적을 지우지 못했습니다.";
             pendingDeleteCommentId = null;
             return;
         }
 
         await RefreshPostAsync();
         pendingDeleteCommentId = null;
-        message = "대화 흔적이 삭제되었습니다.";
+        message = "대화 흔적이 지워졌습니다.";
         }
         finally
         {
@@ -1771,8 +1771,8 @@ else
 
     private static string GetCommentSortLabel(string sortOrder)
         => string.Equals(sortOrder, "oldest", StringComparison.OrdinalIgnoreCase)
-            ? "오래된순"
-            : "최신순";
+            ? "처음 흔적"
+            : "최근 흔적";
 
     private async Task ToggleFollowAuthor()
     {
