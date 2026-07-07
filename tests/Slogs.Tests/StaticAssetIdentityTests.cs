@@ -570,6 +570,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("max-width: 100%;", appCss);
         Assert.Contains(".slogs-account-menu > summary", appCss);
         Assert.Contains("max-width: min(17rem, 34vw);", appCss);
+        Assert.Contains("overflow: hidden;", appCss);
         Assert.Contains("min-width: 0;", appCss);
         Assert.Contains("max-width: 4.85rem;", appCss);
         Assert.Contains("max-width: 4.25rem;", appCss);
@@ -578,6 +579,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("min-width: 18rem;", appCss);
         Assert.Contains("flex-basis: 32rem;", appCss);
         Assert.Contains("min-width: 14rem;", appCss);
+        Assert.Contains("@media (max-width: 1180px) {\n    .slogs-brand__tagline {\n        display: none;\n    }\n}", appCss);
         Assert.Contains("@media (max-width: 900px)", appCss);
         Assert.Contains(".slogs-brand__tagline {\n        display: none;\n    }", appCss);
         Assert.Contains("min-width: 8rem;", appCss);
