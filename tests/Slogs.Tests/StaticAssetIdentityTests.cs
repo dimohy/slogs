@@ -869,6 +869,34 @@ public sealed class StaticAssetIdentityTests
     }
 
     [Fact]
+    public void PostDetailRevisionComparisonUsesRevisionFlowLanguage()
+    {
+        var postDetailsPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "PostDetails.razor"));
+        var appCss = File.ReadAllText(FindRepoFile("src", "Slogs", "wwwroot", "app.css"));
+
+        Assert.Contains("post-detail-revision-flow", postDetailsPage);
+        Assert.Contains("aria-label=\"리비전 흐름 신호\"", postDetailsPage);
+        Assert.Contains("리비전 흐름 비교", postDetailsPage);
+        Assert.Contains("선택한 리비전이 이 로그 노드의 기억을 어떻게 갱신했는지 확인합니다.", postDetailsPage);
+        Assert.Contains("리비전 흐름 변화를 불러오는 중입니다.", postDetailsPage);
+        Assert.Contains("리비전 흐름 변화를 불러오지 못했습니다.", postDetailsPage);
+        Assert.Contains("비교할 리비전 흐름 변화가 없습니다.", postDetailsPage);
+        Assert.Contains("흐름 영역 {diff.Label}", postDetailsPage);
+        Assert.Contains("FormatRevisionFlowChangeCount(revisionFlowChangeCount)", postDetailsPage);
+        Assert.Contains("흐름 변화 기록 없음", postDetailsPage);
+        Assert.Contains("개 흐름 변화", postDetailsPage);
+        Assert.Contains("record PostRevisionSummaryResponse", File.ReadAllText(FindRepoFile("src", "Slogs.Shared", "Data", "SlogsApiContracts.cs")));
+
+        Assert.Contains(".post-detail-revision-flow", appCss);
+        Assert.Contains(".post-detail-revision-flow__signals", appCss);
+        Assert.Contains("border-bottom: 1px solid var(--theme-border);", appCss);
+
+        Assert.DoesNotContain("변경점을 불러오는 중입니다.", postDetailsPage);
+        Assert.DoesNotContain("변경점을 불러오지 못했습니다.", postDetailsPage);
+        Assert.DoesNotContain("비교할 변경점이 없습니다.", postDetailsPage);
+    }
+
+    [Fact]
     public void SavedAndResonancePagesUseLogNodeCards()
     {
         var postLogCard = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "PostLogCard.razor"));
