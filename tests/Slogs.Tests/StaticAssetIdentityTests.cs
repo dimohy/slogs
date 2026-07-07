@@ -809,9 +809,11 @@ public sealed class StaticAssetIdentityTests
         var seriesIndexPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "SeriesIndex.razor"));
 
         Assert.Contains(">반복 단서</h1>", tagIndexPage);
+        Assert.Contains("slogs의 반복 단서를 회상하며 이어지는 공개 로그 흐름을 다시 따라갑니다.", tagIndexPage);
         Assert.Contains(">단서명순</a>", tagIndexPage);
         Assert.Contains("모든 단서 흐름을 불러왔습니다.", tagIndexPage);
         Assert.Contains(">로그 시리즈</h1>", seriesIndexPage);
+        Assert.Contains("slogs의 로그 시리즈를 회상하며 시간과 의미로 이어진 흐름을 다시 따라갑니다.", seriesIndexPage);
         Assert.Contains(">시리즈명순</a>", seriesIndexPage);
         Assert.Contains("모든 시리즈 흐름을 불러왔습니다.", seriesIndexPage);
 
@@ -819,6 +821,8 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain(">이름순</a>", seriesIndexPage);
         Assert.DoesNotContain("모든 단서를 불러왔습니다.", tagIndexPage);
         Assert.DoesNotContain("모든 로그 시리즈를 불러왔습니다.", seriesIndexPage);
+        Assert.DoesNotContain("slogs의 반복 단서를 회상하고 이어지는 공개 로그 흐름을 확인합니다.", tagIndexPage);
+        Assert.DoesNotContain("slogs의 로그 시리즈를 회상하고 시간과 의미로 이어진 흐름을 확인합니다.", seriesIndexPage);
     }
 
     [Fact]
