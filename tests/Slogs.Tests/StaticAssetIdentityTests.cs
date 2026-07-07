@@ -432,8 +432,8 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("노트 용량 흐름", adminUsersPage);
         Assert.Contains("aria-label=\"노트 Vault 용량 흐름\"", adminUsersPage);
         Assert.Contains(">노트 Vault 용량 흐름</h2>", adminUsersPage);
-        Assert.Contains(">전체 Vault 한도 GiB</label>", adminUsersPage);
-        Assert.Contains("aria-label=\"노트 Vault 전체 용량 한도 GiB\"", adminUsersPage);
+        Assert.Contains(">노트 Vault 흐름 한도 GiB</label>", adminUsersPage);
+        Assert.Contains("aria-label=\"노트 Vault 흐름 한도 GiB\"", adminUsersPage);
         Assert.Contains(">Vault 사용</div>", adminUsersPage);
         Assert.Contains(">Vault 여유</div>", adminUsersPage);
         Assert.Contains(">물리 여유</div>", adminUsersPage);
@@ -451,7 +451,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("명 노트 흐름 표시", adminUsersPage);
         Assert.Contains(">노트 원문</th>", adminUsersPage);
         Assert.Contains(">노트 흐름</th>", adminUsersPage);
-        Assert.Contains(">Vault 한도</th>", adminUsersPage);
+        Assert.Contains(">Vault 흐름 한도</th>", adminUsersPage);
         Assert.Contains(">Vault 여유</th>", adminUsersPage);
         Assert.Contains(">최근 Vault 흐름</th>", adminUsersPage);
         Assert.Contains(">최근 연결 기기</th>", adminUsersPage);
@@ -470,6 +470,8 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("Obsidian Sync 노트 Vault 용량 한도", adminUsersPage);
         Assert.DoesNotContain(">스토리지 한도</h2>", adminUsersPage);
         Assert.DoesNotContain(">전체 한도 GiB</label>", adminUsersPage);
+        Assert.DoesNotContain(">전체 Vault 한도 GiB</label>", adminUsersPage);
+        Assert.DoesNotContain("aria-label=\"노트 Vault 전체 용량 한도 GiB\"", adminUsersPage);
         Assert.DoesNotContain("aria-label=\"Obsidian Sync 전체 스토리지 한도 GiB\"", adminUsersPage);
         Assert.DoesNotContain(">사용량</div>", adminUsersPage);
         Assert.DoesNotContain(">한도 남은 용량</div>", adminUsersPage);
@@ -492,6 +494,8 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain(">Version</th>", adminUsersPage);
         Assert.DoesNotContain(">최근 Vault 변경</th>", adminUsersPage);
         Assert.DoesNotContain(">최근 노트 Vault</th>", adminUsersPage);
+        Assert.DoesNotContain(">Vault 한도</th>", adminUsersPage);
+        Assert.DoesNotContain("전체 노트 Vault 한도", adminUsersPage);
         Assert.DoesNotContain(">최근 클라이언트</th>", adminUsersPage);
         Assert.DoesNotContain("표시할 Obsidian Sync 사용자가 없습니다.", adminUsersPage);
         Assert.DoesNotContain("Obsidian Sync vault, 파일, 클라이언트 현황", adminUsersPage);

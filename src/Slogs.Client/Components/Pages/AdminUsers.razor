@@ -401,7 +401,7 @@ else
                         </p>
                     </div>
                     <div class="flex flex-wrap items-center gap-2">
-                        <label class="text-xs font-bold text-slate-500" for="obsidian-total-capacity">전체 Vault 한도 GiB</label>
+                        <label class="text-xs font-bold text-slate-500" for="obsidian-total-capacity">노트 Vault 흐름 한도 GiB</label>
                         <input id="obsidian-total-capacity"
                                type="number"
                                min="1"
@@ -409,7 +409,7 @@ else
                                class="w-32 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 outline-none transition focus:border-slate-900"
                                @bind="obsidianTotalCapacityGiB"
                                disabled="@isStorageSettingsBusy"
-                               aria-label="노트 Vault 전체 용량 한도 GiB" />
+                               aria-label="노트 Vault 흐름 한도 GiB" />
                         <button type="button"
                                 class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
                                 disabled="@isStorageSettingsBusy"
@@ -486,7 +486,7 @@ else
                             <th class="px-3 py-2 text-right">연결 기기</th>
                             <th class="px-3 py-2 text-right">노트 흐름</th>
                             <th class="px-3 py-2 text-right">노트 용량</th>
-                            <th class="px-3 py-2 text-right">Vault 한도</th>
+                            <th class="px-3 py-2 text-right">Vault 흐름 한도</th>
                             <th class="px-3 py-2 text-right">Vault 여유</th>
                             <th class="px-3 py-2">최근 Vault 흐름</th>
                             <th class="px-3 py-2">최근 연결 기기</th>
@@ -780,7 +780,7 @@ else
 
         if (obsidianTotalCapacityGiB < 1)
         {
-            storageSettingsError = "전체 노트 Vault 한도는 1GiB 이상이어야 합니다.";
+            storageSettingsError = "노트 Vault 흐름 한도는 1GiB 이상이어야 합니다.";
             return;
         }
 
@@ -791,11 +791,11 @@ else
             await ApiClient.UpdateAdminObsidianStorageSettingsAsync(capacityBytes);
             usage = await ApiClient.GetAdminUserUsageAsync();
             SyncObsidianStorageInput();
-            storageSettingsSuccess = $"전체 노트 Vault 한도를 {FormatBytes(capacityBytes)}로 저장했습니다.";
+            storageSettingsSuccess = $"노트 Vault 흐름 한도를 {FormatBytes(capacityBytes)}로 저장했습니다.";
         }
         catch (OverflowException)
         {
-            storageSettingsError = "전체 노트 Vault 한도가 너무 큽니다.";
+            storageSettingsError = "노트 Vault 흐름 한도가 너무 큽니다.";
         }
         catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException)
         {
@@ -889,8 +889,8 @@ else
         => error switch
         {
             "adminRequired" => "어드민 권한이 필요합니다.",
-            "obsidianStorageCapacityInvalid" => "전체 노트 Vault 한도는 1GiB 이상, 1PiB 이하로 입력해 주세요.",
-            "obsidianStorageCapacityBelowUsage" => "전체 노트 Vault 한도는 현재 Vault 사용량보다 작게 설정할 수 없습니다.",
+            "obsidianStorageCapacityInvalid" => "노트 Vault 흐름 한도는 1GiB 이상, 1PiB 이하로 입력해 주세요.",
+            "obsidianStorageCapacityBelowUsage" => "노트 Vault 흐름 한도는 현재 Vault 사용보다 작게 설정할 수 없습니다.",
             "obsidianStorageSettingInvalid" => "저장된 노트 Vault 용량 설정 값이 올바르지 않습니다.",
             _ => "노트 Vault 용량 설정 저장에 실패했습니다."
         };
