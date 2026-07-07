@@ -831,6 +831,29 @@ public sealed class StaticAssetIdentityTests
     }
 
     [Fact]
+    public void PublicLogNodeCardsExposeRecallPathSignals()
+    {
+        var postLogCard = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "PostLogCard.razor"));
+        var appCss = File.ReadAllText(FindRepoFile("src", "Slogs", "wwwroot", "app.css"));
+
+        Assert.Contains("post-log-card__recall-path", postLogCard);
+        Assert.Contains("aria-label=\"로그 회상 경로\"", postLogCard);
+        Assert.Contains("FormatRecallPath(Post)", postLogCard);
+        Assert.Contains("회상 경로:", postLogCard);
+        Assert.Contains("FormatUserName(post.Author)", postLogCard);
+        Assert.Contains("GetPrimaryClue(post)", postLogCard);
+        Assert.Contains("GetSeriesPath(post)", postLogCard);
+        Assert.Contains("GetConversationSignal(post)", postLogCard);
+        Assert.Contains("단서 미지정", postLogCard);
+        Assert.Contains("단일 로그", postLogCard);
+
+        Assert.Contains(".post-log-card__recall-path", appCss);
+        Assert.Contains("-webkit-line-clamp: 2;", appCss);
+
+        Assert.DoesNotContain("article teaser", postLogCard, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void PublicStreamDoneAndEmptyStatesKeepKnowledgeFlowLanguage()
     {
         var homePage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "Home.razor"));

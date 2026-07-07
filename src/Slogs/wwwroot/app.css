@@ -349,6 +349,18 @@ img.rounded-full { border-radius: 9999px; }
     color: #0f5f59;
 }
 
+.post-log-card__recall-path {
+    display: -webkit-box;
+    overflow: hidden;
+    margin-bottom: 0.55rem;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    color: #667568;
+    font-size: 0.74rem;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
 .post-log-card__title {
     margin-bottom: 0.45rem;
 }
