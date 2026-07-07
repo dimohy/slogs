@@ -808,7 +808,10 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("GetFeaturedLogSignal()", writerPage);
         Assert.Contains("GetPrimaryClueSignal()", writerPage);
         Assert.Contains("GetPrimarySeriesSignal()", writerPage);
+        Assert.Contains("GetSloggerHomeJsonLd()", writerPage);
+        Assert.Contains("SeoMetadata.SloggerHomeJsonLd", writerPage);
         Assert.Contains("공개 지식 로그 홈", writerPage);
+        Assert.Contains("슬로거 홈 이미지", writerPage);
         Assert.Contains("대표 기억 노드", writerPage);
         Assert.Contains("시간순 로그 흐름", writerPage);
         Assert.Contains("대표 로그 연결", writerPage);
@@ -824,6 +827,8 @@ public sealed class StaticAssetIdentityTests
 
         Assert.DoesNotContain("slogger-hero-card", writerPage);
         Assert.DoesNotContain("profile metrics", writerPage);
+        Assert.DoesNotContain("ProfilePageJsonLd", writerPage);
+        Assert.DoesNotContain("프로필 이미지", writerPage);
         Assert.DoesNotContain("public knowledge-log home", writerPage);
         Assert.DoesNotContain("featured memory node", writerPage);
         Assert.DoesNotContain("chronological log stream", writerPage);

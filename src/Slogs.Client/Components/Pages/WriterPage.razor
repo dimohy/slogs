@@ -11,7 +11,7 @@
          Type="profile"
          ImageUrl="@writerProfile?.ProfileImageUrl"
          NoIndex="@ShouldNoIndexWriterPage"
-         JsonLd="@(!ShouldNoIndexWriterPage ? SeoMetadata.ProfilePageJsonLd(NavigationManager.BaseUri, GetWriterPath(), GetSloggerDisplayName(), GetSloggerSeoDescription(), writerProfile?.ProfileImageUrl) : null)" />
+         JsonLd="@GetSloggerHomeJsonLd()" />
 
 @if (!isWriterKnown)
 {
@@ -34,7 +34,7 @@ else
                         {
                             <img class="h-full w-full object-cover"
                                  src="@writerProfile.ProfileImageUrl"
-                                 alt="@($"{GetSloggerDisplayName()} 프로필 이미지")"
+                                 alt="@($"{GetSloggerDisplayName()} 슬로거 홈 이미지")"
                                  loading="lazy"
                                  decoding="async" />
                         }
@@ -625,6 +625,23 @@ else
     private string GetSloggerSeoDescription()
     {
         return $"{GetSloggerDisplayName()}의 slogs 공개 지식 로그 홈입니다. {GetSloggerBio()} 공개 로그 {totalCount}개, 관계 흐름 {followerCount}개.";
+    }
+
+    private string? GetSloggerHomeJsonLd()
+    {
+        if (ShouldNoIndexWriterPage)
+        {
+            return null;
+        }
+
+        return SeoMetadata.SloggerHomeJsonLd(
+            NavigationManager.BaseUri,
+            GetWriterPath(),
+            GetSloggerDisplayName(),
+            GetSloggerSeoDescription(),
+            writerProfile?.ProfileImageUrl,
+            GetSloggerUserName(),
+            allAuthorPosts);
     }
 
     private string GetSloggerFlowDescription()

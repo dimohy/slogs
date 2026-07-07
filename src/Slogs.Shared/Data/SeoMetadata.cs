@@ -184,21 +184,76 @@ public static class SeoMetadata
         });
     }
 
-    public static string ProfilePageJsonLd(string baseUri, string path, string displayName, string description, string? imageUrl)
+    public static string SloggerHomeJsonLd(
+        string baseUri,
+        string path,
+        string displayName,
+        string description,
+        string? imageUrl,
+        string userName,
+        IEnumerable<BlogPost> posts,
+        int limit = 12)
     {
+        var pageUrl = EscapedAbsoluteUrl(baseUri, path);
+        var pageId = $"{pageUrl}#slogger-home";
+        var personId = $"{pageUrl}#slogger";
+        var publicLogFlowId = $"{pageUrl}#public-log-flow";
+        var publicPosts = posts
+            .Where(post => !post.IsDraft)
+            .OrderByDescending(post => post.PublishedAt)
+            .ThenBy(post => post.Title, StringComparer.OrdinalIgnoreCase)
+            .Take(Math.Max(1, limit))
+            .ToList();
+
         return SerializeJsonLd(new Dictionary<string, object?>
         {
             ["@context"] = "https://schema.org",
-            ["@type"] = "ProfilePage",
-            ["name"] = displayName,
-            ["url"] = EscapedAbsoluteUrl(baseUri, path),
-            ["description"] = description,
-            ["inLanguage"] = "ko-KR",
-            ["mainEntity"] = new Dictionary<string, object?>
+            ["@graph"] = new object[]
             {
-                ["@type"] = "Person",
-                ["name"] = displayName,
-                ["image"] = string.IsNullOrWhiteSpace(imageUrl) ? null : EscapedAbsoluteUrl(baseUri, imageUrl)
+                new Dictionary<string, object?>
+                {
+                    ["@type"] = "ProfilePage",
+                    ["@id"] = pageId,
+                    ["name"] = $"{displayName} 지식 로그 홈",
+                    ["url"] = pageUrl,
+                    ["description"] = description,
+                    ["inLanguage"] = "ko-KR",
+                    ["isPartOf"] = SiteReference(baseUri),
+                    ["mainEntity"] = new Dictionary<string, object?>
+                    {
+                        ["@id"] = personId
+                    },
+                    ["hasPart"] = new Dictionary<string, object?>
+                    {
+                        ["@id"] = publicLogFlowId
+                    }
+                },
+                new Dictionary<string, object?>
+                {
+                    ["@type"] = "Person",
+                    ["@id"] = personId,
+                    ["name"] = displayName,
+                    ["alternateName"] = $"@{userName.TrimStart('@')}",
+                    ["url"] = pageUrl,
+                    ["image"] = string.IsNullOrWhiteSpace(imageUrl) ? null : EscapedAbsoluteUrl(baseUri, imageUrl),
+                    ["description"] = description,
+                    ["subjectOf"] = new Dictionary<string, object?>
+                    {
+                        ["@id"] = publicLogFlowId
+                    }
+                },
+                new Dictionary<string, object?>
+                {
+                    ["@type"] = "ItemList",
+                    ["@id"] = publicLogFlowId,
+                    ["name"] = $"{displayName} 공개 지식 로그 흐름",
+                    ["description"] = description,
+                    ["itemListOrder"] = "https://schema.org/ItemListOrderDescending",
+                    ["numberOfItems"] = publicPosts.Count,
+                    ["itemListElement"] = publicPosts
+                        .Select((post, index) => PublicLogListItem(baseUri, post, index + 1))
+                        .ToList()
+                }
             }
         });
     }
