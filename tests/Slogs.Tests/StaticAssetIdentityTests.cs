@@ -1106,7 +1106,7 @@ public sealed class StaticAssetIdentityTests
 
         Assert.Contains("로그 홈으로 들어오는", writerConnectionsPage);
         Assert.Contains("이어 둔", writerConnectionsPage);
-        Assert.Contains("공개 로그 홈이 누구에게 이어지고", writerConnectionsPage);
+        Assert.Contains("공개 로그 홈이 누구에게 이어지고, 어떤 슬로거의 기억 흐름을 다시 따라갈지 회상합니다.", writerConnectionsPage);
         Assert.Contains("break-words text-2xl", writerConnectionsPage);
         Assert.Contains("이 로그 홈을 잇는 슬로거", writerConnectionsPage);
         Assert.Contains("이어 둔 로그 홈", writerConnectionsPage);
@@ -1124,6 +1124,7 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("명 연결", writerConnectionsPage);
         Assert.DoesNotContain("아직 이어진 관계 흐름이 없습니다.", writerConnectionsPage);
         Assert.DoesNotContain("해당 슬로거를 찾을 수 없습니다.", writerConnectionsPage);
+        Assert.DoesNotContain("어떤 슬로거의 기억 흐름을 따라가는지 확인합니다.", writerConnectionsPage);
 
         Assert.Contains("이 로그 홈을 잇는 슬로거 @followerCount", writerPage);
         Assert.Contains("이어 둔 로그 홈 @followingCount", writerPage);
