@@ -16,14 +16,13 @@ else
     <SeoHead Title="@($"{post.Title} | slogs")"
              Description="@post.Summary"
              CanonicalPath="@GetPostUrl(post)"
-             Type="article"
              ImageUrl="@GetPostSeoImageUrl(post)"
              Author="@post.Author"
              Tags="@post.Tags"
              PublishedAt="@post.PublishedAt"
              UpdatedAt="@post.UpdatedAt"
              NoIndex="@post.IsDraft"
-             JsonLd="@(post.IsDraft ? null : SeoMetadata.ArticleJsonLd(Navigation.BaseUri, post, GetPostUrl(post), GetPostSeoImageUrl(post)))" />
+             JsonLd="@(post.IsDraft ? null : SeoMetadata.PublicLogNodeJsonLd(Navigation.BaseUri, post, GetPostUrl(post), GetPostSeoImageUrl(post)))" />
 }
 
 @if (post is null)

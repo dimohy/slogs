@@ -40,7 +40,11 @@ public sealed class SeoMetadataTests
             [("identity flow", 1)],
             [("devin", 1)]);
         var llmsFullText = SeoMetadata.BuildLlmsFullTxt("https://slogs.dev/", [post]);
-        var jsonLd = SeoMetadata.ArticleJsonLd("https://slogs.dev/", post, "/@devin/verified-flow-log", null);
+        post.ViewCount = 5;
+        post.LikedBy.Add("mina");
+        post.AddComment(new BlogComment { Author = "junho", Content = "검증 단서가 이어집니다." });
+
+        var jsonLd = SeoMetadata.PublicLogNodeJsonLd("https://slogs.dev/", post, "/@devin/verified-flow-log", null);
 
         Assert.Contains("지식 로그 플랫폼", SeoMetadata.DefaultDescription);
         Assert.Contains("knowledge-log platform", llmsText);
@@ -48,10 +52,17 @@ public sealed class SeoMetadataTests
         Assert.Contains("Clues", llmsText);
         Assert.Contains("Log series", llmsText);
         Assert.Contains("public knowledge-log Markdown export", llmsFullText);
-        Assert.Contains("\"@type\":\"Article\"", jsonLd);
+        Assert.Contains("\"@type\":\"CreativeWork\"", jsonLd);
+        Assert.Contains("\"name\":\"검증 흐름을 남기는 로그\"", jsonLd);
+        Assert.Contains("\"genre\":\"knowledge log\"", jsonLd);
+        Assert.Contains("\"interactionType\":\"https://schema.org/CommentAction\"", jsonLd);
+        Assert.Contains("\"interactionType\":\"https://schema.org/LikeAction\"", jsonLd);
+        Assert.Contains("\"interactionType\":\"https://schema.org/ViewAction\"", jsonLd);
+        Assert.Contains("\"userInteractionCount\":5", jsonLd);
         Assert.DoesNotContain("개발 블로그 서비스", SeoMetadata.DefaultDescription);
         Assert.DoesNotContain("developer blogging service", llmsText);
         Assert.DoesNotContain("Public posts", llmsText);
+        Assert.DoesNotContain("\"@type\":\"Article\"", jsonLd);
         Assert.DoesNotContain("BlogPosting", jsonLd);
     }
 

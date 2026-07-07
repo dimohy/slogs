@@ -24,17 +24,20 @@
     @if (!string.IsNullOrWhiteSpace(Author))
     {
         <meta name="author" content="@Author" />
+    }
+    @if (IsArticleType && !string.IsNullOrWhiteSpace(Author))
+    {
         <meta property="article:author" content="@Author" />
     }
-    @if (PublishedAt is not null)
+    @if (IsArticleType && PublishedAt is not null)
     {
         <meta property="article:published_time" content="@PublishedAt.Value.ToUniversalTime().ToString("O")" />
     }
-    @if (UpdatedAt is not null)
+    @if (IsArticleType && UpdatedAt is not null)
     {
         <meta property="article:modified_time" content="@UpdatedAt.Value.ToUniversalTime().ToString("O")" />
     }
-    @if (Tags is not null)
+    @if (IsArticleType && Tags is not null)
     {
         @foreach (var tag in Tags.Where(tag => !string.IsNullOrWhiteSpace(tag)))
         {
@@ -61,6 +64,8 @@
     [Parameter] public string? JsonLd { get; set; }
 
     private string EffectiveTitle => string.IsNullOrWhiteSpace(Title) ? SeoMetadata.SiteName : Title.Trim();
+
+    private bool IsArticleType => string.Equals(Type, "article", StringComparison.OrdinalIgnoreCase);
 
     private string EffectiveDescription => SeoMetadata.NormalizeDescription(Description);
 

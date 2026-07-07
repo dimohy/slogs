@@ -828,6 +828,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("GetPrimarySeriesSignal(post)", postDetailsPage);
         Assert.Contains("GetRevisionFlowSignal(post, latestRevisionNumberForNode)", postDetailsPage);
         Assert.Contains("GetLinkedLogSignal()", postDetailsPage);
+        Assert.Contains("SeoMetadata.PublicLogNodeJsonLd", postDetailsPage);
         Assert.Contains("본문과 대화 흔적은", postDetailsPage);
         Assert.Contains("이어진 지식 로그 노드입니다.", postDetailsPage);
         Assert.Contains("주요 단서 #", postDetailsPage);
@@ -842,6 +843,8 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("@media (max-width: 640px)", appCss);
 
         Assert.DoesNotContain("post-detail-article-summary-card", postDetailsPage);
+        Assert.DoesNotContain("SeoMetadata.ArticleJsonLd", postDetailsPage);
+        Assert.DoesNotContain("Type=\"article\"", postDetailsPage);
         Assert.DoesNotContain("관련 글", postDetailsPage);
     }
 

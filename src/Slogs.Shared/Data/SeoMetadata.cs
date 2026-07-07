@@ -203,12 +203,13 @@ public static class SeoMetadata
         });
     }
 
-    public static string ArticleJsonLd(string baseUri, BlogPost post, string path, string? imageUrl)
+    public static string PublicLogNodeJsonLd(string baseUri, BlogPost post, string path, string? imageUrl)
     {
         return SerializeJsonLd(new Dictionary<string, object?>
         {
             ["@context"] = "https://schema.org",
-            ["@type"] = "Article",
+            ["@type"] = "CreativeWork",
+            ["name"] = post.Title,
             ["headline"] = post.Title,
             ["description"] = post.Summary,
             ["url"] = EscapedAbsoluteUrl(baseUri, path),
@@ -234,6 +235,7 @@ public static class SeoMetadata
             ["dateModified"] = FormatDateTime(post.UpdatedAt),
             ["genre"] = "knowledge log",
             ["about"] = PublicLogTopics(baseUri, post),
+            ["interactionStatistic"] = PublicLogInteractionStatistics(post),
             ["isPartOf"] = SiteReference(baseUri),
             ["keywords"] = post.Tags,
             ["inLanguage"] = "ko-KR",
