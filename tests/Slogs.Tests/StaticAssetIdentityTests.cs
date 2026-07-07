@@ -559,8 +559,6 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("grid-template-columns: minmax(0, max-content) minmax(0, 1fr);", appCss);
         Assert.Contains("grid-area: brand;", appCss);
         Assert.Contains("grid-area: tools;", appCss);
-        Assert.Contains("grid-area: recall;", appCss);
-        Assert.Contains("grid-area: actions;", appCss);
         Assert.Contains("justify-self: end;", appCss);
         Assert.Contains(".slogs-header-tools", appCss);
         Assert.Contains("display: flex;", appCss);
@@ -589,6 +587,8 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("grid-template-columns: max-content minmax(16rem, 1fr) max-content;", appCss);
         Assert.DoesNotContain("grid-template-columns: max-content minmax(12rem, 1fr) max-content;", appCss);
         Assert.DoesNotContain("grid-template-columns: max-content minmax(10rem, 1fr) max-content;", appCss);
+        Assert.DoesNotContain("grid-area: recall;", appCss);
+        Assert.DoesNotContain("grid-area: actions;", appCss);
         Assert.Contains("width: min(56rem, 100%);", appCss);
         Assert.Contains("max-width: 56rem;", appCss);
         Assert.Contains("width: min(52rem, 100%);", appCss);

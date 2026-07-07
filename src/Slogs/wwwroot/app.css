@@ -986,7 +986,6 @@ header.bg-white {
 }
 
 .slogs-header-recall {
-    grid-area: recall;
     flex: 1 1 36rem;
     min-width: 18rem;
     width: min(56rem, 100%);
@@ -1025,7 +1024,6 @@ header.bg-white {
 }
 
 .slogs-header-actions {
-    grid-area: actions;
     flex: 0 0 auto;
     justify-content: flex-end;
     justify-self: end;
@@ -1417,7 +1415,6 @@ header.bg-white {
     }
 
     .slogs-header-actions {
-        grid-area: actions;
         gap: 0.25rem;
     }
 
@@ -1430,7 +1427,6 @@ header.bg-white {
     }
 
     .slogs-header-recall {
-        grid-area: recall;
         min-width: 5rem;
         width: 100%;
         max-width: 100%;
