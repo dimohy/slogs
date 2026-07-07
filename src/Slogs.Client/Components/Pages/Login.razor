@@ -12,10 +12,10 @@
     <div class="grid gap-1">
         <p class="text-xs font-bold text-teal-700">비공개 기억 . 게시전 로그 . 저장/공감 흐름</p>
         <h1 class="text-2xl font-bold text-slate-900">지식 로그로 돌아가기</h1>
-        <p class="text-sm leading-6 text-slate-600">내 비공개 기억, 게시전 로그, 저장 로그와 공감 로그가 이 공개 &#64;주소에 이어집니다.</p>
+        <p class="text-sm leading-6 text-slate-600">내 비공개 기억, 게시전 로그, 저장 로그와 공감 로그가 이 슬로거 홈 &#64;주소에 이어집니다.</p>
     </div>
 
-    <label class="text-sm font-semibold text-slate-700" for="login-user-name">공개 &#64;주소</label>
+    <label class="text-sm font-semibold text-slate-700" for="login-user-name">슬로거 홈 &#64;주소</label>
     <input id="login-user-name" name="userName" class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" autocomplete="username" @bind="userName" @bind:event="oninput" />
 
     <label class="text-sm font-semibold text-slate-700" for="login-password">비밀번호</label>
@@ -47,7 +47,7 @@
         <p class="text-sm text-red-700">@ErrorMessage</p>
     }
 
-    <p class="text-sm text-slate-500">아직 공개 &#64;주소가 없다면 <a class="font-semibold underline" href="@GetRegisterHref()">지식 로그 홈 만들기</a>로 시작하세요.</p>
+    <p class="text-sm text-slate-500">아직 슬로거 홈 &#64;주소가 없다면 <a class="font-semibold underline" href="@GetRegisterHref()">지식 로그 홈 만들기</a>로 시작하세요.</p>
 </form>
 
 @code {
@@ -64,8 +64,8 @@
         ? apiError
         : Error switch
     {
-        "required" => "공개 @주소와 비밀번호를 입력해 주세요.",
-        "invalid" => "공개 @주소 또는 비밀번호가 틀렸습니다.",
+        "required" => "슬로거 홈 @주소와 비밀번호를 입력해 주세요.",
+        "invalid" => "슬로거 홈 @주소 또는 비밀번호가 틀렸습니다.",
         "googleNotConfigured" => "Google 로그인 설정이 아직 완료되지 않았습니다.",
         "googleFailed" => "Google 로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.",
         "googleCanceled" => "Google 계정 연결이 취소되었습니다.",
@@ -86,7 +86,7 @@
         apiError = string.Empty;
         if (string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(password))
         {
-            apiError = "공개 @주소와 비밀번호를 입력해 주세요.";
+            apiError = "슬로거 홈 @주소와 비밀번호를 입력해 주세요.";
             return;
         }
 
@@ -114,7 +114,7 @@
             }
 
             apiError = result.Status == 401
-                ? "공개 @주소 또는 비밀번호가 틀렸습니다."
+                ? "슬로거 홈 @주소 또는 비밀번호가 틀렸습니다."
                 : MapAuthError(result.Error, "지식 로그 흐름으로 돌아가지 못했습니다.");
         }
         catch (Exception)
@@ -166,7 +166,7 @@
     {
         return error switch
         {
-            "required" => "공개 @주소와 비밀번호를 입력해 주세요.",
+            "required" => "슬로거 홈 @주소와 비밀번호를 입력해 주세요.",
             _ => fallback
         };
     }

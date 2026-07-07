@@ -445,6 +445,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("최근 연결", settingsComponent);
         Assert.Contains("슬로거 홈 정체성", profileSettingsForm);
         Assert.Contains("공개 지식 로그 홈에 보일 이름, 이미지, 짧은 흐름 소개를 정리합니다.", profileSettingsForm);
+        Assert.Contains("슬로거 홈 &#64;주소", profileSettingsForm);
         Assert.Contains("슬로거 홈 이미지 URL", profileSettingsForm);
         Assert.Contains("홈 소개", profileSettingsForm);
         Assert.Contains("홈 정체성 저장", profileSettingsForm);
@@ -461,6 +462,7 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("프로필 저장", profileSettingsForm);
         Assert.DoesNotContain("프로필 저장에 실패했습니다.", profileSettingsForm);
         Assert.DoesNotContain("프로필 이미지 URL", profileSettingsForm);
+        Assert.DoesNotContain(">공개 주소", profileSettingsForm);
         Assert.DoesNotContain(">Endpoint</p>", settingsComponent);
         Assert.DoesNotContain(">Authorization Header</p>", settingsComponent);
         Assert.DoesNotContain(">Client Config Example</p>", settingsComponent);
@@ -939,6 +941,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("SeoMetadata.SloggerHomeJsonLd", writerPage);
         Assert.Contains("공개 지식 로그 홈", writerPage);
         Assert.Contains("슬로거 홈 이미지", writerPage);
+        Assert.Contains("슬로거 홈 &#64;주소", writerPage);
         Assert.Contains("대표 기억 노드", writerPage);
         Assert.Contains("PostRecallPath Post=\"featuredPost\"", writerPage);
         Assert.Contains("대표 기억 노드 회상 경로", writerPage);
@@ -959,6 +962,7 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("profile metrics", writerPage);
         Assert.DoesNotContain("ProfilePageJsonLd", writerPage);
         Assert.DoesNotContain("프로필 이미지", writerPage);
+        Assert.DoesNotContain(">공개 주소", writerPage);
         Assert.DoesNotContain("public knowledge-log home", writerPage);
         Assert.DoesNotContain("featured memory node", writerPage);
         Assert.DoesNotContain("chronological log stream", writerPage);
@@ -1253,18 +1257,20 @@ public sealed class StaticAssetIdentityTests
 
         Assert.Contains("지식 로그 홈 만들기", registerPage);
         Assert.Contains("public knowledge-log home", registerPage);
-        Assert.Contains("공개 &#64;주소", registerPage);
+        Assert.Contains("슬로거 홈 &#64;주소", registerPage);
         Assert.Contains("첫 슬로거 홈 단서", registerPage);
         Assert.Contains("슬로거 홈 이미지 URL", registerPage);
         Assert.Contains("홈 소개", registerPage);
         Assert.Contains("슬로거 홈 정체성", registerPage);
-        Assert.Contains("공개 @주소와 비밀번호는 필수입니다.", registerPage);
-        Assert.Contains("이미 사용 중인 공개 @주소입니다.", registerPage);
+        Assert.Contains("슬로거 홈 @주소와 비밀번호는 필수입니다.", registerPage);
+        Assert.Contains("이미 사용 중인 슬로거 홈 @주소입니다.", registerPage);
         Assert.Contains("지식 로그 홈 생성 처리 중 오류가 발생했습니다.", registerPage);
         Assert.Contains("profileImageUrl", registerPage);
         Assert.Contains("bio = profileBio", registerPage);
         Assert.DoesNotContain("회원가입에 실패했습니다.", registerPage);
         Assert.DoesNotContain("아이디와 비밀번호는 필수입니다.", registerPage);
+        Assert.DoesNotContain("공개 @주소와 비밀번호는 필수입니다.", registerPage);
+        Assert.DoesNotContain("이미 사용 중인 공개 @주소입니다.", registerPage);
         Assert.DoesNotContain("프로필 이미지 URL", registerPage);
         Assert.DoesNotContain("짧은 소개", registerPage);
         Assert.DoesNotContain("\"소개는 280자", registerPage);
@@ -1285,13 +1291,14 @@ public sealed class StaticAssetIdentityTests
 
         Assert.Contains("지식 로그로 돌아가기", loginPage);
         Assert.Contains("내 비공개 기억, 게시전 로그, 저장 로그와 공감 로그", loginPage);
-        Assert.Contains("공개 @주소", loginPage);
+        Assert.Contains("슬로거 홈 @주소", loginPage);
         Assert.Contains("로그 흐름으로 돌아가기", loginPage);
         Assert.Contains("Google로 지식 로그 이어가기", loginPage);
         Assert.Contains("지식 로그 홈 만들기", loginPage);
         Assert.Contains("지식 로그 흐름으로 돌아가지 못했습니다.", loginPage);
         Assert.DoesNotContain(">아이디<", loginPage);
         Assert.DoesNotContain("아이디와 비밀번호", loginPage);
+        Assert.DoesNotContain("공개 @주소", loginPage);
         Assert.DoesNotContain("회원가입", loginPage);
     }
 
