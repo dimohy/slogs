@@ -456,9 +456,14 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("Slogs MCP 연결 주소", settingsComponent);
         Assert.Contains("Agent 회상 권한 헤더", settingsComponent);
         Assert.Contains("Agent 연결 설정 예시", settingsComponent);
+        Assert.Contains("Agent는 Agent 회상 권한으로 이 슬로거의 비공개 기억을 회상하고", settingsComponent);
         Assert.Contains("노트 Vault 플러그인 ID", settingsComponent);
         Assert.Contains("Slogs Drive 설치 흐름", settingsComponent);
         Assert.Contains("Slogs Drive 실행 흐름", settingsComponent);
+        Assert.Contains("로컬 Markdown 노트는 노트 Vault 권한으로 원격 노트 Vault에 남고", settingsComponent);
+        Assert.Contains("연결 권한 만들기", settingsComponent);
+        Assert.Contains("새 연결 권한", settingsComponent);
+        Assert.Contains("권한 복사", settingsComponent);
         Assert.Contains("Agent 회상 권한", settingsComponent);
         Assert.Contains("노트 Vault 권한", settingsComponent);
         Assert.Contains("권한 끊기", settingsComponent);
@@ -491,6 +496,11 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain(">Drive run</p>", settingsComponent);
         Assert.DoesNotContain(">폐기</button>", settingsComponent);
         Assert.DoesNotContain("마지막 사용", settingsComponent);
+        Assert.DoesNotContain("`mcp` scope 토큰", settingsComponent);
+        Assert.DoesNotContain("`obsidian.sync` scope 토큰", settingsComponent);
+        Assert.DoesNotContain("연결 토큰 생성", settingsComponent);
+        Assert.DoesNotContain("새 연결 토큰", settingsComponent);
+        Assert.DoesNotContain(">복사</button>", settingsComponent);
     }
 
     [Fact]

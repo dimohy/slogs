@@ -10,7 +10,7 @@
             <div class="max-w-2xl">
                 <p class="text-xs font-bold text-slate-500">Agent 연결</p>
                 <h2 class="mt-1 text-xl font-black text-slate-900">Agent 회상용 Slogs MCP</h2>
-                <p class="mt-2 text-sm leading-6 text-slate-600">Agent는 `mcp` scope 토큰으로 이 슬로거의 비공개 기억을 회상하고, 검토 가능한 소유자 전용 게시전 로그를 만들고, 명시된 경우에만 공개 공유 흐름으로 이어집니다. Obsidian 동기화에는 별도의 `obsidian.sync` scope 토큰을 사용합니다.</p>
+                <p class="mt-2 text-sm leading-6 text-slate-600">Agent는 Agent 회상 권한으로 이 슬로거의 비공개 기억을 회상하고, 검토 가능한 소유자 전용 게시전 로그를 만들고, 명시된 경우에만 공개 공유 흐름으로 이어집니다. Obsidian 동기화에는 별도의 노트 Vault 권한을 사용합니다.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2 lg:justify-end">
                 <button class="inline-flex min-w-max shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
@@ -66,7 +66,7 @@
                     type="button"
                     disabled="@isCreatingToken"
                     @onclick="CreateTokenAsync">
-                @(isCreatingToken ? "생성 중..." : "연결 토큰 생성")
+                @(isCreatingToken ? "권한 만드는 중..." : "연결 권한 만들기")
             </button>
         </div>
 
@@ -84,10 +84,10 @@
         {
             <div class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
                 <div class="flex flex-wrap items-center justify-between gap-2">
-                    <p class="text-sm font-semibold text-emerald-950">새 연결 토큰</p>
+                    <p class="text-sm font-semibold text-emerald-950">새 연결 권한</p>
                     <button class="inline-flex min-w-max shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-emerald-300 px-3 py-1 text-xs font-semibold text-emerald-900 transition hover:bg-emerald-100"
                             type="button"
-                            @onclick="CopyCreatedTokenAsync">복사</button>
+                            @onclick="CopyCreatedTokenAsync">권한 복사</button>
                 </div>
                 <p class="mt-2 break-all rounded-lg bg-white px-3 py-2 font-mono text-xs text-slate-800">@createdToken.Token</p>
                 @if (!string.IsNullOrWhiteSpace(copyTokenMessage))
@@ -100,7 +100,7 @@
         <div class="mt-4 space-y-2">
             @if (ActiveTokens.Count == 0)
             {
-                <p class="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">아직 연결 토큰이 없습니다. Agent 회상이나 노트 Vault 연결에 필요한 권한을 만드세요.</p>
+                <p class="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">아직 연결 권한이 없습니다. Agent 회상이나 노트 Vault 연결에 필요한 권한을 만드세요.</p>
             }
             else
             {
@@ -125,7 +125,7 @@
             <div class="max-w-2xl">
                 <p class="text-xs font-bold text-slate-500">로컬 노트 연결</p>
                 <h2 class="mt-1 text-xl font-black text-slate-900">Obsidian 노트 Vault와 Slogs Drive</h2>
-                <p class="mt-2 text-sm leading-6 text-slate-600">로컬 Markdown 노트는 `obsidian.sync` scope 토큰으로 원격 노트 Vault에 남고, frontmatter를 통해 게시전 로그, 공개 공유, LLM Wiki 기억으로 이어질 수 있습니다.</p>
+                <p class="mt-2 text-sm leading-6 text-slate-600">로컬 Markdown 노트는 노트 Vault 권한으로 원격 노트 Vault에 남고, frontmatter를 통해 게시전 로그, 공개 공유, LLM Wiki 기억으로 이어질 수 있습니다.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2 lg:justify-end">
                 <button class="inline-flex min-w-max shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
@@ -287,7 +287,7 @@
         }
         winget install --manifest $manifest --accept-package-agreements --accept-source-agreements
         """;
-    private string DriveCommandExample => $"SlogsObsidianDrive --server {Navigation.BaseUri.TrimEnd('/')} --token <obsidian.sync 토큰> --vault \"{DriveVaultNameExample}\" --mount S:";
+    private string DriveCommandExample => $"SlogsObsidianDrive --server {Navigation.BaseUri.TrimEnd('/')} --token <노트 Vault 연결 권한> --vault \"{DriveVaultNameExample}\" --mount S:";
     private string DriveVaultNameExample => string.IsNullOrWhiteSpace(newObsidianVaultName)
         ? (obsidianVaults.FirstOrDefault()?.Name ?? "Knowledge Notes")
         : newObsidianVaultName.Trim();
@@ -390,7 +390,7 @@
             var scopes = GetSelectedScopes();
             createdToken = await ApiClient.CreateLlmWikiTokenAsync(CurrentUser.UserName, tokenName, scopes);
             await LoadTokensAsync();
-            message = $"{FormatScopes(scopes)} 연결 토큰이 생성되었습니다.";
+            message = $"{FormatScopes(scopes)} 연결 권한을 만들었습니다.";
         }
         catch (Exception ex)
         {
@@ -410,7 +410,7 @@
         }
 
         await JS.InvokeVoidAsync("navigator.clipboard.writeText", createdToken.Token);
-        copyTokenMessage = "복사되었습니다.";
+        copyTokenMessage = "새 연결 권한이 복사되었습니다.";
     }
 
     private async Task CopyEndpointAsync()
@@ -435,7 +435,7 @@
         ClearMessages();
         var revoked = await ApiClient.RevokeLlmWikiTokenAsync(CurrentUser.UserName, tokenId);
         await LoadTokensAsync();
-        message = revoked ? "연결 권한을 끊었습니다." : "끊을 연결 토큰을 찾지 못했습니다.";
+        message = revoked ? "연결 권한을 끊었습니다." : "끊을 연결 권한을 찾지 못했습니다.";
     }
 
     private async Task CreateObsidianVaultAsync()
