@@ -1056,8 +1056,10 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("지식 로그 홈 만들기", registerPage);
         Assert.Contains("public knowledge-log home", registerPage);
         Assert.Contains("공개 &#64;주소", registerPage);
-        Assert.Contains("프로필 이미지 URL", registerPage);
-        Assert.Contains("짧은 소개", registerPage);
+        Assert.Contains("첫 슬로거 홈 단서", registerPage);
+        Assert.Contains("슬로거 홈 이미지 URL", registerPage);
+        Assert.Contains("홈 소개", registerPage);
+        Assert.Contains("슬로거 홈 정체성", registerPage);
         Assert.Contains("공개 @주소와 비밀번호는 필수입니다.", registerPage);
         Assert.Contains("이미 사용 중인 공개 @주소입니다.", registerPage);
         Assert.Contains("지식 로그 홈 생성 처리 중 오류가 발생했습니다.", registerPage);
@@ -1065,6 +1067,10 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("bio = profileBio", registerPage);
         Assert.DoesNotContain("회원가입에 실패했습니다.", registerPage);
         Assert.DoesNotContain("아이디와 비밀번호는 필수입니다.", registerPage);
+        Assert.DoesNotContain("프로필 이미지 URL", registerPage);
+        Assert.DoesNotContain("짧은 소개", registerPage);
+        Assert.DoesNotContain("\"소개는 280자", registerPage);
+        Assert.DoesNotContain("이미 계정이 있다면", registerPage);
 
         Assert.Contains("string? ProfileImageUrl = null", apiContracts);
         Assert.Contains("string? Bio = null", apiContracts);

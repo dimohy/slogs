@@ -15,7 +15,7 @@
             {
                 <img class="h-full w-full object-cover"
                      src="@profileImageUrl"
-                     alt="@($"{GetPreviewDisplayName()} 프로필 이미지")"
+                     alt="@($"{GetPreviewDisplayName()} 홈 이미지")"
                      loading="lazy"
                      decoding="async" />
             }
@@ -27,7 +27,7 @@
         <div class="min-w-0">
             <p class="text-xs font-bold text-slate-500">public knowledge-log home</p>
             <h1 class="mt-1 text-2xl font-black text-slate-900">지식 로그 홈 만들기</h1>
-            <p class="mt-1 text-sm leading-6 text-slate-500">처음부터 공개 &#64;주소, 얼굴, 소개를 남겨 생각과 작업의 로그가 누구에게 이어지는지 보이게 합니다.</p>
+            <p class="mt-1 text-sm leading-6 text-slate-500">처음부터 공개 &#64;주소, 홈 이미지, 홈 소개를 남겨 생각과 작업의 로그가 누구에게 이어지는지 보이게 합니다.</p>
         </div>
     </div>
 
@@ -55,12 +55,12 @@
 
     <div class="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
         <div>
-            <p class="text-xs font-bold text-slate-500">첫 공개 홈 단서</p>
-            <p class="mt-1 text-sm leading-6 text-slate-600">비워도 시작할 수 있고, 나중에 지식 로그 연결 설정에서 바꿀 수 있습니다.</p>
+            <p class="text-xs font-bold text-slate-500">첫 슬로거 홈 단서</p>
+            <p class="mt-1 text-sm leading-6 text-slate-600">비워도 시작할 수 있고, 나중에 슬로거 홈 정체성에서 바꿀 수 있습니다.</p>
         </div>
 
         <label class="grid gap-1 text-sm font-semibold text-slate-700" for="register-profile-image-url">
-            프로필 이미지 URL
+            슬로거 홈 이미지 URL
             <input id="register-profile-image-url"
                    name="profileImageUrl"
                    class="rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm"
@@ -71,7 +71,7 @@
         </label>
 
         <label class="grid gap-1 text-sm font-semibold text-slate-700" for="register-bio">
-            짧은 소개
+            홈 소개
             <textarea id="register-bio"
                       name="bio"
                       class="min-h-24 rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm"
@@ -113,7 +113,7 @@
         <p class="text-sm text-red-700">@ErrorMessage</p>
     }
 
-    <p class="text-sm text-slate-500">이미 계정이 있다면 <a class="font-semibold underline" href="@GetLoginHref()">로그인</a>하세요.</p>
+    <p class="text-sm text-slate-500">이미 슬로거 홈이 있다면 <a class="font-semibold underline" href="@GetLoginHref()">로그인</a>하세요.</p>
 </form>
 
 @code {
@@ -137,9 +137,9 @@
         "passwordLength" => "비밀번호는 4자 이상이어야 합니다.",
         "passwordMismatch" => "비밀번호가 일치하지 않습니다.",
         "displayNameLength" => "표시 이름은 30자 이하여야 합니다.",
-        "profileImageUrlLength" => "프로필 이미지 URL은 500자 이하여야 합니다.",
-        "profileImageUrlInvalid" => "프로필 이미지 URL은 http, https 또는 /uploads 경로여야 합니다.",
-        "profileBioLength" => "소개는 280자 이하여야 합니다.",
+        "profileImageUrlLength" => "슬로거 홈 이미지 URL은 500자 이하여야 합니다.",
+        "profileImageUrlInvalid" => "슬로거 홈 이미지 URL은 http, https 또는 /uploads 경로여야 합니다.",
+        "profileBioLength" => "홈 소개는 280자 이하여야 합니다.",
         "duplicate" => "이미 사용 중인 공개 @주소입니다.",
         "registerFailed" => "지식 로그 홈을 만들지 못했습니다.",
         _ => string.Empty
@@ -183,19 +183,19 @@
 
         if (!string.IsNullOrWhiteSpace(profileImageUrl) && profileImageUrl.Trim().Length > 500)
         {
-            apiError = "프로필 이미지 URL은 500자 이하여야 합니다.";
+            apiError = "슬로거 홈 이미지 URL은 500자 이하여야 합니다.";
             return;
         }
 
         if (!IsValidProfileImageUrl(profileImageUrl))
         {
-            apiError = "프로필 이미지 URL은 http, https 또는 /uploads 경로여야 합니다.";
+            apiError = "슬로거 홈 이미지 URL은 http, https 또는 /uploads 경로여야 합니다.";
             return;
         }
 
         if (profileBio.Trim().Length > 280)
         {
-            apiError = "소개는 280자 이하여야 합니다.";
+            apiError = "홈 소개는 280자 이하여야 합니다.";
             return;
         }
 
@@ -275,9 +275,9 @@
             "passwordLength" => "비밀번호는 4자 이상이어야 합니다.",
             "passwordMismatch" => "비밀번호가 일치하지 않습니다.",
             "displayNameLength" => "표시 이름은 30자 이하여야 합니다.",
-            "profileImageUrlLength" => "프로필 이미지 URL은 500자 이하여야 합니다.",
-            "profileImageUrlInvalid" => "프로필 이미지 URL은 http, https 또는 /uploads 경로여야 합니다.",
-            "profileBioLength" => "소개는 280자 이하여야 합니다.",
+            "profileImageUrlLength" => "슬로거 홈 이미지 URL은 500자 이하여야 합니다.",
+            "profileImageUrlInvalid" => "슬로거 홈 이미지 URL은 http, https 또는 /uploads 경로여야 합니다.",
+            "profileBioLength" => "홈 소개는 280자 이하여야 합니다.",
             "duplicate" => "이미 사용 중인 공개 @주소입니다.",
             "registerFailed" => "지식 로그 홈을 만들지 못했습니다.",
             _ => fallback
