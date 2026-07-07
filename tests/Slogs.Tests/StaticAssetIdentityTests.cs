@@ -622,8 +622,13 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("class=\"slogs-account-menu relative\"", mainLayout);
         Assert.Contains("grid-template-areas: \"brand tools\";", appCss);
         Assert.Contains("grid-template-columns: minmax(0, max-content) minmax(0, 1fr);", appCss);
+        Assert.Contains("grid-auto-flow: column;", appCss);
+        Assert.Contains("grid-auto-rows: minmax(0, auto);", appCss);
         Assert.Contains("grid-area: brand;", appCss);
         Assert.Contains("grid-area: tools;", appCss);
+        Assert.Contains("grid-column: 2;", appCss);
+        Assert.Contains("grid-row: 1;", appCss);
+        Assert.Contains("align-self: center;", appCss);
         Assert.Contains("justify-self: end;", appCss);
         Assert.Contains(".slogs-header-tools", appCss);
         Assert.Contains("display: flex;", appCss);
@@ -640,6 +645,8 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("min-width: 18rem;", appCss);
         Assert.Contains("flex-basis: 32rem;", appCss);
         Assert.Contains("min-width: 14rem;", appCss);
+        Assert.Contains("@media (max-width: 1500px)", appCss);
+        Assert.Contains("max-width: min(8rem, 22vw);", appCss);
         Assert.Contains("@media (max-width: 1180px) {\n    .slogs-brand__tagline {\n        display: none;\n    }\n}", appCss);
         Assert.Contains("@media (max-width: 900px)", appCss);
         Assert.Contains(".slogs-brand__tagline {\n        display: none;\n    }", appCss);
