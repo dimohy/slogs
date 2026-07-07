@@ -3,7 +3,7 @@
 @inject SlogsApiClient ApiClient
 @inject NavigationManager Navigation
 <PageTitle>저장 로그</PageTitle>
-<SeoHead Title="저장 로그 | slogs" Description="내가 저장한 slogs 로그를 다시 확인합니다." NoIndex="true" />
+<SeoHead Title="저장 로그 | slogs" Description="내가 저장한 slogs 로그 흐름을 다시 회상하고 이어 읽습니다." NoIndex="true" />
 
 @if (CurrentUser is null)
 {
@@ -13,7 +13,7 @@ else
 {
     <div class="border-b border-slate-200 pb-4">
         <h1 class="text-2xl font-bold text-slate-900">저장 로그</h1>
-        <p class="mt-1 text-sm text-slate-500">다시 이어 읽을 로그를 모아봅니다.</p>
+        <p class="mt-1 text-sm text-slate-500">저장한 판단 단서를 따라 다시 이어 읽을 로그 흐름을 모아봅니다.</p>
     </div>
 
     @if (!string.IsNullOrWhiteSpace(message))
@@ -79,7 +79,7 @@ else
                             IsLoading="@isLoadingMoreBookmarks"
                             OnLoadMore="LoadMoreBookmarksAsync"
                             ShowDoneText="@(allBookmarks.Count > PageSize)"
-                            DoneText="모든 저장 로그를 불러왔습니다." />
+                            DoneText="모든 저장 로그 흐름을 불러왔습니다." />
 }
 
 @code {
@@ -157,9 +157,9 @@ else
             CapturePrerenderedState(currentStateKey);
 
             message = (wasBookmarked && !newState)
-                ? "저장 로그에서 제거되었습니다."
+                ? "저장 로그 흐름에서 제거되었습니다."
                 : (!wasBookmarked && newState)
-                    ? "저장 로그에 추가되었습니다."
+                    ? "저장 로그 흐름에 추가되었습니다."
                     : "저장 상태 변경에 실패했습니다.";
         }
         finally

@@ -1039,9 +1039,30 @@ public sealed class StaticAssetIdentityTests
         }
 
         Assert.Contains("저장 로그", bookmarksPage);
+        Assert.Contains("내가 저장한 slogs 로그 흐름을 다시 회상하고 이어 읽습니다.", bookmarksPage);
+        Assert.Contains("저장한 판단 단서를 따라 다시 이어 읽을 로그 흐름을 모아봅니다.", bookmarksPage);
+        Assert.Contains("모든 저장 로그 흐름을 불러왔습니다.", bookmarksPage);
+        Assert.Contains("저장 로그 흐름에서 제거되었습니다.", bookmarksPage);
+        Assert.Contains("저장 로그 흐름에 추가되었습니다.", bookmarksPage);
         Assert.Contains("저장 해제", bookmarksPage);
         Assert.Contains("공감 로그", likesPage);
+        Assert.Contains("내가 공감한 slogs 로그 흐름을 다시 따라갑니다.", likesPage);
+        Assert.Contains("내 판단에 남은 공감 신호의 로그 흐름을 모아봅니다.", likesPage);
+        Assert.Contains("모든 공감 로그 흐름을 불러왔습니다.", likesPage);
+        Assert.Contains("공감 신호 흐름에서 해제되었습니다.", likesPage);
+        Assert.Contains("공감 신호 흐름에 추가되었습니다.", likesPage);
         Assert.Contains("공감 해제", likesPage);
+
+        Assert.DoesNotContain("내가 저장한 slogs 로그를 다시 확인합니다.", bookmarksPage);
+        Assert.DoesNotContain("다시 이어 읽을 로그를 모아봅니다.", bookmarksPage);
+        Assert.DoesNotContain("모든 저장 로그를 불러왔습니다.", bookmarksPage);
+        Assert.DoesNotContain("저장 로그에서 제거되었습니다.", bookmarksPage);
+        Assert.DoesNotContain("저장 로그에 추가되었습니다.", bookmarksPage);
+        Assert.DoesNotContain("내가 공감한 slogs 로그를 확인합니다.", likesPage);
+        Assert.DoesNotContain("내가 공감한 로그 흐름을 모아봅니다.", likesPage);
+        Assert.DoesNotContain("모든 공감 로그를 불러왔습니다.", likesPage);
+        Assert.DoesNotContain("공감 신호가 해제되었습니다.", likesPage);
+        Assert.DoesNotContain("공감 신호가 추가되었습니다.", likesPage);
     }
 
     [Fact]

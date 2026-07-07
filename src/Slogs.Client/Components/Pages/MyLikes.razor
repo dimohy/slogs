@@ -3,7 +3,7 @@
 @inject SlogsApiClient ApiClient
 @inject NavigationManager Navigation
 <PageTitle>공감 로그</PageTitle>
-<SeoHead Title="공감 로그 | slogs" Description="내가 공감한 slogs 로그를 확인합니다." NoIndex="true" />
+<SeoHead Title="공감 로그 | slogs" Description="내가 공감한 slogs 로그 흐름을 다시 따라갑니다." NoIndex="true" />
 
 @if (CurrentUser is null)
 {
@@ -13,7 +13,7 @@ else
 {
     <div class="border-b border-slate-200 pb-4">
         <h1 class="text-2xl font-bold text-slate-900">공감 로그</h1>
-        <p class="mt-1 text-sm text-slate-500">내가 공감한 로그 흐름을 모아봅니다.</p>
+        <p class="mt-1 text-sm text-slate-500">내 판단에 남은 공감 신호의 로그 흐름을 모아봅니다.</p>
     </div>
 
     @if (!string.IsNullOrWhiteSpace(message))
@@ -88,7 +88,7 @@ else
                             IsLoading="@isLoadingMoreLikedPosts"
                             OnLoadMore="LoadMoreLikedPostsAsync"
                             ShowDoneText="@(allLikedPosts.Count > PageSize)"
-                            DoneText="모든 공감 로그를 불러왔습니다." />
+                            DoneText="모든 공감 로그 흐름을 불러왔습니다." />
 }
 
 @code {
@@ -182,9 +182,9 @@ else
             CapturePrerenderedState(currentStateKey);
 
             message = (wasLiked && !newState)
-                ? "공감 신호가 해제되었습니다."
+                ? "공감 신호 흐름에서 해제되었습니다."
                 : (!wasLiked && newState)
-                    ? "공감 신호가 추가되었습니다."
+                    ? "공감 신호 흐름에 추가되었습니다."
                     : "공감 신호 변경에 실패했습니다.";
         }
         finally
