@@ -334,6 +334,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("현재 단계: 비공개 기억 -> 소유자 전용 게시전 로그", llmWikiSearchPage);
         Assert.Contains("다음 단계: 민감한 단서 정리 -> 검토 후 공개 공유", llmWikiSearchPage);
         Assert.Contains("공개 공유 전까지 소유자에게만 보입니다.", llmWikiSearchPage);
+        Assert.Contains("이 로그에서 이어질 작업이나 다시 따라갈 지점을 남깁니다.", llmWikiSearchPage);
         Assert.Contains("소유자 전용 게시전 로그로 이어집니다.", llmWikiGuidePage);
         Assert.Contains("<span>게시전 로그</span>", llmWikiGuidePage);
 
@@ -345,6 +346,7 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("소유자 전용 로그 초안", llmWikiGuidePage);
         Assert.DoesNotContain("<span>로그 초안</span>", llmWikiGuidePage);
         Assert.DoesNotContain("즉시 공개", llmWikiSearchPage);
+        Assert.DoesNotContain("이 로그에서 이어질 작업이나 다시 확인할 지점을 남깁니다.", llmWikiSearchPage);
     }
 
     [Fact]
@@ -355,7 +357,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("기억을 만든 요청 흐름", llmWikiSearchPage);
         Assert.Contains("정리된 기억 내용", llmWikiSearchPage);
         Assert.Contains("기억 근거 흐름", llmWikiSearchPage);
-        Assert.Contains("공개 공유 전 감사 흐름", llmWikiSearchPage);
+        Assert.Contains("저장, 병합, 갱신 때 남긴 기억 근거를 공개 공유 전 감사 흐름으로 다시 따라갑니다.", llmWikiSearchPage);
         Assert.Contains("기억 저장 근거", llmWikiSearchPage);
         Assert.Contains("기억 병합 근거", llmWikiSearchPage);
         Assert.Contains("기억 갱신 근거", llmWikiSearchPage);
@@ -371,6 +373,7 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain(">title</span>", llmWikiSearchPage);
         Assert.DoesNotContain(">tags</span>", llmWikiSearchPage);
         Assert.DoesNotContain(">categoryPath</span>", llmWikiSearchPage);
+        Assert.DoesNotContain("저장, 병합, 갱신 때 남긴 원문 근거를 공개 공유 전 감사 흐름으로 확인합니다.", llmWikiSearchPage);
     }
 
     [Fact]
