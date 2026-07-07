@@ -127,7 +127,7 @@ else
             @if (featuredPost is null)
             {
                 <div class="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5">
-                    <p class="text-sm font-semibold text-slate-500">대표로 보여줄 공개 로그가 없습니다.</p>
+                    <p class="text-sm font-semibold text-slate-500">대표로 이어 줄 공개 로그 노드가 아직 없습니다.</p>
                 </div>
             }
             else
@@ -212,7 +212,7 @@ else
             @if (!posts.Any())
             {
                 <div class="slogs-post-list-empty rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 md:col-span-2">
-                    <p class="text-sm font-semibold text-slate-500">공개된 로그가 없습니다.</p>
+                    <p class="text-sm font-semibold text-slate-500">이 슬로거의 공개 로그 스트림이 아직 비어 있습니다.</p>
                 </div>
             }
             else
@@ -244,7 +244,7 @@ else
                             IsLoading="@isLoadingMorePosts"
                             OnLoadMore="LoadMorePostsAsync"
                             ShowDoneText="@(allVisiblePosts.Count > PageSize)"
-                            DoneText="모든 로그를 불러왔습니다." />
+                            DoneText="이 슬로거의 공개 로그 스트림을 모두 불러왔습니다." />
 }
 
 @code {

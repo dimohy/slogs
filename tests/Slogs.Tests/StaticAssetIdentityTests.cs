@@ -741,6 +741,33 @@ public sealed class StaticAssetIdentityTests
     }
 
     [Fact]
+    public void PublicStreamDoneAndEmptyStatesKeepKnowledgeFlowLanguage()
+    {
+        var homePage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "Home.razor"));
+        var postIndexPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "PostIndex.razor"));
+        var profilePage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "Profile.razor"));
+        var writerPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "WriterPage.razor"));
+
+        Assert.Contains("현재 지식 로그 흐름을 모두 불러왔습니다.", homePage);
+        Assert.Contains("에 이어지는 의미 회상 로그가 없습니다.", homePage);
+        Assert.Contains("이어진 로그 흐름이 없습니다.", homePage);
+        Assert.Contains("의미 회상으로 이어진 공개 로그 흐름이 없습니다.", postIndexPage);
+        Assert.Contains("내 공개/게시전 로그 흐름을 모두 불러왔습니다.", profilePage);
+        Assert.Contains("대표로 이어 줄 공개 로그 노드가 아직 없습니다.", writerPage);
+        Assert.Contains("이 슬로거의 공개 로그 스트림이 아직 비어 있습니다.", writerPage);
+        Assert.Contains("이 슬로거의 공개 로그 스트림을 모두 불러왔습니다.", writerPage);
+
+        foreach (var page in new[] { homePage, profilePage, writerPage })
+        {
+            Assert.DoesNotContain("DoneText=\"모든 로그를 불러왔습니다.\"", page);
+        }
+
+        Assert.DoesNotContain("대표로 보여줄 공개 로그가 없습니다.", writerPage);
+        Assert.DoesNotContain("공개된 로그가 없습니다.", writerPage);
+        Assert.DoesNotContain("에 이어지는 공개 로그가 없습니다.", postIndexPage);
+    }
+
+    [Fact]
     public void WriterHomeHeroExposesKnowledgeFlowSummarySignals()
     {
         var writerPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "WriterPage.razor"));

@@ -108,7 +108,7 @@ else
                         IsLoading="@isLoadingMorePosts"
                         OnLoadMore="LoadMorePostsAsync"
                         ShowDoneText="@(totalCount > PageSize)"
-                        DoneText="모든 로그를 불러왔습니다." />
+                        DoneText="현재 지식 로그 흐름을 모두 불러왔습니다." />
 @code {
     private const int PageSize = 6;
     private const string TrendingHref = "/trending";
@@ -559,12 +559,12 @@ else
     {
         if (!string.IsNullOrWhiteSpace(Query))
         {
-            return $"\"{GetDisplayedQuery()}\"에 이어지는 로그가 없습니다.";
+            return $"\"{GetDisplayedQuery()}\"에 이어지는 의미 회상 로그가 없습니다.";
         }
 
         if (UsesPeriodRecall && normalizedPeriod != "all")
         {
-            return $"{GetPeriodLabel(normalizedPeriod)} 이어진 로그가 없습니다.";
+            return $"{GetPeriodLabel(normalizedPeriod)} 이어진 로그 흐름이 없습니다.";
         }
 
         return "아직 이어진 공개 로그 흐름이 없습니다.";
