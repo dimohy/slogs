@@ -997,7 +997,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("post-detail-revision-flow", postDetailsPage);
         Assert.Contains("aria-label=\"리비전 흐름 신호\"", postDetailsPage);
         Assert.Contains("리비전 흐름 비교", postDetailsPage);
-        Assert.Contains("선택한 리비전이 이 로그 노드의 기억을 어떻게 갱신했는지 확인합니다.", postDetailsPage);
+        Assert.Contains("선택한 리비전이 이 로그 노드의 기억 흐름을 어떻게 갱신했는지 다시 따라갑니다.", postDetailsPage);
         Assert.Contains("리비전 흐름 변화를 불러오는 중입니다.", postDetailsPage);
         Assert.Contains("리비전 흐름 변화를 불러오지 못했습니다.", postDetailsPage);
         Assert.Contains("비교할 리비전 흐름 변화가 없습니다.", postDetailsPage);
@@ -1014,6 +1014,7 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("변경점을 불러오는 중입니다.", postDetailsPage);
         Assert.DoesNotContain("변경점을 불러오지 못했습니다.", postDetailsPage);
         Assert.DoesNotContain("비교할 변경점이 없습니다.", postDetailsPage);
+        Assert.DoesNotContain("선택한 리비전이 이 로그 노드의 기억을 어떻게 갱신했는지 확인합니다.", postDetailsPage);
     }
 
     [Fact]
