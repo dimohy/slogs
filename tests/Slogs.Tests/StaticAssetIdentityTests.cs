@@ -841,6 +841,8 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("개 로그 노드", homePage);
         Assert.Contains("의미 회상", homePage);
         Assert.Contains("사람과 AI가 이어 쓰는 공개 지식 로그 흐름입니다.", homePage);
+        Assert.Contains("의미 회상 흐름 | slogs", homePage);
+        Assert.Contains("slogs에서 {GetDisplayedQuery()}와 이어지는 의미 회상 흐름을 다시 따라갑니다.", homePage);
 
         Assert.Contains(".slogs-home-flowline", appCss);
         Assert.Contains("border-top: 1px solid var(--theme-border);", appCss);
@@ -850,6 +852,8 @@ public sealed class StaticAssetIdentityTests
 
         Assert.DoesNotContain("slogs-home-hero", homePage);
         Assert.DoesNotContain("마케팅", homePage);
+        Assert.DoesNotContain("의미 회상 결과 | slogs", homePage);
+        Assert.DoesNotContain("slogs에서 {GetDisplayedQuery()} 의미 회상 결과를 확인합니다.", homePage);
     }
 
     [Fact]
