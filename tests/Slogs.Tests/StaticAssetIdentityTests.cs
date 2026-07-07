@@ -1049,6 +1049,7 @@ public sealed class StaticAssetIdentityTests
     {
         var postDetailsPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "PostDetails.razor"));
         var appCss = File.ReadAllText(FindRepoFile("src", "Slogs", "wwwroot", "app.css"));
+        var blogService = File.ReadAllText(FindRepoFile("src", "Slogs", "Data", "BlogService.cs"));
 
         Assert.Contains("post-detail-revision-flow", postDetailsPage);
         Assert.Contains("aria-label=\"리비전 흐름 신호\"", postDetailsPage);
@@ -1061,6 +1062,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("FormatRevisionFlowChangeCount(revisionFlowChangeCount)", postDetailsPage);
         Assert.Contains("흐름 변화 기록 없음", postDetailsPage);
         Assert.Contains("개 흐름 변화", postDetailsPage);
+        Assert.Contains("첫 공개 공유", blogService);
         Assert.Contains("record PostRevisionSummaryResponse", File.ReadAllText(FindRepoFile("src", "Slogs.Shared", "Data", "SlogsApiContracts.cs")));
 
         Assert.Contains(".post-detail-revision-flow", appCss);
@@ -1071,6 +1073,7 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("변경점을 불러오지 못했습니다.", postDetailsPage);
         Assert.DoesNotContain("비교할 변경점이 없습니다.", postDetailsPage);
         Assert.DoesNotContain("선택한 리비전이 이 로그 노드의 기억을 어떻게 갱신했는지 확인합니다.", postDetailsPage);
+        Assert.DoesNotContain("초기 게시", blogService);
     }
 
     [Fact]
