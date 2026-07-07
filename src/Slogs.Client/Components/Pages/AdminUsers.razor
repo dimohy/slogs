@@ -370,15 +370,15 @@ else
                     <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.TotalObsidianVaults)</div>
                 </div>
                 <div class="rounded-lg border border-slate-200 bg-white p-3">
-                    <div class="text-xs font-bold text-slate-500">활성 노트</div>
+                    <div class="text-xs font-bold text-slate-500">이어진 노트</div>
                     <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.TotalObsidianActiveFiles)</div>
                 </div>
                 <div class="rounded-lg border border-slate-200 bg-white p-3">
-                    <div class="text-xs font-bold text-slate-500">삭제 흔적</div>
+                    <div class="text-xs font-bold text-slate-500">지운 노트 흔적</div>
                     <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.TotalObsidianDeletedFiles)</div>
                 </div>
                 <div class="rounded-lg border border-slate-200 bg-white p-3">
-                    <div class="text-xs font-bold text-slate-500">연결 기기</div>
+                    <div class="text-xs font-bold text-slate-500">연결 흔적</div>
                     <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.TotalObsidianClients)</div>
                 </div>
                 <div class="rounded-lg border border-slate-200 bg-white p-3">
@@ -466,7 +466,7 @@ else
                         <option value="updated">최근 노트 흐름순</option>
                         <option value="vaults">노트 Vault순</option>
                         <option value="files">노트 원문순</option>
-                        <option value="clients">연결 기기순</option>
+                        <option value="clients">연결 흔적순</option>
                         <option value="size">노트 용량순</option>
                         <option value="name">@@name순</option>
                     </select>
@@ -481,15 +481,15 @@ else
                             <th class="px-3 py-2">슬로거</th>
                             <th class="px-3 py-2 text-right">노트 Vault</th>
                             <th class="px-3 py-2 text-right">노트 원문</th>
-                            <th class="px-3 py-2 text-right">활성 노트</th>
-                            <th class="px-3 py-2 text-right">삭제 흔적</th>
-                            <th class="px-3 py-2 text-right">연결 기기</th>
+                            <th class="px-3 py-2 text-right">이어진 노트</th>
+                            <th class="px-3 py-2 text-right">지운 노트 흔적</th>
+                            <th class="px-3 py-2 text-right">연결 흔적</th>
                             <th class="px-3 py-2 text-right">노트 흐름</th>
                             <th class="px-3 py-2 text-right">노트 용량</th>
                             <th class="px-3 py-2 text-right">Vault 흐름 한도</th>
                             <th class="px-3 py-2 text-right">Vault 여유</th>
                             <th class="px-3 py-2">최근 Vault 흐름</th>
-                            <th class="px-3 py-2">최근 연결 기기</th>
+                            <th class="px-3 py-2">최근 연결 흔적</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
@@ -836,7 +836,7 @@ else
         => view switch
         {
             LlmWikiView => "비공개 기억, 회상 접근, Agent 연결 품질 신호를 확인합니다.",
-            ObsidianView => "로컬 노트 Vault, 노트 원문, 연결 기기 흐름을 확인합니다.",
+            ObsidianView => "로컬 노트 Vault, 노트 원문, 연결 흔적 흐름을 확인합니다.",
             _ => "슬로거 홈과 공개/게시전 로그가 어떻게 이어지는지 확인합니다."
         };
 

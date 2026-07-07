@@ -143,7 +143,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("aria-label=\"LLM Wiki 기억 요약\"", adminUsersPage);
         Assert.Contains("슬로거 홈과 공개/게시전 로그가 어떻게 이어지는지 확인합니다.", adminUsersPage);
         Assert.Contains("비공개 기억, 회상 접근, Agent 연결 품질 신호를 확인합니다.", adminUsersPage);
-        Assert.Contains("로컬 노트 Vault, 노트 원문, 연결 기기 흐름을 확인합니다.", adminUsersPage);
+        Assert.Contains("로컬 노트 Vault, 노트 원문, 연결 흔적 흐름을 확인합니다.", adminUsersPage);
         Assert.Contains(">기억 엔트리</div>", adminUsersPage);
         Assert.Contains(">기억 활동</div>", adminUsersPage);
         Assert.Contains(">7일 기억</div>", adminUsersPage);
@@ -480,16 +480,16 @@ public sealed class StaticAssetIdentityTests
     }
 
     [Fact]
-    public void AdminObsidianMetricsUseNoteVaultAndConnectedDeviceWording()
+    public void AdminObsidianMetricsUseNoteVaultAndConnectionTraceWording()
     {
         var adminUsersPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "AdminUsers.razor"));
 
         Assert.Contains("노트 Vault 흐름 요약", adminUsersPage);
         Assert.Contains("노트 Vault 슬로거", adminUsersPage);
         Assert.Contains("노트 Vault", adminUsersPage);
-        Assert.Contains("활성 노트", adminUsersPage);
-        Assert.Contains("삭제 흔적", adminUsersPage);
-        Assert.Contains("연결 기기", adminUsersPage);
+        Assert.Contains("이어진 노트", adminUsersPage);
+        Assert.Contains("지운 노트 흔적", adminUsersPage);
+        Assert.Contains("연결 흔적", adminUsersPage);
         Assert.Contains("노트 용량 흐름", adminUsersPage);
         Assert.Contains("aria-label=\"노트 Vault 용량 흐름\"", adminUsersPage);
         Assert.Contains(">노트 Vault 용량 흐름</h2>", adminUsersPage);
@@ -506,7 +506,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("<option value=\"updated\">최근 노트 흐름순</option>", adminUsersPage);
         Assert.Contains("<option value=\"vaults\">노트 Vault순</option>", adminUsersPage);
         Assert.Contains("<option value=\"files\">노트 원문순</option>", adminUsersPage);
-        Assert.Contains("<option value=\"clients\">연결 기기순</option>", adminUsersPage);
+        Assert.Contains("<option value=\"clients\">연결 흔적순</option>", adminUsersPage);
         Assert.Contains("<option value=\"size\">노트 용량순</option>", adminUsersPage);
         Assert.Contains("<option value=\"name\">@@name순</option>", adminUsersPage);
         Assert.Contains("명 노트 흐름 표시", adminUsersPage);
@@ -515,9 +515,9 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains(">Vault 흐름 한도</th>", adminUsersPage);
         Assert.Contains(">Vault 여유</th>", adminUsersPage);
         Assert.Contains(">최근 Vault 흐름</th>", adminUsersPage);
-        Assert.Contains(">최근 연결 기기</th>", adminUsersPage);
+        Assert.Contains(">최근 연결 흔적</th>", adminUsersPage);
         Assert.Contains("이어 볼 노트 Vault 슬로거가 없습니다.", adminUsersPage);
-        Assert.Contains("로컬 노트 Vault, 노트 원문, 연결 기기 흐름을 확인합니다.", adminUsersPage);
+        Assert.Contains("로컬 노트 Vault, 노트 원문, 연결 흔적 흐름을 확인합니다.", adminUsersPage);
 
         Assert.DoesNotContain(">Sync 사용자</div>", adminUsersPage);
         Assert.DoesNotContain("노트 Sync 사용자", adminUsersPage);
@@ -525,8 +525,11 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("노트 Sync 슬로거", adminUsersPage);
         Assert.DoesNotContain(">Vault</div>", adminUsersPage);
         Assert.DoesNotContain(">활성 파일</div>", adminUsersPage);
+        Assert.DoesNotContain(">활성 노트</div>", adminUsersPage);
         Assert.DoesNotContain(">삭제 기록</div>", adminUsersPage);
+        Assert.DoesNotContain(">삭제 흔적</div>", adminUsersPage);
         Assert.DoesNotContain(">클라이언트</div>", adminUsersPage);
+        Assert.DoesNotContain(">연결 기기</div>", adminUsersPage);
         Assert.DoesNotContain("Obsidian Sync 노트 흐름 요약", adminUsersPage);
         Assert.DoesNotContain("Obsidian Sync 노트 Vault 용량 한도", adminUsersPage);
         Assert.DoesNotContain(">스토리지 한도</h2>", adminUsersPage);
@@ -545,22 +548,28 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("<option value=\"vaults\">Vault순</option>", adminUsersPage);
         Assert.DoesNotContain("<option value=\"files\">파일순</option>", adminUsersPage);
         Assert.DoesNotContain("<option value=\"clients\">클라이언트순</option>", adminUsersPage);
+        Assert.DoesNotContain("<option value=\"clients\">연결 기기순</option>", adminUsersPage);
         Assert.DoesNotContain("<option value=\"size\">용량순</option>", adminUsersPage);
         Assert.DoesNotContain("<option value=\"name\">아이디순</option>", adminUsersPage);
         Assert.DoesNotContain(">Vault</th>", adminUsersPage);
         Assert.DoesNotContain(">파일</th>", adminUsersPage);
         Assert.DoesNotContain(">활성</th>", adminUsersPage);
+        Assert.DoesNotContain(">활성 노트</th>", adminUsersPage);
         Assert.DoesNotContain(">삭제</th>", adminUsersPage);
+        Assert.DoesNotContain(">삭제 흔적</th>", adminUsersPage);
         Assert.DoesNotContain(">클라이언트</th>", adminUsersPage);
+        Assert.DoesNotContain(">연결 기기</th>", adminUsersPage);
         Assert.DoesNotContain(">Version</th>", adminUsersPage);
         Assert.DoesNotContain(">최근 Vault 변경</th>", adminUsersPage);
         Assert.DoesNotContain(">최근 노트 Vault</th>", adminUsersPage);
         Assert.DoesNotContain(">Vault 한도</th>", adminUsersPage);
         Assert.DoesNotContain("전체 노트 Vault 한도", adminUsersPage);
         Assert.DoesNotContain(">최근 클라이언트</th>", adminUsersPage);
+        Assert.DoesNotContain(">최근 연결 기기</th>", adminUsersPage);
         Assert.DoesNotContain("표시할 Obsidian Sync 사용자가 없습니다.", adminUsersPage);
         Assert.DoesNotContain("Obsidian Sync vault, 파일, 클라이언트 현황", adminUsersPage);
         Assert.DoesNotContain("Obsidian Sync 노트 Vault, 노트 원문, 연결 기기 흐름을 확인합니다.", adminUsersPage);
+        Assert.DoesNotContain("로컬 노트 Vault, 노트 원문, 연결 기기 흐름을 확인합니다.", adminUsersPage);
     }
 
     [Fact]
