@@ -113,7 +113,7 @@
                         </div>
                         <button class="inline-flex min-w-max shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-rose-300 px-3 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-50"
                                 type="button"
-                                @onclick="() => RevokeTokenAsync(token.Id)">폐기</button>
+                                @onclick="() => RevokeTokenAsync(token.Id)">권한 끊기</button>
                     </div>
                 }
             }
@@ -208,29 +208,29 @@
                         <div class="flex flex-wrap items-center justify-between gap-2">
                             <div class="min-w-0">
                                 <p class="truncate text-sm font-semibold text-slate-900">@vault.Name</p>
-                                <p class="text-xs text-slate-500">노트 흐름 v@vault.CurrentVersion · @FormatDateTime(vault.UpdatedAt)</p>
+                                <p class="text-xs text-slate-500">@($"노트 흐름 v{vault.CurrentVersion} · {FormatDateTime(vault.UpdatedAt)}")</p>
                             </div>
                             <div class="flex flex-wrap items-center gap-2">
                                 @if (status is not null)
                                 {
                                     <div class="flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
-                                        <span class="rounded-full bg-slate-100 px-2.5 py-1">활성 노트 @status.ActiveFileCount</span>
-                                        <span class="rounded-full bg-slate-100 px-2.5 py-1">삭제 흔적 @status.DeletedFileCount</span>
+                                        <span class="rounded-full bg-slate-100 px-2.5 py-1">이어진 노트 @status.ActiveFileCount</span>
+                                        <span class="rounded-full bg-slate-100 px-2.5 py-1">지운 노트 흔적 @status.DeletedFileCount</span>
                                         <span class="rounded-full bg-slate-100 px-2.5 py-1">@FormatBytes(status.TotalSizeBytes)</span>
                                     </div>
                                 }
                                 <button class="obsidian-vault-delete-trigger inline-flex min-w-max shrink-0 items-center justify-center whitespace-nowrap rounded-full border px-3 py-1 text-xs font-semibold transition disabled:cursor-not-allowed"
                                         type="button"
                                         disabled="@isDeletingObsidianVault"
-                                        @onclick="() => BeginDeleteObsidianVault(vault)">삭제</button>
+                                        @onclick="() => BeginDeleteObsidianVault(vault)">Vault 지우기</button>
                             </div>
                         </div>
                         @if (deletingObsidianVaultId == vault.Id)
                         {
                             <div class="obsidian-vault-delete-panel mt-3 rounded-lg border p-3">
-                                <p class="text-xs font-semibold text-rose-900">이 작업은 노트 Vault, 노트 원문, 삭제 흔적, 연결 기기 상태, 노트 버전 이력을 모두 삭제합니다.</p>
+                                <p class="text-xs font-semibold text-rose-900">이 작업은 노트 Vault, 노트 원문, 지운 노트 흔적, 연결 흔적, 노트 버전 흐름을 모두 지웁니다.</p>
                                 <label class="mt-2 block text-xs font-semibold text-rose-900" for="@GetVaultDeleteInputId(vault.Id)">
-                                    삭제하려면 <span class="font-mono">@vault.Name</span> 을 그대로 입력하세요.
+                                    지우려면 <span class="font-mono">@vault.Name</span> 을 그대로 입력하세요.
                                 </label>
                                 <div class="mt-2 flex flex-col gap-2 sm:flex-row">
                                     <input id="@GetVaultDeleteInputId(vault.Id)"
@@ -245,7 +245,7 @@
                                     <button class="obsidian-vault-delete-confirm inline-flex min-w-max shrink-0 items-center justify-center whitespace-nowrap rounded-xl px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed"
                                             type="button"
                                             disabled="@(!CanDeleteObsidianVault(vault))"
-                                            @onclick="() => DeleteObsidianVaultAsync(vault)">@(isDeletingObsidianVault ? "삭제 중..." : "완전 삭제")</button>
+                                            @onclick="() => DeleteObsidianVaultAsync(vault)">@(isDeletingObsidianVault ? "지우는 중..." : "완전히 지우기")</button>
                                 </div>
                             </div>
                         }
@@ -256,7 +256,7 @@
                                 {
                                     <div class="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-xs">
                                         <span class="font-semibold text-slate-700">@client.ClientName</span>
-                                        <span class="text-slate-500">@client.ClientKind · 노트 흐름 v@client.LastSeenVersion · @FormatDateTime(client.LastSeenAt)</span>
+                                        <span class="text-slate-500">@($"연결 흔적 {client.ClientKind} · 노트 흐름 v{client.LastSeenVersion} · {FormatDateTime(client.LastSeenAt)}")</span>
                                     </div>
                                 }
                             </div>
@@ -435,7 +435,7 @@
         ClearMessages();
         var revoked = await ApiClient.RevokeLlmWikiTokenAsync(CurrentUser.UserName, tokenId);
         await LoadTokensAsync();
-        message = revoked ? "연결 토큰이 폐기되었습니다." : "폐기할 연결 토큰을 찾지 못했습니다.";
+        message = revoked ? "연결 권한을 끊었습니다." : "끊을 연결 토큰을 찾지 못했습니다.";
     }
 
     private async Task CreateObsidianVaultAsync()
@@ -504,13 +504,13 @@
             var deleted = await ApiClient.DeleteObsidianVaultAsync(CurrentUser.UserName, vault.Id, deleteObsidianVaultConfirmation);
             if (deleted)
             {
-                obsidianMessage = $"{vault.Name} 노트 Vault가 완전히 삭제되었습니다.";
+                obsidianMessage = $"{vault.Name} 노트 Vault를 완전히 지웠습니다.";
                 CancelDeleteObsidianVault();
                 await LoadObsidianVaultsAsync();
             }
             else
             {
-                obsidianErrorMessage = "삭제할 노트 Vault를 찾지 못했습니다.";
+                obsidianErrorMessage = "지울 노트 Vault를 찾지 못했습니다.";
             }
         }
         catch (Exception ex)
@@ -565,10 +565,20 @@
             : [SlogsTokenScopes.Mcp];
 
     private static string FormatScopes(IReadOnlyList<string> scopes)
-        => scopes.Count == 0 ? SlogsTokenScopes.Mcp : string.Join(", ", scopes);
+        => scopes.Count == 0
+            ? FormatScope(SlogsTokenScopes.Mcp)
+            : string.Join(", ", scopes.Select(FormatScope));
+
+    private static string FormatScope(string scope)
+        => scope switch
+        {
+            SlogsTokenScopes.Mcp => "Agent 회상 권한",
+            SlogsTokenScopes.ObsidianSync => "노트 Vault 권한",
+            _ => scope
+        };
 
     private static string GetTokenLastUsedStatus(LlmWikiTokenResponse token)
-        => token.LastUsedAt is null ? string.Empty : $" · 마지막 사용 {FormatDateTime(token.LastUsedAt.Value)}";
+        => token.LastUsedAt is null ? string.Empty : $" · 최근 연결 {FormatDateTime(token.LastUsedAt.Value)}";
 
     private static string FormatBytes(long bytes)
     {

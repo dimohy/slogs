@@ -415,6 +415,10 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("노트 Vault 플러그인 ID", settingsComponent);
         Assert.Contains("Slogs Drive 설치 흐름", settingsComponent);
         Assert.Contains("Slogs Drive 실행 흐름", settingsComponent);
+        Assert.Contains("Agent 회상 권한", settingsComponent);
+        Assert.Contains("노트 Vault 권한", settingsComponent);
+        Assert.Contains("권한 끊기", settingsComponent);
+        Assert.Contains("최근 연결", settingsComponent);
         Assert.Contains("슬로거 홈 정체성", profileSettingsForm);
         Assert.Contains("공개 지식 로그 홈에 보일 이름, 이미지, 짧은 흐름 소개를 정리합니다.", profileSettingsForm);
         Assert.Contains("슬로거 홈 이미지 URL", profileSettingsForm);
@@ -439,6 +443,8 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain(">Plugin ID</p>", settingsComponent);
         Assert.DoesNotContain(">Drive install</p>", settingsComponent);
         Assert.DoesNotContain(">Drive run</p>", settingsComponent);
+        Assert.DoesNotContain(">폐기</button>", settingsComponent);
+        Assert.DoesNotContain("마지막 사용", settingsComponent);
     }
 
     [Fact]
@@ -446,17 +452,31 @@ public sealed class StaticAssetIdentityTests
     {
         var settingsComponent = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "LlmWikiMcpSettings.razor"));
 
-        Assert.Contains("노트 흐름 v@vault.CurrentVersion", settingsComponent);
-        Assert.Contains("활성 노트 @status.ActiveFileCount", settingsComponent);
-        Assert.Contains("삭제 흔적 @status.DeletedFileCount", settingsComponent);
-        Assert.Contains("노트 원문, 삭제 흔적, 연결 기기 상태, 노트 버전 이력", settingsComponent);
-        Assert.Contains("노트 흐름 v@client.LastSeenVersion", settingsComponent);
+        Assert.Contains("노트 흐름 v{vault.CurrentVersion}", settingsComponent);
+        Assert.Contains("이어진 노트 @status.ActiveFileCount", settingsComponent);
+        Assert.Contains("지운 노트 흔적 @status.DeletedFileCount", settingsComponent);
+        Assert.Contains("Vault 지우기", settingsComponent);
+        Assert.Contains("노트 원문, 지운 노트 흔적, 연결 흔적, 노트 버전 흐름", settingsComponent);
+        Assert.Contains("지우려면", settingsComponent);
+        Assert.Contains("완전히 지우기", settingsComponent);
+        Assert.Contains("지우는 중...", settingsComponent);
+        Assert.Contains("연결 흔적 {client.ClientKind}", settingsComponent);
+        Assert.Contains("노트 흐름 v{client.LastSeenVersion}", settingsComponent);
 
         Assert.DoesNotContain(">v@vault.CurrentVersion ·", settingsComponent);
+        Assert.DoesNotContain("노트 흐름 v@vault.CurrentVersion", settingsComponent);
         Assert.DoesNotContain(">활성 @status.ActiveFileCount", settingsComponent);
+        Assert.DoesNotContain("활성 노트 @status.ActiveFileCount", settingsComponent);
         Assert.DoesNotContain(">삭제 기록 @status.DeletedFileCount", settingsComponent);
+        Assert.DoesNotContain("삭제 흔적 @status.DeletedFileCount", settingsComponent);
         Assert.DoesNotContain("파일, 삭제 기록, 클라이언트 상태, 버전 이력", settingsComponent);
+        Assert.DoesNotContain("노트 원문, 삭제 흔적, 연결 기기 상태, 노트 버전 이력", settingsComponent);
         Assert.DoesNotContain("@client.ClientKind · v@client.LastSeenVersion", settingsComponent);
+        Assert.DoesNotContain("노트 흐름 v@client.LastSeenVersion", settingsComponent);
+        Assert.DoesNotContain(">삭제</button>", settingsComponent);
+        Assert.DoesNotContain("삭제하려면", settingsComponent);
+        Assert.DoesNotContain("완전 삭제", settingsComponent);
+        Assert.DoesNotContain("삭제 중...", settingsComponent);
     }
 
     [Fact]
