@@ -15,7 +15,7 @@
                         {
                             <img class="h-full w-full object-cover"
                                  src="@profileImageUrl"
-                                 alt="@($"{profileDisplayName} 프로필 이미지")"
+                                 alt="@($"{profileDisplayName} 홈 이미지")"
                                  loading="lazy"
                                  decoding="async" />
                         }
@@ -25,9 +25,10 @@
                         }
                     </div>
                     <div>
-                        <p class="text-xs font-bold text-slate-500">계정</p>
-                        <h2 class="mt-1 text-xl font-black text-slate-900">프로필 설정</h2>
+                        <p class="text-xs font-bold text-slate-500">슬로거 홈</p>
+                        <h2 class="mt-1 text-xl font-black text-slate-900">슬로거 홈 정체성</h2>
                         <p class="mt-1 text-sm font-semibold text-slate-500">@GetProfileAddress()</p>
+                        <p class="mt-1 text-xs leading-5 text-slate-500">공개 지식 로그 홈에 보일 이름, 이미지, 짧은 흐름 소개를 정리합니다.</p>
                     </div>
                 </div>
             </div>
@@ -60,7 +61,7 @@
                 </label>
 
                 <label class="grid gap-1 text-sm font-semibold text-slate-700 md:col-span-2" for="profile-image-url">
-                    프로필 이미지 URL
+                    슬로거 홈 이미지 URL
                     <input id="profile-image-url"
                            class="rounded-2xl border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900"
                            maxlength="500"
@@ -70,7 +71,7 @@
                 </label>
 
                 <label class="grid gap-1 text-sm font-semibold text-slate-700 md:col-span-2" for="profile-bio">
-                    소개
+                    홈 소개
                     <textarea id="profile-bio"
                               class="min-h-28 rounded-2xl border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900"
                               maxlength="280"
@@ -84,7 +85,7 @@
                 <button class="w-fit rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-wait disabled:opacity-60"
                         type="submit"
                         disabled="@isSavingProfile">
-                    @(isSavingProfile ? "저장 중..." : "프로필 저장")
+                    @(isSavingProfile ? "정체성 저장 중..." : "홈 정체성 저장")
                 </button>
             </div>
 
@@ -159,15 +160,15 @@
             {
                 AuthState.Restore(result.User);
                 InitializeProfileForm(result.User, force: true);
-                profileMessage = "프로필이 저장되었습니다.";
+                profileMessage = "슬로거 홈 정체성이 저장되었습니다.";
                 return;
             }
 
-            profileError = MapProfileError(result.Error, result.Status == 401 ? "로그인이 필요합니다." : "프로필 저장에 실패했습니다.");
+            profileError = MapProfileError(result.Error, result.Status == 401 ? "로그인이 필요합니다." : "홈 정체성 저장에 실패했습니다.");
         }
         catch (Exception)
         {
-            profileError = "프로필 저장 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+            profileError = "홈 정체성 저장 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
         }
         finally
         {
@@ -208,12 +209,12 @@
 
         if (!string.IsNullOrWhiteSpace(profileImageUrl) && profileImageUrl.Trim().Length > 500)
         {
-            return "프로필 이미지 URL은 500자 이하여야 합니다.";
+            return "슬로거 홈 이미지 URL은 500자 이하여야 합니다.";
         }
 
         if (profileBio.Trim().Length > 280)
         {
-            return "소개는 280자 이하여야 합니다.";
+            return "홈 소개는 280자 이하여야 합니다.";
         }
 
         return string.Empty;
@@ -239,10 +240,10 @@
             "profileDisplayNameLength" => "표시 이름은 80자 이하여야 합니다.",
             "profileEmailLength" => "이메일은 320자 이하여야 합니다.",
             "profileEmailInvalid" => "올바른 이메일을 입력해 주세요.",
-            "profileImageUrlLength" => "프로필 이미지 URL은 500자 이하여야 합니다.",
-            "profileImageUrlInvalid" => "프로필 이미지 URL은 http, https 또는 /uploads 경로여야 합니다.",
-            "profileBioLength" => "소개는 280자 이하여야 합니다.",
-            "profileUserNotFound" => "계정을 찾을 수 없습니다.",
+            "profileImageUrlLength" => "슬로거 홈 이미지 URL은 500자 이하여야 합니다.",
+            "profileImageUrlInvalid" => "슬로거 홈 이미지 URL은 http, https 또는 /uploads 경로여야 합니다.",
+            "profileBioLength" => "홈 소개는 280자 이하여야 합니다.",
+            "profileUserNotFound" => "슬로거 홈을 찾을 수 없습니다.",
             _ => fallback
         };
     }

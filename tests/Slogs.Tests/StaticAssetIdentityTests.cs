@@ -373,6 +373,7 @@ public sealed class StaticAssetIdentityTests
     {
         var settingsPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "Settings.razor"));
         var settingsComponent = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "LlmWikiMcpSettings.razor"));
+        var profileSettingsForm = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "ProfileSettingsForm.razor"));
 
         Assert.Contains("지식 로그 연결", settingsPage);
         Assert.Contains("공개 로그 흐름을 한 연결 계층으로 이어 둡니다.", settingsPage);
@@ -387,11 +388,21 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("노트 Vault 플러그인 ID", settingsComponent);
         Assert.Contains("Slogs Drive 설치 흐름", settingsComponent);
         Assert.Contains("Slogs Drive 실행 흐름", settingsComponent);
+        Assert.Contains("슬로거 홈 정체성", profileSettingsForm);
+        Assert.Contains("공개 지식 로그 홈에 보일 이름, 이미지, 짧은 흐름 소개를 정리합니다.", profileSettingsForm);
+        Assert.Contains("슬로거 홈 이미지 URL", profileSettingsForm);
+        Assert.Contains("홈 소개", profileSettingsForm);
+        Assert.Contains("홈 정체성 저장", profileSettingsForm);
+        Assert.Contains("슬로거 홈 정체성이 저장되었습니다.", profileSettingsForm);
 
         Assert.DoesNotContain("공개 로그 연결을 설정합니다.", settingsPage);
         Assert.DoesNotContain("공개 로그 흐름을 관리합니다.", settingsPage);
         Assert.DoesNotContain("게시전 로그 초안", settingsPage);
         Assert.DoesNotContain("게시전 로그 초안", settingsComponent);
+        Assert.DoesNotContain("프로필 설정", profileSettingsForm);
+        Assert.DoesNotContain("프로필 저장", profileSettingsForm);
+        Assert.DoesNotContain("프로필 저장에 실패했습니다.", profileSettingsForm);
+        Assert.DoesNotContain("프로필 이미지 URL", profileSettingsForm);
         Assert.DoesNotContain(">Endpoint</p>", settingsComponent);
         Assert.DoesNotContain(">Authorization Header</p>", settingsComponent);
         Assert.DoesNotContain(">Client Config Example</p>", settingsComponent);
