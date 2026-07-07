@@ -286,9 +286,9 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("회 회상 접근", llmWikiSearchPage);
         Assert.Contains("다음 기억을 불러오는 중...", llmWikiSearchPage);
         Assert.Contains("더 이상 이어 볼 기억이 없습니다.", llmWikiSearchPage);
-        Assert.Contains("선택한 기억 범주에 이어 볼 기억이 없습니다.", llmWikiSearchPage);
-        Assert.Contains("저장된 비공개 기억이 없습니다.", llmWikiSearchPage);
-        Assert.Contains("회상된 기억이 없습니다.", llmWikiSearchPage);
+        Assert.Contains("선택한 기억 범주에 이어 쓸 기억이 없습니다.", llmWikiSearchPage);
+        Assert.Contains("아직 이어 쓸 비공개 기억이 없습니다.", llmWikiSearchPage);
+        Assert.Contains("의미 회상에 이어진 기억이 없습니다.", llmWikiSearchPage);
 
         Assert.DoesNotContain(">카테고리</p>", llmWikiSearchPage);
         Assert.DoesNotContain("카테고리로 좁힌", llmWikiSearchPage);
@@ -299,6 +299,9 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("다음 Wiki를 불러오는 중", llmWikiSearchPage);
         Assert.DoesNotContain("더 이상 표시할 Wiki", llmWikiSearchPage);
         Assert.DoesNotContain("표시할 LLM Wiki", llmWikiSearchPage);
+        Assert.DoesNotContain("선택한 기억 범주에 이어 볼 기억이 없습니다.", llmWikiSearchPage);
+        Assert.DoesNotContain("저장된 비공개 기억이 없습니다.", llmWikiSearchPage);
+        Assert.DoesNotContain("회상된 기억이 없습니다.", llmWikiSearchPage);
     }
 
     [Fact]
@@ -316,6 +319,10 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("비공개 기억 -> 소유자 전용 게시전 로그 -> 검토 후 공개 공유", llmWikiSearchPage);
         Assert.Contains("소유자 전용 게시전 로그", llmWikiSearchPage);
         Assert.Contains("이 게시전 로그는 Slogs LLM Wiki에서 이어온 소유자 전용 흐름입니다.", llmWikiSearchPage);
+        Assert.Contains("## 게시전 공유 경계", llmWikiSearchPage);
+        Assert.Contains("현재 단계: 비공개 기억 -> 소유자 전용 게시전 로그", llmWikiSearchPage);
+        Assert.Contains("다음 단계: 민감한 단서 정리 -> 검토 후 공개 공유", llmWikiSearchPage);
+        Assert.Contains("공개 공유 전까지 소유자에게만 보입니다.", llmWikiSearchPage);
         Assert.Contains("소유자 전용 게시전 로그로 이어집니다.", llmWikiGuidePage);
         Assert.Contains("<span>게시전 로그</span>", llmWikiGuidePage);
 

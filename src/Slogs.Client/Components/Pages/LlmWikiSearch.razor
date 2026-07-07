@@ -522,12 +522,12 @@ else
 
         if (!string.IsNullOrWhiteSpace(activeCategoryPath) && string.IsNullOrWhiteSpace(activeSearchQuery))
         {
-            return "선택한 기억 범주에 이어 볼 기억이 없습니다.";
+            return "선택한 기억 범주에 이어 쓸 기억이 없습니다.";
         }
 
         return string.IsNullOrWhiteSpace(activeSearchQuery)
-            ? "저장된 비공개 기억이 없습니다."
-            : "회상된 기억이 없습니다.";
+            ? "아직 이어 쓸 비공개 기억이 없습니다."
+            : $"\"{activeSearchQuery}\" 의미 회상에 이어진 기억이 없습니다.";
     }
 
     private string GetResultButtonClass(LlmWikiSearchResult result)
@@ -642,6 +642,12 @@ else
         > 이 게시전 로그는 Slogs LLM Wiki에서 이어온 소유자 전용 흐름입니다. 공개 전에 민감한 단서와 내부 맥락을 정리하세요.
 
         # {entry.Title}
+
+        ## 게시전 공유 경계
+
+        - 현재 단계: 비공개 기억 -> 소유자 전용 게시전 로그
+        - 다음 단계: 민감한 단서 정리 -> 검토 후 공개 공유
+        - 원칙: 이 로그는 공개 공유 전까지 소유자에게만 보입니다.
 
         ## 기억 단서
 
