@@ -292,6 +292,8 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("모든 기억 범주", llmWikiSearchPage);
         Assert.Contains("개 기억 회상 중", llmWikiSearchPage);
         Assert.Contains("회 회상 접근", llmWikiSearchPage);
+        Assert.Contains("공개 기억", llmWikiSearchPage);
+        Assert.Contains("비공개 기억", llmWikiSearchPage);
         Assert.Contains("다음 기억을 불러오는 중...", llmWikiSearchPage);
         Assert.Contains("더 이상 이어 볼 기억이 없습니다.", llmWikiSearchPage);
         Assert.Contains("선택한 기억 범주에 이어 쓸 기억이 없습니다.", llmWikiSearchPage);
@@ -304,6 +306,7 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("모든 카테고리", llmWikiSearchPage);
         Assert.DoesNotContain("개 표시 중", llmWikiSearchPage);
         Assert.DoesNotContain("회 열람", llmWikiSearchPage);
+        Assert.DoesNotContain("공개 Wiki", llmWikiSearchPage);
         Assert.DoesNotContain("다음 Wiki를 불러오는 중", llmWikiSearchPage);
         Assert.DoesNotContain("더 이상 표시할 Wiki", llmWikiSearchPage);
         Assert.DoesNotContain("표시할 LLM Wiki", llmWikiSearchPage);
@@ -690,6 +693,8 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains(".slogs-brand__text {\n        display: none;\n    }", appCss);
         Assert.Contains("@media (max-width: 300px)", appCss);
         Assert.DoesNotContain("@media (max-width: 340px)", appCss);
+        Assert.DoesNotContain("grid-template-areas: \"brand actions\" \"recall recall\";", appCss);
+        Assert.DoesNotContain("grid-template-areas: \"brand tools\" \"recall recall\";", appCss);
         Assert.DoesNotContain("\"recall recall\";", appCss);
         Assert.DoesNotContain("display: contents;", appCss);
         Assert.Contains("min-width: 5rem;", appCss);
