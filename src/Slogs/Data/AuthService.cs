@@ -250,7 +250,7 @@ public sealed class AuthService(
             Email = normalizedEmail,
             Password = string.Empty,
             ProfileImageUrl = finalProfileImageUrl,
-            Bio = $"{GetProviderDisplayName(normalizedProvider)} 계정으로 가입한 슬로거입니다.",
+            Bio = $"{GetProviderDisplayName(normalizedProvider)}로 이어진 지식 로그 홈입니다.",
             RegisteredAt = now
         };
 
@@ -1109,7 +1109,7 @@ public sealed class AuthService(
             Email = email,
             Password = string.Empty,
             ProfileImageUrl = profileImageUrl,
-            Bio = "외부 로그인 계정으로 가입한 슬로거입니다.",
+            Bio = "외부 로그인으로 이어진 지식 로그 홈입니다.",
             RegisteredAt = now
         };
 
@@ -1142,7 +1142,7 @@ public sealed class AuthService(
 
         if (string.IsNullOrWhiteSpace(user.Bio))
         {
-            user.Bio = "외부 로그인 계정으로 가입한 슬로거입니다.";
+            user.Bio = "외부 로그인으로 이어진 지식 로그 홈입니다.";
         }
     }
 

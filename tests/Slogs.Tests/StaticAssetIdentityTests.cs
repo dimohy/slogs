@@ -46,6 +46,17 @@ public sealed class StaticAssetIdentityTests
     }
 
     [Fact]
+    public void ExternalLoginDefaultBiosUseSloggerHomeFlowWording()
+    {
+        var authService = File.ReadAllText(FindRepoFile("src", "Slogs", "Data", "AuthService.cs"));
+
+        Assert.Contains("로 이어진 지식 로그 홈입니다.", authService);
+        Assert.Contains("외부 로그인으로 이어진 지식 로그 홈입니다.", authService);
+        Assert.DoesNotContain("계정으로 가입한 슬로거입니다.", authService);
+        Assert.DoesNotContain("외부 로그인 계정으로 가입한 슬로거입니다.", authService);
+    }
+
+    [Fact]
     public void SeedDefaultConversationCopyUsesTraceFlowWording()
     {
         var initializer = File.ReadAllText(FindRepoFile("src", "Slogs", "Data", "SlogsDbInitializer.cs"));
