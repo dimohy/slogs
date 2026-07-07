@@ -383,6 +383,7 @@ public sealed class StaticAssetIdentityTests
         var navMenu = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Layout", "NavMenu.razor"));
 
         Assert.Contains("LLM Wiki 기억 연결", llmWikiGuidePage);
+        Assert.Contains("Slogs LLM Wiki가 비공개 기억을 Agent 회상과 소유자 전용 게시전 로그로 이어 두는 연결면입니다.", llmWikiGuidePage);
         Assert.Contains("비공개 기억을 Agent 회상과 Slogs 게시전 로그로 이어 두는 연결면입니다.", llmWikiGuidePage);
         Assert.Contains(">비공개 기억</div>", navMenu);
         Assert.Contains("기억 연결 가이드", navMenu);
@@ -391,7 +392,8 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("recall</code> 도구는 답변/구현에 바로 적용할 기억 맥락으로 이어 줍니다.", llmWikiGuidePage);
         Assert.Contains("MCP 회상 응답의 Retrieval Diagnostics", llmWikiGuidePage);
         Assert.Contains("저장 전에는 관련 기억을 먼저 회상하고", llmWikiGuidePage);
-        Assert.Contains("tool_search</code> 같은 도구 노출 확인", llmWikiGuidePage);
+        Assert.Contains("도구 노출 점검으로 먼저 지연 로딩 여부를 살핍니다.", llmWikiGuidePage);
+        Assert.Contains("Agent의 도구 노출 점검으로 먼저 지연 로딩을 살피도록 안내합니다.", llmWikiGuidePage);
         Assert.Contains("search</code>로 작은 회상 후보 흐름을 잡습니다.", llmWikiGuidePage);
         Assert.Contains("답변이나 구현에 바로 적용할 기억 맥락은 낮은 limit의", llmWikiGuidePage);
         Assert.Contains("다시 회상합니다.", llmWikiGuidePage);
@@ -401,6 +403,9 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("Slogs LLM Wiki를 먼저 조회합니다.", llmWikiGuidePage);
         Assert.DoesNotContain("MCP 응답의 Retrieval Diagnostics", llmWikiGuidePage);
         Assert.DoesNotContain("저장 전에는 관련 기억을 먼저 찾고", llmWikiGuidePage);
+        Assert.DoesNotContain("Slogs LLM Wiki가 비공개 기억을 Agent 회상과 게시전 로그로 이어 쓰는 흐름을 확인합니다.", llmWikiGuidePage);
+        Assert.DoesNotContain("도구 노출 확인으로 먼저 사용 가능 여부를 확인합니다.", llmWikiGuidePage);
+        Assert.DoesNotContain("도구 노출 확인 기능으로 먼저 지연 로딩을 시도", llmWikiGuidePage);
         Assert.DoesNotContain("다시 조회합니다.", llmWikiGuidePage);
         Assert.DoesNotContain("회상 후보 요약 목록", llmWikiGuidePage);
         Assert.DoesNotContain("초기 목록", llmWikiGuidePage);

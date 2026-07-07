@@ -4,7 +4,7 @@
 @inject IJSRuntime JS
 
 <PageTitle>LLM Wiki 기억 연결</PageTitle>
-<SeoHead Title="LLM Wiki 기억 연결 | slogs" Description="Slogs LLM Wiki가 비공개 기억을 Agent 회상과 게시전 로그로 이어 쓰는 흐름을 확인합니다." NoIndex="true" />
+<SeoHead Title="LLM Wiki 기억 연결 | slogs" Description="Slogs LLM Wiki가 비공개 기억을 Agent 회상과 소유자 전용 게시전 로그로 이어 두는 연결면입니다." NoIndex="true" />
 
 @if (CurrentUser is null)
 {
@@ -80,7 +80,7 @@ else
                         <li>정제된 현재 기억과 별도로 원래 저장/병합/갱신 요청은 Raw Provenance에 남겨 회상 품질과 병합 품질을 검증합니다.</li>
                         <li>저장, 병합, 갱신 시 프로젝트/영역/주제를 나타내는 <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">categoryPath</code>를 명시합니다.</li>
                         <li>복사한 프롬프트는 Slogs MCP 키 입력과 전역/프로젝트/현재 세션 범위 선택을 안내하고, 선택한 범위에 맞춰 MCP 연결도 함께 설정하도록 합니다.</li>
-                        <li>세션 시작 직후 Slogs 도구가 보이지 않으면 비활성화로 단정하지 않고 Agent의 도구 노출 확인 기능으로 먼저 지연 로딩을 시도하도록 안내합니다.</li>
+                        <li>세션 시작 직후 Slogs 도구가 보이지 않으면 비활성화로 단정하지 않고 Agent의 도구 노출 점검으로 먼저 지연 로딩을 살피도록 안내합니다.</li>
                         <li>한국어 <a class="font-semibold text-slate-900 underline" href="/prompts/slogs-mcp.ko.md" target="_blank">slogs-mcp.ko.md</a>와 English <a class="font-semibold text-slate-900 underline" href="/prompts/slogs-mcp.en.md" target="_blank">slogs-mcp.en.md</a>를 언어별 프롬프트로 제공합니다.</li>
                         <li>동기화는 버전 URL <a class="font-semibold text-slate-900 underline" href="/prompts/slogs-mcp.version" target="_blank">slogs-mcp.version</a>을 먼저 비교하고, 버전이 다르면 Agent가 같은 지침 위치의 관리 블록을 직접 교체하도록 안내합니다.</li>
                         <li>API 키, 비밀번호, 토큰, 일회성 로그, 임시 실행 내역은 저장하지 않습니다.</li>
@@ -90,7 +90,7 @@ else
                     <h3 class="text-sm font-bold text-slate-900">Agent 동작 흐름</h3>
                     <ol class="mt-2 list-decimal space-y-1.5 pl-5 text-sm leading-6 text-slate-600">
                         <li>사용자 요청이 이전 맥락과 관련되는지 판단합니다.</li>
-                        <li>Slogs 도구가 처음 보이지 않으면 <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">tool_search</code> 같은 도구 노출 확인으로 먼저 사용 가능 여부를 확인합니다.</li>
+                        <li>Slogs 도구가 처음 보이지 않으면 <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">tool_search</code> 같은 도구 노출 점검으로 먼저 지연 로딩 여부를 살핍니다.</li>
                         <li>넓거나 애매한 요청은 먼저 <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">search</code>로 작은 회상 후보 흐름을 잡습니다.</li>
                         <li>답변이나 구현에 바로 적용할 기억 맥락은 낮은 limit의 <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">recall</code>로 불러옵니다.</li>
                         <li>관련도, 제목, 요약, 태그, Retrieval Diagnostics를 보고 현재 작업에 필요한 기억을 선별합니다.</li>
