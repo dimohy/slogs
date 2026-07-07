@@ -135,7 +135,7 @@ else
             @if (post.IsDraft)
             {
                 <span>게시전 로그</span>
-                <span>수정 @FormatDateTime(post.UpdatedAt)</span>
+                <span>흐름 갱신 @FormatDateTime(post.UpdatedAt)</span>
             }
             else
             {
@@ -167,7 +167,7 @@ else
             }
             @if (post.UpdatedAt > post.PublishedAt.AddMinutes(1))
             {
-                <span>수정 @FormatDateTime(post.UpdatedAt)</span>
+                <span>흐름 갱신 @FormatDateTime(post.UpdatedAt)</span>
             }
         </div>
 

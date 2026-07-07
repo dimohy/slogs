@@ -1006,6 +1006,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("로그 시리즈", postDetailsPage);
         Assert.Contains("리비전 흐름 v", postDetailsPage);
         Assert.Contains("개 연결 로그", postDetailsPage);
+        Assert.Contains("흐름 갱신 @FormatDateTime(post.UpdatedAt)", postDetailsPage);
         Assert.Contains("PostRecallPath Post=\"item\"", postDetailsPage);
         Assert.Contains("연결 로그 회상 경로", postDetailsPage);
         Assert.Contains("PostRecallPath Post=\"previousPost\"", postDetailsPage);
@@ -1025,6 +1026,7 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("SeoMetadata.ArticleJsonLd", postDetailsPage);
         Assert.DoesNotContain("Type=\"article\"", postDetailsPage);
         Assert.DoesNotContain("관련 글", postDetailsPage);
+        Assert.DoesNotContain("수정 @FormatDateTime(post.UpdatedAt)", postDetailsPage);
     }
 
     [Fact]
