@@ -141,9 +141,10 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("@@name 정리 후 해당 슬로거는 다시 로그인해야 합니다.", adminUsersPage);
         Assert.Contains("\"정리 중\" : \"정리\"", adminUsersPage);
         Assert.Contains("aria-label=\"LLM Wiki 기억 요약\"", adminUsersPage);
-        Assert.Contains("슬로거 홈과 공개/게시전 로그가 어떻게 이어지는지 확인합니다.", adminUsersPage);
-        Assert.Contains("비공개 기억, 회상 접근, Agent 연결 품질 신호를 확인합니다.", adminUsersPage);
-        Assert.Contains("로컬 노트 Vault, 노트 원문, 연결 흔적 흐름을 확인합니다.", adminUsersPage);
+        Assert.Contains("slogs 슬로거, 기억 회상, 노트 Vault 흐름을 함께 따라갑니다.", adminUsersPage);
+        Assert.Contains("슬로거 홈과 공개/게시전 로그가 어떻게 이어지는지 함께 따라갑니다.", adminUsersPage);
+        Assert.Contains("비공개 기억, 회상 접근, Agent 연결 품질 신호를 함께 살핍니다.", adminUsersPage);
+        Assert.Contains("로컬 노트 Vault, 노트 원문, 연결 흔적 흐름을 함께 따라갑니다.", adminUsersPage);
         Assert.Contains(">기억 엔트리</div>", adminUsersPage);
         Assert.Contains(">기억 활동</div>", adminUsersPage);
         Assert.Contains(">7일 기억</div>", adminUsersPage);
@@ -212,12 +213,15 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("aria-label=\"LLM Wiki 요약\"", adminUsersPage);
         Assert.DoesNotContain("사용자 기본 정보와 사용자 관련 관리 기능을 확인합니다.", adminUsersPage);
         Assert.DoesNotContain("슬로거 홈, 공개 로그, 게시전 로그 흐름 신호를 확인합니다.", adminUsersPage);
+        Assert.DoesNotContain("slogs 슬로거, 기억 회상, 노트 Vault 흐름을 확인합니다.", adminUsersPage);
+        Assert.DoesNotContain("슬로거 홈과 공개/게시전 로그가 어떻게 이어지는지 확인합니다.", adminUsersPage);
         Assert.DoesNotContain(">사용자 관리</a>", navMenu);
         Assert.DoesNotContain(">슬로거 관리</a>", adminUsersPage);
         Assert.DoesNotContain(">슬로거 관리</a>", navMenu);
         Assert.DoesNotContain(">LLM Wiki 통계</a>", adminUsersPage);
         Assert.DoesNotContain(">Obsidian Sync</a>", adminUsersPage);
         Assert.DoesNotContain("LLM Wiki 사용량과 MCP 품질 지표를 확인합니다.", adminUsersPage);
+        Assert.DoesNotContain("비공개 기억, 회상 접근, Agent 연결 품질 신호를 확인합니다.", adminUsersPage);
         Assert.DoesNotContain("MCP 호출 품질 신호", adminUsersPage);
         Assert.DoesNotContain("aria-label=\"MCP 품질 지표\"", adminUsersPage);
         Assert.DoesNotContain("aria-label=\"MCP 회상 품질 지표\"", adminUsersPage);
@@ -536,7 +540,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains(">최근 Vault 흐름</th>", adminUsersPage);
         Assert.Contains(">최근 연결 흔적</th>", adminUsersPage);
         Assert.Contains("이어 볼 노트 Vault 슬로거가 없습니다.", adminUsersPage);
-        Assert.Contains("로컬 노트 Vault, 노트 원문, 연결 흔적 흐름을 확인합니다.", adminUsersPage);
+        Assert.Contains("로컬 노트 Vault, 노트 원문, 연결 흔적 흐름을 함께 따라갑니다.", adminUsersPage);
 
         Assert.DoesNotContain(">Sync 사용자</div>", adminUsersPage);
         Assert.DoesNotContain("노트 Sync 사용자", adminUsersPage);
@@ -589,6 +593,7 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("Obsidian Sync vault, 파일, 클라이언트 현황", adminUsersPage);
         Assert.DoesNotContain("Obsidian Sync 노트 Vault, 노트 원문, 연결 기기 흐름을 확인합니다.", adminUsersPage);
         Assert.DoesNotContain("로컬 노트 Vault, 노트 원문, 연결 기기 흐름을 확인합니다.", adminUsersPage);
+        Assert.DoesNotContain("로컬 노트 Vault, 노트 원문, 연결 흔적 흐름을 확인합니다.", adminUsersPage);
     }
 
     [Fact]

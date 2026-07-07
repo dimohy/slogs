@@ -4,7 +4,7 @@
 @inject NavigationManager Navigation
 
 <PageTitle>어드민 슬로거 흐름 | slogs</PageTitle>
-<SeoHead Title="어드민 슬로거 흐름 | slogs" Description="slogs 슬로거, 기억 회상, 노트 Vault 흐름을 확인합니다." NoIndex="true" />
+<SeoHead Title="어드민 슬로거 흐름 | slogs" Description="slogs 슬로거, 기억 회상, 노트 Vault 흐름을 함께 따라갑니다." NoIndex="true" />
 
 @if (CurrentUser is null)
 {
@@ -835,9 +835,9 @@ else
     private static string GetViewDescription(string view)
         => view switch
         {
-            LlmWikiView => "비공개 기억, 회상 접근, Agent 연결 품질 신호를 확인합니다.",
-            ObsidianView => "로컬 노트 Vault, 노트 원문, 연결 흔적 흐름을 확인합니다.",
-            _ => "슬로거 홈과 공개/게시전 로그가 어떻게 이어지는지 확인합니다."
+            LlmWikiView => "비공개 기억, 회상 접근, Agent 연결 품질 신호를 함께 살핍니다.",
+            ObsidianView => "로컬 노트 Vault, 노트 원문, 연결 흔적 흐름을 함께 따라갑니다.",
+            _ => "슬로거 홈과 공개/게시전 로그가 어떻게 이어지는지 함께 따라갑니다."
         };
 
     private string GetViewTabClass(string view)
