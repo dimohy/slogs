@@ -8,9 +8,9 @@ public sealed class SlogsMcpPolicyPromptTests
     [Fact]
     public void VersionTextMatchesPromptVersion()
     {
-        Assert.Equal("2026.07.07.1\n", SlogsMcpPolicyPrompt.BuildVersionText());
-        Assert.Contains("Prompt Version: 2026.07.07.1", SlogsMcpPolicyPrompt.BuildKoreanMarkdown());
-        Assert.Contains("Prompt Version: 2026.07.07.1", SlogsMcpPolicyPrompt.BuildEnglishMarkdown());
+        Assert.Equal("2026.07.08.1\n", SlogsMcpPolicyPrompt.BuildVersionText());
+        Assert.Contains("Prompt Version: 2026.07.08.1", SlogsMcpPolicyPrompt.BuildKoreanMarkdown());
+        Assert.Contains("Prompt Version: 2026.07.08.1", SlogsMcpPolicyPrompt.BuildEnglishMarkdown());
     }
 
     [Fact]
@@ -51,5 +51,23 @@ public sealed class SlogsMcpPolicyPromptTests
         Assert.Contains("public sharing", englishPrompt);
         Assert.DoesNotContain("블로그 글", koreanPrompt);
         Assert.DoesNotContain("post (blog)", englishPrompt);
+    }
+
+    [Fact]
+    public void AgentPromptsFramePublicLlmWikiVisibilityAsPublicMemory()
+    {
+        var koreanPrompt = SlogsMcpPolicyPrompt.BuildKoreanMarkdown();
+        var englishPrompt = SlogsMcpPolicyPrompt.BuildEnglishMarkdown();
+
+        Assert.Contains("공개 기억", koreanPrompt);
+        Assert.Contains("공개 기억 조회", koreanPrompt);
+        Assert.Contains("공개된 기억이 없다고 답한다", koreanPrompt);
+        Assert.Contains("public memory", englishPrompt);
+        Assert.Contains("public-memory questions", englishPrompt);
+        Assert.Contains("LLM Wiki memories are private by default", englishPrompt);
+
+        Assert.DoesNotContain("공개 Wiki", koreanPrompt);
+        Assert.DoesNotContain("public Wiki", englishPrompt);
+        Assert.DoesNotContain("their own wiki", englishPrompt);
     }
 }
