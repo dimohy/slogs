@@ -150,8 +150,10 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains(">30일 기억</div>", adminUsersPage);
         Assert.Contains("aria-label=\"Agent 회상 품질 지표\"", adminUsersPage);
         Assert.Contains(">LLM Wiki 회상 품질</h2>", adminUsersPage);
+        Assert.Contains("이후 감사 흐름 기준", adminUsersPage);
         Assert.Contains("최근 Agent 접근", adminUsersPage);
         Assert.Contains(">30일 Agent 접근</div>", adminUsersPage);
+        Assert.Contains(">후보 회상</div>", adminUsersPage);
         Assert.Contains("후보 회상 접근", adminUsersPage);
         Assert.Contains(">유효 회상률</div>", adminUsersPage);
         Assert.Contains("빈 회상", adminUsersPage);
@@ -159,6 +161,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains(">반복 회상률</div>", adminUsersPage);
         Assert.Contains("느린 회상", adminUsersPage);
         Assert.Contains(">기억 변경</div>", adminUsersPage);
+        Assert.Contains(">회상 도구</th>", adminUsersPage);
         Assert.Contains(">접근</th>", adminUsersPage);
         Assert.Contains(">유효</th>", adminUsersPage);
         Assert.Contains(">최근 접근</th>", adminUsersPage);
@@ -219,9 +222,12 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("aria-label=\"MCP 품질 지표\"", adminUsersPage);
         Assert.DoesNotContain("aria-label=\"MCP 회상 품질 지표\"", adminUsersPage);
         Assert.DoesNotContain(">LLM Wiki MCP 품질</h2>", adminUsersPage);
+        Assert.DoesNotContain("감사 로그 기준", adminUsersPage);
+        Assert.DoesNotContain(">Recall/Search</div>", adminUsersPage);
         Assert.DoesNotContain("최근 호출", adminUsersPage);
         Assert.DoesNotContain(">30일 호출</div>", adminUsersPage);
         Assert.DoesNotContain("후보 탐색 호출", adminUsersPage);
+        Assert.DoesNotContain(">도구</th>", adminUsersPage);
         Assert.DoesNotContain(">유효 결과율</div>", adminUsersPage);
         Assert.DoesNotContain("빈 결과", adminUsersPage);
         Assert.DoesNotContain(">응답 속도</div>", adminUsersPage);
