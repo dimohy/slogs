@@ -381,6 +381,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("기억과 노트가 로그로 이어지는 경로", settingsPage);
         Assert.Contains("Agent는 비공개 기억을 회상하고, Obsidian은 로컬 노트를 원격 노트 Vault에 남기며", settingsPage);
         Assert.Contains("비공개 기억을 회상해 소유자 전용 게시전 로그로 이어 둡니다.", settingsPage);
+        Assert.Contains("이 슬로거의 비공개 기억을 회상하고", settingsComponent);
         Assert.Contains("검토 가능한 소유자 전용 게시전 로그를 만들고", settingsComponent);
         Assert.Contains("Slogs MCP 연결 주소", settingsComponent);
         Assert.Contains("Agent 회상 권한 헤더", settingsComponent);
@@ -399,6 +400,7 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("공개 로그 흐름을 관리합니다.", settingsPage);
         Assert.DoesNotContain("Slogs 계정", settingsPage);
         Assert.DoesNotContain("프로필, Agent", settingsPage);
+        Assert.DoesNotContain("이 계정의 비공개 기억", settingsComponent);
         Assert.DoesNotContain("게시전 로그 초안", settingsPage);
         Assert.DoesNotContain("게시전 로그 초안", settingsComponent);
         Assert.DoesNotContain("프로필 설정", profileSettingsForm);
