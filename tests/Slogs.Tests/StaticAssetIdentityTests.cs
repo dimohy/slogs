@@ -337,6 +337,32 @@ public sealed class StaticAssetIdentityTests
     }
 
     [Fact]
+    public void LlmWikiDetailModalFramesRawProvenanceAsMemoryEvidenceFlow()
+    {
+        var llmWikiSearchPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "LlmWikiSearch.razor"));
+
+        Assert.Contains("기억을 만든 요청 흐름", llmWikiSearchPage);
+        Assert.Contains("정리된 기억 내용", llmWikiSearchPage);
+        Assert.Contains("기억 근거 흐름", llmWikiSearchPage);
+        Assert.Contains("공개 공유 전 감사 흐름", llmWikiSearchPage);
+        Assert.Contains("기억 저장 근거", llmWikiSearchPage);
+        Assert.Contains("기억 병합 근거", llmWikiSearchPage);
+        Assert.Contains("기억 갱신 근거", llmWikiSearchPage);
+        Assert.Contains("기억 포착 근거", llmWikiSearchPage);
+        Assert.Contains("근거 제목", llmWikiSearchPage);
+        Assert.Contains("근거 단서", llmWikiSearchPage);
+        Assert.Contains("기억 범주", llmWikiSearchPage);
+        Assert.Contains("근거 요청 흐름", llmWikiSearchPage);
+        Assert.Contains("근거 내용", llmWikiSearchPage);
+
+        Assert.DoesNotContain(">원천 기록</p>", llmWikiSearchPage);
+        Assert.DoesNotContain(">정리된 내용</p>", llmWikiSearchPage);
+        Assert.DoesNotContain(">title</span>", llmWikiSearchPage);
+        Assert.DoesNotContain(">tags</span>", llmWikiSearchPage);
+        Assert.DoesNotContain(">categoryPath</span>", llmWikiSearchPage);
+    }
+
+    [Fact]
     public void LlmWikiUsageGuideFramesToolNamesAsRecallFlow()
     {
         var llmWikiGuidePage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "LlmWiki.razor"));
