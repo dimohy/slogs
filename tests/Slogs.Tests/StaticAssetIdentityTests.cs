@@ -148,7 +148,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains(">기억 활동</div>", adminUsersPage);
         Assert.Contains(">7일 기억</div>", adminUsersPage);
         Assert.Contains(">30일 기억</div>", adminUsersPage);
-        Assert.Contains("aria-label=\"MCP 회상 품질 지표\"", adminUsersPage);
+        Assert.Contains("aria-label=\"Agent 회상 품질 지표\"", adminUsersPage);
         Assert.Contains(">LLM Wiki 회상 품질</h2>", adminUsersPage);
         Assert.Contains("최근 Agent 접근", adminUsersPage);
         Assert.Contains(">30일 Agent 접근</div>", adminUsersPage);
@@ -162,7 +162,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains(">접근</th>", adminUsersPage);
         Assert.Contains(">유효</th>", adminUsersPage);
         Assert.Contains(">최근 접근</th>", adminUsersPage);
-        Assert.Contains("최근 MCP 회상 감사 로그가 없습니다.", adminUsersPage);
+        Assert.Contains("최근 Agent 회상 감사 흐름이 없습니다.", adminUsersPage);
         Assert.Contains(">슬로거</div>", navMenu);
         Assert.Contains(">슬로거 홈 흐름</a>", navMenu);
         Assert.Contains(">기억 회상</a>", navMenu);
@@ -217,6 +217,7 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("LLM Wiki 사용량과 MCP 품질 지표를 확인합니다.", adminUsersPage);
         Assert.DoesNotContain("MCP 호출 품질 신호", adminUsersPage);
         Assert.DoesNotContain("aria-label=\"MCP 품질 지표\"", adminUsersPage);
+        Assert.DoesNotContain("aria-label=\"MCP 회상 품질 지표\"", adminUsersPage);
         Assert.DoesNotContain(">LLM Wiki MCP 품질</h2>", adminUsersPage);
         Assert.DoesNotContain("최근 호출", adminUsersPage);
         Assert.DoesNotContain(">30일 호출</div>", adminUsersPage);
@@ -230,6 +231,7 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain(">성공</th>", adminUsersPage);
         Assert.DoesNotContain(">최근 호출</th>", adminUsersPage);
         Assert.DoesNotContain("최근 MCP 감사 로그가 없습니다.", adminUsersPage);
+        Assert.DoesNotContain("최근 MCP 회상 감사 로그가 없습니다.", adminUsersPage);
         Assert.DoesNotContain("MCP 토큰순", adminUsersPage);
         Assert.DoesNotContain(">MCP 토큰</th>", adminUsersPage);
         Assert.DoesNotContain("게시전 로그 관리 신호", adminUsersPage);
