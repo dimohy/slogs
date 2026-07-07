@@ -148,7 +148,7 @@ else
                                         }
                                         else
                                         {
-                                            <span class="text-xs font-semibold text-slate-400">예약 계정</span>
+                                            <span class="text-xs font-semibold text-slate-400">예약 @@name</span>
                                         }
                                     </td>
                                 </tr>
@@ -392,7 +392,7 @@ else
                     <div>
                         <h2 class="text-base font-bold text-slate-900">노트 Vault 용량 흐름</h2>
                         <p class="mt-1 text-xs font-semibold text-slate-500">
-                            @($"계정당 {FormatBytes(usage.ObsidianPerAccountStorageLimitBytes)} · 전체 {FormatBytes(usage.ObsidianTotalStorageCapacityBytes)}")
+                            @($"슬로거 홈당 {FormatBytes(usage.ObsidianPerAccountStorageLimitBytes)} · 전체 Vault 흐름 {FormatBytes(usage.ObsidianTotalStorageCapacityBytes)}")
                             <span>@($" · 물리 여유 {FormatBytes(usage.ObsidianPhysicalStorageRemainingBytes)}")</span>
                             @if (!usage.ObsidianTotalStorageCapacityConfigured)
                             {
@@ -876,7 +876,7 @@ else
         {
             "adminRequired" => "어드민 권한이 필요합니다.",
             "adminUserNameUnchanged" => "기존 @name과 새 @name이 같습니다.",
-            "adminUserNameReserved" => "예약 계정 이름은 변경하거나 대상으로 사용할 수 없습니다.",
+            "adminUserNameReserved" => "예약 @name은 변경하거나 대상으로 사용할 수 없습니다.",
             "adminUserNameNotFound" => "정리할 슬로거를 찾을 수 없습니다.",
             "adminUserNameTaken" => "이미 사용 중인 @name입니다.",
             "profileUserNameRequired" => "새 @name을 입력해 주세요.",

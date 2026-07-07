@@ -147,9 +147,11 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains(">로그 흐름</th>", adminUsersPage);
         Assert.Contains(">공개 홈</th>", adminUsersPage);
         Assert.Contains(">@@name 흐름</th>", adminUsersPage);
+        Assert.Contains("예약 @@name", adminUsersPage);
         Assert.Contains("이어 볼 슬로거 홈 흐름이 없습니다.", adminUsersPage);
         Assert.Contains(">홈 열기</a>", adminUsersPage);
         Assert.Contains("@@name 정리 후 해당 슬로거는 다시 로그인해야 합니다.", adminUsersPage);
+        Assert.Contains("예약 @name은 변경하거나 대상으로 사용할 수 없습니다.", adminUsersPage);
         Assert.Contains("\"정리 중\" : \"정리\"", adminUsersPage);
         Assert.Contains("aria-label=\"LLM Wiki 기억 요약\"", adminUsersPage);
         Assert.Contains("slogs 슬로거, 기억 회상, 노트 Vault 흐름을 함께 따라갑니다.", adminUsersPage);
@@ -277,6 +279,8 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain(">열기</a>", adminUsersPage);
         Assert.DoesNotContain("\"변경 중\" : \"변경\"", adminUsersPage);
         Assert.DoesNotContain("변경 후 해당 사용자는 다시 로그인해야 합니다.", adminUsersPage);
+        Assert.DoesNotContain("예약 계정", adminUsersPage);
+        Assert.DoesNotContain("예약 계정 이름은 변경하거나 대상으로 사용할 수 없습니다.", adminUsersPage);
         Assert.DoesNotContain("font-bold uppercase text-slate-500\">등록 슬로거", adminUsersPage);
         Assert.DoesNotContain(">엔트리순</option>", adminUsersPage);
         Assert.DoesNotContain("<option value=\"activity\">최근 활동순</option>", adminUsersPage);
@@ -530,6 +534,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("노트 용량 흐름", adminUsersPage);
         Assert.Contains("aria-label=\"노트 Vault 용량 흐름\"", adminUsersPage);
         Assert.Contains(">노트 Vault 용량 흐름</h2>", adminUsersPage);
+        Assert.Contains("슬로거 홈당 {FormatBytes(usage.ObsidianPerAccountStorageLimitBytes)} · 전체 Vault 흐름 {FormatBytes(usage.ObsidianTotalStorageCapacityBytes)}", adminUsersPage);
         Assert.Contains(">노트 Vault 흐름 한도 GiB</label>", adminUsersPage);
         Assert.Contains("aria-label=\"노트 Vault 흐름 한도 GiB\"", adminUsersPage);
         Assert.Contains(">Vault 사용</div>", adminUsersPage);
@@ -561,6 +566,7 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("노트 Sync 사용자만", adminUsersPage);
         Assert.DoesNotContain("노트 Sync 슬로거", adminUsersPage);
         Assert.DoesNotContain(">Vault</div>", adminUsersPage);
+        Assert.DoesNotContain("계정당 {FormatBytes(usage.ObsidianPerAccountStorageLimitBytes)}", adminUsersPage);
         Assert.DoesNotContain(">활성 파일</div>", adminUsersPage);
         Assert.DoesNotContain(">활성 노트</div>", adminUsersPage);
         Assert.DoesNotContain(">삭제 기록</div>", adminUsersPage);
