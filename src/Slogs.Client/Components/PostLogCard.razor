@@ -1,0 +1,117 @@
+<article class="@GetArticleClass()"
+         data-card-click-href="@PostUrl"
+         tabindex="0"
+         role="link"
+         aria-label="@GetAriaLabel()">
+    <PostCardImage Post="Post" PostUrl="@PostUrl" Priority="@Priority" />
+
+    <PostFlowSignals Post="Post" />
+
+    <PostMetaLine Post="Post"
+                  ShowAuthor="@ShowAuthor"
+                  ShowSeries="false"
+                  ShowLikes="false"
+                  ShowComments="false"
+                  ShowViews="@ShowViews" />
+
+    <a class="post-log-card__title block text-xl font-bold text-slate-900 hover:underline"
+       href="@PostUrl">@Post.Title</a>
+    <p class="post-log-card__summary text-slate-700">@Shorten(Post.Summary, SummaryMaxLength)</p>
+
+    @if (Post.Tags.Any())
+    {
+        <div class="post-log-card__clues flex flex-wrap gap-2" aria-label="로그 단서">
+            @foreach (var tag in Post.Tags)
+            {
+                <a class="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-900 hover:bg-sky-100"
+                   href="@($"/tag/{Uri.EscapeDataString(tag)}")">#@tag</a>
+            }
+        </div>
+    }
+
+    @if (ActionContent is not null)
+    {
+        <div class="post-log-card__actions flex flex-wrap gap-2">
+            @ActionContent
+        </div>
+    }
+    else if (ShowActions)
+    {
+        @if (Post.IsDraft && !string.IsNullOrWhiteSpace(DraftActionUrl))
+        {
+            <div class="post-log-card__actions flex flex-wrap gap-2">
+                <a class="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                   href="@DraftActionUrl">@DraftActionText</a>
+            </div>
+        }
+        else
+        {
+            <PostActionBar Post="Post"
+                           CurrentUserName="@CurrentUserName"
+                           CommentsUrl="@CommentsUrl"
+                           IsLikeBusy="@IsLikeBusy"
+                           IsBookmarkBusy="@IsBookmarkBusy"
+                           OnToggleLike="OnToggleLike"
+                           OnToggleBookmark="OnToggleBookmark"
+                           Class="post-log-card__actions flex flex-wrap gap-2" />
+        }
+    }
+</article>
+
+@code {
+    [Parameter, EditorRequired] public BlogPost Post { get; set; } = default!;
+
+    [Parameter, EditorRequired] public string PostUrl { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired] public string CommentsUrl { get; set; } = string.Empty;
+
+    [Parameter] public string CurrentUserName { get; set; } = string.Empty;
+
+    [Parameter] public bool Priority { get; set; }
+
+    [Parameter] public bool ShowAuthor { get; set; } = true;
+
+    [Parameter] public bool ShowViews { get; set; } = true;
+
+    [Parameter] public bool ShowActions { get; set; } = true;
+
+    [Parameter] public int SummaryMaxLength { get; set; } = 170;
+
+    [Parameter] public string DraftActionUrl { get; set; } = string.Empty;
+
+    [Parameter] public string DraftActionText { get; set; } = "게시전 로그 수정";
+
+    [Parameter] public bool IsLikeBusy { get; set; }
+
+    [Parameter] public bool IsBookmarkBusy { get; set; }
+
+    [Parameter] public EventCallback<string> OnToggleLike { get; set; }
+
+    [Parameter] public EventCallback<string> OnToggleBookmark { get; set; }
+
+    [Parameter] public RenderFragment? ActionContent { get; set; }
+
+    [Parameter] public string Class { get; set; } = string.Empty;
+
+    private string GetArticleClass()
+    {
+        const string baseClass = "clickable-post-card post-log-card rounded-2xl border border-slate-200 bg-white p-4";
+        return string.IsNullOrWhiteSpace(Class) ? baseClass : $"{baseClass} {Class}";
+    }
+
+    private string GetAriaLabel()
+        => string.IsNullOrWhiteSpace(Post.Title) ? "로그 열기" : $"{Post.Title} 로그 열기";
+
+    private static string Shorten(string value, int maxLength)
+    {
+        var normalized = string.Join(' ', (value ?? string.Empty)
+            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+
+        if (normalized.Length <= maxLength)
+        {
+            return normalized;
+        }
+
+        return $"{normalized[..Math.Max(0, maxLength - 1)].TrimEnd()}…";
+    }
+}

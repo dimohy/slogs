@@ -13,7 +13,7 @@
 
     [Parameter] public string Value { get; set; } = string.Empty;
     [Parameter] public EventCallback<string> ValueChanged { get; set; }
-    [Parameter] public string Placeholder { get; set; } = "Markdown으로 본문을 작성하세요.";
+    [Parameter] public string Placeholder { get; set; } = "Markdown으로 로그 본문을 남기세요.";
     [Parameter] public int MinHeight { get; set; } = 360;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

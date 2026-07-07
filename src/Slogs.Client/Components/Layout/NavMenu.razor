@@ -10,14 +10,14 @@
     {
         <div class="mt-4 mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">어드민</div>
         <div class="mb-1 px-3 py-2">
-            <div class="text-sm font-bold text-slate-900">사용자</div>
+            <div class="text-sm font-bold text-slate-900">슬로거</div>
             <div class="mt-2 grid gap-1">
                 <a class="@GetAdminMenuLinkClass(AdminUsersView)"
-                   href="@GetAdminMenuHref(AdminUsersView)">사용자 관리</a>
+                   href="@GetAdminMenuHref(AdminUsersView)">슬로거 관리</a>
                 <a class="@GetAdminMenuLinkClass(AdminLlmWikiView)"
-                   href="@GetAdminMenuHref(AdminLlmWikiView)">LLM Wiki</a>
+                   href="@GetAdminMenuHref(AdminLlmWikiView)">기억 회상</a>
                 <a class="@GetAdminMenuLinkClass(AdminObsidianView)"
-                   href="@GetAdminMenuHref(AdminObsidianView)">Obsidian Sync</a>
+                   href="@GetAdminMenuHref(AdminObsidianView)">노트 Vault 흐름</a>
             </div>
         </div>
     }
@@ -50,7 +50,7 @@
     <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
              ActiveClass="bg-slate-900 text-white" href="@GetFeaturedTagPath()" Match="NavLinkMatch.All">추천 단서</NavLink>
     <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
-             ActiveClass="bg-slate-900 text-white" href="/tag" Match="NavLinkMatch.All">전체 태그</NavLink>
+             ActiveClass="bg-slate-900 text-white" href="/tag" Match="NavLinkMatch.All">전체 단서</NavLink>
     <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
              ActiveClass="bg-slate-900 text-white" href="/writer" Match="NavLinkMatch.All">슬로거</NavLink>
     <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"

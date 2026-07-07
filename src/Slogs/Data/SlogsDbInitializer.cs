@@ -20,6 +20,7 @@ public static class SlogsDbInitializer
         await EnsureAdminAccountAsync(db);
         await EnsureUserProfileDefaultsAsync(db);
         await SeedPostsAsync(db);
+        await EnsureSeedIdentityDefaultsAsync(db);
         await EnsurePostThumbnailDefaultsAsync(db);
         await EnsurePostRevisionBaselinesAsync(db);
         await EnsureLlmWikiSourceBaselinesAsync(db);
@@ -699,6 +700,11 @@ public static class SlogsDbInitializer
                 user.Bio = GetDefaultBio(user.UserName);
                 changed = true;
             }
+            else if (user.ProfileUpdatedAt is null && IsLegacyDefaultBio(user.Bio))
+            {
+                user.Bio = GetDefaultBio(user.UserName);
+                changed = true;
+            }
         }
 
         if (changed)
@@ -717,33 +723,33 @@ public static class SlogsDbInitializer
         var now = DateTime.UtcNow;
         var firstPost = new PostRecord
         {
-            Title = "Blazor로 만드는 Markdown 블로그 구조",
+            Title = "Blazor로 남기는 Markdown 지식 로그 구조",
             Author = "devin",
-            Summary = "서버 렌더링과 인터랙티브 기능을 결합한 Blazor 앱에서 글 목록/상세/태그/작성자 필터를 구성하는 방법입니다.",
-            Body = "# Blazor 서버 앱 클론\n\n프로젝트를 시작하면 먼저 라우팅부터 잡고, 데이터 모델을 설계한 뒤 화면별 컴포넌트를 배치하면 됩니다.",
-            ThumbnailUrl = GetDefaultThumbnailUrl("blazor-markdown-blog"),
+            Summary = "서버 렌더링과 인터랙티브 기능을 결합한 Blazor 앱에서 공개 로그 흐름, 단서, 슬로거 회상을 구성하는 방법입니다.",
+            Body = "# Blazor 지식 로그 구조\n\n프로젝트를 시작하면 먼저 로그 흐름을 잡고, 데이터 모델을 설계한 뒤 기억과 검증이 이어지는 화면별 컴포넌트를 배치하면 됩니다.",
+            ThumbnailUrl = GetDefaultThumbnailUrl("blazor-markdown-knowledge-log"),
             PublishedAt = now.AddDays(-4),
             UpdatedAt = now,
-            Slug = "blazor-markdown-blog",
+            Slug = "blazor-markdown-knowledge-log",
             TagsJson = ToJson(["blazor", "dotnet", "csharp"]),
-            SeriesJson = ToJson(["블로그 시리즈"]),
+            SeriesJson = ToJson(["지식 로그 구조"]),
             LikedByJson = ToJson(["admin"]),
             ReadTimeMinutes = 6
         };
 
         firstPost.Comments.AddRange([
-            CreateComment("guest", "좋은 포스트네요. 라우팅 설계가 가장 먼저라고 동의합니다.", now.AddDays(-3).AddHours(-10)),
+            CreateComment("guest", "좋은 로그네요. 라우팅 설계가 가장 먼저라고 동의합니다.", now.AddDays(-3).AddHours(-10)),
             CreateComment("mina", "샘플 데이터로 동작을 확인하기 좋은 예시입니다.", now.AddDays(-3).AddHours(-8)),
             CreateComment("junho", "컴포넌트 분리는 서비스 레이어 먼저 뽑는 게 맞아요.", now.AddDays(-3).AddHours(-6)),
             CreateComment("devin", "실시간 상호작용까지 고려하면 체감이 더 좋아집니다.", now.AddDays(-3).AddHours(-4)),
-            CreateComment("alex", "글 제목이 잘 보이도록 헤더 고정도 좋은 패턴 같아요.", now.AddDays(-3).AddHours(-2)),
-            CreateComment("jane", "댓글 페이지네이션이 필요한 구간이 생길 것 같아요.", now.AddDays(-2).AddHours(-10)),
-            CreateComment("kevin", "태그 라우팅 동작은 실제 서비스에서 중요합니다.", now.AddDays(-2).AddHours(-8)),
+            CreateComment("alex", "로그 제목이 잘 보이도록 헤더 고정도 좋은 패턴 같아요.", now.AddDays(-3).AddHours(-2)),
+            CreateComment("jane", "대화 흔적 페이지네이션이 필요한 구간이 생길 것 같아요.", now.AddDays(-2).AddHours(-10)),
+            CreateComment("kevin", "단서 라우팅 동작은 실제 서비스에서 중요합니다.", now.AddDays(-2).AddHours(-8)),
             CreateComment("rose", "좋은 정렬 기준을 같이 고민하면 유저 피드백이 더 좋아져요.", now.AddDays(-2).AddHours(-6)),
             CreateComment("nate", "문서 정리 방식이 깔끔해서 이해가 빠르네요.", now.AddDays(-2).AddHours(-4)),
-            CreateComment("lee", "댓글의 답글 기능도 넣으면 더 풍부해질 듯합니다.", now.AddDays(-2).AddHours(-2)),
+            CreateComment("lee", "대화 흔적의 답글 기능도 넣으면 더 풍부해질 듯합니다.", now.AddDays(-2).AddHours(-2)),
             CreateComment("sora", "실전에서 캐시 전략만 보완하면 충분히 배포 가능한 수준입니다.", now.AddDays(-1).AddHours(-10)),
-            CreateComment("hyun", "좋은 글 감사합니다. 바로 따라 해보겠습니다.", now.AddDays(-1).AddHours(-8))
+            CreateComment("hyun", "좋은 로그 감사합니다. 바로 따라 해보겠습니다.", now.AddDays(-1).AddHours(-8))
         ]);
 
         db.Posts.AddRange(
@@ -765,24 +771,133 @@ public static class SlogsDbInitializer
             },
             new PostRecord
             {
-                Title = "slogs 검색 UX를 더 직관적으로 만들기",
+                Title = "slogs 회상 UX를 더 직관적으로 만들기",
                 Author = "mina",
-                Summary = "검색 패널, 사이드바 태그, 연관 글 추천을 한 번에 정리한 slogs UX 설계 노트입니다.",
-                Body = "# 검색 UX\n\n검색은 짧고 명확한 단서(작성자, 제목, 태그)로 필터링할 수 있어야 사용자 편의성이 높습니다.",
-                ThumbnailUrl = GetDefaultThumbnailUrl("ux-search-in-slogs"),
+                Summary = "회상 입력, 사이드바 단서, 이어지는 로그 추천을 한 번에 정리한 slogs UX 설계 노트입니다.",
+                Body = "# 회상 UX\n\n회상은 짧고 명확한 단서(슬로거, 제목, 단서)로 흐름을 좁힐 수 있어야 사용자 편의성이 높습니다.",
+                ThumbnailUrl = GetDefaultThumbnailUrl("recall-ux-in-slogs"),
                 PublishedAt = now.AddDays(-1),
                 UpdatedAt = now,
-                Slug = "ux-search-in-slogs",
-                TagsJson = ToJson(["ux", "design", "search"]),
-                SeriesJson = ToJson(["UX 실험실"]),
+                Slug = "recall-ux-in-slogs",
+                TagsJson = ToJson(["ux", "design", "recall"]),
+                SeriesJson = ToJson(["회상 UX 실험실"]),
                 ReadTimeMinutes = 7,
                 Comments =
                 [
-                    CreateComment("devin", "좋은 정리입니다. 태그 UX를 강조한 구조가 좋네요.", now.AddHours(-5))
+                    CreateComment("devin", "좋은 정리입니다. 단서 UX를 강조한 구조가 좋네요.", now.AddHours(-5))
                 ]
             });
 
         await db.SaveChangesAsync();
+    }
+
+    private static async Task EnsureSeedIdentityDefaultsAsync(SlogsDbContext db)
+    {
+        var changed = false;
+        var legacySlug = "blazor-markdown-blog";
+        var updatedSlug = "blazor-markdown-knowledge-log";
+        var seedPost = await db.Posts
+            .Include(x => x.Comments)
+            .FirstOrDefaultAsync(x => x.Author == "devin"
+                && (x.Slug == legacySlug || x.Slug == updatedSlug || x.Title == "Blazor로 만드는 Markdown 블로그 구조"));
+
+        if (seedPost is not null)
+        {
+            seedPost.Title = "Blazor로 남기는 Markdown 지식 로그 구조";
+            seedPost.Summary = "서버 렌더링과 인터랙티브 기능을 결합한 Blazor 앱에서 공개 로그 흐름, 단서, 슬로거 회상을 구성하는 방법입니다.";
+            seedPost.Body = "# Blazor 지식 로그 구조\n\n프로젝트를 시작하면 먼저 로그 흐름을 잡고, 데이터 모델을 설계한 뒤 기억과 검증이 이어지는 화면별 컴포넌트를 배치하면 됩니다.";
+            if (seedPost.Slug == legacySlug
+                && !await db.Posts.AnyAsync(x => x.Author == seedPost.Author && x.Slug == updatedSlug && x.Id != seedPost.Id))
+            {
+                seedPost.Slug = updatedSlug;
+            }
+
+            seedPost.ThumbnailUrl = GetDefaultThumbnailUrl(updatedSlug);
+            seedPost.SeriesJson = ToJson(["지식 로그 구조"]);
+            changed = true;
+
+            foreach (var comment in seedPost.Comments)
+            {
+                comment.Content = comment.Content switch
+                {
+                    "좋은 포스트네요. 라우팅 설계가 가장 먼저라고 동의합니다." => "좋은 로그네요. 라우팅 설계가 가장 먼저라고 동의합니다.",
+                    "글 제목이 잘 보이도록 헤더 고정도 좋은 패턴 같아요." => "로그 제목이 잘 보이도록 헤더 고정도 좋은 패턴 같아요.",
+                    "댓글 페이지네이션이 필요한 구간이 생길 것 같아요." => "대화 흔적 페이지네이션이 필요한 구간이 생길 것 같아요.",
+                    "태그 라우팅 동작은 실제 서비스에서 중요합니다." => "단서 라우팅 동작은 실제 서비스에서 중요합니다.",
+                    "댓글의 답글 기능도 넣으면 더 풍부해질 듯합니다." => "대화 흔적의 답글 기능도 넣으면 더 풍부해질 듯합니다.",
+                    "좋은 글 감사합니다. 바로 따라 해보겠습니다." => "좋은 로그 감사합니다. 바로 따라 해보겠습니다.",
+                    _ => comment.Content
+                };
+            }
+
+            var revisions = await db.PostRevisions.Where(x => x.PostId == seedPost.Id).ToListAsync();
+            foreach (var revision in revisions)
+            {
+                if (revision.Title == "Blazor로 만드는 Markdown 블로그 구조"
+                    || revision.SeriesJson.Contains("블로그 시리즈", StringComparison.Ordinal))
+                {
+                    revision.Title = seedPost.Title;
+                    revision.Summary = seedPost.Summary;
+                    revision.Body = seedPost.Body;
+                    revision.ThumbnailUrl = seedPost.ThumbnailUrl;
+                    revision.SeriesJson = seedPost.SeriesJson;
+                    changed = true;
+                }
+            }
+        }
+
+        var legacySearchSlug = "ux-search-in-slogs";
+        var recallUxSlug = "recall-ux-in-slogs";
+        var searchPost = await db.Posts
+            .Include(x => x.Comments)
+            .Include(x => x.Revisions)
+            .FirstOrDefaultAsync(x => x.Author == "mina"
+                && (x.Slug == legacySearchSlug || x.Slug == recallUxSlug));
+        if (searchPost is not null)
+        {
+            searchPost.Title = "slogs 회상 UX를 더 직관적으로 만들기";
+            searchPost.Summary = "회상 입력, 사이드바 단서, 이어지는 로그 추천을 한 번에 정리한 slogs UX 설계 노트입니다.";
+            searchPost.Body = "# 회상 UX\n\n회상은 짧고 명확한 단서(슬로거, 제목, 단서)로 흐름을 좁힐 수 있어야 사용자 편의성이 높습니다.";
+            searchPost.TagsJson = ToJson(["ux", "design", "recall"]);
+            searchPost.SeriesJson = ToJson(["회상 UX 실험실"]);
+            searchPost.ThumbnailUrl = GetDefaultThumbnailUrl(recallUxSlug);
+            if (searchPost.Slug == legacySearchSlug
+                && !await db.Posts.AnyAsync(x => x.Author == searchPost.Author && x.Slug == recallUxSlug && x.Id != searchPost.Id))
+            {
+                searchPost.Slug = recallUxSlug;
+            }
+
+            changed = true;
+
+            foreach (var comment in searchPost.Comments)
+            {
+                if (comment.Content == "좋은 정리입니다. 태그 UX를 강조한 구조가 좋네요.")
+                {
+                    comment.Content = "좋은 정리입니다. 단서 UX를 강조한 구조가 좋네요.";
+                }
+            }
+
+            foreach (var revision in searchPost.Revisions)
+            {
+                if (revision.SeriesJson.Contains("UX 실험실", StringComparison.Ordinal)
+                    || revision.TagsJson.Contains("search", StringComparison.Ordinal)
+                    || revision.Title.Contains("검색 UX", StringComparison.Ordinal))
+                {
+                    revision.Title = searchPost.Title;
+                    revision.Summary = searchPost.Summary;
+                    revision.Body = searchPost.Body;
+                    revision.ThumbnailUrl = searchPost.ThumbnailUrl;
+                    revision.TagsJson = searchPost.TagsJson;
+                    revision.SeriesJson = searchPost.SeriesJson;
+                    changed = true;
+                }
+            }
+        }
+
+        if (changed)
+        {
+            await db.SaveChangesAsync();
+        }
     }
 
     private static async Task EnsurePostThumbnailDefaultsAsync(SlogsDbContext db)
@@ -909,10 +1024,10 @@ public static class SlogsDbInitializer
         return NormalizeUser(userName) switch
         {
             "admin" => "slogs 운영 기준과 샘플 콘텐츠 품질을 점검합니다.",
-            "devin" => "Blazor와 .NET으로 읽기 좋은 개발 글을 정리합니다.",
-            "junho" => "C# 언어 기능과 아키텍처 패턴을 기록합니다.",
-            "mina" => "검색, 탐색, 글쓰기 UX를 실험하고 공유합니다.",
-            _ => "slogs에서 개발 경험과 학습 기록을 공유합니다."
+            "devin" => "Blazor와 .NET 작업 판단을 검증 가능한 지식 로그로 남깁니다.",
+            "junho" => "C# 언어 기능과 아키텍처 판단을 흐름 있는 로그로 검증합니다.",
+            "mina" => "회상 단서, 로그 흐름, 공개 공유 UX를 실험하고 남깁니다.",
+            _ => "slogs에서 학습과 작업 흐름을 지식 로그로 이어 남깁니다."
         };
     }
 
@@ -920,13 +1035,22 @@ public static class SlogsDbInitializer
         => !string.IsNullOrWhiteSpace(profileImageUrl)
             && profileImageUrl.StartsWith("https://api.dicebear.com/9.x/initials/svg", StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsLegacyDefaultBio(string? bio)
+        => bio is "Blazor와 .NET으로 읽기 좋은 개발 글을 정리합니다."
+            or "검색, 탐색, 글쓰기 UX를 실험하고 공유합니다."
+            or "slogs에서 개발 경험과 학습 기록을 공유합니다."
+            or "Blazor와 .NET으로 이어지는 개발 지식 로그를 정리합니다."
+            or "C# 언어 기능과 아키텍처 패턴을 기록합니다."
+            or "회상, 탐색, 로그 작성 UX를 실험하고 공유합니다."
+            or "slogs에서 개발 경험과 학습 흐름을 지식 로그로 공유합니다.";
+
     private static string GetDefaultThumbnailUrl(string slug)
     {
         return NormalizeUser(slug) switch
         {
-            "blazor-markdown-blog" => "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80",
+            "blazor-markdown-knowledge-log" or "blazor-markdown-blog" => "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80",
             "modern-csharp-component-patterns" => "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=900&q=80",
-            "ux-search-in-slogs" => "https://images.unsplash.com/photo-1559028012-481c04fa702d?auto=format&fit=crop&w=900&q=80",
+            "recall-ux-in-slogs" or "ux-search-in-slogs" => "https://images.unsplash.com/photo-1559028012-481c04fa702d?auto=format&fit=crop&w=900&q=80",
             _ => "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=900&q=80"
         };
     }

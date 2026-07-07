@@ -12,7 +12,7 @@ public static class SeoMetadata
 {
     public const string SiteName = "slogs";
     public const string SiteIconPath = "/favicon.svg";
-    public const string DefaultDescription = "slogs는 개발자의 글쓰기, 태그 탐색, 슬로거 팔로우를 위한 한국어 개발 블로그 서비스입니다.";
+    public const string DefaultDescription = "slogs는 사람과 AI가 생각, 작업, 판단, 검증을 이어 남기는 한국어 지식 로그 플랫폼입니다.";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -134,6 +134,56 @@ public static class SeoMetadata
         });
     }
 
+    public static string PublicLogCollectionJsonLd(
+        string baseUri,
+        string path,
+        string name,
+        string description,
+        IEnumerable<BlogPost> posts,
+        int limit = 24)
+    {
+        var pageUrl = EscapedAbsoluteUrl(baseUri, path);
+        var listId = $"{pageUrl}#public-log-flow";
+        var publicPosts = posts
+            .Where(post => !post.IsDraft)
+            .Take(Math.Max(1, limit))
+            .ToList();
+
+        return SerializeJsonLd(new Dictionary<string, object?>
+        {
+            ["@context"] = "https://schema.org",
+            ["@graph"] = new object[]
+            {
+                new Dictionary<string, object?>
+                {
+                    ["@type"] = "CollectionPage",
+                    ["@id"] = $"{pageUrl}#webpage",
+                    ["name"] = name,
+                    ["url"] = pageUrl,
+                    ["description"] = description,
+                    ["inLanguage"] = "ko-KR",
+                    ["isPartOf"] = SiteReference(baseUri),
+                    ["mainEntity"] = new Dictionary<string, object?>
+                    {
+                        ["@id"] = listId
+                    }
+                },
+                new Dictionary<string, object?>
+                {
+                    ["@type"] = "ItemList",
+                    ["@id"] = listId,
+                    ["name"] = $"{name} 공개 지식 로그 흐름",
+                    ["description"] = description,
+                    ["itemListOrder"] = "https://schema.org/ItemListOrderDescending",
+                    ["numberOfItems"] = publicPosts.Count,
+                    ["itemListElement"] = publicPosts
+                        .Select((post, index) => PublicLogListItem(baseUri, post, index + 1))
+                        .ToList()
+                }
+            }
+        });
+    }
+
     public static string ProfilePageJsonLd(string baseUri, string path, string displayName, string description, string? imageUrl)
     {
         return SerializeJsonLd(new Dictionary<string, object?>
@@ -153,12 +203,12 @@ public static class SeoMetadata
         });
     }
 
-    public static string BlogPostingJsonLd(string baseUri, BlogPost post, string path, string? imageUrl)
+    public static string ArticleJsonLd(string baseUri, BlogPost post, string path, string? imageUrl)
     {
         return SerializeJsonLd(new Dictionary<string, object?>
         {
             ["@context"] = "https://schema.org",
-            ["@type"] = "BlogPosting",
+            ["@type"] = "Article",
             ["headline"] = post.Title,
             ["description"] = post.Summary,
             ["url"] = EscapedAbsoluteUrl(baseUri, path),
@@ -182,6 +232,9 @@ public static class SeoMetadata
             },
             ["datePublished"] = FormatDateTime(post.PublishedAt),
             ["dateModified"] = FormatDateTime(post.UpdatedAt),
+            ["genre"] = "knowledge log",
+            ["about"] = PublicLogTopics(baseUri, post),
+            ["isPartOf"] = SiteReference(baseUri),
             ["keywords"] = post.Tags,
             ["inLanguage"] = "ko-KR",
             ["mainEntityOfPage"] = new Dictionary<string, object?>
@@ -221,7 +274,7 @@ public static class SeoMetadata
         var builder = new StringBuilder();
         builder.AppendLine("# slogs");
         builder.AppendLine();
-        builder.AppendLine("> slogs is a Korean developer blogging service for Markdown posts, Slogger home pages, tag and series discovery, social reading, Slogs MCP, and LLM Wiki workflows.");
+        builder.AppendLine("> slogs is a Korean knowledge-log platform for public Markdown logs, Slogger homes, clue and log-series recall, social reading, Slogs MCP, and LLM Wiki workflows.");
         builder.AppendLine();
         builder.AppendLine("Primary language: ko-KR.");
         builder.AppendLine($"Canonical site: {EscapedAbsoluteUrl(baseUri, "/")}");
@@ -229,35 +282,35 @@ public static class SeoMetadata
         builder.AppendLine();
         builder.AppendLine("## AI-readable exports");
         builder.AppendLine();
-        AppendMarkdownLink(builder, "Full public Markdown export", EscapedAbsoluteUrl(baseUri, "/llms-full.txt"), "Single Markdown export containing the current public post corpus.");
+        AppendMarkdownLink(builder, "Full public Markdown export", EscapedAbsoluteUrl(baseUri, "/llms-full.txt"), "Single Markdown export containing the current public knowledge-log corpus.");
         AppendMarkdownLink(builder, "Sitemap", EscapedAbsoluteUrl(baseUri, "/sitemap.xml"), "Complete public URL set for conventional crawlers.");
         AppendMarkdownLink(builder, "Robots", EscapedAbsoluteUrl(baseUri, "/robots.txt"), "Crawler access guidance.");
-        AppendMarkdownLink(builder, "RSS feed", EscapedAbsoluteUrl(baseUri, "/feed.xml"), "Latest public posts in RSS format.");
-        AppendMarkdownLink(builder, "Atom feed", EscapedAbsoluteUrl(baseUri, "/atom.xml"), "Latest public posts in Atom format.");
-        AppendMarkdownLink(builder, "JSON feed", EscapedAbsoluteUrl(baseUri, "/feed.json"), "Latest public posts in JSON Feed format.");
+        AppendMarkdownLink(builder, "RSS feed", EscapedAbsoluteUrl(baseUri, "/feed.xml"), "Latest public logs in RSS format.");
+        AppendMarkdownLink(builder, "Atom feed", EscapedAbsoluteUrl(baseUri, "/atom.xml"), "Latest public logs in Atom format.");
+        AppendMarkdownLink(builder, "JSON feed", EscapedAbsoluteUrl(baseUri, "/feed.json"), "Latest public logs in JSON Feed format.");
         AppendMarkdownLink(builder, "Slogs MCP prompt", EscapedAbsoluteUrl(baseUri, "/prompts/slogs-mcp.md"), "Korean Agent policy prompt for connecting Slogs MCP and LLM Wiki.");
         builder.AppendLine();
         builder.AppendLine("## Core pages");
         builder.AppendLine();
-        AppendMarkdownLink(builder, "Home", EscapedAbsoluteUrl(baseUri, "/"), "Latest public posts and discovery navigation.");
-        AppendMarkdownLink(builder, "Recent posts", EscapedAbsoluteUrl(baseUri, "/recent"), "Newest public posts.");
-        AppendMarkdownLink(builder, "Trending posts", EscapedAbsoluteUrl(baseUri, "/trending"), "Popular public posts.");
-        AppendMarkdownLink(builder, "Recommended posts", EscapedAbsoluteUrl(baseUri, "/recommended"), "Recommended public posts.");
-        AppendMarkdownLink(builder, "Tags", EscapedAbsoluteUrl(baseUri, "/tag"), "Public tag discovery.");
-        AppendMarkdownLink(builder, "Series", EscapedAbsoluteUrl(baseUri, "/series"), "Public series discovery.");
-        AppendMarkdownLink(builder, "Writers", EscapedAbsoluteUrl(baseUri, "/writer"), "Public Slogger directory.");
+        AppendMarkdownLink(builder, "Home", EscapedAbsoluteUrl(baseUri, "/"), "Latest public log stream and recall navigation.");
+        AppendMarkdownLink(builder, "Recent logs", EscapedAbsoluteUrl(baseUri, "/recent"), "Newest public logs.");
+        AppendMarkdownLink(builder, "Resonant logs", EscapedAbsoluteUrl(baseUri, "/trending"), "Public logs with strong response signals.");
+        AppendMarkdownLink(builder, "Recommended recall", EscapedAbsoluteUrl(baseUri, "/recommended"), "Recommended public logs.");
+        AppendMarkdownLink(builder, "Clues", EscapedAbsoluteUrl(baseUri, "/tag"), "Public clue discovery.");
+        AppendMarkdownLink(builder, "Log series", EscapedAbsoluteUrl(baseUri, "/series"), "Public log-series discovery.");
+        AppendMarkdownLink(builder, "Sloggers", EscapedAbsoluteUrl(baseUri, "/writer"), "Public Slogger directory.");
 
         if (publicPosts.Count > 0)
         {
             builder.AppendLine();
-            builder.AppendLine("## Public posts");
+            builder.AppendLine("## Public logs");
             builder.AppendLine();
             foreach (var post in publicPosts)
             {
-                var description = $"{NormalizePlainText(post.Summary, 260)} Published {FormatDate(post.PublishedAt)} by @{post.Author}.";
+                var description = $"{NormalizePlainText(post.Summary, 260)} Shared {FormatDate(post.PublishedAt)} by @{post.Author}.";
                 if (post.Tags.Count > 0)
                 {
-                    description += $" Tags: {string.Join(", ", post.Tags.Select(tag => $"#{tag}"))}.";
+                    description += $" Clues: {string.Join(", ", post.Tags.Select(tag => $"#{tag}"))}.";
                 }
 
                 AppendMarkdownLink(
@@ -268,9 +321,9 @@ public static class SeoMetadata
             }
         }
 
-        AppendTopicSection(builder, "Tags", tagList.Select(tag => (tag.Tag, EscapedAbsoluteUrl(baseUri, $"/tag/{Uri.EscapeDataString(tag.Tag)}"), $"{tag.Count} public posts.")));
-        AppendTopicSection(builder, "Series", seriesList.Select(item => (item.Series, EscapedAbsoluteUrl(baseUri, $"/series/{Uri.EscapeDataString(item.Series)}"), $"{item.Count} public posts.")));
-        AppendTopicSection(builder, "Authors", authorList.Select(author => ($"@{author.Author}", EscapedAbsoluteUrl(baseUri, WriterPath(author.Author)), $"{author.Count} public posts.")));
+        AppendTopicSection(builder, "Clues", tagList.Select(tag => (tag.Tag, EscapedAbsoluteUrl(baseUri, $"/tag/{Uri.EscapeDataString(tag.Tag)}"), $"{tag.Count} public logs.")));
+        AppendTopicSection(builder, "Log series", seriesList.Select(item => (item.Series, EscapedAbsoluteUrl(baseUri, $"/series/{Uri.EscapeDataString(item.Series)}"), $"{item.Count} public logs.")));
+        AppendTopicSection(builder, "Sloggers", authorList.Select(author => ($"@{author.Author}", EscapedAbsoluteUrl(baseUri, WriterPath(author.Author)), $"{author.Count} public logs.")));
 
         return builder.ToString();
     }
@@ -285,9 +338,9 @@ public static class SeoMetadata
             .ToList();
 
         var builder = new StringBuilder();
-        builder.AppendLine("# slogs public Markdown export");
+        builder.AppendLine("# slogs public knowledge-log Markdown export");
         builder.AppendLine();
-        builder.AppendLine("> Current public Markdown export for slogs. The site is primarily Korean and publishes developer-focused posts, Slogs MCP guidance, and LLM Wiki related content.");
+        builder.AppendLine("> Current public Markdown export for slogs. The site is primarily Korean and shares developer-focused knowledge logs, Slogs MCP guidance, and LLM Wiki related content.");
         builder.AppendLine();
         builder.AppendLine($"Canonical site: {EscapedAbsoluteUrl(baseUri, "/")}");
         builder.AppendLine($"Source index: {EscapedAbsoluteUrl(baseUri, "/llms.txt")}");
@@ -428,6 +481,79 @@ public static class SeoMetadata
         return JsonSerializer.Serialize(feed, JsonOptions);
     }
 
+    private static Dictionary<string, object?> SiteReference(string baseUri)
+        => new()
+        {
+            ["@type"] = "WebSite",
+            ["name"] = SiteName,
+            ["url"] = EscapedAbsoluteUrl(baseUri, "/")
+        };
+
+    private static Dictionary<string, object?> PublicLogListItem(string baseUri, BlogPost post, int position)
+    {
+        var postUrl = EscapedAbsoluteUrl(baseUri, PostPath(post));
+        return new Dictionary<string, object?>
+        {
+            ["@type"] = "ListItem",
+            ["position"] = position,
+            ["url"] = postUrl,
+            ["item"] = new Dictionary<string, object?>
+            {
+                ["@type"] = "CreativeWork",
+                ["name"] = post.Title,
+                ["url"] = postUrl,
+                ["description"] = post.Summary,
+                ["image"] = string.IsNullOrWhiteSpace(post.ThumbnailUrl) ? null : EscapedAbsoluteUrl(baseUri, post.ThumbnailUrl),
+                ["author"] = new Dictionary<string, object?>
+                {
+                    ["@type"] = "Person",
+                    ["name"] = post.Author,
+                    ["url"] = EscapedAbsoluteUrl(baseUri, WriterPath(post.Author))
+                },
+                ["datePublished"] = FormatDateTime(post.PublishedAt),
+                ["dateModified"] = FormatDateTime(post.UpdatedAt),
+                ["genre"] = "knowledge log",
+                ["keywords"] = post.Tags,
+                ["about"] = PublicLogTopics(baseUri, post),
+                ["interactionStatistic"] = PublicLogInteractionStatistics(post),
+                ["inLanguage"] = "ko-KR",
+                ["isPartOf"] = SiteReference(baseUri)
+            }
+        };
+    }
+
+    private static List<Dictionary<string, object?>> PublicLogTopics(string baseUri, BlogPost post)
+    {
+        return post.Tags
+            .Select(tag => TopicThing($"#{tag}", EscapedAbsoluteUrl(baseUri, $"/tag/{Uri.EscapeDataString(tag)}")))
+            .Concat(post.Series.Select(series => TopicThing(series, EscapedAbsoluteUrl(baseUri, $"/series/{Uri.EscapeDataString(series)}"))))
+            .ToList();
+    }
+
+    private static Dictionary<string, object?> TopicThing(string name, string url)
+        => new()
+        {
+            ["@type"] = "Thing",
+            ["name"] = name,
+            ["url"] = url
+        };
+
+    private static List<Dictionary<string, object?>> PublicLogInteractionStatistics(BlogPost post)
+        =>
+        [
+            InteractionCounter("https://schema.org/CommentAction", post.CommentCount),
+            InteractionCounter("https://schema.org/LikeAction", post.LikeCount),
+            InteractionCounter("https://schema.org/ViewAction", post.ViewCount)
+        ];
+
+    private static Dictionary<string, object?> InteractionCounter(string interactionType, int count)
+        => new()
+        {
+            ["@type"] = "InteractionCounter",
+            ["interactionType"] = interactionType,
+            ["userInteractionCount"] = count
+        };
+
     public static string BuildPostMarkdown(string baseUri, BlogPost post)
     {
         var builder = new StringBuilder();
@@ -435,31 +561,31 @@ public static class SeoMetadata
         builder.AppendLine();
         builder.AppendLine($"- Canonical URL: {EscapedAbsoluteUrl(baseUri, PostPath(post))}");
         builder.AppendLine($"- Markdown URL: {EscapedAbsoluteUrl(baseUri, PostMarkdownPath(post))}");
-        builder.AppendLine($"- Author: @{post.Author}");
-        builder.AppendLine($"- Published: {FormatDate(post.PublishedAt)}");
+        builder.AppendLine($"- Slogger: @{post.Author}");
+        builder.AppendLine($"- Shared: {FormatDate(post.PublishedAt)}");
         builder.AppendLine($"- Updated: {FormatDate(post.UpdatedAt)}");
         builder.AppendLine($"- Read time: {post.ReadTimeMinutes} minutes");
         if (post.Tags.Count > 0)
         {
-            builder.AppendLine($"- Tags: {string.Join(", ", post.Tags.Select(tag => $"#{tag}"))}");
+            builder.AppendLine($"- Clues: {string.Join(", ", post.Tags.Select(tag => $"#{tag}"))}");
         }
 
         if (post.Series.Count > 0)
         {
-            builder.AppendLine($"- Series: {string.Join(", ", post.Series)}");
+            builder.AppendLine($"- Log series: {string.Join(", ", post.Series)}");
         }
 
         if (!string.IsNullOrWhiteSpace(post.ThumbnailUrl))
         {
-            builder.AppendLine($"- Representative image: {EscapedAbsoluteUrl(baseUri, post.ThumbnailUrl)}");
+            builder.AppendLine($"- Cover image: {EscapedAbsoluteUrl(baseUri, post.ThumbnailUrl)}");
         }
 
         builder.AppendLine();
-        builder.AppendLine("## Summary");
+        builder.AppendLine("## Flow Summary");
         builder.AppendLine();
         builder.AppendLine(NormalizePlainText(post.Summary, 500));
         builder.AppendLine();
-        builder.AppendLine("## Body");
+        builder.AppendLine("## Log Body");
         builder.AppendLine();
         builder.AppendLine(string.IsNullOrWhiteSpace(post.Body) ? "내용이 없습니다." : post.Body.Trim());
         builder.AppendLine();

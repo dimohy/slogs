@@ -23,7 +23,7 @@ else
              PublishedAt="@post.PublishedAt"
              UpdatedAt="@post.UpdatedAt"
              NoIndex="@post.IsDraft"
-             JsonLd="@(post.IsDraft ? null : SeoMetadata.BlogPostingJsonLd(Navigation.BaseUri, post, GetPostUrl(post), GetPostSeoImageUrl(post)))" />
+             JsonLd="@(post.IsDraft ? null : SeoMetadata.ArticleJsonLd(Navigation.BaseUri, post, GetPostUrl(post), GetPostSeoImageUrl(post)))" />
 }
 
 @if (post is null)
@@ -50,11 +50,11 @@ else
             </figure>
         }
         <div class="post-detail-node-strip mb-4">
-            <span class="post-detail-node-strip__label">@(post.IsDraft ? "private draft knowledge-log node" : "public knowledge-log node")</span>
-            <span>로그 출처 @FormatUserName(post.Author)</span>
-            <span>@(post.IsDraft ? "draft memory" : $"revision v{latestRevisionNumberForNode}")</span>
-            <span>@($"{relatedPosts.Count} linked logs")</span>
-            <span>@($"{post.CommentCount} conversation traces")</span>
+            <span class="post-detail-node-strip__label">@(post.IsDraft ? "게시전 지식 로그 노드" : "공개 지식 로그 노드")</span>
+            <span>출처 @FormatUserName(post.Author)</span>
+            <span>@(post.IsDraft ? "게시전 기억" : $"리비전 v{latestRevisionNumberForNode}")</span>
+            <span>@($"{relatedPosts.Count} 연결 로그")</span>
+            <span>@($"{post.CommentCount} 대화 흔적")</span>
         </div>
         <div class="flex flex-wrap items-center gap-2">
             <h1 class="text-2xl font-bold text-slate-900">@post.Title</h1>
@@ -132,7 +132,7 @@ else
         <div class="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-500">
             <a class="font-semibold text-slate-800 hover:underline"
                href="@($"/@{Uri.EscapeDataString(post.Author)}")">@FormatUserName(post.Author)</a>
-            <span>@($"{authorFollowerCount}명 팔로워")</span>
+            <span>@($"관계 흐름 {authorFollowerCount}개")</span>
             @if (post.IsDraft)
             {
                 <span>게시전 로그</span>
@@ -158,13 +158,13 @@ else
                 <button class="ml-2 rounded-full border border-slate-300 px-3 py-1 text-sm font-semibold transition hover:bg-slate-100 @(isWriterFollowBusy ? "cursor-wait opacity-60" : "")"
                         disabled="@isWriterFollowBusy"
                         @onclick="ToggleFollowAuthor">
-                    @(isFollowingAuthor ? "팔로우 해제" : "팔로우")
+                    @(isFollowingAuthor ? "관계 해제" : "관계 잇기")
                 </button>
             }
             else if (CurrentUser is null)
             {
                 <a class="ml-2 rounded-full border border-slate-300 px-3 py-1 text-sm font-semibold transition hover:bg-slate-100"
-                   href="@GetLoginReturnUrl()">팔로우</a>
+                   href="@GetLoginReturnUrl()">관계 잇기</a>
             }
             @if (post.UpdatedAt > post.PublishedAt.AddMinutes(1))
             {
@@ -299,14 +299,19 @@ else
                 @for (var index = 0; index < relatedPosts.Count; index++)
                 {
                     var item = relatedPosts[index];
-            <article class="clickable-post-card rounded-2xl border border-slate-200 bg-white p-3"
+            <article class="clickable-post-card post-detail-linked-card rounded-2xl border border-slate-200 bg-white p-3"
                      data-card-click-href="@GetPostNavigationUrl(item)"
                      tabindex="0"
                      role="link"
                      aria-label="@($"{item.Title} 연결 로그 열기")">
                 <PostCardImage Post="item" PostUrl="@GetPostNavigationUrl(item)" Priority="@IsPriorityCardImage(index)" />
+                <PostFlowSignals Post="item" Class="post-log-card__signals post-detail-linked-card__signals" />
                 <a class="mb-2 block text-base font-bold text-slate-800 hover:underline" href="@GetPostNavigationUrl(item)">@item.Title</a>
-                <PostMetaLine Post="item" Class="flex flex-wrap items-center gap-2 text-sm text-slate-500" ShowReadTime="false" ShowViews="false" ShowSeries="false" />
+                @if (!string.IsNullOrWhiteSpace(item.Summary))
+                {
+                    <p class="post-detail-linked-card__summary text-sm leading-5 text-slate-600">@Shorten(item.Summary, 110)</p>
+                }
+                <PostMetaLine Post="item" Class="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-500" ShowReadTime="false" ShowViews="false" ShowSeries="false" />
             </article>
                 }
             </div>
@@ -332,9 +337,14 @@ else
                 }
                 else
                 {
+                    <PostFlowSignals Post="previousPost" Class="post-log-card__signals post-detail-linked-card__signals" />
                     <a class="mt-2 block text-lg font-bold text-slate-900 transition hover:underline" href="@GetPostNavigationUrl(previousPost)">
                         @previousPost.Title
                     </a>
+                    @if (!string.IsNullOrWhiteSpace(previousPost.Summary))
+                    {
+                        <p class="post-detail-linked-card__summary mt-2 text-sm leading-5 text-slate-600">@Shorten(previousPost.Summary, 130)</p>
+                    }
                     <a class="mt-1 block text-sm text-slate-500 hover:underline" href="@GetWriterUrl(previousPost.Author)">@FormatUserName(previousPost.Author)</a>
                 }
             </article>
@@ -351,9 +361,14 @@ else
                 }
                 else
                 {
+                    <PostFlowSignals Post="nextPost" Class="post-log-card__signals post-detail-linked-card__signals" />
                     <a class="mt-2 block text-lg font-bold text-slate-900 transition hover:underline" href="@GetPostNavigationUrl(nextPost)">
                         @nextPost.Title
                     </a>
+                    @if (!string.IsNullOrWhiteSpace(nextPost.Summary))
+                    {
+                        <p class="post-detail-linked-card__summary mt-2 text-sm leading-5 text-slate-600">@Shorten(nextPost.Summary, 130)</p>
+                    }
                     <a class="mt-1 block text-sm text-slate-500 hover:underline" href="@GetWriterUrl(nextPost.Author)">@FormatUserName(nextPost.Author)</a>
                 }
             </article>
@@ -1476,6 +1491,19 @@ else
     private static string FormatDate(DateTime dateTime) => ToKoreaTime(dateTime).ToString("yyyy.MM.dd");
 
     private static string FormatDateTime(DateTime dateTime) => ToKoreaTime(dateTime).ToString("yyyy.MM.dd HH:mm");
+
+    private static string Shorten(string value, int maxLength)
+    {
+        var normalized = string.Join(' ', (value ?? string.Empty)
+            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+
+        if (normalized.Length <= maxLength)
+        {
+            return normalized;
+        }
+
+        return $"{normalized[..Math.Max(0, maxLength - 1)].TrimEnd()}...";
+    }
 
     private static DateTime ToKoreaTime(DateTime dateTime)
     {

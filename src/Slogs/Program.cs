@@ -270,6 +270,8 @@ app.MapPost("/auth/register", async (HttpContext httpContext, AuthService authSe
     var displayName = GetFormValue(form, "displayName");
     var password = GetFormValue(form, "password");
     var confirmPassword = GetFormValue(form, "confirmPassword");
+    var profileImageUrl = GetFormValue(form, "profileImageUrl");
+    var bio = GetFormValue(form, "bio");
 
     if (string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(password))
     {
@@ -293,14 +295,14 @@ app.MapPost("/auth/register", async (HttpContext httpContext, AuthService authSe
 
     try
     {
-        var user = await authService.RegisterAsync(userName, displayName, password);
+        var user = await authService.RegisterAsync(userName, displayName, password, profileImageUrl, bio);
         await SlogsAuthentication.SignInPersistentAsync(httpContext, user);
 
         return Results.Redirect(returnUrl);
     }
-    catch (InvalidOperationException)
+    catch (InvalidOperationException ex)
     {
-        return Results.Redirect(BuildAuthRedirect("/register", returnUrl, "duplicate"));
+        return Results.Redirect(BuildAuthRedirect("/register", returnUrl, MapRegisterErrorCode(ex.Message)));
     }
 }).DisableAntiforgery();
 
@@ -697,6 +699,17 @@ static string GetFormValue(IFormCollection form, string name)
 static string BuildAuthRedirect(string path, string returnUrl, string error)
     => $"{path}?returnUrl={Uri.EscapeDataString(returnUrl)}&error={Uri.EscapeDataString(error)}";
 
+static string MapRegisterErrorCode(string error)
+    => error switch
+    {
+        "reservedUserName" => "duplicate",
+        "duplicate" => "duplicate",
+        "profileImageUrlLength" => "profileImageUrlLength",
+        "profileImageUrlInvalid" => "profileImageUrlInvalid",
+        "profileBioLength" => "profileBioLength",
+        _ => "registerFailed"
+    };
+
 static bool ShouldExposeLlmsDiscoveryHeaders(HttpRequest request)
 {
     if (!HttpMethods.IsGet(request.Method) && !HttpMethods.IsHead(request.Method))
@@ -775,7 +788,7 @@ static string BuildGoogleConfirmPage(
                 </div>
             </div>
 
-            <p class="text-sm leading-6 text-slate-600">Slogs에서 사용할 공개 주소를 확인해 주세요. 이 주소는 글과 프로필에 <strong>@id</strong> 형태로 표시되며, 계정 생성 후에는 설정에서 변경할 수 없습니다.</p>
+            <p class="text-sm leading-6 text-slate-600">Slogs에서 사용할 공개 주소를 확인해 주세요. 이 주소는 공개 로그와 지식 로그 홈에 <strong>@id</strong> 형태로 표시되며, 계정 생성 후에는 설정에서 변경할 수 없습니다.</p>
 
             <label class="grid gap-1 text-sm font-semibold text-slate-700" for="google-user-name">
                 공개 주소

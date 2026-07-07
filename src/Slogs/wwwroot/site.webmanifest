@@ -1,7 +1,7 @@
 {
   "name": "slogs",
   "short_name": "slogs",
-  "description": "slogs는 개발자의 글쓰기, 태그 탐색, 슬로거 팔로우를 위한 한국어 개발 블로그 서비스입니다.",
+  "description": "slogs는 사람과 AI가 생각, 작업, 기억, 검증을 이어 남기는 한국어 지식 로그 플랫폼입니다.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

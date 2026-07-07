@@ -8,9 +8,9 @@ public sealed class SlogsMcpPolicyPromptTests
     [Fact]
     public void VersionTextMatchesPromptVersion()
     {
-        Assert.Equal("2026.07.06.1\n", SlogsMcpPolicyPrompt.BuildVersionText());
-        Assert.Contains("Prompt Version: 2026.07.06.1", SlogsMcpPolicyPrompt.BuildKoreanMarkdown());
-        Assert.Contains("Prompt Version: 2026.07.06.1", SlogsMcpPolicyPrompt.BuildEnglishMarkdown());
+        Assert.Equal("2026.07.07.1\n", SlogsMcpPolicyPrompt.BuildVersionText());
+        Assert.Contains("Prompt Version: 2026.07.07.1", SlogsMcpPolicyPrompt.BuildKoreanMarkdown());
+        Assert.Contains("Prompt Version: 2026.07.07.1", SlogsMcpPolicyPrompt.BuildEnglishMarkdown());
     }
 
     [Fact]
@@ -37,5 +37,19 @@ public sealed class SlogsMcpPolicyPromptTests
         Assert.Contains("immediately replace the previous `SLOGS_MCP_PROMPT` managed block", englishPrompt);
         Assert.Contains("Do not stop after merely reporting", englishPrompt);
         Assert.Contains("separate sync script", englishPrompt);
+    }
+
+    [Fact]
+    public void AgentPromptsUseKnowledgeLogWordingForSlogsPostTools()
+    {
+        var koreanPrompt = SlogsMcpPolicyPrompt.BuildKoreanMarkdown();
+        var englishPrompt = SlogsMcpPolicyPrompt.BuildEnglishMarkdown();
+
+        Assert.Contains("공개 지식 로그", koreanPrompt);
+        Assert.Contains("공개 공유", koreanPrompt);
+        Assert.Contains("public knowledge-log", englishPrompt);
+        Assert.Contains("public sharing", englishPrompt);
+        Assert.DoesNotContain("블로그 글", koreanPrompt);
+        Assert.DoesNotContain("post (blog)", englishPrompt);
     }
 }

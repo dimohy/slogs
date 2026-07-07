@@ -4,37 +4,69 @@
 @inject SlogsAuthState AuthState
 @inject NavigationManager Navigation
 
-<PageTitle>@($"{Writer} - {(IsFollowersView ? "팔로워" : "팔로잉")}")</PageTitle>
-<SeoHead Title="@($"{Writer} {(IsFollowersView ? "팔로워" : "팔로잉")} | slogs")"
-         Description="@($"{Writer} 슬로거의 {(IsFollowersView ? "팔로워" : "팔로잉")} 목록입니다.")"
+<PageTitle>@($"{Writer} 관계 흐름")</PageTitle>
+<SeoHead Title="@($"{Writer} 관계 흐름 | slogs")"
+         Description="@($"{Writer} 슬로거의 {(IsFollowersView ? "로그 홈으로 들어오는" : "이어 둔")} 관계 흐름입니다.")"
          NoIndex="true" />
 
 @if (!isWriterKnown)
 {
-    <p class="mt-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">해당 작성자를 찾을 수 없습니다.</p>
+    <section class="rounded-2xl border border-slate-200 bg-white p-4">
+        <p class="text-sm font-semibold text-slate-700">요청한 슬로거 관계 흐름을 찾지 못했습니다.</p>
+        <p class="mt-2 text-sm leading-6 text-slate-500">공개 로그 홈 주소가 바뀌었거나 아직 공개 흐름에 나타나지 않은 슬로거입니다.</p>
+        <div class="mt-4 flex flex-wrap gap-2">
+            <a class="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+               href="/writer">
+                <SlogsIcon Name="search" Class="h-4 w-4" />
+                슬로거 회상
+            </a>
+            <a class="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+               href="/post">
+                공개 로그 흐름
+            </a>
+        </div>
+    </section>
 }
 else
 {
-    <h1 class="text-2xl font-bold text-slate-900">@Writer 님의 @(IsFollowersView ? "팔로워" : "팔로잉")</h1>
+    <h1 class="break-words text-2xl font-bold text-slate-900">@Writer 님의 관계 흐름</h1>
+    <p class="mt-1 text-sm leading-6 text-slate-500">공개 로그 홈이 누구에게 이어지고, 어떤 슬로거의 기억 흐름을 따라가는지 확인합니다.</p>
 
     <div class="mt-2 flex flex-wrap gap-2">
-        <a class="@GetTabClass(true)" href="@GetFollowersPath()">팔로워 (@followerCount)</a>
-        <a class="@GetTabClass(false)" href="@GetFollowingPath()">팔로잉 (@followingCount)</a>
+        <a class="@GetTabClass(true)" href="@GetFollowersPath()">이 로그 홈을 잇는 슬로거 (@followerCount)</a>
+        <a class="@GetTabClass(false)" href="@GetFollowingPath()">이어 둔 로그 홈 (@followingCount)</a>
     </div>
 
-    <p class="mt-2 text-sm text-slate-500">@($"{totalCount}명")</p>
+    <p class="mt-2 text-sm text-slate-500">@($"{totalCount}개 관계 흐름")</p>
 
     <section class="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
         @if (!users.Any())
         {
-            <p class="text-sm text-slate-500">표시할 항목이 없습니다.</p>
+            <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-center">
+                <p class="text-sm font-semibold text-slate-700">@GetEmptyStateTitle()</p>
+                <p class="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">@GetEmptyStateDescription()</p>
+                <div class="mt-4 flex flex-wrap justify-center gap-2">
+                    <a class="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                       href="/writer">
+                        <SlogsIcon Name="search" Class="h-4 w-4" />
+                        슬로거 회상
+                    </a>
+                    <a class="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                       href="/post">
+                        공개 로그 흐름
+                    </a>
+                </div>
+            </div>
         }
         else
         {
             @foreach (var user in users)
             {
-                <article class="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3 last:mb-0 last:border-b-0 last:pb-0">
-                    <a class="font-semibold text-slate-900 hover:underline" href="@($"/@{Uri.EscapeDataString(user)}")">@FormatUserName(user)</a>
+                <article class="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 last:mb-0">
+                    <a class="min-w-0 hover:underline" href="@($"/@{Uri.EscapeDataString(user)}")">
+                        <span class="block text-xs font-semibold text-slate-500">관계 로그 홈</span>
+                        <span class="block truncate font-semibold text-slate-900">@FormatUserName(user)</span>
+                    </a>
 
                     @if (CurrentUser is not null && !user.Equals(CurrentUserName, StringComparison.OrdinalIgnoreCase))
                     {
@@ -42,12 +74,12 @@ else
                                 disabled="@IsBusy(user)"
                                 type="button"
                                 @onclick="() => ToggleFollowAsync(user)">
-                            @(IsFollowingUser(user) ? "팔로우 해제" : "팔로우")
+                            @(IsFollowingUser(user) ? "관계 해제" : "관계 잇기")
                         </button>
                     }
                     else if (CurrentUser is not null)
                     {
-                        <span class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">(내 프로필)</span>
+                        <span class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">내 로그 홈</span>
                     }
                 </article>
             }
@@ -60,7 +92,7 @@ else
                         IsLoading="@isLoadingMoreUsers"
                         OnLoadMore="LoadMoreUsersAsync"
                         ShowDoneText="@(allUsers.Count > PageSize)"
-                        DoneText="모든 사용자를 불러왔습니다." />
+                        DoneText="모든 관계 흐름을 불러왔습니다." />
 
 @code {
     private const int PageSize = 20;
@@ -186,6 +218,16 @@ else
     private bool IsBusy(string userName) => busyUsers.Contains(userName);
 
     private bool IsFollowingUser(string userName) => followingByCurrent.Contains(userName);
+
+    private string GetEmptyStateTitle()
+        => IsFollowersView
+            ? "아직 이 로그 홈을 잇는 슬로거가 없습니다."
+            : "아직 이어 둔 로그 홈이 없습니다.";
+
+    private string GetEmptyStateDescription()
+        => IsFollowersView
+            ? "공개 로그 흐름에서 이 슬로거의 기억을 따라오는 사람이 생기면 여기에서 관계가 이어집니다."
+            : "다시 읽고 싶은 슬로거의 공개 로그 홈을 관계로 이어 두면 여기에서 흐름을 따라갑니다.";
 
     private async Task ToggleFollowAsync(string targetUser)
     {

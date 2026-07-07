@@ -4,7 +4,14 @@ public sealed record ApiErrorResponse(string Error);
 
 public sealed record AuthRequest(string UserName, string Password, string? ReturnUrl);
 
-public sealed record RegisterRequest(string UserName, string DisplayName, string Password, string ConfirmPassword, string? ReturnUrl);
+public sealed record RegisterRequest(
+    string UserName,
+    string DisplayName,
+    string Password,
+    string ConfirmPassword,
+    string? ReturnUrl,
+    string? ProfileImageUrl = null,
+    string? Bio = null);
 
 public sealed record ProfileUpdateRequest(string DisplayName, string? Email, string? ProfileImageUrl, string? Bio);
 
@@ -420,6 +427,8 @@ public sealed class HomePageState
     public string? NormalizedSort { get; set; }
 
     public string? NormalizedFeed { get; set; }
+
+    public string? NormalizedPeriod { get; set; }
 
     public string DiscoveryMode { get; set; } = "recent";
 }

@@ -52,21 +52,21 @@ else
 
                 <div class="slogger-hero__actions">
                     <a class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-                       href="@GetFollowersPath()">팔로워 @followerCount</a>
+                       href="@GetFollowersPath()">이 로그 홈을 잇는 슬로거 @followerCount</a>
                     <a class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-                       href="@GetFollowingPath()">팔로잉 @followingCount</a>
+                       href="@GetFollowingPath()">이어 둔 로그 홈 @followingCount</a>
                     @if (!IsCurrentUsersPage && CurrentUser is not null)
                     {
                         <button class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-wait disabled:opacity-60"
                                 disabled="@isFollowBusy"
                                 @onclick="ToggleFollowAsync">
-                            @(isFollowing ? "팔로우 해제" : "팔로우")
+                            @(isFollowing ? "관계 해제" : "관계 잇기")
                         </button>
                     }
                     else
                     {
                         <a class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-                           href="@GetLoginReturnUrl()">팔로우</a>
+                           href="@GetLoginReturnUrl()">관계 잇기</a>
                     }
                 </div>
             </div>
@@ -126,6 +126,7 @@ else
             {
                 <div class="mt-4">
                     <PostCardImage Post="featuredPost" PostUrl="@GetPostUrl(featuredPost)" Priority="true" />
+                    <PostFlowSignals Post="featuredPost" Class="post-log-card__signals post-detail-linked-card__signals" />
                     <a class="block text-2xl font-black leading-tight text-slate-900 hover:underline"
                        href="@GetPostUrl(featuredPost)">@featuredPost.Title</a>
                     <p class="mt-2 text-sm leading-6 text-slate-700">@Shorten(featuredPost.Summary, 220)</p>
@@ -211,62 +212,20 @@ else
                 for (var index = 0; index < posts.Count; index++)
                 {
                     var post = posts[index];
-                    <article class="clickable-post-card rounded-2xl border border-slate-200 bg-white p-4"
-                             data-card-click-href="@GetPostUrl(post)"
-                             tabindex="0"
-                             role="link"
-                             aria-label="@GetPostCardAriaLabel(post)">
-                        <PostCardImage Post="post" PostUrl="@GetPostUrl(post)" Priority="@IsPriorityCardImage(index)" />
-                        <a class="mb-2 block text-xl font-bold text-slate-900 hover:underline" href="@GetPostUrl(post)">@post.Title</a>
-                        @if (post.IsDraft)
-                        {
-                            <div class="mb-2 flex flex-wrap items-center gap-2 text-sm text-slate-500">
-                                <span class="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">게시전</span>
-                                <span>수정 @FormatDate(post.UpdatedAt)</span>
-                                <span class="inline-flex items-center gap-1">
-                                    <SlogsIcon Name="clock" Class="h-3.5 w-3.5" />
-                                    <span>@post.ReadTimeMinutes 분</span>
-                                </span>
-                            </div>
-                        }
-                        else
-                        {
-                            <PostMetaLine Post="post" ShowAuthor="false" ShowComments="true" />
-                        }
-                        <p class="text-slate-700">@Shorten(post.Summary, 150)</p>
-                        <div class="mt-2 flex flex-wrap gap-2">
-                            @foreach (var tag in post.Tags)
-                            {
-                                @if (post.IsDraft)
-                                {
-                                    <span class="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600">#@tag</span>
-                                }
-                                else
-                                {
-                                    <a class="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-900 hover:bg-sky-100"
-                                       href="@($"/tag/{Uri.EscapeDataString(tag)}")">#@tag</a>
-                                }
-                            }
-                        </div>
-
-                        @if (post.IsDraft)
-                        {
-                            <div class="mt-3">
-                                <a class="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
-                                   href="@GetPostUrl(post)">게시전 로그 수정</a>
-                            </div>
-                        }
-                        else
-                        {
-                            <PostActionBar Post="post"
-                                           CurrentUserName="@CurrentUserName"
-                                           CommentsUrl="@GetPostCommentsUrl(post)"
-                                           IsLikeBusy="@IsPostBusy(post.Slug, pendingLikeSlugs)"
-                                           IsBookmarkBusy="@IsPostBusy(post.Slug, pendingBookmarkSlugs)"
-                                           OnToggleLike="ToggleLikeAsync"
-                                           OnToggleBookmark="ToggleBookmarkAsync" />
-                        }
-                    </article>
+                    <PostLogCard @key="post.Id"
+                                 Post="post"
+                                 PostUrl="@GetPostUrl(post)"
+                                 CommentsUrl="@GetPostCommentsUrl(post)"
+                                 CurrentUserName="@CurrentUserName"
+                                 ShowAuthor="false"
+                                 Priority="@IsPriorityCardImage(index)"
+                                 SummaryMaxLength="150"
+                                 DraftActionUrl="@GetPostUrl(post)"
+                                 DraftActionText="게시전 로그 수정"
+                                 IsLikeBusy="@IsPostBusy(post.Slug, pendingLikeSlugs)"
+                                 IsBookmarkBusy="@IsPostBusy(post.Slug, pendingBookmarkSlugs)"
+                                 OnToggleLike="ToggleLikeAsync"
+                                 OnToggleBookmark="ToggleBookmarkAsync" />
                 }
             }
         </div>
@@ -385,9 +344,6 @@ else
         => IsCurrentUsersPage
             ? PostNavigationUrlBuilder.PersonalMenuContext
             : PostNavigationUrlBuilder.GlobalMenuContext;
-
-    private static string GetPostCardAriaLabel(BlogPost post)
-        => post.IsDraft ? $"{post.Title} 게시전 로그 수정" : $"{post.Title} 로그 열기";
 
     private static bool IsWriterIdentity(string? left, string? right)
         => NormalizeWriterIdentity(left).Equals(NormalizeWriterIdentity(right), StringComparison.OrdinalIgnoreCase);
@@ -660,7 +616,7 @@ else
 
     private string GetSloggerSeoDescription()
     {
-        return $"{GetSloggerDisplayName()}의 slogs 공개 지식 로그 홈입니다. {GetSloggerBio()} 공개 로그 {totalCount}개, 팔로워 {followerCount}명.";
+        return $"{GetSloggerDisplayName()}의 slogs 공개 지식 로그 홈입니다. {GetSloggerBio()} 공개 로그 {totalCount}개, 관계 흐름 {followerCount}개.";
     }
 
     private string GetInitials()

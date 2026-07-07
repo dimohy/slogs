@@ -63,13 +63,18 @@ public sealed class AuthService(
         return CurrentUser;
     }
 
-    public async Task<AuthUser> RegisterAsync(string userName, string displayName, string password)
+    public async Task<AuthUser> RegisterAsync(
+        string userName,
+        string displayName,
+        string password,
+        string? profileImageUrl = null,
+        string? bio = null)
     {
         await using var db = await dbFactory.CreateDbContextAsync();
         var normalized = NormalizeUser(userName);
         if (string.IsNullOrWhiteSpace(normalized))
         {
-            throw new InvalidOperationException("아이디를 입력해 주세요.");
+            throw new InvalidOperationException("required");
         }
 
         if (normalized.Equals(AuthUser.AdminUserName, StringComparison.OrdinalIgnoreCase))
@@ -79,8 +84,14 @@ public sealed class AuthService(
 
         if (await db.Users.AnyAsync(x => x.UserName == normalized))
         {
-            throw new InvalidOperationException("이미 사용 중인 아이디입니다.");
+            throw new InvalidOperationException("duplicate");
         }
+
+        var now = DateTime.UtcNow;
+        var normalizedProfileImageUrl = NormalizeProfileImageUrl(profileImageUrl);
+        var normalizedBio = NormalizeProfileBio(bio);
+        var hasInitialProfile = !string.IsNullOrWhiteSpace(normalizedProfileImageUrl)
+            || !string.IsNullOrWhiteSpace(normalizedBio);
 
         var newUser = new UserRecord
         {
@@ -88,9 +99,12 @@ public sealed class AuthService(
             DisplayName = string.IsNullOrWhiteSpace(displayName) ? userName.Trim() : displayName.Trim(),
             Email = string.Empty,
             Password = password,
-            ProfileImageUrl = string.Empty,
-            Bio = "slogs에서 새 글을 준비 중인 작성자입니다.",
-            RegisteredAt = DateTime.UtcNow
+            ProfileImageUrl = normalizedProfileImageUrl,
+            Bio = string.IsNullOrWhiteSpace(normalizedBio)
+                ? "slogs에서 새 지식 로그를 준비 중인 슬로거입니다."
+                : normalizedBio,
+            RegisteredAt = now,
+            ProfileUpdatedAt = hasInitialProfile ? now : null
         };
 
         db.Users.Add(newUser);

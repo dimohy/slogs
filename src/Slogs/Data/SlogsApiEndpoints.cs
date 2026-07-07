@@ -17,7 +17,7 @@ public static class SlogsApiEndpoints
 
         api.MapPost("/auth/login", async (HttpContext httpContext, AuthService authService, AuthRequest request) =>
         {
-            var returnUrl = NormalizeLocalReturnUrl(request.ReturnUrl, "/me");
+            var returnUrl = ReturnUrlNormalizer.NormalizeLocalPath(request.ReturnUrl, "/me");
             if (string.IsNullOrWhiteSpace(request.UserName) || string.IsNullOrWhiteSpace(request.Password))
             {
                 return Results.BadRequest(new ApiErrorResponse("required"));
@@ -36,7 +36,7 @@ public static class SlogsApiEndpoints
 
         api.MapPost("/auth/register", async (HttpContext httpContext, AuthService authService, RegisterRequest request) =>
         {
-            var returnUrl = NormalizeLocalReturnUrl(request.ReturnUrl, "/me");
+            var returnUrl = ReturnUrlNormalizer.NormalizeLocalPath(request.ReturnUrl, "/me");
             if (string.IsNullOrWhiteSpace(request.UserName) || string.IsNullOrWhiteSpace(request.Password))
             {
                 return Results.BadRequest(new ApiErrorResponse("required"));
@@ -59,14 +59,23 @@ public static class SlogsApiEndpoints
 
             try
             {
-                var user = await authService.RegisterAsync(request.UserName, request.DisplayName, request.Password);
+                var user = await authService.RegisterAsync(
+                    request.UserName,
+                    request.DisplayName,
+                    request.Password,
+                    request.ProfileImageUrl,
+                    request.Bio);
                 await SlogsAuthentication.SignInPersistentAsync(httpContext, user);
 
                 return Results.Ok(new AuthResponse(user, returnUrl));
             }
-            catch (InvalidOperationException)
+            catch (InvalidOperationException ex) when (IsRegisterConflict(ex.Message))
             {
                 return Results.Conflict(new ApiErrorResponse("duplicate"));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new ApiErrorResponse(ex.Message));
             }
         });
 
@@ -1069,19 +1078,7 @@ public static class SlogsApiEndpoints
     private static int NormalizeRelevancePercent(int? minRelevancePercent)
         => Math.Clamp(minRelevancePercent.GetValueOrDefault(50), 0, 100);
 
-    private static string NormalizeLocalReturnUrl(string? returnUrl, string fallback)
-    {
-        if (string.IsNullOrWhiteSpace(returnUrl)
-            || !Uri.TryCreate(returnUrl, UriKind.RelativeOrAbsolute, out var parsedUrl))
-        {
-            return fallback;
-        }
+    private static bool IsRegisterConflict(string error)
+        => error is "duplicate" or "reservedUserName";
 
-        if (!parsedUrl.IsAbsoluteUri && parsedUrl.OriginalString.StartsWith('/'))
-        {
-            return parsedUrl.OriginalString;
-        }
-
-        return fallback;
-    }
 }

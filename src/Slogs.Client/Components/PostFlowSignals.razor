@@ -1,0 +1,25 @@
+<div class="@Class" aria-label="로그 흐름 신호">
+    <span class="post-log-card__signal post-log-card__signal--primary">@(Post.IsDraft ? "게시전 로그" : "공개 로그")</span>
+    @if (Post.Series.Count > 0)
+    {
+        <a class="post-log-card__signal"
+           href="@($"/series/{Uri.EscapeDataString(Post.Series[0])}")">@GetSeriesSignalText()</a>
+    }
+    <span class="post-log-card__signal">@($"{Post.Tags.Count} 단서")</span>
+    <span class="post-log-card__signal">@($"{Post.CommentCount} 대화")</span>
+    <span class="post-log-card__signal">@($"{Post.LikeCount} 반응")</span>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public BlogPost Post { get; set; } = default!;
+
+    [Parameter] public string Class { get; set; } = "post-log-card__signals";
+
+    private string GetSeriesSignalText()
+    {
+        var first = Post.Series[0];
+        return Post.Series.Count == 1
+            ? $"로그 시리즈: {first}"
+            : $"로그 시리즈: {first} +{Post.Series.Count - 1}";
+    }
+}

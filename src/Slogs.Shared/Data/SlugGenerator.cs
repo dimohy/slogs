@@ -14,7 +14,7 @@ public static class SlugGenerator
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            return "post";
+            return "log";
         }
 
         var normalized = value.Trim().ToLowerInvariant().Normalize(NormalizationForm.FormD);
@@ -43,7 +43,7 @@ public static class SlugGenerator
         }
 
         var slug = TrimToMaxLength(builder.ToString().Normalize(NormalizationForm.FormC));
-        return string.IsNullOrWhiteSpace(slug) ? "post" : slug;
+        return string.IsNullOrWhiteSpace(slug) ? "log" : slug;
     }
 
     private static void AppendPendingSeparator(StringBuilder builder, ref bool pendingSeparator)

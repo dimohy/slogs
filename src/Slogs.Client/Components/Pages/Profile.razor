@@ -36,7 +36,20 @@ else
             {
                 <div class="slogs-post-list-empty grid min-h-64 place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center md:col-span-2">
                     <div class="max-w-sm">
-                        <p class="text-sm font-semibold text-slate-500">아직 남긴 로그가 없습니다.</p>
+                        <p class="text-sm font-semibold text-slate-700">아직 공개/게시전 로그 흐름이 없습니다.</p>
+                        <p class="mt-2 text-sm leading-6 text-slate-500">생각, 작업, 판단, 검증을 먼저 게시전 로그로 남긴 뒤 필요할 때 공개 공유하세요.</p>
+                        <div class="mt-4 flex flex-wrap justify-center gap-2">
+                            <a class="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                               href="/write">
+                                <SlogsIcon Name="plus" Class="h-4 w-4" />
+                                새 로그 남기기
+                            </a>
+                            <a class="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                               href="/me/llm-wiki/search">
+                                <SlogsIcon Name="search" Class="h-4 w-4" />
+                                기억에서 회상
+                            </a>
+                        </div>
                     </div>
                 </div>
             }
@@ -51,9 +64,9 @@ else
                              role="link"
                              aria-label="@GetPostCardAriaLabel(post)">
                         <PostCardImage Post="post" PostUrl="@GetPostUrl(post)" Priority="@IsPriorityCardImage(index)" />
+                        <PostFlowSignals Post="post" />
                         <a class="mb-2 block text-xl font-bold text-slate-900 hover:underline" href="@GetPostUrl(post)">@post.Title</a>
                         <div class="flex flex-wrap items-center gap-2 text-sm text-slate-500">
-                            <a class="font-semibold text-slate-800 hover:underline" href="@($"/@{Uri.EscapeDataString(post.Author)}")">@FormatUserName(post.Author)</a>
                             @if (post.IsDraft)
                             {
                                 <span class="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">게시전</span>
@@ -75,25 +88,9 @@ else
                                 <span>@post.ReadTimeMinutes 분</span>
                             </span>
                             <span class="inline-flex items-center gap-1">
-                                <SlogsIcon Name="heart" Class="h-3.5 w-3.5" />
-                                <span>@post.LikeCount</span>
-                            </span>
-                            <span class="inline-flex items-center gap-1">
-                                <SlogsIcon Name="message-circle" Class="h-3.5 w-3.5" />
-                                <span>@post.CommentCount</span>
-                            </span>
-                            <span class="inline-flex items-center gap-1">
                                 <SlogsIcon Name="eye" Class="h-3.5 w-3.5" />
                                 <span>@post.ViewCount</span>
                             </span>
-                            @if (post.Series.Count > 0)
-                            {
-                                @foreach (var series in post.Series)
-                                {
-                                    <a class="rounded-full border border-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-                                       href="@($"/series/{Uri.EscapeDataString(series)}")">로그 시리즈: @series</a>
-                                }
-                            }
                         </div>
                         @if (!string.IsNullOrWhiteSpace(post.Summary))
                         {
@@ -337,9 +334,6 @@ else
     private static bool IsPriorityCardImage(int index) => index < 2;
 
     private static string FormatDate(DateTime dateTime) => dateTime.ToLocalTime().ToString("yyyy.MM.dd");
-
-    private static string FormatUserName(string userName)
-        => string.IsNullOrWhiteSpace(userName) ? "@unknown" : $"@{userName.Trim().TrimStart('@')}";
 
     private static string Shorten(string text, int maxLength)
     {

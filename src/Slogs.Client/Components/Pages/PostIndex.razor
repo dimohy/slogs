@@ -4,15 +4,15 @@
 @inject SlogsAuthState AuthState
 @inject NavigationManager Navigation
 
-<PageTitle>로그 목록</PageTitle>
-<SeoHead Title="로그 목록 | slogs"
-         Description="slogs의 공개 로그를 최신순, 반응순, 업데이트순으로 탐색합니다."
+<PageTitle>공개 로그 흐름</PageTitle>
+<SeoHead Title="공개 로그 흐름 | slogs"
+         Description="slogs의 공개 로그를 시간, 반응, 갱신 흐름으로 회상합니다."
          CanonicalPath="/post"
          NoIndex="@(!string.IsNullOrWhiteSpace(Query))"
-         JsonLd="@(SeoMetadata.CollectionPageJsonLd(Navigation.BaseUri, "/post", "slogs 로그 목록", "slogs의 공개 로그를 최신순, 반응순, 업데이트순으로 탐색합니다."))" />
+         JsonLd="@GetJsonLd()" />
 
-<h1 class="text-2xl font-bold text-slate-900">전체 로그</h1>
-<p class="mb-3 text-sm text-slate-500">공개 로그 흐름을 전체 정렬 기준으로 확인합니다.</p>
+<h1 class="text-2xl font-bold text-slate-900">공개 로그 흐름</h1>
+<p class="mb-3 text-sm text-slate-500">사람과 AI가 남긴 공개 로그를 시간, 반응, 갱신 흐름으로 따라갑니다.</p>
 
 <div class="mb-4">
     <div class="flex flex-wrap gap-2">
@@ -20,27 +20,27 @@
                value="@searchText"
                @oninput="HandleSearchInputChanged"
                @onkeydown="HandleSearchKeyDown"
-               placeholder="검색: 키워드 또는 #태그, @@작성자"
-               aria-label="검색어 입력" />
+               placeholder="회상어, #단서, @@@@슬로거"
+               aria-label="공개 로그 회상어 입력" />
         <a class="rounded-full border border-slate-300 bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
            href="@GetSearchResultHref()">
-            검색
+            회상
         </a>
         @if (!string.IsNullOrWhiteSpace(Query))
         {
             <a class="rounded-full border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
                href="@GetPostQueryQuery(sort: Sort)">
-                검색 초기화
+                회상 초기화
             </a>
         }
     </div>
-    <p class="mt-2 text-xs text-slate-500">예시: react, #javascript, @@admin</p>
+    <p class="mt-2 text-xs text-slate-500">예: design, #ux, @@mina</p>
 </div>
 
 <div class="mb-3 flex flex-wrap gap-2">
-    <a class="@GetSortChipClass(null)" href="@GetSortQuery(null)">최신</a>
-    <a class="@GetSortChipClass("popular")" href='@GetSortQuery("popular")'>반응</a>
-    <a class="@GetSortChipClass("updated")" href='@GetSortQuery("updated")'>최신 업데이트</a>
+    <a class="@GetSortChipClass(null)" href="@GetSortQuery(null)">새 로그</a>
+    <a class="@GetSortChipClass("popular")" href='@GetSortQuery("popular")'>반응순</a>
+    <a class="@GetSortChipClass("updated")" href='@GetSortQuery("updated")'>갱신 흐름</a>
 </div>
 @if (!string.IsNullOrWhiteSpace(actionMessage))
 {
@@ -50,41 +50,24 @@
 <section class="slogs-post-list-grid grid grid-cols-1 gap-3 md:grid-cols-2">
     @if (!posts.Any())
     {
-        <p class="slogs-post-list-empty rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">작성된 로그가 없습니다.</p>
+        <p class="slogs-post-list-empty rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">@GetEmptyStateText()</p>
     }
     else
     {
         @for (var index = 0; index < posts.Count; index++)
         {
             var post = posts[index];
-            <article class="clickable-post-card rounded-2xl border border-slate-200 bg-white p-4"
-                     data-card-click-href="@GetPostUrl(post)"
-                     tabindex="0"
-                     role="link"
-                     aria-label="@($"{post.Title} 로그 열기")">
-                <PostCardImage Post="post" PostUrl="@GetPostUrl(post)" Priority="@IsPriorityCardImage(index)" />
-                <a class="mb-2 block text-xl font-bold text-slate-900 hover:underline" href="@GetPostUrl(post)">@post.Title</a>
-                <PostMetaLine Post="post" />
-                <p class="text-slate-700">@post.Summary</p>
-                @if (post.Tags.Any())
-                {
-                    <div class="mt-2 flex flex-wrap gap-2">
-                        @foreach (var tag in post.Tags)
-                        {
-                            <a class="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-900 hover:bg-sky-100"
-                               href="@($"/tag/{Uri.EscapeDataString(tag)}")">#@tag</a>
-                        }
-                    </div>
-                }
-
-                <PostActionBar Post="post"
-                               CurrentUserName="@CurrentUserName"
-                               CommentsUrl="@GetPostCommentsUrl(post)"
-                               IsLikeBusy="@IsPostBusy(post.Slug, pendingLikeSlugs)"
-                               IsBookmarkBusy="@IsPostBusy(post.Slug, pendingBookmarkSlugs)"
-                               OnToggleLike="ToggleLikeAsync"
-                               OnToggleBookmark="ToggleBookmarkAsync" />
-            </article>
+            <PostLogCard @key="post.Id"
+                         Post="post"
+                         PostUrl="@GetPostUrl(post)"
+                         CommentsUrl="@GetPostCommentsUrl(post)"
+                         CurrentUserName="@CurrentUserName"
+                         Priority="@IsPriorityCardImage(index)"
+                         SummaryMaxLength="220"
+                         IsLikeBusy="@IsPostBusy(post.Slug, pendingLikeSlugs)"
+                         IsBookmarkBusy="@IsPostBusy(post.Slug, pendingBookmarkSlugs)"
+                         OnToggleLike="ToggleLikeAsync"
+                         OnToggleBookmark="ToggleBookmarkAsync" />
         }
     }
 </section>
@@ -94,7 +77,7 @@
                         IsLoading="@isLoadingMorePosts"
                         OnLoadMore="LoadMorePostsAsync"
                         ShowDoneText="@(allPosts.Count > PageSize)"
-                        DoneText="모든 로그를 불러왔습니다." />
+                        DoneText="모든 공개 로그 흐름을 불러왔습니다." />
 
 @code {
     private const int PageSize = 6;
@@ -205,6 +188,16 @@
         return GetPostQueryQuery(sort: normalizedSort, query: normalizedSearch);
     }
 
+    private string GetEmptyStateText()
+    {
+        if (string.IsNullOrWhiteSpace(Query))
+        {
+            return "아직 공개 로그 흐름이 없습니다.";
+        }
+
+        return $"\"{Query}\"에 이어지는 공개 로그가 없습니다.";
+    }
+
     private void HandleSearchInputChanged(ChangeEventArgs e)
     {
         searchText = e?.Value?.ToString() ?? string.Empty;
@@ -236,6 +229,16 @@
     private bool IsPostBusy(string slug, HashSet<string> busySet) => busySet.Contains(slug);
 
     private static bool IsPriorityCardImage(int index) => index < 2;
+
+    private string? GetJsonLd()
+        => !string.IsNullOrWhiteSpace(Query)
+            ? null
+            : SeoMetadata.PublicLogCollectionJsonLd(
+                Navigation.BaseUri,
+                "/post",
+                "slogs 공개 로그 흐름",
+                "slogs의 공개 로그를 시간, 반응, 갱신 흐름으로 회상합니다.",
+                allPosts);
 
     private async Task ToggleLikeAsync(string slug)
     {

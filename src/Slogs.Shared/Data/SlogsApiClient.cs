@@ -180,7 +180,7 @@ public sealed class SlogsApiClient
         var post = await PostJsonAsync<BlogPost, PostUpsertRequest>(
             "api/posts",
             new PostUpsertRequest(title, summary, body, tags, series, thumbnailUrl, isDraft, slug));
-        return post ?? throw new InvalidOperationException("게시글 생성에 실패했습니다.");
+        return post ?? throw new InvalidOperationException("로그 생성에 실패했습니다.");
     }
 
     public async Task<EditorImageResponse?> UploadEditorImageAsync(Stream imageStream, string fileName, string contentType)

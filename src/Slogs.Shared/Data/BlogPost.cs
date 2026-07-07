@@ -76,7 +76,25 @@ public sealed class BlogPost
 
     public string[] GetSafeTags() => Tags.Select(t => t.Trim().ToLowerInvariant()).ToArray();
 
-    private static string NormalizeUserName(string value) => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToLowerInvariant();
+    private static string NormalizeUserName(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var normalized = value.Trim();
+        if (normalized.StartsWith("/@", StringComparison.Ordinal))
+        {
+            normalized = normalized[2..];
+        }
+        else if (normalized.StartsWith('@'))
+        {
+            normalized = normalized[1..];
+        }
+
+        return normalized.Trim().ToLowerInvariant();
+    }
 }
 
 public sealed class BlogComment
@@ -104,7 +122,23 @@ public sealed class BlogComment
         NormalizeUserName(userName),
         StringComparison.OrdinalIgnoreCase);
 
-    private static string NormalizeUserName(string value) => string.IsNullOrWhiteSpace(value)
-        ? string.Empty
-        : value.Trim().ToLowerInvariant();
+    private static string NormalizeUserName(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var normalized = value.Trim();
+        if (normalized.StartsWith("/@", StringComparison.Ordinal))
+        {
+            normalized = normalized[2..];
+        }
+        else if (normalized.StartsWith('@'))
+        {
+            normalized = normalized[1..];
+        }
+
+        return normalized.Trim().ToLowerInvariant();
+    }
 }

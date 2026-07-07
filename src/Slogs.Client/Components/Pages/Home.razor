@@ -6,7 +6,7 @@
 @inject SlogsApiClient ApiClient
 @inject SlogsAuthState AuthState
 @inject NavigationManager Navigation
-<PageTitle>slogs</PageTitle>
+<PageTitle>@GetSeoTitle()</PageTitle>
 <SeoHead Title="@GetSeoTitle()"
          Description="@GetSeoDescription()"
          CanonicalPath="@GetSeoCanonicalPath()"
@@ -18,17 +18,27 @@
         <a class="@GetDiscoveryTabClass("trending")" href="@TrendingHref" @onclick="() => NavigateHomeLink(TrendingHref)" @onclick:preventDefault="true">반응 로그</a>
         <a class="@GetDiscoveryTabClass("recommended")" href="@RecommendedHref" @onclick="() => NavigateHomeLink(RecommendedHref)" @onclick:preventDefault="true">추천 회상</a>
         <a class="@GetDiscoveryTabClass("recent")" href="@RecentHref" @onclick="() => NavigateHomeLink(RecentHref)" @onclick:preventDefault="true">새 로그</a>
-        <a class="@GetDiscoveryTabClass("feed")" href="@FeedHref" @onclick="() => NavigateHomeLink(FeedHref)" @onclick:preventDefault="true">팔로우 로그</a>
+        <a class="@GetDiscoveryTabClass("feed")" href="@FeedHref" @onclick="() => NavigateHomeLink(FeedHref)" @onclick:preventDefault="true">이어 둔 로그</a>
     </div>
 
     @if (!string.IsNullOrWhiteSpace(Query))
     {
         <a class="inline-flex rounded-full border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-           href="@GetHomeQuery(sort: normalizedSort, feed: normalizedFeed)">
+           href="@GetHomeQuery(sort: normalizedSort, feed: normalizedFeed, period: normalizedPeriod)">
             회상 초기화
         </a>
     }
 </div>
+
+@if (UsesPeriodRecall)
+{
+    <div class="slogs-home-period mb-4 flex flex-wrap items-center gap-2" aria-label="로그 흐름 기간">
+        <span class="text-xs font-bold text-slate-500">흐름 범위</span>
+        <a class="@GetPeriodChipClass("week")" href="@GetPeriodQuery("week")">최근 7일</a>
+        <a class="@GetPeriodChipClass("month")" href="@GetPeriodQuery("month")">최근 30일</a>
+        <a class="@GetPeriodChipClass("all")" href="@GetPeriodQuery("all")">전체</a>
+    </div>
+}
 
     @if (!string.IsNullOrWhiteSpace(displayedSearchMessage))
     {
@@ -50,7 +60,7 @@
     @if (IsFollowingFeed && string.IsNullOrWhiteSpace(Query) && CurrentUser is not null)
     {
         <div class="slogs-post-list-empty rounded-2xl border border-slate-200 bg-white p-4">
-            <p class="text-slate-500">팔로우한 슬로거의 공개 로그가 아직 없습니다.</p>
+            <p class="text-slate-500">아직 이어 둔 로그 홈의 공개 흐름이 없습니다.</p>
             <a class="mt-2 inline-block rounded-full border border-slate-300 bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
                href="/writer">
                 슬로거 찾아보기
@@ -59,7 +69,7 @@
     }
     else
     {
-        <p class="slogs-post-list-empty rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">조건에 맞는 로그가 없습니다.</p>
+        <p class="slogs-post-list-empty rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">@GetHomeEmptyStateText()</p>
     }
 }
 else
@@ -67,35 +77,16 @@ else
     for (var index = 0; index < posts.Count; index++)
     {
         var post = posts[index];
-        <article class="clickable-post-card rounded-2xl border border-slate-200 bg-white p-4"
-                 @key="post.Id"
-                 data-card-click-href="@GetPostUrl(post)"
-                 tabindex="0"
-                 role="link"
-                 aria-label="@($"{post.Title} 로그 열기")">
-            <PostCardImage Post="post" PostUrl="@GetPostUrl(post)" Priority="@IsPriorityCardImage(index)" />
-            <PostMetaLine Post="post" />
-
-            <a class="mb-2 block text-xl font-bold text-slate-900 hover:underline"
-               href="@GetPostUrl(post)">@post.Title</a>
-            <p class="text-slate-700">@Shorten(post.Summary, 170)</p>
-
-            <div class="mt-3 flex flex-wrap gap-2">
-                @foreach (var tag in post.Tags)
-                {
-                    <a class="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-900 hover:bg-sky-100"
-                       href="@($"/tag/{Uri.EscapeDataString(tag)}")">#@tag</a>
-                }
-            </div>
-
-            <PostActionBar Post="post"
-                           CurrentUserName="@CurrentUserName"
-                           CommentsUrl="@GetPostCommentsUrl(post)"
-                           IsLikeBusy="@IsPostBusy(post.Slug, pendingLikeSlugs)"
-                           IsBookmarkBusy="@IsPostBusy(post.Slug, pendingBookmarkSlugs)"
-                           OnToggleLike="ToggleLikeAsync"
-                           OnToggleBookmark="ToggleBookmarkAsync" />
-        </article>
+        <PostLogCard @key="post.Id"
+                     Post="post"
+                     PostUrl="@GetPostUrl(post)"
+                     CommentsUrl="@GetPostCommentsUrl(post)"
+                     CurrentUserName="@CurrentUserName"
+                     Priority="@IsPriorityCardImage(index)"
+                     IsLikeBusy="@IsPostBusy(post.Slug, pendingLikeSlugs)"
+                     IsBookmarkBusy="@IsPostBusy(post.Slug, pendingBookmarkSlugs)"
+                     OnToggleLike="ToggleLikeAsync"
+                     OnToggleBookmark="ToggleBookmarkAsync" />
     }
 }
 </section>
@@ -120,6 +111,8 @@ else
     public string? Sort { get; set; }
     [SupplyParameterFromQuery(Name = "feed")]
     public string? Feed { get; set; }
+    [SupplyParameterFromQuery(Name = "period")]
+    public string? Period { get; set; }
     [SupplyParameterFromQuery(Name = "page")]
     public string? PageQuery { get; set; }
 
@@ -137,6 +130,7 @@ else
     private HashSet<string> pendingBookmarkSlugs = [];
     private string? normalizedSort;
     private string? normalizedFeed;
+    private string normalizedPeriod = "week";
     private string discoveryMode = "recent";
     private string currentStateKey = string.Empty;
 
@@ -160,6 +154,7 @@ else
 
         normalizedSort = ListQueryUrlBuilder.NormalizeSortValue(requestedSort, "latest", "popular", "updated", "recommended");
         normalizedFeed = ListQueryUrlBuilder.NormalizeFeedValue(effectiveFeed);
+        normalizedPeriod = NormalizePeriodValue(Period);
 
         if (isFeedPageRoute && !string.IsNullOrWhiteSpace(Feed)
             && !string.Equals(Feed, "following", StringComparison.OrdinalIgnoreCase))
@@ -174,7 +169,7 @@ else
             return;
         }
 
-        currentStateKey = BuildStateKey(currentPath, Query, normalizedSort, normalizedFeed);
+        currentStateKey = BuildStateKey(currentPath, Query, normalizedSort, normalizedFeed, UsesPeriodRecall ? normalizedPeriod : null);
         var restoredPrerenderedState = TryRestorePrerenderedState(currentStateKey);
 
         await AuthState.EnsureInitializedAsync();
@@ -251,13 +246,15 @@ else
             allPosts = await ApplyFollowingScopeAsync(allPosts);
         }
 
+        allPosts = ApplyPeriodScope(allPosts);
+
         if (string.IsNullOrWhiteSpace(Query) && IsFollowingFeed && CurrentUser is null)
         {
-            displayedSearchMessage = "팔로우 로그 스트림은 로그인 후 이용 가능합니다.";
+            displayedSearchMessage = "이어 둔 로그 흐름은 로그인 후 이용 가능합니다.";
         }
         else if (string.IsNullOrWhiteSpace(Query) && IsFollowingFeed && !allPosts.Any())
         {
-            displayedSearchMessage = "팔로우한 슬로거가 없습니다. 슬로거 홈에서 팔로우해 보세요.";
+            displayedSearchMessage = "아직 이어 둔 로그 홈이 없습니다. 슬로거 홈에서 관계를 이어 보세요.";
         }
 
         if (IsSearchOnlyPrefix(Query))
@@ -267,8 +264,14 @@ else
         else if (!string.IsNullOrWhiteSpace(Query) && allPosts.Count == 0)
         {
             displayedSearchMessage = IsFollowingFeed
-                ? $"팔로우 로그 스트림에서 \"{GetDisplayedQuery()}\"에 대한 회상 결과가 없습니다."
-                : $"\"{GetDisplayedQuery()}\"에 대한 회상 결과가 없습니다.";
+                ? $"이어 둔 로그 흐름에서 \"{GetDisplayedQuery()}\"에 대한 회상 결과가 없습니다."
+                : UsesPeriodRecall && normalizedPeriod != "all"
+                    ? $"{GetPeriodLabel(normalizedPeriod)} \"{GetDisplayedQuery()}\"에 대한 회상 결과가 없습니다."
+                    : $"\"{GetDisplayedQuery()}\"에 대한 회상 결과가 없습니다.";
+        }
+        else if (string.IsNullOrWhiteSpace(Query) && UsesPeriodRecall && normalizedPeriod != "all" && allPosts.Count == 0)
+        {
+            displayedSearchMessage = $"{GetPeriodLabel(normalizedPeriod)} 이어진 로그가 없습니다. 전체 흐름으로 넓혀 볼 수 있습니다.";
         }
 
         allPosts = SortPosts(allPosts);
@@ -312,6 +315,9 @@ else
         displayedSearchMessage = PrerenderedState.DisplayedSearchMessage;
         normalizedSort = PrerenderedState.NormalizedSort;
         normalizedFeed = PrerenderedState.NormalizedFeed;
+        normalizedPeriod = string.IsNullOrWhiteSpace(PrerenderedState.NormalizedPeriod)
+            ? normalizedPeriod
+            : PrerenderedState.NormalizedPeriod;
         discoveryMode = string.IsNullOrWhiteSpace(PrerenderedState.DiscoveryMode)
             ? discoveryMode
             : PrerenderedState.DiscoveryMode;
@@ -331,6 +337,7 @@ else
             DisplayedSearchMessage = displayedSearchMessage,
             NormalizedSort = normalizedSort,
             NormalizedFeed = normalizedFeed,
+            NormalizedPeriod = UsesPeriodRecall ? normalizedPeriod : null,
             DiscoveryMode = discoveryMode
         };
     }
@@ -437,6 +444,22 @@ else
         return source.Where(x => followingSet.Contains(x.Author)).ToList();
     }
 
+    private IReadOnlyList<BlogPost> ApplyPeriodScope(IReadOnlyList<BlogPost> source)
+    {
+        if (!UsesPeriodRecall || normalizedPeriod == "all")
+        {
+            return source;
+        }
+
+        var threshold = normalizedPeriod == "month"
+            ? DateTime.UtcNow.AddDays(-30)
+            : DateTime.UtcNow.AddDays(-7);
+
+        return source
+            .Where(post => GetLogActivityAt(post) >= threshold)
+            .ToList();
+    }
+
     private void NavigateToLogin(string returnUrl)
     {
         var encoded = Uri.EscapeDataString(string.IsNullOrWhiteSpace(returnUrl) ? "/" : returnUrl);
@@ -453,9 +476,9 @@ else
     {
         return discoveryMode switch
         {
-            "trending" => "반응이 모이는 로그",
-            "recommended" => "의미로 추천된 로그",
-            "feed" => "팔로우 로그 스트림",
+            "trending" => $"{GetPeriodTitlePrefix()} 반응이 모이는 로그",
+            "recommended" => $"{GetPeriodTitlePrefix()} 의미로 추천된 로그",
+            "feed" => "이어 둔 로그 흐름",
             _ => "새 로그 스트림"
         };
     }
@@ -464,9 +487,9 @@ else
     {
         return discoveryMode switch
         {
-            "trending" => "조회, 대화 흔적, 공감으로 다시 이어지는 공개 로그를 먼저 봅니다.",
-            "recommended" => "참여 신호와 태그, 시리즈, 읽기 시간을 조합해 이어 읽을 로그를 고릅니다.",
-            "feed" => "팔로우한 슬로거가 남긴 공개 로그 흐름만 따라갑니다.",
+            "trending" => $"{GetPeriodLabel(normalizedPeriod)} 조회, 대화 흔적, 공감으로 다시 이어지는 공개 로그를 먼저 봅니다.",
+            "recommended" => $"{GetPeriodLabel(normalizedPeriod)} 참여 신호와 태그, 시리즈, 읽기 시간을 조합해 이어 읽을 로그를 고릅니다.",
+            "feed" => "관계로 이어 둔 슬로거의 공개 로그 흐름만 따라갑니다.",
             _ => "사람과 AI가 이어 쓰는 공개 지식 로그 흐름입니다."
         };
     }
@@ -491,6 +514,21 @@ else
         return string.IsNullOrWhiteSpace(path) ? "/" : path;
     }
 
+    private string GetHomeEmptyStateText()
+    {
+        if (!string.IsNullOrWhiteSpace(Query))
+        {
+            return $"\"{GetDisplayedQuery()}\"에 이어지는 로그가 없습니다.";
+        }
+
+        if (UsesPeriodRecall && normalizedPeriod != "all")
+        {
+            return $"{GetPeriodLabel(normalizedPeriod)} 이어진 로그가 없습니다.";
+        }
+
+        return "아직 이어진 공개 로그 흐름이 없습니다.";
+    }
+
     private bool ShouldNoIndex => IsFollowingFeed || !string.IsNullOrWhiteSpace(Query);
 
     private string GetDiscoveryTabClass(string mode)
@@ -502,7 +540,7 @@ else
 
     private string GetLoginReturnUrl()
     {
-        return GetHomeQuery(sort: normalizedSort, feed: normalizedFeed, query: Query);
+        return GetHomeQuery(sort: normalizedSort, feed: normalizedFeed, query: Query, period: normalizedPeriod);
     }
 
     private void NavigateHomeLink(string href)
@@ -542,7 +580,7 @@ else
         {
             var tag = query[1..].Trim();
             return string.IsNullOrWhiteSpace(tag)
-                ? ("태그", () => GetFallbackQueryPostsAsync())
+                ? ("단서", () => GetFallbackQueryPostsAsync())
                 : ($"# {tag}", () => ApiClient.GetByTagAsync(tag));
         }
 
@@ -550,32 +588,32 @@ else
         {
             var writer = query[2..].Trim();
             return string.IsNullOrWhiteSpace(writer)
-                ? ("작성자", () => GetFallbackQueryPostsAsync())
-                : ($"작성자: {writer}", () => ApiClient.GetByAuthorAsync(writer));
+                ? ("슬로거", () => GetFallbackQueryPostsAsync())
+                : ($"슬로거: {writer}", () => ApiClient.GetByAuthorAsync(writer));
         }
 
         if (query.StartsWith("@", StringComparison.Ordinal))
         {
             var writer = query[1..].Trim();
             return string.IsNullOrWhiteSpace(writer)
-                ? ("작성자", () => GetFallbackQueryPostsAsync())
-                : ($"작성자: {writer}", () => ApiClient.GetByAuthorAsync(writer));
+                ? ("슬로거", () => GetFallbackQueryPostsAsync())
+                : ($"슬로거: {writer}", () => ApiClient.GetByAuthorAsync(writer));
         }
 
         if (query.StartsWith("tag:", StringComparison.OrdinalIgnoreCase))
         {
             var tag = query[4..].Trim();
             return string.IsNullOrWhiteSpace(tag)
-                ? ("태그", () => GetFallbackQueryPostsAsync())
-                : ($"태그: {tag}", () => ApiClient.GetByTagAsync(tag));
+                ? ("단서", () => GetFallbackQueryPostsAsync())
+                : ($"단서: {tag}", () => ApiClient.GetByTagAsync(tag));
         }
 
         if (query.StartsWith("writer:", StringComparison.OrdinalIgnoreCase))
         {
             var writer = query[7..].Trim();
             return string.IsNullOrWhiteSpace(writer)
-                ? ("작성자", () => GetFallbackQueryPostsAsync())
-                : ($"작성자: {writer}", () => ApiClient.GetByAuthorAsync(writer));
+                ? ("슬로거", () => GetFallbackQueryPostsAsync())
+                : ($"슬로거: {writer}", () => ApiClient.GetByAuthorAsync(writer));
         }
 
         if (query.StartsWith("series:", StringComparison.OrdinalIgnoreCase))
@@ -583,7 +621,7 @@ else
             var series = query[7..].Trim();
             return string.IsNullOrWhiteSpace(series)
                 ? ("시리즈", () => GetFallbackQueryPostsAsync())
-                : ($"시리즈: {series}", () => ApiClient.GetBySeriesAsync(series));
+                : ($"로그 시리즈: {series}", () => ApiClient.GetBySeriesAsync(series));
         }
 
         return null;
@@ -631,7 +669,7 @@ else
             : "rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100";
     }
 
-    private string GetHomeQuery(string? sort, string? feed = null, string? query = null, int? page = null)
+    private string GetHomeQuery(string? sort, string? feed = null, string? query = null, int? page = null, string? period = null)
     {
         var isFollowing = string.Equals(feed, "following", StringComparison.OrdinalIgnoreCase);
         var basePath = isFollowing
@@ -639,7 +677,11 @@ else
             : GetBasePathForSort(sort);
         var builderFeed = string.Equals(feed, "following", StringComparison.OrdinalIgnoreCase) ? null : feed;
         var builderSort = IsDefaultSortForBasePath(basePath, sort) ? null : sort;
-        return ListQueryUrlBuilder.Build(basePath, builderSort, query, page ?? 1, totalPages, builderFeed);
+        var path = ListQueryUrlBuilder.Build(basePath, builderSort, query, page ?? 1, totalPages, builderFeed);
+        var normalizedPeriodValue = NormalizePeriodValue(period);
+        return ShouldIncludePeriod(basePath, normalizedPeriodValue)
+            ? AppendQueryParameter(path, "period", normalizedPeriodValue)
+            : path;
     }
 
     private static string ResolveDiscoveryMode(string path)
@@ -662,13 +704,14 @@ else
         return "recent";
     }
 
-    private static string BuildStateKey(string path, string? query, string? sort, string? feed)
+    private static string BuildStateKey(string path, string? query, string? sort, string? feed, string? period)
     {
         return string.Join('|', [
             path.Trim().ToLowerInvariant(),
             query?.Trim() ?? string.Empty,
             sort?.Trim().ToLowerInvariant() ?? string.Empty,
-            feed?.Trim().ToLowerInvariant() ?? string.Empty
+            feed?.Trim().ToLowerInvariant() ?? string.Empty,
+            period?.Trim().ToLowerInvariant() ?? string.Empty
         ]);
     }
 
@@ -703,24 +746,70 @@ else
     }
 
     private bool IsFollowingFeed => string.Equals(normalizedFeed, "following", StringComparison.OrdinalIgnoreCase);
+    private bool UsesPeriodRecall => discoveryMode is "trending" or "recommended";
     private bool isFeedPageRoute;
 
-    private static string Shorten(string text, int maxLength)
+    private string GetPeriodQuery(string period)
+        => GetHomeQuery(sort: normalizedSort, feed: normalizedFeed, query: Query, period: period);
+
+    private string GetPeriodChipClass(string period)
     {
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return string.Empty;
-        }
-
-        if (text.Length <= maxLength)
-        {
-            return text;
-        }
-
-        return text[..maxLength] + "...";
+        var isActive = string.Equals(normalizedPeriod, NormalizePeriodValue(period), StringComparison.OrdinalIgnoreCase);
+        return isActive
+            ? "rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white"
+            : "rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100";
     }
 
-    private static string FormatDate(DateTime dateTime) => dateTime.ToLocalTime().ToString("yyyy.MM.dd");
+    private static string NormalizePeriodValue(string? period)
+    {
+        if (string.IsNullOrWhiteSpace(period))
+        {
+            return "week";
+        }
+
+        return period.Trim().ToLowerInvariant() switch
+        {
+            "month" => "month",
+            "all" => "all",
+            _ => "week"
+        };
+    }
+
+    private static string GetPeriodLabel(string period)
+    {
+        return NormalizePeriodValue(period) switch
+        {
+            "month" => "최근 30일 동안",
+            "all" => "전체 흐름에서",
+            _ => "최근 7일 동안"
+        };
+    }
+
+    private string GetPeriodTitlePrefix()
+    {
+        return normalizedPeriod switch
+        {
+            "month" => "최근 30일",
+            "all" => "전체 흐름",
+            _ => "최근 7일"
+        };
+    }
+
+    private static bool ShouldIncludePeriod(string basePath, string period)
+    {
+        return !string.Equals(period, "week", StringComparison.OrdinalIgnoreCase)
+            && (string.Equals(basePath, "/trending", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(basePath, "/recommended", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static DateTime GetLogActivityAt(BlogPost post)
+        => post.UpdatedAt > post.PublishedAt ? post.UpdatedAt : post.PublishedAt;
+
+    private static string AppendQueryParameter(string path, string name, string value)
+    {
+        var separator = path.Contains('?') ? "&" : "?";
+        return $"{path}{separator}{Uri.EscapeDataString(name)}={Uri.EscapeDataString(value)}";
+    }
 
 }
 
