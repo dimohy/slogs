@@ -305,16 +305,17 @@ public sealed class StaticAssetIdentityTests
         var llmWikiSearchPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "LlmWikiSearch.razor"));
 
         Assert.Contains(">기억 범주</p>", llmWikiSearchPage);
-        Assert.Contains("기억 범주로 좁힌 뒤 아래 카드 그리드에서 이어 쓸 기억을 선택합니다.", llmWikiSearchPage);
+        Assert.Contains("기억 범주로 좁힌 뒤 아래 기억 흐름에서 이어 쓸 기억을 선택합니다.", llmWikiSearchPage);
         Assert.Contains("기억 범주가 없습니다.", llmWikiSearchPage);
         Assert.Contains("전체 기억", llmWikiSearchPage);
         Assert.Contains("모든 기억 범주", llmWikiSearchPage);
+        Assert.Contains("이어 쓸 기억 흐름", llmWikiSearchPage);
         Assert.Contains("개 기억 회상 중", llmWikiSearchPage);
         Assert.Contains("회 회상 접근", llmWikiSearchPage);
         Assert.Contains("공개 기억", llmWikiSearchPage);
         Assert.Contains("비공개 기억", llmWikiSearchPage);
-        Assert.Contains("다음 기억을 불러오는 중...", llmWikiSearchPage);
-        Assert.Contains("더 이상 이어 볼 기억이 없습니다.", llmWikiSearchPage);
+        Assert.Contains("다음 기억 흐름을 불러오는 중...", llmWikiSearchPage);
+        Assert.Contains("이어 쓸 기억 흐름을 모두 불러왔습니다.", llmWikiSearchPage);
         Assert.Contains("선택한 기억 범주에 이어 쓸 기억이 없습니다.", llmWikiSearchPage);
         Assert.Contains("아직 이어 쓸 비공개 기억이 없습니다.", llmWikiSearchPage);
         Assert.Contains("의미 회상에 이어진 기억이 없습니다.", llmWikiSearchPage);
@@ -323,6 +324,10 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("카테고리로 좁힌", llmWikiSearchPage);
         Assert.DoesNotContain("카테고리가 없습니다.", llmWikiSearchPage);
         Assert.DoesNotContain("모든 카테고리", llmWikiSearchPage);
+        Assert.DoesNotContain("카드 그리드", llmWikiSearchPage);
+        Assert.DoesNotContain("기억 카드", llmWikiSearchPage);
+        Assert.DoesNotContain("다음 기억을 불러오는 중...", llmWikiSearchPage);
+        Assert.DoesNotContain("더 이상 이어 볼 기억이 없습니다.", llmWikiSearchPage);
         Assert.DoesNotContain("개 표시 중", llmWikiSearchPage);
         Assert.DoesNotContain("회 열람", llmWikiSearchPage);
         Assert.DoesNotContain("공개 Wiki", llmWikiSearchPage);
