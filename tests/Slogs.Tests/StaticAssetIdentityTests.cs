@@ -834,23 +834,25 @@ public sealed class StaticAssetIdentityTests
     public void PublicLogNodeCardsExposeRecallPathSignals()
     {
         var postLogCard = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "PostLogCard.razor"));
+        var postRecallPath = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "PostRecallPath.razor"));
         var appCss = File.ReadAllText(FindRepoFile("src", "Slogs", "wwwroot", "app.css"));
 
-        Assert.Contains("post-log-card__recall-path", postLogCard);
-        Assert.Contains("aria-label=\"로그 회상 경로\"", postLogCard);
-        Assert.Contains("FormatRecallPath(Post)", postLogCard);
-        Assert.Contains("회상 경로:", postLogCard);
-        Assert.Contains("FormatUserName(post.Author)", postLogCard);
-        Assert.Contains("GetPrimaryClue(post)", postLogCard);
-        Assert.Contains("GetSeriesPath(post)", postLogCard);
-        Assert.Contains("GetConversationSignal(post)", postLogCard);
-        Assert.Contains("단서 미지정", postLogCard);
-        Assert.Contains("단일 로그", postLogCard);
+        Assert.Contains("<PostRecallPath Post=\"Post\" />", postLogCard);
+        Assert.Contains("post-log-card__recall-path", postRecallPath);
+        Assert.Contains("로그 회상 경로", postRecallPath);
+        Assert.Contains("FormatRecallPath(Post)", postRecallPath);
+        Assert.Contains("회상 경로:", postRecallPath);
+        Assert.Contains("FormatUserName(post.Author)", postRecallPath);
+        Assert.Contains("GetPrimaryClue(post)", postRecallPath);
+        Assert.Contains("GetSeriesPath(post)", postRecallPath);
+        Assert.Contains("GetConversationSignal(post)", postRecallPath);
+        Assert.Contains("단서 미지정", postRecallPath);
+        Assert.Contains("단일 로그", postRecallPath);
 
         Assert.Contains(".post-log-card__recall-path", appCss);
         Assert.Contains("-webkit-line-clamp: 2;", appCss);
 
-        Assert.DoesNotContain("article teaser", postLogCard, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("article teaser", postRecallPath, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -898,6 +900,9 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("공개 지식 로그 홈", writerPage);
         Assert.Contains("슬로거 홈 이미지", writerPage);
         Assert.Contains("대표 기억 노드", writerPage);
+        Assert.Contains("PostRecallPath Post=\"featuredPost\"", writerPage);
+        Assert.Contains("대표 기억 노드 회상 경로", writerPage);
+        Assert.Contains("writer-featured-recall-path", writerPage);
         Assert.Contains("시간순 로그 흐름", writerPage);
         Assert.Contains("대표 로그 연결", writerPage);
         Assert.Contains("주요 단서 #", writerPage);

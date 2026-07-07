@@ -135,6 +135,9 @@ else
                 <div class="mt-4">
                     <PostCardImage Post="featuredPost" PostUrl="@GetPostUrl(featuredPost)" Priority="true" />
                     <PostFlowSignals Post="featuredPost" Class="post-log-card__signals post-detail-linked-card__signals" />
+                    <PostRecallPath Post="featuredPost"
+                                    Class="post-log-card__recall-path writer-featured-recall-path"
+                                    AriaLabel="대표 기억 노드 회상 경로" />
                     <a class="block text-2xl font-black leading-tight text-slate-900 hover:underline"
                        href="@GetPostUrl(featuredPost)">@featuredPost.Title</a>
                     <p class="mt-2 text-sm leading-6 text-slate-700">@Shorten(featuredPost.Summary, 220)</p>

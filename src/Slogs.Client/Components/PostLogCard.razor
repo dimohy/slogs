@@ -7,7 +7,7 @@
 
     <PostFlowSignals Post="Post" />
 
-    <p class="post-log-card__recall-path" aria-label="로그 회상 경로">@FormatRecallPath(Post)</p>
+    <PostRecallPath Post="Post" />
 
     <PostMetaLine Post="Post"
                   ShowAuthor="@ShowAuthor"
@@ -103,27 +103,6 @@
 
     private string GetAriaLabel()
         => string.IsNullOrWhiteSpace(Post.Title) ? "로그 열기" : $"{Post.Title} 로그 열기";
-
-    private static string FormatRecallPath(BlogPost post)
-        => $"회상 경로: {FormatUserName(post.Author)} -> {GetPrimaryClue(post)} -> {GetSeriesPath(post)} -> {GetConversationSignal(post)}";
-
-    private static string FormatUserName(string author)
-        => string.IsNullOrWhiteSpace(author) ? "슬로거" : $"@{author.Trim()}";
-
-    private static string GetPrimaryClue(BlogPost post)
-    {
-        var tag = post.Tags.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
-        return string.IsNullOrWhiteSpace(tag) ? "단서 미지정" : $"#{tag}";
-    }
-
-    private static string GetSeriesPath(BlogPost post)
-    {
-        var series = post.Series.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
-        return string.IsNullOrWhiteSpace(series) ? "단일 로그" : $"시리즈 {series}";
-    }
-
-    private static string GetConversationSignal(BlogPost post)
-        => $"{post.CommentCount:N0} 대화/{post.LikeCount:N0} 반응";
 
     private static string Shorten(string value, int maxLength)
     {
