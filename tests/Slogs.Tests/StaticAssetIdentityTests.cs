@@ -394,7 +394,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("Slogs LLM Wiki에서 먼저 관련 기억을 회상합니다.", llmWikiGuidePage);
         Assert.Contains("search</code> 도구는 회상 후보 흐름을 압축해 보여 주고", llmWikiGuidePage);
         Assert.Contains("recall</code> 도구는 답변/구현에 바로 적용할 기억 맥락으로 이어 줍니다.", llmWikiGuidePage);
-        Assert.Contains("MCP 회상 응답의 Retrieval Diagnostics", llmWikiGuidePage);
+        Assert.Contains("MCP 회상 응답의 Retrieval Diagnostics로 결과 수, limit, categoryPath, minRelevancePercent, elapsedMs를 살펴 회상 품질을 조율합니다.", llmWikiGuidePage);
         Assert.Contains("저장 전에는 관련 기억을 먼저 회상하고", llmWikiGuidePage);
         Assert.Contains("도구 노출 점검으로 먼저 지연 로딩 여부를 살핍니다.", llmWikiGuidePage);
         Assert.Contains("Agent의 도구 노출 점검으로 먼저 지연 로딩을 살피도록 안내합니다.", llmWikiGuidePage);
@@ -406,6 +406,7 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("님의 기억을 회상하고 Slogs 로그로 이어 쓰는 방법입니다.", llmWikiGuidePage);
         Assert.DoesNotContain("Slogs LLM Wiki를 먼저 조회합니다.", llmWikiGuidePage);
         Assert.DoesNotContain("MCP 응답의 Retrieval Diagnostics", llmWikiGuidePage);
+        Assert.DoesNotContain("MCP 회상 응답의 Retrieval Diagnostics로 결과 수, limit, categoryPath, minRelevancePercent, elapsedMs를 확인해 회상 품질을 평가합니다.", llmWikiGuidePage);
         Assert.DoesNotContain("저장 전에는 관련 기억을 먼저 찾고", llmWikiGuidePage);
         Assert.DoesNotContain("Slogs LLM Wiki가 비공개 기억을 Agent 회상과 게시전 로그로 이어 쓰는 흐름을 확인합니다.", llmWikiGuidePage);
         Assert.DoesNotContain("도구 노출 확인으로 먼저 사용 가능 여부를 확인합니다.", llmWikiGuidePage);
