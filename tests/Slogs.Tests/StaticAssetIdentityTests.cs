@@ -726,7 +726,7 @@ public sealed class StaticAssetIdentityTests
         var profilePage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "Profile.razor"));
         var postDetailsPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "PostDetails.razor"));
 
-        Assert.Contains("공개 로그와 지식 로그 홈", program);
+        Assert.Contains("공개 로그, 게시전 기억, 노트 Vault 흐름이 모이는 슬로거 홈", program);
         Assert.DoesNotContain("글과 프로필", program);
 
         Assert.Contains("소유자 전용 게시전 로그 흐름을 이어 봅니다.", profilePage);
@@ -1292,6 +1292,31 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain(">아이디<", loginPage);
         Assert.DoesNotContain("아이디와 비밀번호", loginPage);
         Assert.DoesNotContain("회원가입", loginPage);
+    }
+
+    [Fact]
+    public void GoogleConfirmPageUsesSloggerHomeAddressFlowLanguage()
+    {
+        var program = File.ReadAllText(FindRepoFile("src", "Slogs", "Program.cs"));
+
+        Assert.Contains("Google 지식 로그 연결 | slogs", program);
+        Assert.Contains("Google로 지식 로그 이어가기", program);
+        Assert.Contains("슬로거 홈 주소 단서", program);
+        Assert.Contains("Google 계정에서 이어질 지식 로그 홈의 주소 단서를 정해 주세요.", program);
+        Assert.Contains("공개 로그, 게시전 기억, 노트 Vault 흐름이 모이는 슬로거 홈", program);
+        Assert.Contains("슬로거 홈 주소", program);
+        Assert.Contains("홈 주소 잇기", program);
+        Assert.Contains("연결 취소", program);
+        Assert.Contains("슬로거 홈 주소 단서를 입력해 주세요.", program);
+        Assert.Contains("Google 계정 연결 정보를 읽을 수 없습니다.", program);
+        Assert.DoesNotContain("Google 계정 연결 확인 | slogs", program);
+        Assert.DoesNotContain(">공개 주소 확인</h1>", program);
+        Assert.DoesNotContain("Slogs에서 사용할 공개 주소를 확인해 주세요.", program);
+        Assert.DoesNotContain(">공개 주소", program);
+        Assert.DoesNotContain(">확인</button>", program);
+        Assert.DoesNotContain(">취소</button>", program);
+        Assert.DoesNotContain("공개 주소를 입력해 주세요.", program);
+        Assert.DoesNotContain("Google 계정 정보를 확인할 수 없습니다.", program);
     }
 
     [Fact]

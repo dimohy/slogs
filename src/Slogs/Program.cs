@@ -771,7 +771,7 @@ static string BuildGoogleConfirmPage(
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Google 계정 연결 확인 | slogs</title>
+    <title>Google 지식 로그 연결 | slogs</title>
     <link rel="stylesheet" href="/css/tailwind.css" />
     <link rel="stylesheet" href="/app.css" />
 </head>
@@ -782,16 +782,16 @@ static string BuildGoogleConfirmPage(
             <div class="flex items-center gap-4">
                 {{imageHtml}}
                 <div>
-                    <p class="text-xs font-bold uppercase text-slate-500">Google 계정 연결</p>
-                    <h1 class="mt-1 text-2xl font-black text-slate-900">공개 주소 확인</h1>
+                    <p class="text-xs font-bold text-slate-500">Google로 지식 로그 이어가기</p>
+                    <h1 class="mt-1 text-2xl font-black text-slate-900">슬로거 홈 주소 단서</h1>
                     <p class="mt-1 text-sm font-semibold text-slate-500">{{safeDisplayName}} · {{safeEmail}}</p>
                 </div>
             </div>
 
-            <p class="text-sm leading-6 text-slate-600">Slogs에서 사용할 공개 주소를 확인해 주세요. 이 주소는 공개 로그와 지식 로그 홈에 <strong>@id</strong> 형태로 표시되며, 계정 생성 후에는 설정에서 변경할 수 없습니다.</p>
+            <p class="text-sm leading-6 text-slate-600">Google 계정에서 이어질 지식 로그 홈의 주소 단서를 정해 주세요. 이 <strong>@id</strong>는 공개 로그, 게시전 기억, 노트 Vault 흐름이 모이는 슬로거 홈에 표시됩니다.</p>
 
             <label class="grid gap-1 text-sm font-semibold text-slate-700" for="google-user-name">
-                공개 주소
+                슬로거 홈 주소
                 <span class="flex items-center rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900 focus-within:border-slate-900">
                     <span class="shrink-0 font-bold text-slate-500">@</span>
                     <input id="google-user-name" class="min-w-0 flex-1 border-0 bg-transparent px-1 py-0 text-sm font-semibold text-slate-900 outline-none" name="userName" maxlength="80" autocomplete="username" value="{{safeCandidateUserName}}" />
@@ -801,8 +801,8 @@ static string BuildGoogleConfirmPage(
             {{errorHtml}}
 
             <div class="flex flex-wrap gap-2">
-                <button class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800" type="submit" name="intent" value="confirm">확인</button>
-                <button class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100" type="submit" name="intent" value="cancel">취소</button>
+                <button class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800" type="submit" name="intent" value="confirm">홈 주소 잇기</button>
+                <button class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100" type="submit" name="intent" value="cancel">연결 취소</button>
             </div>
         </form>
     </main>
@@ -814,11 +814,11 @@ static string BuildGoogleConfirmPage(
 static string MapGoogleConfirmError(string? error)
     => error switch
     {
-        "externalUserNameRequired" or "profileUserNameRequired" => "공개 주소를 입력해 주세요.",
-        "externalUserNameLength" or "profileUserNameLength" => "공개 주소는 80자 이하여야 합니다.",
-        "externalUserNameInvalid" or "profileUserNameInvalid" => "공개 주소는 영문, 숫자, 점, 하이픈, 밑줄만 사용할 수 있고 첫 글자는 영문 또는 숫자여야 합니다.",
-        "externalUserNameTaken" or "profileUserNameTaken" => "이미 사용 중인 공개 주소입니다.",
-        "externalLoginInvalid" => "Google 계정 정보를 확인할 수 없습니다.",
+        "externalUserNameRequired" or "profileUserNameRequired" => "슬로거 홈 주소 단서를 입력해 주세요.",
+        "externalUserNameLength" or "profileUserNameLength" => "슬로거 홈 주소는 80자 이하여야 합니다.",
+        "externalUserNameInvalid" or "profileUserNameInvalid" => "슬로거 홈 주소는 영문, 숫자, 점, 하이픈, 밑줄만 사용할 수 있고 첫 글자는 영문 또는 숫자여야 합니다.",
+        "externalUserNameTaken" or "profileUserNameTaken" => "이미 사용 중인 슬로거 홈 주소입니다.",
+        "externalLoginInvalid" => "Google 계정 연결 정보를 읽을 수 없습니다.",
         _ => string.Empty
     };
 
