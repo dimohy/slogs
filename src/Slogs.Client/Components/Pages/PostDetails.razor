@@ -332,6 +332,9 @@ else
                      aria-label="@($"{item.Title} 연결 로그 열기")">
                 <PostCardImage Post="item" PostUrl="@GetPostNavigationUrl(item)" Priority="@IsPriorityCardImage(index)" />
                 <PostFlowSignals Post="item" Class="post-log-card__signals post-detail-linked-card__signals" />
+                <PostRecallPath Post="item"
+                                Class="post-log-card__recall-path post-detail-linked-card__recall-path"
+                                AriaLabel="연결 로그 회상 경로" />
                 <a class="mb-2 block text-base font-bold text-slate-800 hover:underline" href="@GetPostNavigationUrl(item)">@item.Title</a>
                 @if (!string.IsNullOrWhiteSpace(item.Summary))
                 {
@@ -364,6 +367,9 @@ else
                 else
                 {
                     <PostFlowSignals Post="previousPost" Class="post-log-card__signals post-detail-linked-card__signals" />
+                    <PostRecallPath Post="previousPost"
+                                    Class="post-log-card__recall-path post-detail-linked-card__recall-path"
+                                    AriaLabel="이전 로그 회상 경로" />
                     <a class="mt-2 block text-lg font-bold text-slate-900 transition hover:underline" href="@GetPostNavigationUrl(previousPost)">
                         @previousPost.Title
                     </a>
@@ -388,6 +394,9 @@ else
                 else
                 {
                     <PostFlowSignals Post="nextPost" Class="post-log-card__signals post-detail-linked-card__signals" />
+                    <PostRecallPath Post="nextPost"
+                                    Class="post-log-card__recall-path post-detail-linked-card__recall-path"
+                                    AriaLabel="다음 로그 회상 경로" />
                     <a class="mt-2 block text-lg font-bold text-slate-900 transition hover:underline" href="@GetPostNavigationUrl(nextPost)">
                         @nextPost.Title
                     </a>

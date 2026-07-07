@@ -945,9 +945,17 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("로그 시리즈", postDetailsPage);
         Assert.Contains("리비전 흐름 v", postDetailsPage);
         Assert.Contains("개 연결 로그", postDetailsPage);
+        Assert.Contains("PostRecallPath Post=\"item\"", postDetailsPage);
+        Assert.Contains("연결 로그 회상 경로", postDetailsPage);
+        Assert.Contains("PostRecallPath Post=\"previousPost\"", postDetailsPage);
+        Assert.Contains("이전 로그 회상 경로", postDetailsPage);
+        Assert.Contains("PostRecallPath Post=\"nextPost\"", postDetailsPage);
+        Assert.Contains("다음 로그 회상 경로", postDetailsPage);
+        Assert.Contains("post-detail-linked-card__recall-path", postDetailsPage);
 
         Assert.Contains(".post-detail-flowline", appCss);
         Assert.Contains(".post-detail-flowline__signals", appCss);
+        Assert.Contains(".post-detail-linked-card__recall-path", appCss);
         Assert.Contains("border-top: 1px solid var(--theme-border);", appCss);
         Assert.Contains("border-bottom: 1px solid var(--theme-border);", appCss);
         Assert.Contains("@media (max-width: 640px)", appCss);

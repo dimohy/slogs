@@ -384,6 +384,10 @@ img.rounded-full { border-radius: 9999px; }
     font-size: 0.72rem;
 }
 
+.post-detail-linked-card__recall-path {
+    font-size: 0.72rem;
+}
+
 .post-detail-linked-card__summary {
     display: -webkit-box;
     overflow: hidden;
