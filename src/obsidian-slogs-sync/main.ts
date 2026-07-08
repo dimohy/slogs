@@ -143,31 +143,31 @@ export default class SlogsSyncPlugin extends Plugin {
 
     this.addCommand({
       id: "sync-all",
-      name: "Sync all Slogs files",
+      name: "Sync all Slogs note flows",
       callback: () => this.syncAll()
     });
 
     this.addCommand({
       id: "push-current-file",
-      name: "Push current file to Slogs",
+      name: "Push current note clue to Slogs",
       callback: () => this.pushCurrentFile()
     });
 
     this.addCommand({
       id: "pull-remote-changes",
-      name: "Pull remote changes from Slogs",
+      name: "Pull remote note-flow changes from Slogs",
       callback: () => this.pullRemoteChanges()
     });
 
     this.addCommand({
       id: "open-slogs-post",
-      name: "Open mapped Slogs post",
+      name: "Open mapped Slogs sharing node",
       callback: () => this.openCurrentSlogsPost()
     });
 
     this.addCommand({
       id: "open-slogs-vault-settings",
-      name: "Open Slogs vault settings",
+      name: "Open Slogs note-Vault settings",
       callback: () => window.open(`${this.getServerUrl()}/me/settings`, "_blank")
     });
 
@@ -322,7 +322,7 @@ export default class SlogsSyncPlugin extends Plugin {
 
       await this.saveSettings();
       if (result === "conflict") {
-        new Notice(`Slogs auto-sync conflict on ${path}. Run "Sync all Slogs files" to resolve.`);
+        new Notice(`Slogs auto-sync conflict on ${path}. Run "Sync all Slogs note flows" to resolve.`);
       }
     } catch (error) {
       new Notice(`Slogs auto-push failed: ${toErrorMessage(error)}`);
@@ -947,7 +947,7 @@ class SlogsSyncSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Slogs server URL")
-      .setDesc("Remote Slogs server that stores the user-scoped sync vault.")
+      .setDesc("Remote Slogs server that stores the user-scoped note Vault for knowledge-log flow.")
       .addText(text => text
         .setPlaceholder("https://slogs.dev")
         .setValue(this.plugin.settings.serverUrl)
@@ -958,7 +958,7 @@ class SlogsSyncSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Bearer token")
-      .setDesc("Create a Slogs Obsidian sync token with the obsidian.sync scope and paste it here.")
+      .setDesc("Create a Slogs note-Vault connection token with the obsidian.sync scope and paste it here.")
       .addText(text => {
         text.inputEl.type = "password";
         text
@@ -971,8 +971,8 @@ class SlogsSyncSettingTab extends PluginSettingTab {
       });
 
     new Setting(containerEl)
-      .setName("Remote vault name")
-      .setDesc("Leave empty to use the current vault name.")
+      .setName("Remote note-Vault name")
+      .setDesc("Leave empty to use the current Obsidian vault name as this note-flow space.")
       .addText(text => text
         .setPlaceholder("My Obsidian Vault")
         .setValue(this.plugin.settings.vaultName)
@@ -986,7 +986,7 @@ class SlogsSyncSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Sync attachments")
-      .setDesc("Opt in to binary attachment sync. Attachments are stored as base64 content through the Slogs Obsidian API.")
+      .setDesc("Opt in to binary attachment sync. Attachments are stored as explicit note-Vault content through the Slogs Obsidian API.")
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.syncAttachments)
         .onChange(async value => {
@@ -1005,8 +1005,8 @@ class SlogsSyncSettingTab extends PluginSettingTab {
         }));
 
     new Setting(containerEl)
-      .setName("Map notes to Slogs posts")
-      .setDesc("When enabled, notes with slogs.post: true frontmatter are mapped through the Slogs post API after push.")
+      .setName("Map note clues to Slogs sharing")
+      .setDesc("When enabled, notes with slogs.post: true frontmatter continue through Slogs owner-only pre-publish memory and public-sharing flow after push.")
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.enablePostMapping)
         .onChange(async value => {
@@ -1015,8 +1015,8 @@ class SlogsSyncSettingTab extends PluginSettingTab {
         }));
 
     new Setting(containerEl)
-      .setName("Map notes to Slogs LLM Wiki")
-      .setDesc("When enabled, notes with slogs.llmWiki: true frontmatter are imported through the Slogs LLM Wiki API after push.")
+      .setName("Map note clues to LLM Wiki memory")
+      .setDesc("When enabled, notes with slogs.llmWiki: true frontmatter continue into Slogs LLM Wiki memory after push.")
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.enableLlmWikiMapping)
         .onChange(async value => {
@@ -1026,7 +1026,7 @@ class SlogsSyncSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Auto sync on startup")
-      .setDesc("Pull remote Slogs changes once when Obsidian finishes loading.")
+      .setDesc("Pull remote Slogs note-flow changes once when Obsidian finishes loading.")
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.autoSyncOnStartup)
         .onChange(async value => {
@@ -1036,7 +1036,7 @@ class SlogsSyncSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Auto push on change")
-      .setDesc("Push a synced file to Slogs shortly after it is edited, created, deleted, or renamed.")
+      .setDesc("Push a synced note clue to Slogs shortly after it is edited, created, deleted, or renamed.")
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.autoPushOnChange)
         .onChange(async value => {
@@ -1046,7 +1046,7 @@ class SlogsSyncSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Auto pull interval (seconds)")
-      .setDesc("Periodically pull remote Slogs changes. Set to 0 to disable periodic pulling.")
+      .setDesc("Periodically pull remote Slogs note-flow changes. Set to 0 to disable periodic pulling.")
       .addText(text => text
         .setPlaceholder("60")
         .setValue(String(this.plugin.settings.autoPullIntervalSeconds))
@@ -1059,7 +1059,7 @@ class SlogsSyncSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Reset local sync state")
-      .setDesc("Keeps local files and the Slogs remote vault, but forgets this plugin client's cursor.")
+      .setDesc("Keeps local notes and the Slogs remote note Vault, but forgets this plugin client's cursor.")
       .addButton(button => button
         .setButtonText("Reset")
         .onClick(async () => {

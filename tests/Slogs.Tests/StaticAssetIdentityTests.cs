@@ -877,6 +877,34 @@ public sealed class StaticAssetIdentityTests
     }
 
     [Fact]
+    public void ObsidianPluginFramesNotesAsMemoryAndSharingFlow()
+    {
+        var pluginMain = File.ReadAllText(FindRepoFile("src", "obsidian-slogs-sync", "main.ts"));
+        var pluginReadme = File.ReadAllText(FindRepoFile("src", "obsidian-slogs-sync", "README.md"));
+
+        Assert.Contains("Sync all Slogs note flows", pluginMain);
+        Assert.Contains("Push current note clue to Slogs", pluginMain);
+        Assert.Contains("Pull remote note-flow changes from Slogs", pluginMain);
+        Assert.Contains("Open mapped Slogs sharing node", pluginMain);
+        Assert.Contains("Open Slogs note-Vault settings", pluginMain);
+        Assert.Contains("Map note clues to Slogs sharing", pluginMain);
+        Assert.Contains("owner-only pre-publish memory and public-sharing flow", pluginMain);
+        Assert.Contains("Map note clues to LLM Wiki memory", pluginMain);
+        Assert.Contains("continue into Slogs LLM Wiki memory", pluginMain);
+        Assert.Contains("local Markdown notes can continue as note clues, LLM Wiki memory, owner-only pre-publish memory, and public-sharing nodes", pluginReadme);
+        Assert.Contains("Frontmatter-triggered mappings are also opt-in. `slogs.post: true` keeps the compatibility key", pluginReadme);
+
+        Assert.DoesNotContain("name: \"Sync all Slogs files\"", pluginMain);
+        Assert.DoesNotContain("name: \"Push current file to Slogs\"", pluginMain);
+        Assert.DoesNotContain("name: \"Pull remote changes from Slogs\"", pluginMain);
+        Assert.DoesNotContain("name: \"Open mapped Slogs post\"", pluginMain);
+        Assert.DoesNotContain("name: \"Open Slogs vault settings\"", pluginMain);
+        Assert.DoesNotContain("Map notes to Slogs posts", pluginMain);
+        Assert.DoesNotContain("Slogs post API", pluginMain);
+        Assert.DoesNotContain("`Open mapped Slogs post`", pluginReadme);
+    }
+
+    [Fact]
     public void AdminObsidianMetricsUseNoteVaultAndConnectionTraceWording()
     {
         var adminUsersPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "AdminUsers.razor"));

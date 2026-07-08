@@ -1,6 +1,6 @@
 # Slogs Sync for Obsidian
 
-Slogs Sync synchronizes an Obsidian vault with the Slogs remote Obsidian Vault API.
+Slogs Sync connects an Obsidian vault to the Slogs remote note Vault so local Markdown notes can continue as note clues, LLM Wiki memory, owner-only pre-publish memory, and public-sharing nodes.
 
 ## Install
 
@@ -19,25 +19,25 @@ For unreleased test builds, use the GitHub releases in this repository or add th
 
 ## Configure
 
-1. In Slogs, create a token with the `obsidian.sync` scope.
+1. In Slogs, create a note-Vault connection token with the `obsidian.sync` scope.
 2. In Obsidian, open Settings > Slogs Sync.
 3. Set the Slogs server URL, normally `https://slogs.dev`.
 4. Paste the `obsidian.sync` token.
-5. Set a remote vault name, or leave it blank to use the current Obsidian vault name.
+5. Set a remote note-Vault name, or leave it blank to use the current Obsidian vault name.
 
 ## Commands
 
-- `Sync all Slogs files`
-- `Push current file to Slogs`
-- `Pull remote changes from Slogs`
-- `Open mapped Slogs post`
-- `Open Slogs vault settings`
+- `Sync all Slogs note flows`
+- `Push current note clue to Slogs`
+- `Pull remote note-flow changes from Slogs`
+- `Open mapped Slogs sharing node`
+- `Open Slogs note-Vault settings`
 
 ## Scope
 
 Markdown files outside `.obsidian/` sync by default. Attachments and `.obsidian` settings are explicit opt-in toggles in plugin settings.
 
-Frontmatter-triggered mappings are also opt-in:
+Frontmatter-triggered mappings are also opt-in. `slogs.post: true` keeps the compatibility key, but the flow is a local note clue continuing through Slogs owner-only pre-publish memory and public sharing; `slogs.llmWiki: true` continues the note into LLM Wiki memory with provenance preserved by the server.
 
 ```yaml
 ---
