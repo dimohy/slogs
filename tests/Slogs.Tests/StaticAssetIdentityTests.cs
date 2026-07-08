@@ -144,6 +144,8 @@ public sealed class StaticAssetIdentityTests
         var getDefaultBio = typeof(SlogsDbInitializer).GetMethod(
             "GetDefaultBio",
             BindingFlags.NonPublic | BindingFlags.Static);
+        var initializer = File.ReadAllText(FindRepoFile("src", "Slogs", "Data", "SlogsDbInitializer.cs"));
+        var authUser = File.ReadAllText(FindRepoFile("src", "Slogs.Shared", "Data", "AuthUser.cs"));
 
         Assert.NotNull(getDefaultBio);
 
@@ -158,6 +160,13 @@ public sealed class StaticAssetIdentityTests
             Assert.DoesNotContain("글쓰기", bio);
             Assert.DoesNotContain("검색, 탐색", bio);
         }
+
+        Assert.Contains("(\"admin\", \"운영 슬로거\", string.Empty)", initializer);
+        Assert.Contains("admin.DisplayName = \"운영 슬로거\";", initializer);
+        Assert.Contains("[\"운영 흐름\", \"시그니처 슬로거\"]", authUser);
+        Assert.DoesNotContain("(\"admin\", \"관리자\", string.Empty)", initializer);
+        Assert.DoesNotContain("DisplayName = \"관리자\"", initializer);
+        Assert.DoesNotContain("[\"관리자\", \"시그니처\"]", authUser);
     }
 
     [Fact]
