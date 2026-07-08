@@ -591,6 +591,9 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("기억으로 남기기 전에는 관련 기억을 먼저 회상하고", llmWikiGuidePage);
         Assert.Contains("categoryPath</code>를 정해 기억으로 남깁니다.", llmWikiGuidePage);
         Assert.Contains("기억으로 남기지 않습니다.", llmWikiGuidePage);
+        Assert.Contains("Agent 회상 연결 키 입력과 전역/프로젝트/현재 세션 범위 선택을 안내하고", llmWikiGuidePage);
+        Assert.Contains("처음 설치할 때만 Agent가 회상 연결 키를 요청하고", llmWikiGuidePage);
+        Assert.Contains("최초 설치 시 Agent 회상 연결 키와 적용 범위를 묻도록 안내합니다.", llmWikiGuidePage);
         Assert.Contains("도구 노출 점검으로 먼저 지연 로딩 여부를 살핍니다.", llmWikiGuidePage);
         Assert.Contains("Agent의 도구 노출 점검으로 먼저 지연 로딩을 살피도록 안내합니다.", llmWikiGuidePage);
         Assert.Contains("search</code>로 작은 회상 후보 흐름을 잡습니다.", llmWikiGuidePage);
@@ -608,6 +611,9 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("categoryPath</code>를 정하고 저장합니다.", llmWikiGuidePage);
         Assert.DoesNotContain("저장하지 않습니다.", llmWikiGuidePage);
         Assert.DoesNotContain("Slogs LLM Wiki가 비공개 기억을 Agent 회상과 게시전 로그로 이어 쓰는 흐름을 확인합니다.", llmWikiGuidePage);
+        Assert.DoesNotContain("Slogs MCP 키 입력과 전역/프로젝트/현재 세션 범위 선택을 안내하고", llmWikiGuidePage);
+        Assert.DoesNotContain("처음 설치할 때만 Agent가 Slogs MCP 키를 요청하고", llmWikiGuidePage);
+        Assert.DoesNotContain("최초 설치 시 MCP 키와 적용 범위를 묻도록 안내합니다.", llmWikiGuidePage);
         Assert.DoesNotContain("도구 노출 확인으로 먼저 사용 가능 여부를 확인합니다.", llmWikiGuidePage);
         Assert.DoesNotContain("도구 노출 확인 기능으로 먼저 지연 로딩을 시도", llmWikiGuidePage);
         Assert.DoesNotContain("다시 조회합니다.", llmWikiGuidePage);
