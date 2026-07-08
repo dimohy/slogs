@@ -1127,7 +1127,7 @@ public sealed class StaticAssetIdentityTests
 
         Assert.Contains("FormatRecallAccessCount(Post.ViewCount)", postMetaLine);
         Assert.Contains("title=\"회상 접근\"", postMetaLine);
-        Assert.Contains("회상 접근, 대화 흔적, 공감 신호로 다시 이어지는 공개 로그", homePage);
+        Assert.Contains("회상 접근, 대화 흔적, 공감 신호로 다시 이어진 공개 로그 흐름을 따라갑니다.", homePage);
         Assert.Contains("FormatRecallAccessCount(post.ViewCount)", postDetailsPage);
         Assert.Contains("FormatRecallAccessCount(post.ViewCount)", profilePage);
         Assert.Contains("회상 접근", writerPage);
@@ -1288,6 +1288,9 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("FormatLogNodeCount(totalCount)", homePage);
         Assert.Contains("GetFlowScopeLabel()", homePage);
         Assert.Contains("개 로그 노드", homePage);
+        Assert.Contains(">반응 회상</a>", homePage);
+        Assert.Contains("반응으로 이어진 로그", homePage);
+        Assert.Contains("회상 접근, 대화 흔적, 공감 신호로 다시 이어진 공개 로그 흐름을 따라갑니다.", homePage);
         Assert.Contains(">의미 회상</a>", homePage);
         Assert.Contains("의미가 이어진 로그", homePage);
         Assert.Contains("회상 접근, 대화 흔적, 공감 신호, 단서, 시리즈가 겹치는 다음 의미 경로를 따라갑니다.", homePage);
@@ -1312,6 +1315,9 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("추천 회상", homePage);
         Assert.DoesNotContain("의미로 추천된 로그", homePage);
         Assert.DoesNotContain("이어 읽을 로그를 고릅니다.", homePage);
+        Assert.DoesNotContain(">반응 로그</a>", homePage);
+        Assert.DoesNotContain("반응이 모이는 로그", homePage);
+        Assert.DoesNotContain("공개 로그를 먼저 봅니다.", homePage);
     }
 
     [Fact]
