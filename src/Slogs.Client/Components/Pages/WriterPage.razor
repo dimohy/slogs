@@ -87,7 +87,7 @@ else
 
             <div class="mt-5 grid grid-cols-2 gap-2 md:grid-cols-5">
                 <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
-                    <p class="text-xs font-semibold text-slate-500">공개 로그</p>
+                    <p class="text-xs font-semibold text-slate-500">공개 공유 노드</p>
                     <p class="mt-1 text-xl font-black text-slate-900">@totalCount</p>
                 </div>
                 <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
@@ -627,7 +627,7 @@ else
 
     private string GetSloggerSeoDescription()
     {
-        return $"{GetSloggerDisplayName()}의 slogs 공개 지식 로그 홈입니다. {GetSloggerBio()} 공개 로그 {totalCount}개, 관계 흐름 {followerCount}개.";
+        return $"{GetSloggerDisplayName()}의 slogs 공개 지식 로그 홈입니다. {GetSloggerBio()} 공개 공유 노드 {totalCount}개, 관계 흐름 {followerCount}개.";
     }
 
     private string? GetSloggerHomeJsonLd()
@@ -651,7 +651,7 @@ else
     {
         if (featuredPost is null && tagCloud.Count == 0 && seriesCloud.Count == 0)
         {
-            return "생각, 작업, 판단, 검증이 공개 로그로 쌓이기 전의 지식 로그 홈입니다.";
+            return "생각, 작업, 판단, 검증이 공개 공유 노드로 쌓이기 전의 지식 로그 홈입니다.";
         }
 
         var clue = tagCloud.Count == 0 ? "반복 단서" : $"#{tagCloud[0].Tag}";

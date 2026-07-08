@@ -1383,6 +1383,9 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("GetSloggerHomeJsonLd()", writerPage);
         Assert.Contains("SeoMetadata.SloggerHomeJsonLd", writerPage);
         Assert.Contains("공개 지식 로그 홈", writerPage);
+        Assert.Contains("공개 공유 노드", writerPage);
+        Assert.Contains("공개 공유 노드 {totalCount}개", writerPage);
+        Assert.Contains("공개 공유 노드로 쌓이기 전의 지식 로그 홈입니다.", writerPage);
         Assert.Contains("슬로거 홈 이미지", writerPage);
         Assert.Contains("슬로거 홈 &#64;주소", writerPage);
         Assert.Contains("대표 기억 노드", writerPage);
@@ -1406,6 +1409,9 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("ProfilePageJsonLd", writerPage);
         Assert.DoesNotContain("프로필 이미지", writerPage);
         Assert.DoesNotContain(">공개 주소", writerPage);
+        Assert.DoesNotContain("<p class=\"text-xs font-semibold text-slate-500\">공개 로그</p>", writerPage);
+        Assert.DoesNotContain("공개 로그 {totalCount}개", writerPage);
+        Assert.DoesNotContain("공개 로그로 쌓이기 전의 지식 로그 홈입니다.", writerPage);
         Assert.DoesNotContain("public knowledge-log home", writerPage);
         Assert.DoesNotContain("featured memory node", writerPage);
         Assert.DoesNotContain("chronological log stream", writerPage);
