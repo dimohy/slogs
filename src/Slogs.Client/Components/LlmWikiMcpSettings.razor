@@ -145,10 +145,10 @@
                         @onclick="CopyObsidianPluginIdAsync">플러그인 ID 복사</button>
                 <button class="inline-flex min-w-max shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
                         type="button"
-                        @onclick="CopyDriveInstallCommandAsync">Drive 설치 명령</button>
+                        @onclick="CopyDriveInstallCommandAsync">Slogs Drive 설치 흐름</button>
                 <button class="inline-flex min-w-max shrink-0 items-center justify-center whitespace-nowrap rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-slate-800"
                         type="button"
-                        @onclick="CopyDriveCommandAsync">Drive 실행 명령</button>
+                        @onclick="CopyDriveCommandAsync">Slogs Drive 실행 흐름</button>
             </div>
         </div>
         <div class="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold text-slate-600" data-obsidian-flow-status>
@@ -569,13 +569,13 @@
     private async Task CopyDriveCommandAsync()
     {
         await JS.InvokeVoidAsync("navigator.clipboard.writeText", DriveCommandExample);
-        copyObsidianMessage = "Drive 실행 명령이 복사되었습니다.";
+        copyObsidianMessage = "Slogs Drive 실행 흐름이 복사되었습니다.";
     }
 
     private async Task CopyDriveInstallCommandAsync()
     {
         await JS.InvokeVoidAsync("navigator.clipboard.writeText", DriveInstallCommand);
-        copyObsidianMessage = "Drive 설치 명령이 복사되었습니다.";
+        copyObsidianMessage = "Slogs Drive 설치 흐름이 복사되었습니다.";
     }
 
     private static string FormatDateTime(DateTime dateTime)

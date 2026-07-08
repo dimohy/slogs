@@ -657,6 +657,8 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("노트 Vault 플러그인 ID", settingsComponent);
         Assert.Contains("Slogs Drive 설치 흐름", settingsComponent);
         Assert.Contains("Slogs Drive 실행 흐름", settingsComponent);
+        Assert.Contains("Slogs Drive 설치 흐름이 복사되었습니다.", settingsComponent);
+        Assert.Contains("Slogs Drive 실행 흐름이 복사되었습니다.", settingsComponent);
         Assert.Contains("로컬 Markdown 노트는 노트 Vault 권한으로 원격 노트 Vault에 남고", settingsComponent);
         Assert.Contains("data-obsidian-flow-status", settingsComponent);
         Assert.Contains("frontmatter 단서", settingsComponent);
@@ -696,6 +698,8 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain(">Plugin ID</p>", settingsComponent);
         Assert.DoesNotContain(">Drive install</p>", settingsComponent);
         Assert.DoesNotContain(">Drive run</p>", settingsComponent);
+        Assert.DoesNotContain("Drive 설치 명령", settingsComponent);
+        Assert.DoesNotContain("Drive 실행 명령", settingsComponent);
         Assert.DoesNotContain(">폐기</button>", settingsComponent);
         Assert.DoesNotContain("마지막 사용", settingsComponent);
         Assert.DoesNotContain("`mcp` scope 토큰", settingsComponent);
