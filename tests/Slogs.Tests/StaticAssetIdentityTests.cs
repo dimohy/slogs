@@ -1294,12 +1294,16 @@ public sealed class StaticAssetIdentityTests
     public void PublicLogNodeCardsExposeRecallPathSignals()
     {
         var postLogCard = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "PostLogCard.razor"));
+        var postFlowSignals = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "PostFlowSignals.razor"));
         var postRecallPath = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "PostRecallPath.razor"));
         var appCss = File.ReadAllText(FindRepoFile("src", "Slogs", "wwwroot", "app.css"));
 
         Assert.Contains("<PostRecallPath Post=\"Post\" />", postLogCard);
         Assert.Contains("DraftActionText { get; set; } = \"게시전 기억 정리\"", postLogCard);
         Assert.DoesNotContain("DraftActionText { get; set; } = \"게시전 로그 수정\"", postLogCard);
+        Assert.Contains("Post.IsDraft ? \"게시전 기억\" : \"공개 공유 노드\"", postFlowSignals);
+        Assert.Contains("대화 흔적", postFlowSignals);
+        Assert.Contains("공감 신호", postFlowSignals);
         Assert.Contains("post-log-card__recall-path", postRecallPath);
         Assert.Contains("로그 회상 경로", postRecallPath);
         Assert.Contains("FormatRecallPath(Post)", postRecallPath);
@@ -1314,6 +1318,9 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains(".post-log-card__recall-path", appCss);
         Assert.Contains("-webkit-line-clamp: 2;", appCss);
 
+        Assert.DoesNotContain("Post.IsDraft ? \"게시전 로그\" : \"공개 로그\"", postFlowSignals);
+        Assert.DoesNotContain("} 대화\")", postFlowSignals);
+        Assert.DoesNotContain("} 반응\")", postFlowSignals);
         Assert.DoesNotContain("article teaser", postRecallPath, StringComparison.OrdinalIgnoreCase);
     }
 
