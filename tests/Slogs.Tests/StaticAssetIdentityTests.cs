@@ -854,7 +854,8 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("게시전 기억 정리", editPost);
         Assert.Contains(">게시전 기억</span>", editPost);
         Assert.Contains("게시전 기억 저장", editPost);
-        Assert.Contains("정리할 로그 흐름", editPost);
+        Assert.Contains("정리할 수 있는 로그 흐름 노드를 찾지 못했습니다.", editPost);
+        Assert.Contains("이 로그 흐름을 정리할 수 있는 연결 권한이 없습니다.", editPost);
         Assert.Contains("공개 공유", editPost);
         Assert.Contains("리비전 공유", editPost);
         Assert.Contains("SaveAsync(isDraft: true)", editPost);
@@ -877,6 +878,8 @@ public sealed class StaticAssetIdentityTests
             Assert.DoesNotContain("게시전 로그 수정", authoringPage);
             Assert.DoesNotContain("로그 수정 | slogs", authoringPage);
             Assert.DoesNotContain("수정할 로그", authoringPage);
+            Assert.DoesNotContain("정리할 로그 흐름을 찾지 못했습니다.", authoringPage);
+            Assert.DoesNotContain(">권한이 없습니다.</p>", authoringPage);
             Assert.DoesNotContain("게시전 로그 저장에 실패", authoringPage);
             Assert.DoesNotContain("포스트", authoringPage);
         }
