@@ -37,6 +37,18 @@
     <a class="@GetSortChipClass("name")" href='@GetListQuery("name")'>시리즈명순</a>
 </div>
 
+<section class="slogs-home-flowline mb-4" aria-label="로그 시리즈 흐름 신호">
+    <div class="min-w-0">
+        <p class="text-xs font-bold text-slate-500">현재 시리즈 흐름</p>
+        <h2 class="text-lg font-bold text-slate-950">@GetFlowStatusTitle()</h2>
+        <p class="mt-1 text-sm text-slate-600">@GetFlowStatusDescription()</p>
+    </div>
+    <div class="slogs-home-flowline__signals" aria-label="로그 시리즈 흐름 신호">
+        <span>@FormatSeriesCount(allSeries.Count)</span>
+        <span>@GetFlowScopeLabel()</span>
+    </div>
+</section>
+
 <section class="grid grid-cols-1 gap-3 sm:grid-cols-2">
         @if (serieses.Count == 0)
         {
@@ -149,6 +161,32 @@
 
         return "아직 이어진 로그 시리즈가 없습니다.";
     }
+
+    private string GetFlowStatusTitle()
+    {
+        return string.IsNullOrWhiteSpace(Query)
+            ? "로그 시리즈 흐름"
+            : $"\"{Query.Trim()}\" 시리즈 회상 흐름";
+    }
+
+    private string GetFlowStatusDescription()
+    {
+        return string.IsNullOrWhiteSpace(Query)
+            ? "같은 문제의식과 작업 맥락으로 이어진 로그 시리즈를 따라갑니다."
+            : $"\"{Query.Trim()}\"와 이어지는 로그 시리즈 흐름을 회상합니다.";
+    }
+
+    private string GetFlowScopeLabel()
+    {
+        return normalizedSort switch
+        {
+            "name" => "시리즈명 흐름",
+            _ => "반응 흐름"
+        };
+    }
+
+    private static string FormatSeriesCount(int count)
+        => $"{count:N0}개 로그 시리즈";
 
     private string GetListQuery(string? sort)
     {

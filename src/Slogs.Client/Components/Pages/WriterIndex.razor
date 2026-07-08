@@ -37,6 +37,18 @@
     <a class="@GetSortChipClass("name")" href='@GetListQuery("name")'>@@주소순</a>
 </div>
 
+<section class="slogs-home-flowline mb-4" aria-label="슬로거 홈 흐름 신호">
+    <div class="min-w-0">
+        <p class="text-xs font-bold text-slate-500">현재 홈 흐름</p>
+        <h2 class="text-lg font-bold text-slate-950">@GetFlowStatusTitle()</h2>
+        <p class="mt-1 text-sm text-slate-600">@GetFlowStatusDescription()</p>
+    </div>
+    <div class="slogs-home-flowline__signals" aria-label="슬로거 홈 흐름 신호">
+        <span>@FormatSloggerHomeCount(allWriters.Count)</span>
+        <span>@GetFlowScopeLabel()</span>
+    </div>
+</section>
+
 <section class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 @if (writers.Count == 0)
 {
@@ -154,6 +166,32 @@
 
         return "공개 로그 흐름을 남긴 슬로거가 아직 없습니다.";
     }
+
+    private string GetFlowStatusTitle()
+    {
+        return string.IsNullOrWhiteSpace(Query)
+            ? "슬로거 홈 흐름"
+            : $"\"{Query.Trim()}\" 슬로거 회상 흐름";
+    }
+
+    private string GetFlowStatusDescription()
+    {
+        return string.IsNullOrWhiteSpace(Query)
+            ? "공개 지식 로그를 남기는 슬로거 홈의 흐름을 따라갑니다."
+            : $"\"{Query.Trim()}\" 단서와 이어지는 슬로거 홈 흐름을 회상합니다.";
+    }
+
+    private string GetFlowScopeLabel()
+    {
+        return normalizedSort switch
+        {
+            "name" => "@@주소 흐름",
+            _ => "로그 흐름"
+        };
+    }
+
+    private static string FormatSloggerHomeCount(int count)
+        => $"{count:N0}개 슬로거 홈";
 
     private string GetSearchResultHref()
     {

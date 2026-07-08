@@ -895,6 +895,13 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("@($\"{item.Count}개 로그\")", writerIndexPage);
         Assert.Contains("모든 슬로거 홈 흐름을 불러왔습니다.", writerIndexPage);
         Assert.Contains("공개 로그 흐름을 남긴 슬로거가 아직 없습니다.", writerIndexPage);
+        Assert.Contains("aria-label=\"슬로거 홈 흐름 신호\"", writerIndexPage);
+        Assert.Contains("현재 홈 흐름", writerIndexPage);
+        Assert.Contains("GetFlowStatusTitle()", writerIndexPage);
+        Assert.Contains("GetFlowStatusDescription()", writerIndexPage);
+        Assert.Contains("FormatSloggerHomeCount(allWriters.Count)", writerIndexPage);
+        Assert.Contains("GetFlowScopeLabel()", writerIndexPage);
+        Assert.Contains("개 슬로거 홈", writerIndexPage);
 
         Assert.DoesNotContain("<PageTitle>슬로거</PageTitle>", writerIndexPage);
         Assert.DoesNotContain("찾고 로그 홈으로 이동합니다.", writerIndexPage);
@@ -915,10 +922,18 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("slogs의 반복 단서를 회상하며 이어지는 공개 로그 흐름을 다시 따라갑니다.", tagIndexPage);
         Assert.Contains(">단서명순</a>", tagIndexPage);
         Assert.Contains("모든 단서 흐름을 불러왔습니다.", tagIndexPage);
+        Assert.Contains("aria-label=\"단서 흐름 신호\"", tagIndexPage);
+        Assert.Contains("현재 단서 흐름", tagIndexPage);
+        Assert.Contains("FormatClueCount(allTags.Count)", tagIndexPage);
+        Assert.Contains("개 단서", tagIndexPage);
         Assert.Contains(">로그 시리즈</h1>", seriesIndexPage);
         Assert.Contains("slogs의 로그 시리즈를 회상하며 시간과 의미로 이어진 흐름을 다시 따라갑니다.", seriesIndexPage);
         Assert.Contains(">시리즈명순</a>", seriesIndexPage);
         Assert.Contains("모든 시리즈 흐름을 불러왔습니다.", seriesIndexPage);
+        Assert.Contains("aria-label=\"로그 시리즈 흐름 신호\"", seriesIndexPage);
+        Assert.Contains("현재 시리즈 흐름", seriesIndexPage);
+        Assert.Contains("FormatSeriesCount(allSeries.Count)", seriesIndexPage);
+        Assert.Contains("개 로그 시리즈", seriesIndexPage);
 
         Assert.DoesNotContain(">이름순</a>", tagIndexPage);
         Assert.DoesNotContain(">이름순</a>", seriesIndexPage);
@@ -995,6 +1010,11 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("현재 지식 로그 흐름을 모두 불러왔습니다.", homePage);
         Assert.Contains("에 이어지는 의미 회상 로그가 없습니다.", homePage);
         Assert.Contains("이어진 로그 흐름이 없습니다.", homePage);
+        Assert.Contains("aria-label=\"공개 로그 흐름 신호\"", postIndexPage);
+        Assert.Contains("현재 공개 흐름", postIndexPage);
+        Assert.Contains("FormatPublicLogNodeCount(allPosts.Count)", postIndexPage);
+        Assert.Contains("GetFlowScopeLabel()", postIndexPage);
+        Assert.Contains("개 공개 로그 노드", postIndexPage);
         Assert.Contains("의미 회상으로 이어진 공개 로그 흐름이 없습니다.", postIndexPage);
         Assert.Contains("내 공개/게시전 로그 흐름을 모두 불러왔습니다.", profilePage);
         Assert.Contains("대표로 이어 줄 공개 로그 노드가 아직 없습니다.", writerPage);
