@@ -1691,7 +1691,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("이어진 지식 로그 노드입니다.", postDetailsPage);
         Assert.Contains("주요 단서 #", postDetailsPage);
         Assert.Contains("로그 시리즈", postDetailsPage);
-        Assert.Contains("리비전 흐름 v", postDetailsPage);
+        Assert.Contains("리비전 v", postDetailsPage);
         Assert.Contains("개 연결 로그 흐름", postDetailsPage);
         Assert.Contains("연결 로그 흐름 대기", postDetailsPage);
         Assert.Contains("개 앞뒤 흐름", postDetailsPage);
@@ -1779,16 +1779,17 @@ public sealed class StaticAssetIdentityTests
         var blogService = File.ReadAllText(FindRepoFile("src", "Slogs", "Data", "BlogService.cs"));
 
         Assert.Contains("post-detail-revision-flow", postDetailsPage);
-        Assert.Contains("aria-label=\"리비전 흐름 신호\"", postDetailsPage);
-        Assert.Contains("리비전 흐름 비교", postDetailsPage);
+        Assert.Contains("aria-label=\"리비전 신호\"", postDetailsPage);
+        Assert.Contains("리비전 v", postDetailsPage);
+        Assert.Contains("변경 내용", postDetailsPage);
         Assert.Contains("선택한 리비전이 이 로그 노드의 기억 흐름을 어떻게 갱신했는지 다시 따라갑니다.", postDetailsPage);
-        Assert.Contains("리비전 흐름 변화를 불러오는 중입니다.", postDetailsPage);
-        Assert.Contains("리비전 흐름 변화를 불러오지 못했습니다.", postDetailsPage);
-        Assert.Contains("비교할 리비전 흐름 변화가 없습니다.", postDetailsPage);
-        Assert.Contains("흐름 영역 {diff.Label}", postDetailsPage);
+        Assert.Contains("리비전 변경 내용을 불러오는 중입니다.", postDetailsPage);
+        Assert.Contains("리비전 변경 내용을 불러오지 못했습니다.", postDetailsPage);
+        Assert.Contains("비교할 리비전 변경 내용이 없습니다.", postDetailsPage);
+        Assert.Contains("변경 영역 {diff.Label}", postDetailsPage);
         Assert.Contains("FormatRevisionFlowChangeCount(revisionFlowChangeCount)", postDetailsPage);
-        Assert.Contains("흐름 변화 기록 없음", postDetailsPage);
-        Assert.Contains("개 흐름 변화", postDetailsPage);
+        Assert.Contains("변경 내용 없음", postDetailsPage);
+        Assert.Contains("개 변경 내용", postDetailsPage);
         Assert.Contains("첫 공개 공유", blogService);
         Assert.Contains("record PostRevisionSummaryResponse", File.ReadAllText(FindRepoFile("src", "Slogs.Shared", "Data", "SlogsApiContracts.cs")));
 
@@ -1796,6 +1797,12 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains(".post-detail-revision-flow__signals", appCss);
         Assert.Contains("border-bottom: 1px solid var(--theme-border);", appCss);
 
+        Assert.DoesNotContain("리비전 흐름 v", postDetailsPage);
+        Assert.DoesNotContain("리비전 흐름 비교", postDetailsPage);
+        Assert.DoesNotContain("흐름 비교", postDetailsPage);
+        Assert.DoesNotContain("흐름 영역 {diff.Label}", postDetailsPage);
+        Assert.DoesNotContain("흐름 변화 기록 없음", postDetailsPage);
+        Assert.DoesNotContain("개 흐름 변화", postDetailsPage);
         Assert.DoesNotContain("변경점을 불러오는 중입니다.", postDetailsPage);
         Assert.DoesNotContain("변경점을 불러오지 못했습니다.", postDetailsPage);
         Assert.DoesNotContain("비교할 변경점이 없습니다.", postDetailsPage);

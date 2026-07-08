@@ -75,7 +75,7 @@ else
                         <button type="button"
                                 class="flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-1 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
                                 @onclick="ToggleRevisionMenu">
-                            <span>@($"리비전 흐름 v{selectedNumber}")</span>
+                            <span>@($"리비전 v{selectedNumber}")</span>
                             <span class="text-xs font-normal text-slate-400">@FormatDate(selectedRevision.CreatedAt)</span>
                             <span class="text-xs text-slate-400">▾</span>
                         </button>
@@ -104,7 +104,7 @@ else
                             disabled="@isSelectedLoading"
                             type="button"
                             @onclick="ShowRevisionDiffAsync">
-                        @(isSelectedLoading && revisionView == "diff" ? "불러오는 중..." : revisionView == "diff" ? "흐름 비교 닫기" : "흐름 비교")
+                        @(isSelectedLoading && revisionView == "diff" ? "불러오는 중..." : revisionView == "diff" ? "변경 내용 닫기" : "변경 내용")
                     </button>
                 </div>
             }
@@ -204,10 +204,10 @@ else
             <section id="revisions" class="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3">
                 <div class="post-detail-revision-flow">
                     <div class="min-w-0">
-                        <p class="text-xs font-bold text-slate-500">리비전 흐름 비교</p>
+                        <p class="text-xs font-bold text-slate-500">변경 내용</p>
                         <p class="mt-1 text-sm font-semibold text-slate-700">선택한 리비전이 이 로그 노드의 기억 흐름을 어떻게 갱신했는지 다시 따라갑니다.</p>
                     </div>
-                    <div class="post-detail-revision-flow__signals" aria-label="리비전 흐름 신호">
+                    <div class="post-detail-revision-flow__signals" aria-label="리비전 신호">
                         <span>@($"리비전 v{diffNumber}")</span>
                         <span>@($"기록 {FormatDateTime(revisionFlowCreatedAt)}")</span>
                         <span>@FormatRevisionFlowChangeCount(revisionFlowChangeCount)</span>
@@ -224,15 +224,15 @@ else
                     <div class="@(string.IsNullOrWhiteSpace(revisionMessage) ? "" : "mt-3")">
                         @if (isDiffLoading && !hasDiffDetail)
                         {
-                            <p class="text-sm text-slate-500">리비전 흐름 변화를 불러오는 중입니다.</p>
+                            <p class="text-sm text-slate-500">리비전 변경 내용을 불러오는 중입니다.</p>
                         }
                         else if (diffDetail is null)
                         {
-                            <p class="text-sm text-slate-500">리비전 흐름 변화를 불러오지 못했습니다.</p>
+                            <p class="text-sm text-slate-500">리비전 변경 내용을 불러오지 못했습니다.</p>
                         }
                         else if (diffDetail.Diffs.Count == 0)
                         {
-                            <p class="text-sm text-slate-500">비교할 리비전 흐름 변화가 없습니다.</p>
+                            <p class="text-sm text-slate-500">비교할 리비전 변경 내용이 없습니다.</p>
                         }
                         else
                         {
@@ -240,7 +240,7 @@ else
                                 @foreach (var diff in diffDetail.Diffs)
                                 {
                                     <div class="overflow-hidden rounded-md border border-slate-200">
-                                        <div class="border-b border-slate-200 bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-800">@($"흐름 영역 {diff.Label}")</div>
+                                        <div class="border-b border-slate-200 bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-800">@($"변경 영역 {diff.Label}")</div>
                                         <div class="revision-diff-code max-h-80 overflow-auto py-2 font-mono text-xs leading-relaxed">
                                             @foreach (var line in diff.Lines)
                                             {
@@ -1548,7 +1548,7 @@ else
     private static string FormatRecallAccessCount(int viewCount) => $"{viewCount:N0} 회상 접근";
 
     private static string FormatRevisionFlowChangeCount(int changedFieldCount)
-        => changedFieldCount == 0 ? "흐름 변화 기록 없음" : $"{changedFieldCount:N0}개 흐름 변화";
+        => changedFieldCount == 0 ? "변경 내용 없음" : $"{changedFieldCount:N0}개 변경 내용";
 
     private string GetPostNodeFlowDescription(BlogPost currentPost, int latestRevisionNumber)
     {
@@ -1565,7 +1565,7 @@ else
         => currentPost.Series.Count == 0 ? "시리즈 밖 흐름" : $"로그 시리즈 {currentPost.Series[0]}";
 
     private static string GetRevisionFlowSignal(BlogPost currentPost, int latestRevisionNumber)
-        => currentPost.IsDraft ? "게시전 기억" : $"리비전 흐름 v{latestRevisionNumber}";
+        => currentPost.IsDraft ? "게시전 기억" : $"리비전 v{latestRevisionNumber}";
 
     private string GetLinkedLogFlowSignal()
         => relatedPosts.Count == 0
