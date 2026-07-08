@@ -83,6 +83,29 @@ public sealed class StaticAssetIdentityTests
     }
 
     [Fact]
+    public void GlobalMeaningRecallAcceptsKoreanFlowPrefixes()
+    {
+        var mainLayout = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Layout", "MainLayout.razor"));
+        var homePage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "Home.razor"));
+
+        foreach (var source in new[] { mainLayout, homePage })
+        {
+            Assert.Contains("[\"tag:\", \"단서:\"]", source);
+            Assert.Contains("[\"writer:\", \"슬로거:\"]", source);
+            Assert.Contains("[\"series:\", \"시리즈:\", \"로그 시리즈:\"]", source);
+            Assert.Contains("TryReadRecallPrefix", source);
+        }
+
+        Assert.Contains("IsRecallPrefixOnly(trimmed, [\"tag:\", \"단서:\", \"writer:\", \"슬로거:\", \"series:\", \"시리즈:\", \"로그 시리즈:\"])", homePage);
+        Assert.Contains("return $\"/tag/{Uri.EscapeDataString(tagValue)}\";", mainLayout);
+        Assert.Contains("return $\"/@{Uri.EscapeDataString(writerValue)}\";", mainLayout);
+        Assert.Contains("return $\"/series/{Uri.EscapeDataString(seriesValue)}\";", mainLayout);
+        Assert.Contains("($\"단서: {tagValue}\", () => ApiClient.GetByTagAsync(tagValue))", homePage);
+        Assert.Contains("($\"슬로거: {writerValue}\", () => ApiClient.GetByAuthorAsync(writerValue))", homePage);
+        Assert.Contains("($\"로그 시리즈: {seriesValue}\", () => ApiClient.GetBySeriesAsync(seriesValue))", homePage);
+    }
+
+    [Fact]
     public void SeedDefaultBiosUseKnowledgeLogWording()
     {
         var getDefaultBio = typeof(SlogsDbInitializer).GetMethod(

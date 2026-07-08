@@ -641,28 +641,25 @@ else
                 : ($"슬로거: {writer}", () => ApiClient.GetByAuthorAsync(writer));
         }
 
-        if (query.StartsWith("tag:", StringComparison.OrdinalIgnoreCase))
+        if (TryReadRecallPrefix(query, ["tag:", "단서:"], out var tagValue))
         {
-            var tag = query[4..].Trim();
-            return string.IsNullOrWhiteSpace(tag)
+            return string.IsNullOrWhiteSpace(tagValue)
                 ? ("단서", () => GetFallbackQueryPostsAsync())
-                : ($"단서: {tag}", () => ApiClient.GetByTagAsync(tag));
+                : ($"단서: {tagValue}", () => ApiClient.GetByTagAsync(tagValue));
         }
 
-        if (query.StartsWith("writer:", StringComparison.OrdinalIgnoreCase))
+        if (TryReadRecallPrefix(query, ["writer:", "슬로거:"], out var writerValue))
         {
-            var writer = query[7..].Trim();
-            return string.IsNullOrWhiteSpace(writer)
+            return string.IsNullOrWhiteSpace(writerValue)
                 ? ("슬로거", () => GetFallbackQueryPostsAsync())
-                : ($"슬로거: {writer}", () => ApiClient.GetByAuthorAsync(writer));
+                : ($"슬로거: {writerValue}", () => ApiClient.GetByAuthorAsync(writerValue));
         }
 
-        if (query.StartsWith("series:", StringComparison.OrdinalIgnoreCase))
+        if (TryReadRecallPrefix(query, ["series:", "시리즈:", "로그 시리즈:"], out var seriesValue))
         {
-            var series = query[7..].Trim();
-            return string.IsNullOrWhiteSpace(series)
+            return string.IsNullOrWhiteSpace(seriesValue)
                 ? ("시리즈", () => GetFallbackQueryPostsAsync())
-                : ($"로그 시리즈: {series}", () => ApiClient.GetBySeriesAsync(series));
+                : ($"로그 시리즈: {seriesValue}", () => ApiClient.GetBySeriesAsync(seriesValue));
         }
 
         return null;
@@ -689,10 +686,28 @@ else
         var trimmed = query.Trim();
         return trimmed is "#" or "@"
             || trimmed is "@@"
-            || (trimmed.Length == 4 && trimmed.StartsWith("tag:", StringComparison.OrdinalIgnoreCase))
-            || (trimmed.Length == 7 && trimmed.StartsWith("writer:", StringComparison.OrdinalIgnoreCase))
-            || (trimmed.Length == 7 && trimmed.StartsWith("series:", StringComparison.OrdinalIgnoreCase));
+            || IsRecallPrefixOnly(trimmed, ["tag:", "단서:", "writer:", "슬로거:", "series:", "시리즈:", "로그 시리즈:"]);
     }
+
+    private static bool TryReadRecallPrefix(string value, IReadOnlyList<string> prefixes, out string remainder)
+    {
+        foreach (var prefix in prefixes)
+        {
+            if (!value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            remainder = value[prefix.Length..].Trim();
+            return true;
+        }
+
+        remainder = string.Empty;
+        return false;
+    }
+
+    private static bool IsRecallPrefixOnly(string value, IReadOnlyList<string> prefixes)
+        => prefixes.Any(prefix => value.Equals(prefix, StringComparison.OrdinalIgnoreCase));
 
     private Task<IReadOnlyList<BlogPost>> GetFallbackQueryPostsAsync()
     {

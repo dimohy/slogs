@@ -468,40 +468,54 @@
             return "/writer";
         }
 
-        if (trimmed.StartsWith("tag:", StringComparison.OrdinalIgnoreCase))
+        if (TryReadRecallPrefix(trimmed, ["tag:", "단서:"], out var tagValue))
         {
-            var tag = trimmed[4..].Trim();
-            if (!string.IsNullOrWhiteSpace(tag))
+            if (!string.IsNullOrWhiteSpace(tagValue))
             {
-                return $"/tag/{Uri.EscapeDataString(tag)}";
+                return $"/tag/{Uri.EscapeDataString(tagValue)}";
             }
 
             return "/tag";
         }
 
-        if (trimmed.StartsWith("writer:", StringComparison.OrdinalIgnoreCase))
+        if (TryReadRecallPrefix(trimmed, ["writer:", "슬로거:"], out var writerValue))
         {
-            var writer = trimmed[7..].Trim();
-            if (!string.IsNullOrWhiteSpace(writer))
+            if (!string.IsNullOrWhiteSpace(writerValue))
             {
-                return $"/@{Uri.EscapeDataString(writer)}";
+                return $"/@{Uri.EscapeDataString(writerValue)}";
             }
 
             return "/writer";
         }
 
-        if (trimmed.StartsWith("series:", StringComparison.OrdinalIgnoreCase))
+        if (TryReadRecallPrefix(trimmed, ["series:", "시리즈:", "로그 시리즈:"], out var seriesValue))
         {
-            var series = trimmed[7..].Trim();
-            if (!string.IsNullOrWhiteSpace(series))
+            if (!string.IsNullOrWhiteSpace(seriesValue))
             {
-                return $"/series/{Uri.EscapeDataString(series)}";
+                return $"/series/{Uri.EscapeDataString(seriesValue)}";
             }
 
             return "/series";
         }
 
         return $"/?q={Uri.EscapeDataString(trimmed)}";
+    }
+
+    private static bool TryReadRecallPrefix(string value, IReadOnlyList<string> prefixes, out string remainder)
+    {
+        foreach (var prefix in prefixes)
+        {
+            if (!value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            remainder = value[prefix.Length..].Trim();
+            return true;
+        }
+
+        remainder = string.Empty;
+        return false;
     }
 
     private sealed class AuthApiResult
