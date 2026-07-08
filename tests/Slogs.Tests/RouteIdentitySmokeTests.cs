@@ -22,10 +22,10 @@ public sealed class RouteIdentitySmokeTests
             "저장 회상",
             "공감 신호",
             "공개 흐름",
-            "추천 단서",
-            "전체 단서",
-            "슬로거",
-            "로그 시리즈"
+            "대표 단서 흐름",
+            "전체 단서 흐름",
+            "슬로거 홈 흐름",
+            "로그 시리즈 흐름"
         })
         {
             Assert.Contains(text, navMenu);
@@ -34,6 +34,10 @@ public sealed class RouteIdentitySmokeTests
         Assert.DoesNotContain("내 공개 로그", navMenu);
         Assert.DoesNotContain("저장 로그", navMenu);
         Assert.DoesNotContain("공감 로그", navMenu);
+        Assert.DoesNotContain("추천 단서", navMenu);
+        Assert.DoesNotContain("전체 단서</NavLink>", navMenu);
+        Assert.DoesNotContain("슬로거</NavLink>", navMenu);
+        Assert.DoesNotContain("로그 시리즈</NavLink>", navMenu);
 
         foreach (var href in new[]
         {

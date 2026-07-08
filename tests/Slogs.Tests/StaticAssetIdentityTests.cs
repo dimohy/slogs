@@ -39,6 +39,11 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("aria-label=\"지식 로그 흐름 메뉴 닫기\"", mainLayout);
         Assert.Contains(">흐름 메뉴</span>", mainLayout);
         Assert.Contains("aria-label=\"지식 로그 흐름 메뉴\"", navMenu);
+        Assert.Contains(">공개 흐름</div>", navMenu);
+        Assert.Contains("Match=\"NavLinkMatch.All\">대표 단서 흐름</NavLink>", navMenu);
+        Assert.Contains("href=\"/tag\" Match=\"NavLinkMatch.All\">전체 단서 흐름</NavLink>", navMenu);
+        Assert.Contains("href=\"/writer\" Match=\"NavLinkMatch.All\">슬로거 홈 흐름</NavLink>", navMenu);
+        Assert.Contains("href=\"/series\" Match=\"NavLinkMatch.All\">로그 시리즈 흐름</NavLink>", navMenu);
         Assert.Contains("반응 단서 흐름", navMenu);
         Assert.Contains("반응 로그 시리즈 흐름", navMenu);
         Assert.Contains("내 단서 흐름", navMenu);
@@ -60,6 +65,10 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("aria-label=\"메뉴 열기\"", mainLayout);
         Assert.DoesNotContain("aria-label=\"모바일 메뉴\"", mainLayout);
         Assert.DoesNotContain("aria-label=\"main menu\"", navMenu);
+        Assert.DoesNotContain(">추천 단서</NavLink>", navMenu);
+        Assert.DoesNotContain(">전체 단서</NavLink>", navMenu);
+        Assert.DoesNotContain(">슬로거</NavLink>", navMenu);
+        Assert.DoesNotContain(">로그 시리즈</NavLink>", navMenu);
         Assert.DoesNotContain("인기 단서", navMenu);
         Assert.DoesNotContain("인기 로그 시리즈", navMenu);
         Assert.DoesNotContain("내 단서가 없습니다.", navMenu);
