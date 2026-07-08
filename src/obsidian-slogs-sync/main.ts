@@ -235,7 +235,7 @@ export default class SlogsSyncPlugin extends Plugin {
     try {
       await this.pullRemoteChanges(false);
     } catch (error) {
-      console.error("Slogs auto-pull failed", error);
+      console.error("Slogs note-flow auto-pull failed", error);
     }
   }
 
@@ -243,10 +243,10 @@ export default class SlogsSyncPlugin extends Plugin {
     try {
       const result = await this.pullRemoteChanges(false);
       if (result.applied > 0 || result.conflicts > 0) {
-        new Notice(`Slogs startup sync: pulled ${result.applied}, conflicts ${result.conflicts}.`);
+        new Notice(`Slogs startup note-flow recall: pulled ${result.applied}, conflicts ${result.conflicts}.`);
       }
     } catch (error) {
-      new Notice(`Slogs startup sync failed: ${toErrorMessage(error)}`);
+      new Notice(`Slogs startup note-flow recall failed: ${toErrorMessage(error)}`);
     }
   }
 
@@ -322,10 +322,10 @@ export default class SlogsSyncPlugin extends Plugin {
 
       await this.saveSettings();
       if (result === "conflict") {
-        new Notice(`Slogs auto-sync conflict on ${path}. Run "Sync all Slogs note flows" to resolve.`);
+        new Notice(`Slogs note-flow conflict on ${path}. Run "Sync all Slogs note flows" to resolve.`);
       }
     } catch (error) {
-      new Notice(`Slogs auto-push failed: ${toErrorMessage(error)}`);
+      new Notice(`Slogs note-clue auto-push failed: ${toErrorMessage(error)}`);
     }
   }
 
@@ -334,9 +334,9 @@ export default class SlogsSyncPlugin extends Plugin {
       await this.ensureRemoteVault();
       const pullResult = await this.pullRemoteChanges(false);
       const pushResult = await this.pushLocalChanges(false);
-      new Notice(`Slogs sync complete. Pulled ${pullResult.applied}, pushed ${pushResult.pushed}, conflicts ${pullResult.conflicts + pushResult.conflicts}.`);
+      new Notice(`Slogs note-flow sync complete. Pulled ${pullResult.applied} note flows, pushed ${pushResult.pushed} note clues, conflicts ${pullResult.conflicts + pushResult.conflicts}.`);
     } catch (error) {
-      new Notice(`Slogs sync failed: ${toErrorMessage(error)}`);
+      new Notice(`Slogs note-flow sync failed: ${toErrorMessage(error)}`);
     }
   }
 
@@ -344,16 +344,16 @@ export default class SlogsSyncPlugin extends Plugin {
     const activeFile = this.app.workspace.getActiveFile();
     const configDir = this.getConfigDir();
     if (!(activeFile instanceof TFile) || !shouldSyncPath(activeFile.path, this.getFeatureFlags(), configDir)) {
-      new Notice("Open a synced Markdown file or enabled attachment before pushing to Slogs.");
+      new Notice("Open a synced Markdown note clue or enabled attachment before pushing to Slogs note Vault.");
       return;
     }
 
     try {
       await this.ensureRemoteVault();
       const pushed = await this.pushLocalFile({ path: activeFile.path, source: "vault", file: activeFile });
-      new Notice(pushed === true ? "Current file pushed to Slogs." : pushed === "conflict" ? "Current file has a Slogs conflict." : "Current file already matches Slogs.");
+      new Notice(pushed === true ? "Current note clue pushed to Slogs." : pushed === "conflict" ? "Current note clue has a Slogs note-flow conflict." : "Current note clue already matches Slogs note Vault.");
     } catch (error) {
-      new Notice(`Slogs push failed: ${toErrorMessage(error)}`);
+      new Notice(`Slogs note-clue push failed: ${toErrorMessage(error)}`);
     }
   }
 
@@ -391,13 +391,13 @@ export default class SlogsSyncPlugin extends Plugin {
       await this.saveSettings();
       await this.heartbeat();
       if (showNotice) {
-        new Notice(`Pulled ${applied} Slogs changes. Conflicts ${conflicts}.`);
+        new Notice(`Pulled ${applied} Slogs note-flow changes. Conflicts ${conflicts}.`);
       }
 
       return { applied, conflicts };
     } catch (error) {
       if (showNotice) {
-        new Notice(`Slogs pull failed: ${toErrorMessage(error)}`);
+        new Notice(`Slogs note-flow pull failed: ${toErrorMessage(error)}`);
       }
 
       throw error;
@@ -439,13 +439,13 @@ export default class SlogsSyncPlugin extends Plugin {
       await this.saveSettings();
       await this.heartbeat();
       if (showNotice) {
-        new Notice(`Pushed ${pushed} Slogs changes. Conflicts ${conflicts}.`);
+        new Notice(`Pushed ${pushed} Slogs note clues. Conflicts ${conflicts}.`);
       }
 
       return { pushed, conflicts };
     } catch (error) {
       if (showNotice) {
-        new Notice(`Slogs push failed: ${toErrorMessage(error)}`);
+        new Notice(`Slogs note-clue push failed: ${toErrorMessage(error)}`);
       }
 
       throw error;
@@ -518,7 +518,7 @@ export default class SlogsSyncPlugin extends Plugin {
     const action = await new SlogsConflictModal(
       this.app,
       normalizeRemotePath(remoteFile.path),
-      "Slogs remote content changed after this local file was last synced."
+      "Slogs note Vault changed after this local note clue was last synced."
     ).openAndGetChoice();
 
     if (action === "useRemote") {
@@ -549,7 +549,7 @@ export default class SlogsSyncPlugin extends Plugin {
       const action = await new SlogsConflictModal(
         this.app,
         path,
-        "Slogs remote content changed before this local delete was pushed."
+        "Slogs note Vault changed before this local note-flow removal was pushed."
       ).openAndGetChoice();
       if (action === "keepLocal") {
         return await this.pushDeletedFile(path, response.remoteFile.version, response.remoteFile.scope ?? scope);
@@ -584,8 +584,8 @@ export default class SlogsSyncPlugin extends Plugin {
         this.app,
         path,
         remoteFile.isDeleted
-          ? "Slogs deleted this file, but your local copy has unsynced changes."
-          : "Slogs has a remote change, but your local copy has unsynced changes."
+          ? "Slogs removed this note-flow path, but your local note clue has unsynced changes."
+          : "Slogs note Vault has a remote note-flow change, but your local note clue has unsynced changes."
       ).openAndGetChoice();
       if (action !== "useRemote") {
         return "conflict";
@@ -1058,7 +1058,7 @@ class SlogsSyncSettingTab extends PluginSettingTab {
         }));
 
     new Setting(containerEl)
-      .setName("Reset local sync state")
+      .setName("Reset local note-flow state")
       .setDesc("Keeps local notes and the Slogs remote note Vault, but forgets this plugin client's cursor.")
       .addButton(button => button
         .setButtonText("Reset")
@@ -1067,7 +1067,7 @@ class SlogsSyncSettingTab extends PluginSettingTab {
           this.plugin.settings.lastRemoteVersion = 0;
           this.plugin.settings.files = {};
           await this.plugin.saveSettings();
-          new Notice("Slogs local sync state reset.");
+          new Notice("Slogs local note-flow state reset.");
         }));
   }
 }
@@ -1090,20 +1090,20 @@ class SlogsConflictModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Slogs sync conflict" });
+    contentEl.createEl("h2", { text: "Slogs note-flow conflict" });
     contentEl.createEl("p", { text: this.path });
     contentEl.createEl("p", { text: this.description });
 
     new Setting(contentEl)
       .addButton(button => button
-        .setButtonText("Use remote")
+        .setButtonText("Use remote note flow")
         .setCta()
         .onClick(() => this.choose("useRemote")))
       .addButton(button => button
-        .setButtonText("Keep local")
+        .setButtonText("Keep local note clue")
         .onClick(() => this.choose("keepLocal")))
       .addButton(button => button
-        .setButtonText("Skip")
+        .setButtonText("Skip this clue")
         .onClick(() => this.choose("skip")));
   }
 

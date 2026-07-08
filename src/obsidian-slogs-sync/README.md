@@ -48,7 +48,7 @@ slogs.llmWiki.categoryPath: slogs/obsidian-import
 ---
 ```
 
-Conflicts open a modal so the user can use the remote copy, keep the local copy, or skip the file instead of overwriting silently.
+Conflicts open a modal so the user can use the remote note flow, keep the local note clue, or skip the clue instead of overwriting silently.
 
 ## Develop
 

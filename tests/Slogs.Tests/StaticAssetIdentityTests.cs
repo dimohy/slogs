@@ -891,17 +891,39 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("owner-only pre-publish memory and public-sharing flow", pluginMain);
         Assert.Contains("Map note clues to LLM Wiki memory", pluginMain);
         Assert.Contains("continue into Slogs LLM Wiki memory", pluginMain);
+        Assert.Contains("Slogs startup note-flow recall", pluginMain);
+        Assert.Contains("Slogs note-flow sync complete", pluginMain);
+        Assert.Contains("Current note clue pushed to Slogs.", pluginMain);
+        Assert.Contains("Current note clue has a Slogs note-flow conflict.", pluginMain);
+        Assert.Contains("Current note clue already matches Slogs note Vault.", pluginMain);
+        Assert.Contains("Slogs note Vault changed after this local note clue was last synced.", pluginMain);
+        Assert.Contains("Slogs note-flow conflict", pluginMain);
+        Assert.Contains("Use remote note flow", pluginMain);
+        Assert.Contains("Keep local note clue", pluginMain);
+        Assert.Contains("Skip this clue", pluginMain);
         Assert.Contains("local Markdown notes can continue as note clues, LLM Wiki memory, owner-only pre-publish memory, and public-sharing nodes", pluginReadme);
         Assert.Contains("Frontmatter-triggered mappings are also opt-in. `slogs.post: true` keeps the compatibility key", pluginReadme);
+        Assert.Contains("use the remote note flow, keep the local note clue, or skip the clue", pluginReadme);
 
         Assert.DoesNotContain("name: \"Sync all Slogs files\"", pluginMain);
         Assert.DoesNotContain("name: \"Push current file to Slogs\"", pluginMain);
         Assert.DoesNotContain("name: \"Pull remote changes from Slogs\"", pluginMain);
         Assert.DoesNotContain("name: \"Open mapped Slogs post\"", pluginMain);
         Assert.DoesNotContain("name: \"Open Slogs vault settings\"", pluginMain);
+        Assert.DoesNotContain("Slogs startup sync", pluginMain);
+        Assert.DoesNotContain("Slogs sync complete", pluginMain);
+        Assert.DoesNotContain("Current file pushed to Slogs.", pluginMain);
+        Assert.DoesNotContain("Current file has a Slogs conflict.", pluginMain);
+        Assert.DoesNotContain("Current file already matches Slogs.", pluginMain);
+        Assert.DoesNotContain("Slogs remote content changed after this local file was last synced.", pluginMain);
+        Assert.DoesNotContain("Slogs sync conflict", pluginMain);
+        Assert.DoesNotContain("Use remote\")", pluginMain);
+        Assert.DoesNotContain("Keep local\")", pluginMain);
+        Assert.DoesNotContain("Skip\")", pluginMain);
         Assert.DoesNotContain("Map notes to Slogs posts", pluginMain);
         Assert.DoesNotContain("Slogs post API", pluginMain);
         Assert.DoesNotContain("`Open mapped Slogs post`", pluginReadme);
+        Assert.DoesNotContain("use the remote copy, keep the local copy, or skip the file", pluginReadme);
     }
 
     [Fact]
