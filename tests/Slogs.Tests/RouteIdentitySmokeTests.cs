@@ -19,8 +19,8 @@ public sealed class RouteIdentitySmokeTests
             "비공개 기억",
             "기억 연결 가이드",
             "의미 회상",
-            "저장 로그",
-            "공감 로그",
+            "저장 회상",
+            "공감 신호",
             "공개 흐름",
             "추천 단서",
             "전체 단서",
@@ -32,6 +32,8 @@ public sealed class RouteIdentitySmokeTests
         }
 
         Assert.DoesNotContain("내 공개 로그", navMenu);
+        Assert.DoesNotContain("저장 로그", navMenu);
+        Assert.DoesNotContain("공감 로그", navMenu);
 
         foreach (var href in new[]
         {
@@ -74,8 +76,8 @@ public sealed class RouteIdentitySmokeTests
         var routes = new[]
         {
             ("Profile.razor", "/me", "내 지식 로그 흐름"),
-            ("MyBookmarks.razor", "/me/bookmarks", "저장 로그"),
-            ("MyLikes.razor", "/me/likes", "공감 로그"),
+            ("MyBookmarks.razor", "/me/bookmarks", "저장 회상 흐름"),
+            ("MyLikes.razor", "/me/likes", "공감 신호 흐름"),
             ("Settings.razor", "/me/settings", "연결"),
             ("LlmWiki.razor", "/me/llm-wiki", "LLM Wiki 기억 연결"),
             ("LlmWikiSearch.razor", "/me/llm-wiki/search", "의미 회상"),

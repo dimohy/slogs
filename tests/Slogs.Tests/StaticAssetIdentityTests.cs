@@ -34,6 +34,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("aria-label=\"전역 의미 회상어 입력\"", mainLayout);
         Assert.Contains("title=\"의미 회상\"", mainLayout);
         Assert.Contains("aria-label=\"지식 로그 도구\"", mainLayout);
+        Assert.Contains("href=\"/me\">내 지식 로그", mainLayout);
         Assert.Contains("aria-label=\"지식 로그 흐름 메뉴 열기\"", mainLayout);
         Assert.Contains("aria-label=\"지식 로그 흐름 메뉴 닫기\"", mainLayout);
         Assert.Contains(">흐름 메뉴</span>", mainLayout);
@@ -43,6 +44,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("운영 흐름으로 전환", mainLayout);
         Assert.Contains("슬로거 흐름으로 돌아가기", mainLayout);
         Assert.Contains(">운영 흐름</div>", navMenu);
+        Assert.DoesNotContain("href=\"/me\">내 로그", mainLayout);
         Assert.DoesNotContain("placeholder=\"회상어\"", mainLayout);
         Assert.DoesNotContain("aria-label=\"전역 회상어 입력\"", mainLayout);
         Assert.DoesNotContain("aria-label=\"header actions\"", mainLayout);
@@ -1242,29 +1244,35 @@ public sealed class StaticAssetIdentityTests
             Assert.DoesNotContain("GetPostUrl(post)}#comments", page);
         }
 
-        Assert.Contains("저장 로그", bookmarksPage);
+        Assert.Contains("저장 회상 흐름", bookmarksPage);
         Assert.Contains("내가 저장한 slogs 로그 흐름을 다시 회상하고 이어 읽습니다.", bookmarksPage);
         Assert.Contains("저장한 판단 단서를 따라 다시 이어 읽을 로그 흐름을 모아봅니다.", bookmarksPage);
-        Assert.Contains("모든 저장 로그 흐름을 불러왔습니다.", bookmarksPage);
-        Assert.Contains("저장 로그 흐름에서 제거되었습니다.", bookmarksPage);
-        Assert.Contains("저장 로그 흐름에 추가되었습니다.", bookmarksPage);
-        Assert.Contains("저장 해제", bookmarksPage);
-        Assert.Contains("공감 로그", likesPage);
+        Assert.Contains("모든 저장 회상 흐름을 불러왔습니다.", bookmarksPage);
+        Assert.Contains("저장 회상 흐름에서 제거되었습니다.", bookmarksPage);
+        Assert.Contains("저장 회상 흐름에 추가되었습니다.", bookmarksPage);
+        Assert.Contains("저장 회상 해제", bookmarksPage);
+        Assert.Contains("공감 신호 흐름", likesPage);
         Assert.Contains("내가 공감한 slogs 로그 흐름을 다시 따라갑니다.", likesPage);
         Assert.Contains("내 판단에 남은 공감 신호의 로그 흐름을 모아봅니다.", likesPage);
-        Assert.Contains("모든 공감 로그 흐름을 불러왔습니다.", likesPage);
+        Assert.Contains("새 공감 신호순", likesPage);
+        Assert.Contains("모든 공감 신호 흐름을 불러왔습니다.", likesPage);
         Assert.Contains("공감 신호 흐름에서 해제되었습니다.", likesPage);
         Assert.Contains("공감 신호 흐름에 추가되었습니다.", likesPage);
-        Assert.Contains("공감 해제", likesPage);
+        Assert.Contains("공감 신호 해제", likesPage);
 
+        Assert.DoesNotContain("저장 로그", bookmarksPage);
         Assert.DoesNotContain("내가 저장한 slogs 로그를 다시 확인합니다.", bookmarksPage);
         Assert.DoesNotContain("다시 이어 읽을 로그를 모아봅니다.", bookmarksPage);
         Assert.DoesNotContain("모든 저장 로그를 불러왔습니다.", bookmarksPage);
         Assert.DoesNotContain("저장 로그에서 제거되었습니다.", bookmarksPage);
         Assert.DoesNotContain("저장 로그에 추가되었습니다.", bookmarksPage);
+        Assert.DoesNotContain("저장 상태 변경에 실패했습니다.", bookmarksPage);
+        Assert.DoesNotContain("공감 로그", likesPage);
+        Assert.DoesNotContain("새 공감순", likesPage);
         Assert.DoesNotContain("내가 공감한 slogs 로그를 확인합니다.", likesPage);
         Assert.DoesNotContain("내가 공감한 로그 흐름을 모아봅니다.", likesPage);
         Assert.DoesNotContain("모든 공감 로그를 불러왔습니다.", likesPage);
+        Assert.DoesNotContain("공감 해제 중...", likesPage);
         Assert.DoesNotContain("공감 신호가 해제되었습니다.", likesPage);
         Assert.DoesNotContain("공감 신호가 추가되었습니다.", likesPage);
     }
@@ -1286,7 +1294,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("기억에서 회상", profilePage);
         Assert.DoesNotContain("아직 남긴 로그가 없습니다.", profilePage);
 
-        Assert.Contains("아직 저장 로그 흐름이 없습니다.", bookmarksPage);
+        Assert.Contains("아직 저장 회상 흐름이 없습니다.", bookmarksPage);
         Assert.Contains("공개 흐름에서 다시 이어 읽을 로그", bookmarksPage);
         Assert.Contains("href=\"/post\"", bookmarksPage);
         Assert.Contains("공개 로그 흐름", bookmarksPage);
@@ -1294,7 +1302,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("단서 회상", bookmarksPage);
         Assert.DoesNotContain("저장한 로그가 없습니다.", bookmarksPage);
 
-        Assert.Contains("아직 공감 로그 흐름이 없습니다.", likesPage);
+        Assert.Contains("아직 공감 신호 흐름이 없습니다.", likesPage);
         Assert.Contains("공감 신호", likesPage);
         Assert.Contains("href=\"/recommended\"", likesPage);
         Assert.Contains("추천 회상", likesPage);
@@ -1467,7 +1475,7 @@ public sealed class StaticAssetIdentityTests
         var loginPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "Login.razor"));
 
         Assert.Contains("지식 로그로 돌아가기", loginPage);
-        Assert.Contains("내 비공개 기억, 게시전 로그, 저장 로그와 공감 로그", loginPage);
+        Assert.Contains("내 비공개 기억, 게시전 기억, 저장 회상 흐름과 공감 신호 흐름", loginPage);
         Assert.Contains("슬로거 홈 @주소", loginPage);
         Assert.Contains("로그 흐름으로 돌아가기", loginPage);
         Assert.Contains("Google로 지식 로그 이어가기", loginPage);
@@ -1477,6 +1485,8 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("아이디와 비밀번호", loginPage);
         Assert.DoesNotContain("공개 @주소", loginPage);
         Assert.DoesNotContain("회원가입", loginPage);
+        Assert.DoesNotContain("저장 로그와 공감 로그", loginPage);
+        Assert.DoesNotContain("저장/공감 흐름", loginPage);
     }
 
     [Fact]
