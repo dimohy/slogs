@@ -263,6 +263,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("aria-label=\"슬로거 홈 흐름 요약\"", adminUsersPage);
         Assert.Contains(">등록 슬로거</div>", adminUsersPage);
         Assert.Contains(">로그 흐름</div>", adminUsersPage);
+        Assert.Contains(">공개 공유 노드</div>", adminUsersPage);
         Assert.Contains(">@@name 정리 후보</div>", adminUsersPage);
         Assert.Contains("placeholder=\"슬로거 단서\"", adminUsersPage);
         Assert.Contains("aria-label=\"슬로거 단서 입력\"", adminUsersPage);
@@ -349,6 +350,7 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain(">사용자 관리</a>", adminUsersPage);
         Assert.DoesNotContain("aria-label=\"사용자 요약\"", adminUsersPage);
         Assert.DoesNotContain(">가입 사용자</div>", adminUsersPage);
+        Assert.DoesNotContain(">공개 로그</div>", adminUsersPage);
         Assert.DoesNotContain("placeholder=\"사용자 단서\"", adminUsersPage);
         Assert.DoesNotContain("aria-label=\"사용자 단서 입력\"", adminUsersPage);
         Assert.DoesNotContain("placeholder=\"LLM Wiki 사용자 단서\"", adminUsersPage);
