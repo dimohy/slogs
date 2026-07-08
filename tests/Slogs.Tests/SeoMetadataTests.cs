@@ -12,8 +12,10 @@ public sealed class SeoMetadataTests
         var lines = robots.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
         Assert.DoesNotContain("Disallow: /feed", lines);
+        Assert.Contains("# Full knowledge-log Markdown flow: https://slogs.dev/llms-full.txt", lines);
         Assert.Contains("# RSS knowledge-log flow: https://slogs.dev/feed.xml", lines);
         Assert.Contains("# JSON knowledge-log flow: https://slogs.dev/feed.json", lines);
+        Assert.DoesNotContain("# Full LLM Markdown export: https://slogs.dev/llms-full.txt", lines);
         Assert.DoesNotContain("# RSS feed: https://slogs.dev/feed.xml", lines);
         Assert.DoesNotContain("# JSON feed: https://slogs.dev/feed.json", lines);
     }
@@ -59,7 +61,11 @@ public sealed class SeoMetadataTests
         Assert.Contains("Slogger home recall paths", llmsText);
         Assert.Contains("RSS knowledge-log flow", llmsText);
         Assert.Contains("Public sharing nodes in RSS format.", llmsText);
-        Assert.Contains("public knowledge-log Markdown export", llmsFullText);
+        Assert.Contains("AI-readable knowledge flow", llmsText);
+        Assert.Contains("Full public knowledge-log flow", llmsText);
+        Assert.Contains("Single Markdown flow containing the current public knowledge-log corpus.", llmsText);
+        Assert.Contains("public knowledge-log Markdown flow", llmsFullText);
+        Assert.Contains("Current public Markdown flow for slogs.", llmsFullText);
         Assert.Contains("- Public sharing node: https://slogs.dev/@devin/verified-flow-log", postMarkdown);
         Assert.Contains("- Markdown recall node: https://slogs.dev/@devin/verified-flow-log.md", postMarkdown);
         Assert.Contains("- Slogger home: @devin", postMarkdown);
@@ -83,6 +89,9 @@ public sealed class SeoMetadataTests
         Assert.DoesNotContain("public logs.", llmsText);
         Assert.DoesNotContain("RSS feed", llmsText);
         Assert.DoesNotContain("Latest public logs", llmsText);
+        Assert.DoesNotContain("AI-readable exports", llmsText);
+        Assert.DoesNotContain("Full public Markdown export", llmsText);
+        Assert.DoesNotContain("Markdown export", llmsFullText);
         Assert.DoesNotContain("- Canonical URL:", postMarkdown);
         Assert.DoesNotContain("- Markdown URL:", postMarkdown);
         Assert.DoesNotContain("- Shared:", postMarkdown);

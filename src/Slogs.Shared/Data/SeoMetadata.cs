@@ -65,7 +65,7 @@ public static class SeoMetadata
             "Disallow: /register",
             $"Sitemap: {sitemapUrl}",
             $"# LLM guide: {llmsUrl}",
-            $"# Full LLM Markdown export: {llmsFullUrl}",
+            $"# Full knowledge-log Markdown flow: {llmsFullUrl}",
             $"# RSS knowledge-log flow: {rssUrl}",
             $"# Atom knowledge-log flow: {atomUrl}",
             $"# JSON knowledge-log flow: {jsonFeedUrl}",
@@ -341,9 +341,9 @@ public static class SeoMetadata
         builder.AppendLine($"Canonical site: {EscapedAbsoluteUrl(baseUri, "/")}");
         builder.AppendLine("Only public shared knowledge-log nodes are exposed here. Authenticated memory, pre-publish notes, editor routes, and account pages are intentionally excluded.");
         builder.AppendLine();
-        builder.AppendLine("## AI-readable exports");
+        builder.AppendLine("## AI-readable knowledge flow");
         builder.AppendLine();
-        AppendMarkdownLink(builder, "Full public Markdown export", EscapedAbsoluteUrl(baseUri, "/llms-full.txt"), "Single Markdown export containing the current public knowledge-log corpus.");
+        AppendMarkdownLink(builder, "Full public knowledge-log flow", EscapedAbsoluteUrl(baseUri, "/llms-full.txt"), "Single Markdown flow containing the current public knowledge-log corpus.");
         AppendMarkdownLink(builder, "Sitemap", EscapedAbsoluteUrl(baseUri, "/sitemap.xml"), "Complete public URL set for conventional crawlers.");
         AppendMarkdownLink(builder, "Robots", EscapedAbsoluteUrl(baseUri, "/robots.txt"), "Crawler access guidance.");
         AppendMarkdownLink(builder, "RSS knowledge-log flow", EscapedAbsoluteUrl(baseUri, "/feed.xml"), "Public sharing nodes in RSS format.");
@@ -399,9 +399,9 @@ public static class SeoMetadata
             .ToList();
 
         var builder = new StringBuilder();
-        builder.AppendLine("# slogs public knowledge-log Markdown export");
+        builder.AppendLine("# slogs public knowledge-log Markdown flow");
         builder.AppendLine();
-        builder.AppendLine("> Current public Markdown export for slogs. The site is primarily Korean and shares developer-focused knowledge logs, Slogs MCP guidance, and LLM Wiki related content.");
+        builder.AppendLine("> Current public Markdown flow for slogs. The site is primarily Korean and connects developer-focused knowledge logs, Slogs MCP guidance, and LLM Wiki memory context.");
         builder.AppendLine();
         builder.AppendLine($"Canonical site: {EscapedAbsoluteUrl(baseUri, "/")}");
         builder.AppendLine($"Source index: {EscapedAbsoluteUrl(baseUri, "/llms.txt")}");
