@@ -1288,6 +1288,9 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("FormatLogNodeCount(totalCount)", homePage);
         Assert.Contains("GetFlowScopeLabel()", homePage);
         Assert.Contains("개 로그 노드", homePage);
+        Assert.Contains(">의미 회상</a>", homePage);
+        Assert.Contains("의미가 이어진 로그", homePage);
+        Assert.Contains("회상 접근, 대화 흔적, 공감 신호, 단서, 시리즈가 겹치는 다음 의미 경로를 따라갑니다.", homePage);
         Assert.Contains("의미 회상", homePage);
         Assert.Contains("사람과 AI가 이어 쓰는 공개 지식 로그 흐름입니다.", homePage);
         Assert.Contains("의미 회상 흐름 | slogs", homePage);
@@ -1306,6 +1309,9 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("의미 회상 결과 | slogs", homePage);
         Assert.DoesNotContain("회상 결과가 없습니다.", homePage);
         Assert.DoesNotContain("slogs에서 {GetDisplayedQuery()} 의미 회상 결과를 확인합니다.", homePage);
+        Assert.DoesNotContain("추천 회상", homePage);
+        Assert.DoesNotContain("의미로 추천된 로그", homePage);
+        Assert.DoesNotContain("이어 읽을 로그를 고릅니다.", homePage);
     }
 
     [Fact]
@@ -1625,9 +1631,10 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("아직 공감 신호 흐름이 없습니다.", likesPage);
         Assert.Contains("공감 신호", likesPage);
         Assert.Contains("href=\"/recommended\"", likesPage);
-        Assert.Contains("추천 회상", likesPage);
+        Assert.Contains("의미 회상", likesPage);
         Assert.Contains("href=\"/post\"", likesPage);
         Assert.DoesNotContain("공감한 로그가 없습니다.", likesPage);
+        Assert.DoesNotContain("추천 회상", likesPage);
     }
 
     [Fact]
