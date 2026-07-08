@@ -1001,19 +1001,19 @@ public sealed class LlmWikiService(
     {
         if (results.Count == 0)
         {
-            return "No matching LLM Wiki entries.";
+            return "No matching LLM Wiki recall candidates.";
         }
 
         var builder = new StringBuilder();
-        builder.AppendLine("# LLM Wiki Search Results");
+        builder.AppendLine("# LLM Wiki Recall Candidates");
         builder.AppendLine();
 
         foreach (var result in results)
         {
-            var tags = result.Tags.Count == 0 ? string.Empty : $" Tags: {string.Join(", ", result.Tags)}.";
-            var relevance = result.RelevancePercent is null ? string.Empty : $" ({result.RelevancePercent}% relevance)";
-            var visibility = result.IsPublic ? " public" : string.Empty;
-            builder.AppendLine($"- `{result.Id}` [{result.CategoryPath}]{visibility} {result.Title}{relevance}: {result.Summary}{tags}");
+            var tags = result.Tags.Count == 0 ? string.Empty : $" Memory clues: {string.Join(", ", result.Tags)}.";
+            var relevance = result.RelevancePercent is null ? string.Empty : $" ({result.RelevancePercent}% recall relevance)";
+            var visibility = result.IsPublic ? " public memory" : string.Empty;
+            builder.AppendLine($"- Recall candidate `{result.Id}` [{result.CategoryPath}]{visibility} {result.Title}{relevance}: {result.Summary}{tags}");
         }
 
         return builder.ToString();

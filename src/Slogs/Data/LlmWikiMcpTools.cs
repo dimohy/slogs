@@ -77,7 +77,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         builder.AppendLine("No memory was created or updated by this tool.");
         builder.AppendLine();
         builder.AppendLine("Next action:");
-        builder.AppendLine("- If a related entry below matches, call `llm_wiki_read`, compose the final merged wording, then call `llm_wiki_merge` or `llm_wiki_update`.");
+        builder.AppendLine("- If a related recall candidate below matches, call `llm_wiki_read`, compose the final merged wording, then call `llm_wiki_merge` or `llm_wiki_update`.");
         builder.AppendLine("- Choose an explicit `categoryPath` such as `project/domain/topic` before remember, merge, or update when the project/topic is known.");
         builder.AppendLine("- If none match and the information is durable tacit knowledge, call `llm_wiki_remember` with that `categoryPath`.");
         builder.AppendLine("- Raw prompt/content/title/tags/categoryPath submitted through remember, merge, and update are preserved as Raw Provenance for later audit; do not remove prior raw evidence when composing merged wording.");
@@ -90,7 +90,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         AppendRetrievalDiagnostics(
             builder,
             "llm_wiki_capture",
-            "related summary candidates",
+            "related recall candidates",
             stopwatch.Elapsed,
             results.Count,
             limit,
@@ -100,7 +100,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         return await RecordAuditAndReturnAsync(
             user,
             "llm_wiki_capture",
-            "related summary candidates",
+            "related recall candidates",
             stopwatch.Elapsed,
             response,
             query,
@@ -111,10 +111,10 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
     }
 
     [McpServerTool(Name = "llm_wiki_find_related")]
-    [Description("Find related user-scoped LLM Wiki entries before storing or merging memory. Use this before llm_wiki_remember unless llm_wiki_capture was already called.")]
+    [Description("Find related user-scoped LLM Wiki recall candidates before storing or merging memory. Use this before llm_wiki_remember unless llm_wiki_capture was already called.")]
     public async Task<string> FindRelatedAsync(
-        [Description("Search text built from the current prompt, proposed memory, tags, and implementation result.")] string query,
-        [Description("Maximum number of related entries to return.")] int limit = 5)
+        [Description("Recall text built from the current prompt, proposed memory, tags, and implementation result.")] string query,
+        [Description("Maximum number of related recall candidates to return.")] int limit = 5)
     {
         var user = RequireUser();
         var safeLimit = NormalizeMcpLimit(limit, 5, 10);
@@ -126,7 +126,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         AppendRetrievalDiagnostics(
             builder,
             "llm_wiki_find_related",
-            "related summary candidates",
+            "related recall candidates",
             stopwatch.Elapsed,
             results.Count,
             limit,
@@ -136,7 +136,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         return await RecordAuditAndReturnAsync(
             user,
             "llm_wiki_find_related",
-            "related summary candidates",
+            "related recall candidates",
             stopwatch.Elapsed,
             response,
             query,
@@ -147,12 +147,12 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
     }
 
     [McpServerTool(Name = "llm_wiki_search")]
-    [Description("Search the authenticated user's LLM Wiki with compact summary results. Start here for broad recall-candidate selection, category filtering, and low-token retrieval.")]
+    [Description("Search the authenticated user's LLM Wiki with compact recall-candidate summaries. Start here for broad recall-candidate selection, category filtering, and low-token retrieval.")]
     public async Task<string> SearchAsync(
-        [Description("Search terms. Leave empty to return recent entries.")] string? query = null,
-        [Description("Maximum number of entries to return.")] int limit = 10,
+        [Description("Recall terms. Leave empty to return recent memory candidates.")] string? query = null,
+        [Description("Maximum number of recall candidates to return.")] int limit = 10,
         [Description("Optional hierarchical category path. Matching includes descendants.")] string? categoryPath = null,
-        [Description("Minimum relevance percent for GraphRAG matches. Raise this when results are too broad or unrelated.")] int minRelevancePercent = 50)
+        [Description("Minimum recall relevance percent for GraphRAG matches. Raise this when recall candidates are too broad or unrelated.")] int minRelevancePercent = 50)
     {
         var user = RequireUser();
         var safeLimit = NormalizeMcpLimit(limit, 10, 10);
@@ -170,7 +170,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         AppendRetrievalDiagnostics(
             builder,
             "llm_wiki_search",
-            "compact summaries",
+            "recall candidate summaries",
             stopwatch.Elapsed,
             results.Count,
             limit,
@@ -182,7 +182,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         return await RecordAuditAndReturnAsync(
             user,
             "llm_wiki_search",
-            "compact summaries",
+            "recall candidate summaries",
             stopwatch.Elapsed,
             response,
             query,
@@ -195,9 +195,9 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
     }
 
     [McpServerTool(Name = "llm_wiki_recent")]
-    [Description("List recent LLM Wiki entries for the authenticated user.")]
+    [Description("Return recent LLM Wiki recall candidates for the authenticated user.")]
     public async Task<string> RecentAsync(
-        [Description("Maximum number of recent entries to return.")] int limit = 10,
+        [Description("Maximum number of recent recall candidates to return.")] int limit = 10,
         [Description("Optional hierarchical category path. Matching includes descendants.")] string? categoryPath = null)
     {
         var user = RequireUser();
@@ -210,7 +210,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         AppendRetrievalDiagnostics(
             builder,
             "llm_wiki_recent",
-            "compact recent summaries",
+            "recent recall candidates",
             stopwatch.Elapsed,
             results.Count,
             limit,
@@ -220,7 +220,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         return await RecordAuditAndReturnAsync(
             user,
             "llm_wiki_recent",
-            "compact recent summaries",
+            "recent recall candidates",
             stopwatch.Elapsed,
             response,
             categoryPath: categoryPath,
@@ -324,10 +324,10 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
     [Description("Make matching authenticated-user LLM Wiki entries public. Use only after the user explicitly asks to disclose that topic to everyone.")]
     public async Task<string> MakePublicAsync(
         [Description("The user's explicit publication request, such as '내 종교 및 신앙관을 모든 사람이 알 수 있게 해줘'.")] string explicitRequest,
-        [Description("Search terms for the owned LLM Wiki entries to publish. Use the topic named in the explicit request.")] string query,
+        [Description("Recall terms for the owned LLM Wiki entries to publish. Use the topic named in the explicit request.")] string query,
         [Description("Maximum number of matching entries to publish.")] int limit = 5,
         [Description("Optional hierarchical category path. Matching includes descendants.")] string? categoryPath = null,
-        [Description("Minimum relevance percent for GraphRAG matches. Raise this when results are too broad or unrelated.")] int minRelevancePercent = 50)
+        [Description("Minimum recall relevance percent for GraphRAG matches. Raise this when recall candidates are too broad or unrelated.")] int minRelevancePercent = 50)
     {
         var user = RequireUser();
         var safeLimit = NormalizeMcpLimit(limit, 5, 10);
@@ -345,7 +345,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         var builder = new StringBuilder();
         if (entries.Count == 0)
         {
-            builder.AppendLine("No matching owned LLM Wiki entries were found, so nothing was made public.");
+            builder.AppendLine("No matching owned LLM Wiki recall candidates were found, so nothing was made public.");
         }
         else
         {
@@ -355,7 +355,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
             builder.AppendLine();
             foreach (var entry in entries)
             {
-                var tags = entry.Tags.Count == 0 ? string.Empty : $" Tags: {string.Join(", ", entry.Tags)}.";
+                var tags = entry.Tags.Count == 0 ? string.Empty : $" Memory clues: {string.Join(", ", entry.Tags)}.";
                 var publishedAt = entry.PublishedAt is null ? string.Empty : $" PublishedAt: {entry.PublishedAt:O}.";
                 builder.AppendLine($"- `{entry.Id}` [{entry.CategoryPath}] {entry.Title}.{publishedAt}{tags}");
             }
@@ -364,7 +364,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         AppendRetrievalDiagnostics(
             builder,
             "llm_wiki_make_public",
-            "public visibility update",
+            "public memory-sharing update",
             stopwatch.Elapsed,
             entries.Count,
             limit,
@@ -376,7 +376,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         return await RecordAuditAndReturnAsync(
             user,
             "llm_wiki_make_public",
-            "public visibility update",
+            "public memory-sharing update",
             stopwatch.Elapsed,
             response,
             query,
@@ -389,11 +389,11 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
     }
 
     [McpServerTool(Name = "llm_wiki_recall")]
-    [Description("Recall compact context memories for a user request. Use when applying prior decisions, preferences, or project context; use llm_wiki_search first when only selecting candidates.")]
+    [Description("Recall compact memory context for a user request. Use when applying prior decisions, preferences, or project context; use llm_wiki_search first when only selecting candidates.")]
     public async Task<string> RecallAsync(
         [Description("What the user wants to recall or the current task context.")] string query,
-        [Description("Maximum number of compact context entries to return.")] int limit = 3,
-        [Description("Minimum relevance percent for GraphRAG matches. Raise this when results are too broad or unrelated.")] int minRelevancePercent = 50)
+        [Description("Maximum number of compact memory-context entries to return.")] int limit = 3,
+        [Description("Minimum recall relevance percent for GraphRAG matches. Raise this when recall candidates are too broad or unrelated.")] int minRelevancePercent = 50)
     {
         var user = RequireUser();
         var safeLimit = NormalizeMcpLimit(limit, 3, 5);
@@ -408,11 +408,11 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         {
             stopwatch.Stop();
             var emptyBuilder = new StringBuilder();
-            emptyBuilder.AppendLine("No matching LLM Wiki entries.");
+            emptyBuilder.AppendLine("No matching LLM Wiki recall candidates.");
             AppendRetrievalDiagnostics(
                 emptyBuilder,
                 "llm_wiki_recall",
-                "compact context",
+                "compact recall context",
                 stopwatch.Elapsed,
                 0,
                 limit,
@@ -423,7 +423,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
             return await RecordAuditAndReturnAsync(
                 user,
                 "llm_wiki_recall",
-                "compact context",
+                "compact recall context",
                 stopwatch.Elapsed,
                 emptyResponse,
                 query,
@@ -435,7 +435,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         var builder = new StringBuilder();
         builder.AppendLine("# LLM Wiki Recall");
         builder.AppendLine();
-        builder.AppendLine("Recall returns compact context without Raw Provenance. Use `llm_wiki_read` on a selected id when you need the full entry and provenance.");
+        builder.AppendLine("Recall returns compact memory context without Raw Provenance. Use `llm_wiki_read` on a selected recall candidate when you need the full entry and provenance.");
         builder.AppendLine();
         var entriesById = await llmWikiService.GetEntriesAsync(
             user.UserName,
@@ -458,7 +458,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         AppendRetrievalDiagnostics(
             builder,
             "llm_wiki_recall",
-            "compact context",
+            "compact recall context",
             stopwatch.Elapsed,
             results.Count,
             limit,
@@ -469,7 +469,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         return await RecordAuditAndReturnAsync(
             user,
             "llm_wiki_recall",
-            "compact context",
+            "compact recall context",
             stopwatch.Elapsed,
             response,
             query,
@@ -481,13 +481,13 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
     }
 
     [McpServerTool(Name = "llm_wiki_public_search")]
-    [Description("Search owner-authorized public-memory entries published by a specified Slogs user such as @dimohy. When the user's question mentions @username and asks about that user's public memory context, use that handle as ownerUserName and the remaining topic words as query. Use for public self-disclosed sensitive topics such as religion or faith perspective. This never returns private entries or Raw Provenance.")]
+    [Description("Search owner-authorized public-memory recall candidates published by a specified Slogs user such as @dimohy. When the user's question mentions @username and asks about that user's public memory context, use that handle as ownerUserName and the remaining topic words as query. Use for public self-disclosed sensitive topics such as religion or faith perspective. This never returns private entries or Raw Provenance.")]
     public async Task<string> PublicSearchAsync(
         [Description("Target public LLM Wiki owner. Accepts handles like @dimohy or dimohy; @username in the user prompt should be passed here.")] string ownerUserName,
-        [Description("Search terms from the rest of the user's question after removing the @username handle. Leave empty to return recent public entries.")] string? query = null,
-        [Description("Maximum number of public entries to return.")] int limit = 10,
+        [Description("Recall terms from the rest of the user's question after removing the @username handle. Leave empty to return recent public-memory candidates.")] string? query = null,
+        [Description("Maximum number of public-memory recall candidates to return.")] int limit = 10,
         [Description("Optional hierarchical category path. Matching includes descendants.")] string? categoryPath = null,
-        [Description("Minimum relevance percent for GraphRAG matches. Raise this when results are too broad or unrelated.")] int minRelevancePercent = 50)
+        [Description("Minimum recall relevance percent for GraphRAG matches. Raise this when recall candidates are too broad or unrelated.")] int minRelevancePercent = 50)
     {
         var user = RequireUser();
         var targetOwner = RequirePublicOwner(ownerUserName);
@@ -512,7 +512,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         AppendRetrievalDiagnostics(
             builder,
             "llm_wiki_public_search",
-            "public memory summaries",
+            "public memory recall candidates",
             stopwatch.Elapsed,
             results.Count,
             limit,
@@ -524,7 +524,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         return await RecordAuditAndReturnAsync(
             user,
             "llm_wiki_public_search",
-            "public memory summaries",
+            "public memory recall candidates",
             stopwatch.Elapsed,
             response,
             query,
@@ -540,7 +540,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
     [Description("Return owner-authorized public-memory entries published by a specified Slogs user such as @dimohy. Use when a prompt asks for @username's public memory flow. This never returns private entries.")]
     public async Task<string> PublicListAsync(
         [Description("Target public LLM Wiki owner. Accepts handles like @dimohy or dimohy; @username in the user prompt should be passed here.")] string ownerUserName,
-        [Description("Maximum number of public entries to return.")] int limit = 10,
+        [Description("Maximum number of public-memory recall candidates to return.")] int limit = 10,
         [Description("Optional hierarchical category path. Matching includes descendants.")] string? categoryPath = null)
     {
         var user = RequireUser();
@@ -612,8 +612,8 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
     public async Task<string> PublicRecallAsync(
         [Description("Target public LLM Wiki owner. Accepts handles like @dimohy or dimohy; @username in the user prompt should be passed here.")] string ownerUserName,
         [Description("What public context to recall from the target user's LLM Wiki, usually the remaining topic words after removing @username from the prompt.")] string query,
-        [Description("Maximum number of compact public context entries to return.")] int limit = 3,
-        [Description("Minimum relevance percent for GraphRAG matches. Raise this when results are too broad or unrelated.")] int minRelevancePercent = 50)
+        [Description("Maximum number of compact public-memory context entries to return.")] int limit = 3,
+        [Description("Minimum recall relevance percent for GraphRAG matches. Raise this when recall candidates are too broad or unrelated.")] int minRelevancePercent = 50)
     {
         var user = RequireUser();
         var targetOwner = RequirePublicOwner(ownerUserName);
@@ -629,7 +629,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         {
             stopwatch.Stop();
             var emptyBuilder = new StringBuilder();
-            emptyBuilder.AppendLine($"No matching public memory entries for {FormatPublicOwner(targetOwner)}.");
+            emptyBuilder.AppendLine($"No matching public memory recall candidates for {FormatPublicOwner(targetOwner)}.");
             AppendRetrievalDiagnostics(
                 emptyBuilder,
                 "llm_wiki_public_recall",
@@ -807,13 +807,13 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
     {
         if (results.Count == 0)
         {
-            return "No related LLM Wiki entries found.";
+            return "No related LLM Wiki recall candidates found.";
         }
 
         var builder = new StringBuilder();
-        builder.AppendLine("# Related LLM Wiki Entries");
+        builder.AppendLine("# Related LLM Wiki Recall Candidates");
         builder.AppendLine();
-        builder.AppendLine("Read a matching entry with `llm_wiki_read` before merging or updating it.");
+        builder.AppendLine("Read a matching recall candidate with `llm_wiki_read` before merging or updating it.");
         builder.AppendLine();
         builder.Append(LlmWikiService.FormatSearchResultsMarkdown(results));
         return builder.ToString();
@@ -828,7 +828,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
     private static string FormatRecallEntryMarkdown(LlmWikiEntryResponse entry, int? relevancePercent)
     {
         var builder = new StringBuilder();
-        var relevance = relevancePercent is null ? string.Empty : $" ({relevancePercent}% relevance)";
+        var relevance = relevancePercent is null ? string.Empty : $" ({relevancePercent}% recall relevance)";
         builder.AppendLine($"## {entry.Title}{relevance}");
         builder.AppendLine();
         builder.AppendLine(entry.Summary);
@@ -836,7 +836,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         builder.AppendLine($"- id: {entry.Id}");
         builder.AppendLine($"- slug: {entry.Slug}");
         builder.AppendLine($"- updated: {entry.UpdatedAt:O}");
-        builder.AppendLine($"- visibility: {(entry.IsPublic ? "public" : "private")}");
+        builder.AppendLine($"- memoryVisibility: {(entry.IsPublic ? "public memory" : "private memory")}");
         if (entry.PublishedAt is not null)
         {
             builder.AppendLine($"- publishedAt: {entry.PublishedAt:O}");
@@ -845,7 +845,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         builder.AppendLine($"- category: {entry.CategoryPath}");
         if (entry.Tags.Count > 0)
         {
-            builder.AppendLine($"- tags: {string.Join(", ", entry.Tags)}");
+            builder.AppendLine($"- memoryClues: {string.Join(", ", entry.Tags)}");
         }
 
         builder.AppendLine();
@@ -886,7 +886,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
             builder.AppendLine($"- query: {TrimForMcp(query, 240).ReplaceLineEndings(" ")}");
         }
 
-        builder.AppendLine($"- results: {resultCount}");
+        builder.AppendLine($"- recallCandidates: {resultCount}");
         builder.AppendLine($"- requestedLimit: {requestedLimit}");
         builder.AppendLine($"- effectiveLimit: {effectiveLimit}");
         if (!string.IsNullOrWhiteSpace(categoryPath))
@@ -900,7 +900,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         }
 
         builder.AppendLine($"- elapsedMs: {Math.Round(elapsed.TotalMilliseconds)}");
-        builder.AppendLine("- audit: If the top results are unrelated, missing expected entries, too broad, too slow, or too large, refine query/categoryPath/limit/minRelevancePercent and mention the mismatch when it affects the task.");
+        builder.AppendLine("- audit: If the top recall candidates are unrelated, missing expected memory, too broad, too slow, or too large, refine query/categoryPath/limit/minRelevancePercent and mention the mismatch when it affects the task.");
     }
 
     private static string TrimForMcp(string value, int maxLength)

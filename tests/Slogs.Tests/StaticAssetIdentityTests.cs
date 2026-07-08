@@ -243,12 +243,25 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("public memory recall tool", llmWikiService);
         Assert.Contains("public memory recall tools", llmWikiService);
         Assert.Contains("public Slogs LLM Wiki memory", llmWikiService);
+        Assert.Contains("# LLM Wiki Recall Candidates", llmWikiService);
+        Assert.Contains("No matching LLM Wiki recall candidates.", llmWikiService);
+        Assert.Contains("Memory clues: {string.Join(\", \", result.Tags)}.", llmWikiService);
+        Assert.Contains("% recall relevance", llmWikiService);
+        Assert.Contains("Recall candidate `{result.Id}`", llmWikiService);
         Assert.Contains("broad recall-candidate selection", llmWikiMcpTools);
         Assert.Contains("public memory context", llmWikiMcpTools);
         Assert.Contains("Public Memory Recall Candidates", llmWikiMcpTools);
         Assert.Contains("Public Memory Flow", llmWikiMcpTools);
         Assert.Contains("Public Memory Recall", llmWikiMcpTools);
-        Assert.Contains("No matching public memory entries", llmWikiMcpTools);
+        Assert.Contains("No matching public memory recall candidates", llmWikiMcpTools);
+        Assert.Contains("# Related LLM Wiki Recall Candidates", llmWikiMcpTools);
+        Assert.Contains("Read a matching recall candidate with `llm_wiki_read`", llmWikiMcpTools);
+        Assert.Contains("compact recall context", llmWikiMcpTools);
+        Assert.Contains("recall candidate summaries", llmWikiMcpTools);
+        Assert.Contains("memoryVisibility", llmWikiMcpTools);
+        Assert.Contains("memoryClues", llmWikiMcpTools);
+        Assert.Contains("- recallCandidates: {resultCount}", llmWikiMcpTools);
+        Assert.Contains("top recall candidates", llmWikiMcpTools);
         Assert.DoesNotContain("public lookup tool", llmWikiService);
         Assert.DoesNotContain("public lookup tools", llmWikiService);
         Assert.DoesNotContain("public Slogs LLM Wiki information", llmWikiService);
@@ -258,6 +271,13 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("Public LLM Wiki Entries", llmWikiMcpTools);
         Assert.DoesNotContain("Public LLM Wiki Recall", llmWikiMcpTools);
         Assert.DoesNotContain("public compact context", llmWikiMcpTools);
+        Assert.DoesNotContain("No related LLM Wiki entries found.", llmWikiMcpTools);
+        Assert.DoesNotContain("# Related LLM Wiki Entries", llmWikiMcpTools);
+        Assert.DoesNotContain("related summary candidates", llmWikiMcpTools);
+        Assert.DoesNotContain("compact summaries", llmWikiMcpTools);
+        Assert.DoesNotContain("% relevance", llmWikiMcpTools);
+        Assert.DoesNotContain("- results: {resultCount}", llmWikiMcpTools);
+        Assert.DoesNotContain("top results", llmWikiMcpTools);
     }
 
     [Fact]
