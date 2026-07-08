@@ -117,6 +117,20 @@ else
                         <p class="text-xs font-semibold text-slate-500">@($"{results.Count}개 기억 회상 중")</p>
                     </div>
 
+                    <section class="slogs-home-flowline" aria-label="LLM Wiki 기억 회상 흐름 신호" data-llm-wiki-recall-flowline="true">
+                        <div class="min-w-0">
+                            <p class="text-xs font-bold text-slate-500">현재 기억 회상 흐름</p>
+                            <h4 class="text-base font-bold text-slate-950 sm:text-lg">@GetRecallFlowTitle()</h4>
+                            <p class="mt-1 text-sm text-slate-600">@GetRecallFlowDescription()</p>
+                        </div>
+                        <div class="slogs-home-flowline__signals" aria-label="기억에서 공개 로그까지 이어지는 흐름 신호">
+                            <span>@FormatVisibleMemoryNodeCount()</span>
+                            <span>@GetRecallScopeSignal()</span>
+                            <span>@GetDraftBridgeSignal()</span>
+                            <span>검토 후 공개 로그 흐름</span>
+                        </div>
+                    </section>
+
                     @if (results.Count == 0)
                     {
                         <p class="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">@GetEmptyMessage()</p>
@@ -546,6 +560,39 @@ else
             ? "아직 이어 쓸 비공개 기억이 없습니다."
             : $"\"{activeSearchQuery}\" 의미 회상에 이어진 기억이 없습니다.";
     }
+
+    private string GetRecallFlowTitle()
+        => string.IsNullOrWhiteSpace(activeSearchQuery)
+            ? "전체 기억 회상 흐름"
+            : $"\"{activeSearchQuery}\" 기억 회상 흐름";
+
+    private string GetRecallFlowDescription()
+        => "기억 후보를 소유자 전용 게시전 로그로 잇고, 검토 후 공개 로그 흐름을 결정합니다.";
+
+    private string FormatVisibleMemoryNodeCount()
+        => hasMoreResults
+            ? $"{results.Count:N0}개+ 회상 기억 노드"
+            : $"{results.Count:N0}개 회상 기억 노드";
+
+    private string GetRecallScopeSignal()
+    {
+        if (!string.IsNullOrWhiteSpace(activeCategoryPath) && !string.IsNullOrWhiteSpace(activeSearchQuery))
+        {
+            return "범주+의미 회상";
+        }
+
+        if (!string.IsNullOrWhiteSpace(activeCategoryPath))
+        {
+            return "기억 범주 흐름";
+        }
+
+        return string.IsNullOrWhiteSpace(activeSearchQuery)
+            ? "전체 기억 흐름"
+            : "의미 회상 흐름";
+    }
+
+    private string GetDraftBridgeSignal()
+        => results.Count == 0 ? "게시전 로그 연결 대기" : "게시전 로그 연결";
 
     private string GetResultButtonClass(LlmWikiSearchResult result)
     {

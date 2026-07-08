@@ -440,6 +440,19 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("전체 기억", llmWikiSearchPage);
         Assert.Contains("모든 기억 범주", llmWikiSearchPage);
         Assert.Contains("이어 쓸 기억 흐름", llmWikiSearchPage);
+        Assert.Contains("data-llm-wiki-recall-flowline=\"true\"", llmWikiSearchPage);
+        Assert.Contains("aria-label=\"LLM Wiki 기억 회상 흐름 신호\"", llmWikiSearchPage);
+        Assert.Contains("현재 기억 회상 흐름", llmWikiSearchPage);
+        Assert.Contains("GetRecallFlowTitle()", llmWikiSearchPage);
+        Assert.Contains("GetRecallFlowDescription()", llmWikiSearchPage);
+        Assert.Contains("FormatVisibleMemoryNodeCount()", llmWikiSearchPage);
+        Assert.Contains("GetRecallScopeSignal()", llmWikiSearchPage);
+        Assert.Contains("GetDraftBridgeSignal()", llmWikiSearchPage);
+        Assert.Contains("검토 후 공개 로그 흐름", llmWikiSearchPage);
+        Assert.Contains("회상 기억 노드", llmWikiSearchPage);
+        Assert.Contains("게시전 로그 연결", llmWikiSearchPage);
+        Assert.Contains("게시전 로그 연결 대기", llmWikiSearchPage);
+        Assert.Contains("범주+의미 회상", llmWikiSearchPage);
         Assert.Contains("개 기억 회상 중", llmWikiSearchPage);
         Assert.Contains("회 회상 접근", llmWikiSearchPage);
         Assert.Contains("공개 기억", llmWikiSearchPage);
@@ -467,6 +480,7 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("선택한 기억 범주에 이어 볼 기억이 없습니다.", llmWikiSearchPage);
         Assert.DoesNotContain("저장된 비공개 기억이 없습니다.", llmWikiSearchPage);
         Assert.DoesNotContain("회상된 기억이 없습니다.", llmWikiSearchPage);
+        Assert.DoesNotContain("검색 결과", llmWikiSearchPage);
     }
 
     [Fact]
