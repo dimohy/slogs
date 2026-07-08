@@ -164,7 +164,7 @@
                 return;
             }
 
-            profileError = MapProfileError(result.Error, result.Status == 401 ? "로그인이 필요합니다." : "홈 정체성 저장에 실패했습니다.");
+            profileError = MapProfileError(result.Error, result.Status == 401 ? "슬로거 홈 정체성을 바꾸려면 지식 로그 홈으로 돌아가야 합니다." : "홈 정체성 저장에 실패했습니다.");
         }
         catch (Exception)
         {

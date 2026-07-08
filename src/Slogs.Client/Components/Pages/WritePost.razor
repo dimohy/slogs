@@ -7,7 +7,7 @@
 
 @if (CurrentUser is null)
 {
-    <p class="rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">로그인이 필요합니다. <a class="font-semibold underline" href="@GetLoginHref()">로그인</a>해 주세요.</p>
+    <p class="rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">게시전 기억을 남기려면 내 지식 로그 흐름으로 돌아가야 합니다. <a class="font-semibold underline" href="@GetLoginHref()">지식 로그로 돌아가기</a></p>
 }
 else
 {
@@ -127,7 +127,7 @@ else
 
         if (CurrentUser is null)
         {
-            errorMessage = "로그인이 필요합니다.";
+            errorMessage = "게시전 기억을 남기려면 지식 로그 홈으로 돌아가야 합니다.";
             return;
         }
 

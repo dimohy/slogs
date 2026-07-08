@@ -1635,6 +1635,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("슬로거 홈 @주소와 비밀번호는 필수입니다.", registerPage);
         Assert.Contains("이미 사용 중인 슬로거 홈 @주소입니다.", registerPage);
         Assert.Contains("지식 로그 홈 생성 처리 중 오류가 발생했습니다.", registerPage);
+        Assert.Contains("이미 슬로거 홈이 있다면 <a class=\"font-semibold underline\" href=\"@GetLoginHref()\">지식 로그로 돌아가기</a>", registerPage);
         Assert.Contains("profileImageUrl", registerPage);
         Assert.Contains("bio = profileBio", registerPage);
         Assert.DoesNotContain("회원가입에 실패했습니다.", registerPage);
@@ -1664,6 +1665,9 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("슬로거 홈 @주소", loginPage);
         Assert.Contains("로그 흐름으로 돌아가기", loginPage);
         Assert.Contains("Google로 지식 로그 이어가기", loginPage);
+        Assert.Contains("Google 지식 로그 연결 설정이 아직 완료되지 않았습니다.", loginPage);
+        Assert.Contains("Google 지식 로그 연결에 실패했습니다.", loginPage);
+        Assert.Contains("Google 지식 로그 연결이 취소되었습니다.", loginPage);
         Assert.Contains("지식 로그 홈 만들기", loginPage);
         Assert.Contains("지식 로그 흐름으로 돌아가지 못했습니다.", loginPage);
         Assert.DoesNotContain(">아이디<", loginPage);
@@ -1672,6 +1676,58 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("회원가입", loginPage);
         Assert.DoesNotContain("저장 로그와 공감 로그", loginPage);
         Assert.DoesNotContain("저장/공감 흐름", loginPage);
+        Assert.DoesNotContain("Google 로그인", loginPage);
+        Assert.DoesNotContain("Google 계정 연결이 취소되었습니다.", loginPage);
+    }
+
+    [Fact]
+    public void PrivateLoginRequiredSurfacesUseKnowledgeLogReturnLanguage()
+    {
+        var writePage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "WritePost.razor"));
+        var editPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "EditPost.razor"));
+        var profilePage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "Profile.razor"));
+        var bookmarksPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "MyBookmarks.razor"));
+        var likesPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "MyLikes.razor"));
+        var llmWikiPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "LlmWiki.razor"));
+        var llmWikiSearchPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "LlmWikiSearch.razor"));
+        var settingsPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "Settings.razor"));
+        var adminUsersPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "AdminUsers.razor"));
+        var postDetailsPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "PostDetails.razor"));
+        var profileSettingsForm = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "ProfileSettingsForm.razor"));
+
+        Assert.Contains("게시전 기억을 남기려면 내 지식 로그 흐름으로 돌아가야 합니다.", writePage);
+        Assert.Contains("게시전 기억을 남기려면 지식 로그 홈으로 돌아가야 합니다.", writePage);
+        Assert.Contains("로그 흐름을 정리하려면 내 지식 로그 흐름으로 돌아가야 합니다.", editPage);
+        Assert.Contains("내 공개 공유 로그와 게시전 기억 흐름을 보려면 지식 로그 홈으로 돌아가야 합니다.", profilePage);
+        Assert.Contains("저장 회상 흐름을 다시 열려면 지식 로그 홈으로 돌아가야 합니다.", bookmarksPage);
+        Assert.Contains("저장 회상 흐름을 바꾸려면 지식 로그 홈으로 돌아가야 합니다.", bookmarksPage);
+        Assert.Contains("공감 신호 흐름을 다시 따라가려면 지식 로그 홈으로 돌아가야 합니다.", likesPage);
+        Assert.Contains("공감 신호 흐름을 바꾸려면 지식 로그 홈으로 돌아가야 합니다.", likesPage);
+        Assert.Contains("비공개 기억 연결면을 열려면 지식 로그 홈으로 돌아가야 합니다.", llmWikiPage);
+        Assert.Contains("비공개 기억을 회상하려면 지식 로그 홈으로 돌아가야 합니다.", llmWikiSearchPage);
+        Assert.Contains("슬로거 홈 정체성과 연결 권한을 보려면 지식 로그 홈으로 돌아가야 합니다.", settingsPage);
+        Assert.Contains("운영 흐름을 따라가려면 지식 로그 홈으로 돌아가야 합니다.", adminUsersPage);
+        Assert.Contains("이 로그 노드에 대화 흔적을 남기려면 지식 로그 홈으로 돌아가야 합니다.", postDetailsPage);
+        Assert.Contains("슬로거 홈 정체성을 바꾸려면 지식 로그 홈으로 돌아가야 합니다.", profileSettingsForm);
+
+        foreach (var privateSurface in new[]
+        {
+            writePage,
+            editPage,
+            profilePage,
+            bookmarksPage,
+            likesPage,
+            llmWikiPage,
+            llmWikiSearchPage,
+            settingsPage,
+            adminUsersPage,
+            postDetailsPage,
+            profileSettingsForm
+        })
+        {
+            Assert.DoesNotContain("로그인이 필요합니다.", privateSurface);
+            Assert.DoesNotContain("로그인</a>해 주세요", privateSurface);
+        }
     }
 
     [Fact]
