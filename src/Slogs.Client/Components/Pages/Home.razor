@@ -276,10 +276,10 @@ else
         else if (!string.IsNullOrWhiteSpace(Query) && allPosts.Count == 0)
         {
             displayedSearchMessage = IsFollowingFeed
-                ? $"이어 둔 로그 흐름에서 \"{GetDisplayedQuery()}\"에 대한 회상 결과가 없습니다."
+                ? $"이어 둔 로그 흐름에서 \"{GetDisplayedQuery()}\"와 이어지는 회상 흐름이 없습니다."
                 : UsesPeriodRecall && normalizedPeriod != "all"
-                    ? $"{GetPeriodLabel(normalizedPeriod)} \"{GetDisplayedQuery()}\"에 대한 회상 결과가 없습니다."
-                    : $"\"{GetDisplayedQuery()}\"에 대한 회상 결과가 없습니다.";
+                    ? $"{GetPeriodLabel(normalizedPeriod)} \"{GetDisplayedQuery()}\"와 이어지는 회상 흐름이 없습니다."
+                    : $"\"{GetDisplayedQuery()}\"와 이어지는 의미 회상 흐름이 없습니다.";
         }
         else if (string.IsNullOrWhiteSpace(Query) && UsesPeriodRecall && normalizedPeriod != "all" && allPosts.Count == 0)
         {

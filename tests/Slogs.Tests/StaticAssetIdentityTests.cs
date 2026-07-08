@@ -995,6 +995,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("@($\"{item.Count}개 로그\")", writerIndexPage);
         Assert.Contains("모든 슬로거 홈 흐름을 불러왔습니다.", writerIndexPage);
         Assert.Contains("공개 로그 흐름을 남긴 슬로거가 아직 없습니다.", writerIndexPage);
+        Assert.Contains("와 이어지는 슬로거 회상 흐름이 없습니다.", writerIndexPage);
         Assert.Contains("aria-label=\"슬로거 홈 흐름 신호\"", writerIndexPage);
         Assert.Contains("현재 홈 흐름", writerIndexPage);
         Assert.Contains("GetFlowStatusTitle()", writerIndexPage);
@@ -1010,6 +1011,7 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("(@item.Count)", writerIndexPage);
         Assert.DoesNotContain("모든 슬로거를 불러왔습니다.", writerIndexPage);
         Assert.DoesNotContain("공개 로그를 남긴 슬로거가 아직 없습니다.", writerIndexPage);
+        Assert.DoesNotContain("슬로거 회상 결과가 없습니다.", writerIndexPage);
     }
 
     [Fact]
@@ -1024,6 +1026,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("모든 단서 흐름을 불러왔습니다.", tagIndexPage);
         Assert.Contains("aria-label=\"단서 흐름 신호\"", tagIndexPage);
         Assert.Contains("현재 단서 흐름", tagIndexPage);
+        Assert.Contains("와 이어지는 단서 회상 흐름이 없습니다.", tagIndexPage);
         Assert.Contains("FormatClueCount(allTags.Count)", tagIndexPage);
         Assert.Contains("개 단서", tagIndexPage);
         Assert.Contains(">로그 시리즈</h1>", seriesIndexPage);
@@ -1032,6 +1035,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("모든 시리즈 흐름을 불러왔습니다.", seriesIndexPage);
         Assert.Contains("aria-label=\"로그 시리즈 흐름 신호\"", seriesIndexPage);
         Assert.Contains("현재 시리즈 흐름", seriesIndexPage);
+        Assert.Contains("와 이어지는 로그 시리즈 회상 흐름이 없습니다.", seriesIndexPage);
         Assert.Contains("FormatSeriesCount(allSeries.Count)", seriesIndexPage);
         Assert.Contains("개 로그 시리즈", seriesIndexPage);
 
@@ -1039,6 +1043,8 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain(">이름순</a>", seriesIndexPage);
         Assert.DoesNotContain("모든 단서를 불러왔습니다.", tagIndexPage);
         Assert.DoesNotContain("모든 로그 시리즈를 불러왔습니다.", seriesIndexPage);
+        Assert.DoesNotContain("단서 회상 결과가 없습니다.", tagIndexPage);
+        Assert.DoesNotContain("로그 시리즈 회상 결과가 없습니다.", seriesIndexPage);
         Assert.DoesNotContain("slogs의 반복 단서를 회상하고 이어지는 공개 로그 흐름을 확인합니다.", tagIndexPage);
         Assert.DoesNotContain("slogs의 로그 시리즈를 회상하고 시간과 의미로 이어진 흐름을 확인합니다.", seriesIndexPage);
     }
@@ -1061,6 +1067,8 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("사람과 AI가 이어 쓰는 공개 지식 로그 흐름입니다.", homePage);
         Assert.Contains("의미 회상 흐름 | slogs", homePage);
         Assert.Contains("slogs에서 {GetDisplayedQuery()}와 이어지는 의미 회상 흐름을 다시 따라갑니다.", homePage);
+        Assert.Contains("와 이어지는 의미 회상 흐름이 없습니다.", homePage);
+        Assert.Contains("와 이어지는 회상 흐름이 없습니다.", homePage);
 
         Assert.Contains(".slogs-home-flowline", appCss);
         Assert.Contains("border-top: 1px solid var(--theme-border);", appCss);
@@ -1071,6 +1079,7 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("slogs-home-hero", homePage);
         Assert.DoesNotContain("마케팅", homePage);
         Assert.DoesNotContain("의미 회상 결과 | slogs", homePage);
+        Assert.DoesNotContain("회상 결과가 없습니다.", homePage);
         Assert.DoesNotContain("slogs에서 {GetDisplayedQuery()} 의미 회상 결과를 확인합니다.", homePage);
     }
 
