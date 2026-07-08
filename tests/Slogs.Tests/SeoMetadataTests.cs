@@ -48,9 +48,12 @@ public sealed class SeoMetadataTests
 
         Assert.Contains("지식 로그 플랫폼", SeoMetadata.DefaultDescription);
         Assert.Contains("knowledge-log platform", llmsText);
-        Assert.Contains("Public logs", llmsText);
-        Assert.Contains("Clues", llmsText);
-        Assert.Contains("Log series", llmsText);
+        Assert.Contains("Only public shared knowledge-log nodes are exposed here.", llmsText);
+        Assert.Contains("Public knowledge-log flow", llmsText);
+        Assert.Contains("Public sharing node from @devin", llmsText);
+        Assert.Contains("Clue recall paths", llmsText);
+        Assert.Contains("Log-series recall paths", llmsText);
+        Assert.Contains("Slogger home recall paths", llmsText);
         Assert.Contains("public knowledge-log Markdown export", llmsFullText);
         Assert.Contains("\"@type\":\"CreativeWork\"", jsonLd);
         Assert.Contains("\"name\":\"검증 흐름을 남기는 로그\"", jsonLd);
@@ -62,6 +65,8 @@ public sealed class SeoMetadataTests
         Assert.DoesNotContain("개발 블로그 서비스", SeoMetadata.DefaultDescription);
         Assert.DoesNotContain("developer blogging service", llmsText);
         Assert.DoesNotContain("Public posts", llmsText);
+        Assert.DoesNotContain("Public Slogger directory", llmsText);
+        Assert.DoesNotContain("public logs.", llmsText);
         Assert.DoesNotContain("\"@type\":\"Article\"", jsonLd);
         Assert.DoesNotContain("BlogPosting", jsonLd);
     }

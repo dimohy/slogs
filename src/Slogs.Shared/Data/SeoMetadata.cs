@@ -335,7 +335,7 @@ public static class SeoMetadata
         builder.AppendLine();
         builder.AppendLine("Primary language: ko-KR.");
         builder.AppendLine($"Canonical site: {EscapedAbsoluteUrl(baseUri, "/")}");
-        builder.AppendLine("Only public, published content is listed here. Authenticated pages, drafts, editor routes, and account pages are intentionally excluded.");
+        builder.AppendLine("Only public shared knowledge-log nodes are exposed here. Authenticated memory, pre-publish notes, editor routes, and account pages are intentionally excluded.");
         builder.AppendLine();
         builder.AppendLine("## AI-readable exports");
         builder.AppendLine();
@@ -349,22 +349,22 @@ public static class SeoMetadata
         builder.AppendLine();
         builder.AppendLine("## Core pages");
         builder.AppendLine();
-        AppendMarkdownLink(builder, "Home", EscapedAbsoluteUrl(baseUri, "/"), "Latest public log stream and recall navigation.");
-        AppendMarkdownLink(builder, "Recent logs", EscapedAbsoluteUrl(baseUri, "/recent"), "Newest public logs.");
-        AppendMarkdownLink(builder, "Resonant logs", EscapedAbsoluteUrl(baseUri, "/trending"), "Public logs with strong response signals.");
-        AppendMarkdownLink(builder, "Recommended recall", EscapedAbsoluteUrl(baseUri, "/recommended"), "Recommended public logs.");
-        AppendMarkdownLink(builder, "Clues", EscapedAbsoluteUrl(baseUri, "/tag"), "Public clue discovery.");
-        AppendMarkdownLink(builder, "Log series", EscapedAbsoluteUrl(baseUri, "/series"), "Public log-series discovery.");
-        AppendMarkdownLink(builder, "Sloggers", EscapedAbsoluteUrl(baseUri, "/writer"), "Public Slogger directory.");
+        AppendMarkdownLink(builder, "Knowledge-log home", EscapedAbsoluteUrl(baseUri, "/"), "Public knowledge-log stream and meaning-recall navigation.");
+        AppendMarkdownLink(builder, "Recent public flow", EscapedAbsoluteUrl(baseUri, "/recent"), "Newest public sharing nodes.");
+        AppendMarkdownLink(builder, "Resonance recall flow", EscapedAbsoluteUrl(baseUri, "/trending"), "Public knowledge-log nodes with strong response signals.");
+        AppendMarkdownLink(builder, "Meaning recall flow", EscapedAbsoluteUrl(baseUri, "/recommended"), "Public knowledge-log nodes connected by meaning signals.");
+        AppendMarkdownLink(builder, "Clue flow entrances", EscapedAbsoluteUrl(baseUri, "/tag"), "Public clue recall paths.");
+        AppendMarkdownLink(builder, "Log-series flow entrances", EscapedAbsoluteUrl(baseUri, "/series"), "Public log-series recall paths.");
+        AppendMarkdownLink(builder, "Slogger home flows", EscapedAbsoluteUrl(baseUri, "/writer"), "Public Slogger home-flow recall.");
 
         if (publicPosts.Count > 0)
         {
             builder.AppendLine();
-            builder.AppendLine("## Public logs");
+            builder.AppendLine("## Public knowledge-log flow");
             builder.AppendLine();
             foreach (var post in publicPosts)
             {
-                var description = $"{NormalizePlainText(post.Summary, 260)} Shared {FormatDate(post.PublishedAt)} by @{post.Author}.";
+                var description = $"{NormalizePlainText(post.Summary, 260)} Public sharing node from @{post.Author}, shared {FormatDate(post.PublishedAt)}.";
                 if (post.Tags.Count > 0)
                 {
                     description += $" Clues: {string.Join(", ", post.Tags.Select(tag => $"#{tag}"))}.";
@@ -378,9 +378,9 @@ public static class SeoMetadata
             }
         }
 
-        AppendTopicSection(builder, "Clues", tagList.Select(tag => (tag.Tag, EscapedAbsoluteUrl(baseUri, $"/tag/{Uri.EscapeDataString(tag.Tag)}"), $"{tag.Count} public logs.")));
-        AppendTopicSection(builder, "Log series", seriesList.Select(item => (item.Series, EscapedAbsoluteUrl(baseUri, $"/series/{Uri.EscapeDataString(item.Series)}"), $"{item.Count} public logs.")));
-        AppendTopicSection(builder, "Sloggers", authorList.Select(author => ($"@{author.Author}", EscapedAbsoluteUrl(baseUri, WriterPath(author.Author)), $"{author.Count} public logs.")));
+        AppendTopicSection(builder, "Clue recall paths", tagList.Select(tag => (tag.Tag, EscapedAbsoluteUrl(baseUri, $"/tag/{Uri.EscapeDataString(tag.Tag)}"), $"{tag.Count} public knowledge-log nodes.")));
+        AppendTopicSection(builder, "Log-series recall paths", seriesList.Select(item => (item.Series, EscapedAbsoluteUrl(baseUri, $"/series/{Uri.EscapeDataString(item.Series)}"), $"{item.Count} public knowledge-log nodes.")));
+        AppendTopicSection(builder, "Slogger home recall paths", authorList.Select(author => ($"@{author.Author}", EscapedAbsoluteUrl(baseUri, WriterPath(author.Author)), $"{author.Count} public sharing nodes from this Slogger home.")));
 
         return builder.ToString();
     }
