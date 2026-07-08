@@ -56,8 +56,8 @@
                                 @if (CurrentUser.IsAdminMode)
                                 {
                                     <div class="border-b border-slate-100 px-4 py-2 text-xs leading-5 text-slate-500">
-                                        <span class="block font-bold text-slate-800">관리자 모드</span>
-                                        <span class="block">@($"원래 사용자 @{CurrentUser.AdminModeSourceUserName}")</span>
+                                        <span class="block font-bold text-slate-800">운영 흐름 모드</span>
+                                        <span class="block">@($"시작 슬로거 @{CurrentUser.AdminModeSourceUserName}")</span>
                                     </div>
                                 }
                                 <a class="block px-4 py-2 font-semibold text-slate-800 transition hover:bg-slate-100"
@@ -69,14 +69,14 @@
                                     <button class="block w-full px-4 py-2 text-left text-slate-700 transition hover:bg-slate-100"
                                             type="button"
                                             role="menuitem"
-                                            @onclick="EnterAdminMode">어드민 전환</button>
+                                            @onclick="EnterAdminMode">운영 흐름으로 전환</button>
                                 }
                                 @if (CurrentUser.CanExitAdminMode)
                                 {
                                     <button class="block w-full px-4 py-2 text-left text-slate-700 transition hover:bg-slate-100"
                                             type="button"
                                             role="menuitem"
-                                            @onclick="ExitAdminMode">일반 모드로 전환</button>
+                                            @onclick="ExitAdminMode">슬로거 흐름으로 돌아가기</button>
                                 }
                                 <a class="block px-4 py-2 text-slate-700 transition hover:bg-slate-100"
                                    href="/me/settings"

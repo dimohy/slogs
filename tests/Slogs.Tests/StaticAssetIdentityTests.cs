@@ -38,6 +38,11 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("aria-label=\"지식 로그 흐름 메뉴 닫기\"", mainLayout);
         Assert.Contains(">흐름 메뉴</span>", mainLayout);
         Assert.Contains("aria-label=\"지식 로그 흐름 메뉴\"", navMenu);
+        Assert.Contains("운영 흐름 모드", mainLayout);
+        Assert.Contains("시작 슬로거 @", mainLayout);
+        Assert.Contains("운영 흐름으로 전환", mainLayout);
+        Assert.Contains("슬로거 흐름으로 돌아가기", mainLayout);
+        Assert.Contains(">운영 흐름</div>", navMenu);
         Assert.DoesNotContain("placeholder=\"회상어\"", mainLayout);
         Assert.DoesNotContain("aria-label=\"전역 회상어 입력\"", mainLayout);
         Assert.DoesNotContain("aria-label=\"header actions\"", mainLayout);
@@ -45,6 +50,11 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("aria-label=\"메뉴 열기\"", mainLayout);
         Assert.DoesNotContain("aria-label=\"모바일 메뉴\"", mainLayout);
         Assert.DoesNotContain("aria-label=\"main menu\"", navMenu);
+        Assert.DoesNotContain("관리자 모드", mainLayout);
+        Assert.DoesNotContain("원래 사용자 @", mainLayout);
+        Assert.DoesNotContain("어드민 전환", mainLayout);
+        Assert.DoesNotContain("일반 모드로 전환", mainLayout);
+        Assert.DoesNotContain(">어드민</div>", navMenu);
     }
 
     [Fact]
