@@ -80,16 +80,20 @@ public sealed class StaticAssetIdentityTests
 
         Assert.DoesNotContain("Slogs 글", postMcpTools);
         Assert.Contains("Slogs 로그 업데이트에 실패했습니다.", postMcpTools);
-        Assert.Contains("Slogs 로그 삭제에 실패했습니다.", postMcpTools);
+        Assert.Contains("Slogs 로그 지우기에 실패했습니다.", postMcpTools);
         Assert.Contains("Slogs 로그 slug가 필요합니다.", postMcpTools);
         Assert.Contains("수정할 수 있는 Slogs 로그를 찾지 못했습니다.", postMcpTools);
         Assert.Contains("Saves a Markdown Slogs log before public sharing", postMcpTools);
         Assert.Contains("Pre-publish logs are visible only to the owner", postMcpTools);
         Assert.Contains("Share a Markdown Slogs log publicly", postMcpTools);
+        Assert.Contains("Remove an owned Slogs log flow by slug.", postMcpTools);
+        Assert.Contains("Owned Slogs log slug to remove.", postMcpTools);
         Assert.Contains("confirm public sharing before calling this", postMcpTools);
         Assert.Contains("Read an owned or public Slogs log by slug", postMcpTools);
         Assert.Contains("# Slogs Log Saved Before Public Sharing", postMcpTools);
         Assert.Contains("# Slogs Log Shared Publicly", postMcpTools);
+        Assert.Contains("# Slogs Log Flow Removed", postMcpTools);
+        Assert.Contains("- Removed slug:", postMcpTools);
         Assert.Contains("The log is a public Slogs log, not an LLM Wiki entry.", postMcpTools);
         Assert.Contains("Slogs log MCP call", postMcpTools);
         Assert.Contains("Slogs 공개 공유에는 로그 제목이 필요합니다.", postMcpTools);
@@ -105,6 +109,11 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("Slogs post MCP call", postMcpTools);
         Assert.DoesNotContain("Slogs 게시에는 제목", postMcpTools);
         Assert.DoesNotContain("Slogs 게시에는 Markdown", postMcpTools);
+        Assert.DoesNotContain("Slogs 로그 삭제에 실패했습니다.", postMcpTools);
+        Assert.DoesNotContain("Delete an owned Slogs log by slug.", postMcpTools);
+        Assert.DoesNotContain("Owned Slogs log slug to delete.", postMcpTools);
+        Assert.DoesNotContain("# Slogs Log Deleted", postMcpTools);
+        Assert.DoesNotContain("- Deleted slug:", postMcpTools);
         Assert.DoesNotContain("Status: {(post.IsDraft ? \"Pre-publish\" : \"Published\")}", postMcpTools);
         Assert.DoesNotContain("Former status: {(post.IsDraft ? \"Pre-publish\" : \"Publicly shared\")}", postMcpTools);
 

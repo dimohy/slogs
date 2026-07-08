@@ -147,9 +147,9 @@ public sealed class SlogsPostMcpTools(
     }
 
     [McpServerTool(Name = "slogs_post_delete")]
-    [Description("Delete an owned Slogs log by slug. Deletion uses the same BlogService path as the site UI, including tracked log image cleanup.")]
+    [Description("Remove an owned Slogs log flow by slug. Removal uses the same BlogService path as the site UI, including tracked log image cleanup.")]
     public async Task<string> DeleteAsync(
-        [Description("Owned Slogs log slug to delete.")] string slug)
+        [Description("Owned Slogs log slug to remove.")] string slug)
     {
         var user = RequireUser();
         var existing = await RequireOwnedPostAsync(slug, user);
@@ -157,7 +157,7 @@ public sealed class SlogsPostMcpTools(
         var deleted = await blogService.DeletePostAsync(slug, user.UserName);
         if (!deleted)
         {
-            throw new InvalidOperationException("Slogs 로그 삭제에 실패했습니다.");
+            throw new InvalidOperationException("Slogs 로그 지우기에 실패했습니다.");
         }
 
         return FormatDeletedPostMarkdown(existing, publicUrl);
@@ -317,9 +317,9 @@ public sealed class SlogsPostMcpTools(
     private static string FormatDeletedPostMarkdown(BlogPost post, string publicUrl)
     {
         var builder = new StringBuilder();
-        builder.AppendLine("# Slogs Log Deleted");
+        builder.AppendLine("# Slogs Log Flow Removed");
         builder.AppendLine();
-        builder.AppendLine($"- Deleted slug: `{post.Slug}`");
+        builder.AppendLine($"- Removed slug: `{post.Slug}`");
         builder.AppendLine($"- Former status: {(post.IsDraft ? "Before public sharing" : "Publicly shared")}");
         builder.AppendLine($"- Former URL: {publicUrl}");
         builder.AppendLine($"- Author: `@{post.Author}`");
