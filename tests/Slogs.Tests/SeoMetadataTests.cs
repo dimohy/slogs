@@ -107,6 +107,18 @@ public sealed class SeoMetadataTests
     }
 
     [Fact]
+    public void WebSiteJsonLdFramesSearchAsMeaningRecallFlow()
+    {
+        var jsonLd = SeoMetadata.WebSiteJsonLd("https://slogs.dev/");
+
+        Assert.Contains("\"@type\":\"SearchAction\"", jsonLd);
+        Assert.Contains("\"name\":\"Meaning recall\"", jsonLd);
+        Assert.Contains("\"description\":\"Recall public knowledge-log flow by meaning clue.\"", jsonLd);
+        Assert.Contains("\"target\":\"https://slogs.dev/?q={search_term_string}\"", jsonLd);
+        Assert.DoesNotContain("\"target\":\"https://slogs.dev/post?q={search_term_string}\"", jsonLd);
+    }
+
+    [Fact]
     public void PublicLogCollectionJsonLdExposesKnowledgeLogItemList()
     {
         var post = new BlogPost

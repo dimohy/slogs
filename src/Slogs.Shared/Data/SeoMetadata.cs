@@ -111,7 +111,9 @@ public static class SeoMetadata
             ["potentialAction"] = new Dictionary<string, object?>
             {
                 ["@type"] = "SearchAction",
-                ["target"] = AbsoluteUrl(baseUri, "/post?q={search_term_string}"),
+                ["name"] = "Meaning recall",
+                ["description"] = "Recall public knowledge-log flow by meaning clue.",
+                ["target"] = AbsoluteUrl(baseUri, "/?q={search_term_string}"),
                 ["queryInput"] = "required name=search_term_string"
             }
         });
