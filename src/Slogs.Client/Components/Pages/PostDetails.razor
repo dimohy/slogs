@@ -52,8 +52,9 @@ else
             <span class="post-detail-node-strip__label">@(post.IsDraft ? "게시전 지식 로그 노드" : "공개 지식 로그 노드")</span>
             <span>출처 @FormatUserName(post.Author)</span>
             <span>@(post.IsDraft ? "게시전 기억" : $"리비전 v{latestRevisionNumberForNode}")</span>
-            <span>@($"{relatedPosts.Count} 연결 로그")</span>
-            <span>@($"{post.CommentCount} 대화 흔적")</span>
+            <span>@GetLinkedLogFlowSignal()</span>
+            <span>@GetAdjacentFlowSignal()</span>
+            <span>@FormatConversationTraceSignal(post.CommentCount)</span>
         </div>
         <div class="flex flex-wrap items-center gap-2">
             <h1 class="text-2xl font-bold text-slate-900">@post.Title</h1>
@@ -180,7 +181,8 @@ else
                 <span>@GetPrimaryClueSignal(post)</span>
                 <span>@GetPrimarySeriesSignal(post)</span>
                 <span>@GetRevisionFlowSignal(post, latestRevisionNumberForNode)</span>
-                <span>@GetLinkedLogSignal()</span>
+                <span>@GetLinkedLogFlowSignal()</span>
+                <span>@GetAdjacentFlowSignal()</span>
             </div>
         </div>
 
@@ -1537,7 +1539,7 @@ else
         var clue = currentPost.Tags.Count == 0 ? "단서 축적 전" : $"#{currentPost.Tags[0]} 단서";
         var series = currentPost.Series.Count == 0 ? "시리즈 밖 흐름" : $"{currentPost.Series[0]} 시리즈";
         var revision = GetRevisionFlowSignal(currentPost, latestRevisionNumber);
-        return $"본문과 대화 흔적은 {FormatUserName(currentPost.Author)}의 {clue}, {series}, {revision}에 이어진 지식 로그 노드입니다.";
+        return $"본문과 대화 흔적은 {FormatUserName(currentPost.Author)}의 {clue}, {series}, {revision}, {GetAdjacentFlowSignal()}에 이어진 지식 로그 노드입니다.";
     }
 
     private static string GetPrimaryClueSignal(BlogPost currentPost)
@@ -1549,8 +1551,19 @@ else
     private static string GetRevisionFlowSignal(BlogPost currentPost, int latestRevisionNumber)
         => currentPost.IsDraft ? "게시전 기억" : $"리비전 흐름 v{latestRevisionNumber}";
 
-    private string GetLinkedLogSignal()
-        => $"{relatedPosts.Count:N0}개 연결 로그";
+    private string GetLinkedLogFlowSignal()
+        => relatedPosts.Count == 0
+            ? "연결 로그 흐름 대기"
+            : $"{relatedPosts.Count:N0}개 연결 로그 흐름";
+
+    private string GetAdjacentFlowSignal()
+    {
+        var count = (previousPost is null ? 0 : 1) + (nextPost is null ? 0 : 1);
+        return count == 0 ? "앞뒤 흐름 대기" : $"{count:N0}개 앞뒤 흐름";
+    }
+
+    private static string FormatConversationTraceSignal(int commentCount)
+        => $"{commentCount:N0}개 대화 흔적";
 
     private static string Shorten(string value, int maxLength)
     {
