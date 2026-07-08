@@ -183,9 +183,10 @@ public sealed class StaticAssetIdentityTests
         var adminUsersPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "AdminUsers.razor"));
         var navMenu = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Layout", "NavMenu.razor"));
 
-        Assert.Contains("<PageTitle>어드민 슬로거 흐름 | slogs</PageTitle>", adminUsersPage);
-        Assert.Contains(">어드민 슬로거 흐름</h1>", adminUsersPage);
-        Assert.Contains("aria-label=\"어드민 슬로거 흐름 보기\"", adminUsersPage);
+        Assert.Contains("<PageTitle>운영 슬로거 흐름 | slogs</PageTitle>", adminUsersPage);
+        Assert.Contains(">운영 슬로거 흐름</h1>", adminUsersPage);
+        Assert.Contains("aria-label=\"운영 슬로거 흐름 보기\"", adminUsersPage);
+        Assert.Contains("운영 흐름 권한이 필요합니다.", adminUsersPage);
         Assert.Contains(">슬로거 홈 흐름</a>", adminUsersPage);
         Assert.Contains(">기억 회상 지표</a>", adminUsersPage);
         Assert.Contains(">노트 Vault 흐름</a>", adminUsersPage);
@@ -272,6 +273,8 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("LLM Wiki 사용자 검색", adminUsersPage);
         Assert.DoesNotContain("Obsidian Sync 사용자 검색", adminUsersPage);
         Assert.DoesNotContain("어드민 사용자", adminUsersPage);
+        Assert.DoesNotContain("어드민 슬로거 흐름", adminUsersPage);
+        Assert.DoesNotContain("어드민 권한이 필요합니다.", adminUsersPage);
         Assert.DoesNotContain(">사용자 관리</a>", adminUsersPage);
         Assert.DoesNotContain("aria-label=\"사용자 요약\"", adminUsersPage);
         Assert.DoesNotContain(">가입 사용자</div>", adminUsersPage);
