@@ -56,6 +56,9 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("시작 슬로거 @", mainLayout);
         Assert.Contains("운영 흐름으로 전환", mainLayout);
         Assert.Contains("슬로거 흐름으로 돌아가기", mainLayout);
+        Assert.Contains("지식 로그 흐름이 잠시 끊겼습니다.", mainLayout);
+        Assert.Contains("흐름 다시 잇기", mainLayout);
+        Assert.Contains("흐름 알림 닫기", mainLayout);
         Assert.Contains(">운영 흐름</div>", navMenu);
         Assert.DoesNotContain("href=\"/me\">내 로그", mainLayout);
         Assert.DoesNotContain("placeholder=\"회상어\"", mainLayout);
@@ -79,6 +82,8 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("원래 사용자 @", mainLayout);
         Assert.DoesNotContain("어드민 전환", mainLayout);
         Assert.DoesNotContain("일반 모드로 전환", mainLayout);
+        Assert.DoesNotContain("오류가 발생했습니다.", mainLayout);
+        Assert.DoesNotContain(">다시 시도</a>", mainLayout);
         Assert.DoesNotContain(">어드민</div>", navMenu);
     }
 
