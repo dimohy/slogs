@@ -320,7 +320,8 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("aria-label=\"운영 슬로거 흐름 보기\"", adminUsersPage);
         Assert.Contains("운영 흐름 권한이 필요합니다.", adminUsersPage);
         Assert.Contains(">슬로거 홈 흐름</a>", adminUsersPage);
-        Assert.Contains(">기억 회상 지표</a>", adminUsersPage);
+        Assert.Contains(">LLM Wiki</a>", adminUsersPage);
+        Assert.DoesNotContain(">기억 회상 지표</a>", adminUsersPage);
         Assert.Contains(">노트 Vault 흐름</a>", adminUsersPage);
         Assert.Contains("aria-label=\"슬로거 홈 흐름 요약\"", adminUsersPage);
         Assert.Contains(">등록 슬로거</div>", adminUsersPage);
