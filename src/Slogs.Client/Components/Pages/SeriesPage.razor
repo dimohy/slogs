@@ -10,7 +10,19 @@
          JsonLd="@GetJsonLd()" />
 
 <h1 class="text-2xl font-bold text-slate-900">@Series 시리즈 흐름</h1>
-<p class="text-sm text-slate-500">@($"{totalCount}개 로그가 같은 문제의식으로 이어집니다.")</p>
+
+<section class="slogs-home-flowline mb-3 mt-3" aria-label="로그 시리즈 상세 흐름 신호">
+    <div class="min-w-0">
+        <p class="text-xs font-bold text-slate-500">현재 시리즈 흐름</p>
+        <h2 class="text-lg font-bold text-slate-950">@Series 시리즈 회상 흐름</h2>
+        <p class="mt-1 text-sm text-slate-600">@GetFlowStatusDescription()</p>
+    </div>
+    <div class="slogs-home-flowline__signals" aria-label="로그 시리즈 상세 흐름 신호">
+        <span>@FormatPublicLogNodeCount(totalCount)</span>
+        <span>@GetFlowScopeLabel()</span>
+    </div>
+</section>
+
 <div class="mb-3 mt-1 flex flex-wrap gap-2">
     <a class="@GetSortChipClass(null)" href="@GetSortQuery(null)">새 로그</a>
     <a class="@GetSortChipClass("popular")" href="@GetSortQuery("popular")">반응순</a>
@@ -114,6 +126,24 @@
             ? "rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white"
             : "rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100";
     }
+
+    private string GetFlowStatusDescription()
+        => totalCount == 0
+            ? $"아직 {Series} 시리즈로 이어진 공개 로그 흐름이 없습니다."
+            : $"{totalCount:N0}개 공개 로그가 같은 문제의식으로 이어집니다.";
+
+    private string GetFlowScopeLabel()
+    {
+        return normalizedSort switch
+        {
+            "popular" => "반응 흐름",
+            "updated" => "갱신 흐름",
+            _ => "새 로그 흐름"
+        };
+    }
+
+    private static string FormatPublicLogNodeCount(int count)
+        => $"{count:N0}개 공개 로그 노드";
 
     private static string FormatDate(DateTime dateTime) => dateTime.ToLocalTime().ToString("yyyy.MM.dd");
 

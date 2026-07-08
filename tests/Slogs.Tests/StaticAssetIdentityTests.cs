@@ -1099,6 +1099,8 @@ public sealed class StaticAssetIdentityTests
     {
         var tagIndexPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "TagIndex.razor"));
         var seriesIndexPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "SeriesIndex.razor"));
+        var tagPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "TagPage.razor"));
+        var seriesPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "SeriesPage.razor"));
 
         Assert.Contains(">반복 단서</h1>", tagIndexPage);
         Assert.Contains("slogs의 반복 단서를 회상하며 이어지는 공개 로그 흐름을 다시 따라갑니다.", tagIndexPage);
@@ -1118,6 +1120,18 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("와 이어지는 로그 시리즈 회상 흐름이 없습니다.", seriesIndexPage);
         Assert.Contains("FormatSeriesCount(allSeries.Count)", seriesIndexPage);
         Assert.Contains("개 로그 시리즈", seriesIndexPage);
+        Assert.Contains("aria-label=\"단서 상세 흐름 신호\"", tagPage);
+        Assert.Contains("#@Tag 단서 회상 흐름", tagPage);
+        Assert.Contains("GetFlowStatusDescription()", tagPage);
+        Assert.Contains("FormatPublicLogNodeCount(totalCount)", tagPage);
+        Assert.Contains("개 공개 로그 노드", tagPage);
+        Assert.Contains("아직 #{Tag} 단서로 이어진 공개 로그 흐름이 없습니다.", tagPage);
+        Assert.Contains("aria-label=\"로그 시리즈 상세 흐름 신호\"", seriesPage);
+        Assert.Contains("@Series 시리즈 회상 흐름", seriesPage);
+        Assert.Contains("GetFlowStatusDescription()", seriesPage);
+        Assert.Contains("FormatPublicLogNodeCount(totalCount)", seriesPage);
+        Assert.Contains("개 공개 로그 노드", seriesPage);
+        Assert.Contains("아직 {Series} 시리즈로 이어진 공개 로그 흐름이 없습니다.", seriesPage);
 
         Assert.DoesNotContain(">이름순</a>", tagIndexPage);
         Assert.DoesNotContain(">이름순</a>", seriesIndexPage);
@@ -1127,6 +1141,8 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("로그 시리즈 회상 결과가 없습니다.", seriesIndexPage);
         Assert.DoesNotContain("slogs의 반복 단서를 회상하고 이어지는 공개 로그 흐름을 확인합니다.", tagIndexPage);
         Assert.DoesNotContain("slogs의 로그 시리즈를 회상하고 시간과 의미로 이어진 흐름을 확인합니다.", seriesIndexPage);
+        Assert.DoesNotContain("@($\"{totalCount}개 로그가 이 단서로 이어집니다.\")", tagPage);
+        Assert.DoesNotContain("@($\"{totalCount}개 로그가 같은 문제의식으로 이어집니다.\")", seriesPage);
     }
 
     [Fact]
