@@ -773,8 +773,10 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("Slogs Drive 설치 흐름이 복사되었습니다.", settingsComponent);
         Assert.Contains("Slogs Drive 실행 흐름이 복사되었습니다.", settingsComponent);
         Assert.Contains("로컬 Markdown 노트는 노트 Vault 권한으로 원격 노트 Vault에 남고", settingsComponent);
+        Assert.Contains("선택한 노트를 LLM Wiki 기억, 소유자 전용 게시전 기억, 공개 공유 흐름으로 이어갈 수 있습니다.", settingsComponent);
         Assert.Contains("노트 Vault 실험 빌드가 필요할 때만 GitHub Release 또는 BRAT 경로를 연결합니다.", settingsComponent);
         Assert.Contains("일반 노트 흐름은 Obsidian 커뮤니티 플러그인 Slogs Sync로 이어집니다.", settingsComponent);
+        Assert.Contains("연결된 노트 Vault가 없습니다. 로컬 노트를 LLM Wiki 기억, 소유자 전용 게시전 기억, 공개 공유 흐름으로 이어 쓸 공간을 먼저 여세요.", settingsComponent);
         Assert.Contains("data-obsidian-flow-status", settingsComponent);
         Assert.Contains("frontmatter 단서", settingsComponent);
         Assert.Contains("연결 권한 만들기", settingsComponent);
@@ -811,6 +813,8 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("frontmatter 단서를 게시전 로그와 LLM Wiki 기억으로 이어 둡니다.", settingsPage);
         Assert.DoesNotContain("검토 가능한 소유자 전용 게시전 로그를 만들고", settingsComponent);
         Assert.DoesNotContain("frontmatter를 통해 게시전 로그, 공개 공유, LLM Wiki 기억으로 이어질 수 있습니다.", settingsComponent);
+        Assert.DoesNotContain("선택한 노트를 Slogs 기억과 로그 흐름으로 이어갈 수 있습니다.", settingsComponent);
+        Assert.DoesNotContain("연결된 노트 Vault가 없습니다. 로컬 노트를 Slogs 기억과 로그로 이어 쓸 공간을 먼저 여세요.", settingsComponent);
         Assert.DoesNotContain("<span>게시전 로그</span>", settingsComponent);
         Assert.DoesNotContain("게시전 로그 초안", settingsPage);
         Assert.DoesNotContain("게시전 로그 초안", settingsComponent);
