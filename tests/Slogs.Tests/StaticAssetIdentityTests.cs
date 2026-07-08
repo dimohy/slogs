@@ -497,6 +497,10 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("비공개 기억을 Agent 회상과 Slogs 게시전 로그로 이어 두는 연결면입니다.", llmWikiGuidePage);
         Assert.Contains(">비공개 기억</div>", navMenu);
         Assert.Contains("기억 연결 가이드", navMenu);
+        Assert.Contains("<span>기억 남김</span>", llmWikiGuidePage);
+        Assert.Contains("하나의 기억 흐름으로 남깁니다.", llmWikiGuidePage);
+        Assert.Contains("768차원 기억 벡터로 남고", llmWikiGuidePage);
+        Assert.Contains("graph node 관계 신호로 이어집니다.", llmWikiGuidePage);
         Assert.Contains("Slogs LLM Wiki에서 먼저 관련 기억을 회상합니다.", llmWikiGuidePage);
         Assert.Contains("search</code> 도구는 회상 후보 흐름을 압축해 보여 주고", llmWikiGuidePage);
         Assert.Contains("recall</code> 도구는 답변/구현에 바로 적용할 기억 맥락으로 이어 줍니다.", llmWikiGuidePage);
@@ -528,6 +532,10 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("회상 후보 요약 목록", llmWikiGuidePage);
         Assert.DoesNotContain("초기 목록", llmWikiGuidePage);
         Assert.DoesNotContain("작은 회상 후보 목록", llmWikiGuidePage);
+        Assert.DoesNotContain("<span>기억 저장</span>", llmWikiGuidePage);
+        Assert.DoesNotContain("Wiki 항목으로 저장합니다.", llmWikiGuidePage);
+        Assert.DoesNotContain("embedding으로 저장", llmWikiGuidePage);
+        Assert.DoesNotContain("graph node로 저장됩니다.", llmWikiGuidePage);
         Assert.DoesNotContain("압축 컨텍스트로 구분합니다.", llmWikiGuidePage);
     }
 
