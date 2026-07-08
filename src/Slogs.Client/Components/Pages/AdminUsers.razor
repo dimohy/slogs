@@ -3,8 +3,8 @@
 @inject SlogsApiClient ApiClient
 @inject NavigationManager Navigation
 
-<PageTitle>운영 슬로거 흐름 | slogs</PageTitle>
-<SeoHead Title="운영 슬로거 흐름 | slogs" Description="slogs 슬로거, 기억 회상, 노트 Vault 흐름을 함께 따라갑니다." NoIndex="true" />
+<PageTitle>관리자 흐름 | slogs</PageTitle>
+<SeoHead Title="관리자 흐름 | slogs" Description="slogs 슬로거, 기억 회상, 노트 Vault 흐름을 함께 따라갑니다." NoIndex="true" />
 
 @if (CurrentUser is null)
 {
@@ -25,7 +25,7 @@ else
     <section class="space-y-5">
         <div class="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4">
             <div>
-                <h1 class="text-2xl font-bold text-slate-900">운영 슬로거 흐름</h1>
+                <h1 class="text-2xl font-bold text-slate-900">관리자 흐름</h1>
                 <p class="mt-1 text-sm text-slate-500">@GetViewDescription(activeView)</p>
             </div>
         </div>

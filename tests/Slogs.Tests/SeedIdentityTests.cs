@@ -60,26 +60,26 @@ public sealed class SeedIdentityTests
     }
 
     [Fact]
-    public async Task FirstRunSeedAdminUsesOperationFlowSloggerIdentity()
+    public async Task FirstRunSeedAdminUsesAdministratorIdentity()
     {
         await using var fixture = await SeedFixture.CreateAsync();
         await InvokeInitializerAsync("SeedUsersAsync", fixture.Db);
 
         var admin = await fixture.Db.Users.SingleAsync(x => x.UserName == AuthUser.AdminUserName);
 
-        Assert.Equal("운영 슬로거", admin.DisplayName);
+        Assert.Equal("관리자", admin.DisplayName);
         Assert.Contains("운영 기준", admin.Bio);
-        Assert.DoesNotContain("관리자", admin.DisplayName);
+        Assert.DoesNotContain("운영 슬로거", admin.DisplayName);
     }
 
     [Fact]
-    public async Task AdminAccountRepairUpdatesLegacyAdministratorDisplayName()
+    public async Task AdminAccountRepairUpdatesLegacyOperationSloggerDisplayName()
     {
         await using var fixture = await SeedFixture.CreateAsync();
         fixture.Db.Users.Add(new UserRecord
         {
             UserName = AuthUser.AdminUserName,
-            DisplayName = "관리자",
+            DisplayName = "운영 슬로거",
             Email = string.Empty,
             Password = "legacy-password",
             ProfileImageUrl = string.Empty,
@@ -91,7 +91,7 @@ public sealed class SeedIdentityTests
         await InvokeInitializerAsync("EnsureAdminAccountAsync", fixture.Db);
 
         var admin = await fixture.Db.Users.SingleAsync(x => x.UserName == AuthUser.AdminUserName);
-        Assert.Equal("운영 슬로거", admin.DisplayName);
+        Assert.Equal("관리자", admin.DisplayName);
         Assert.Equal(string.Empty, admin.Password);
     }
 

@@ -169,12 +169,11 @@ public sealed class StaticAssetIdentityTests
             Assert.DoesNotContain("검색, 탐색", bio);
         }
 
-        Assert.Contains("(\"admin\", \"운영 슬로거\", string.Empty)", initializer);
-        Assert.Contains("admin.DisplayName = \"운영 슬로거\";", initializer);
+        Assert.Contains("(\"admin\", \"관리자\", string.Empty)", initializer);
+        Assert.Contains("admin.DisplayName = \"관리자\";", initializer);
         Assert.Contains("[\"운영 흐름\", \"시그니처 슬로거\"]", authUser);
-        Assert.DoesNotContain("(\"admin\", \"관리자\", string.Empty)", initializer);
-        Assert.DoesNotContain("DisplayName = \"관리자\"", initializer);
-        Assert.DoesNotContain("[\"관리자\", \"시그니처\"]", authUser);
+        Assert.DoesNotContain("(\"admin\", \"운영 슬로거\", string.Empty)", initializer);
+        Assert.DoesNotContain("DisplayName = \"운영 슬로거\"", initializer);
     }
 
     [Fact]
@@ -321,8 +320,9 @@ public sealed class StaticAssetIdentityTests
         var adminUsersPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "AdminUsers.razor"));
         var navMenu = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Layout", "NavMenu.razor"));
 
-        Assert.Contains("<PageTitle>운영 슬로거 흐름 | slogs</PageTitle>", adminUsersPage);
-        Assert.Contains(">운영 슬로거 흐름</h1>", adminUsersPage);
+        Assert.Contains("<PageTitle>관리자 흐름 | slogs</PageTitle>", adminUsersPage);
+        Assert.Contains(">관리자 흐름</h1>", adminUsersPage);
+        Assert.DoesNotContain("운영 슬로거", adminUsersPage);
         Assert.Contains("aria-label=\"운영 메뉴\"", adminUsersPage);
         Assert.Contains("운영 흐름 권한이 필요합니다.", adminUsersPage);
         Assert.Contains(">슬로거</a>", adminUsersPage);

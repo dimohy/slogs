@@ -626,7 +626,7 @@ public static class SlogsDbInitializer
 
         var users = new[]
         {
-            ("admin", "운영 슬로거", string.Empty),
+            ("admin", "관리자", string.Empty),
             ("guest", "손님", "guest"),
             ("devin", "devin", "devin"),
             ("junho", "junho", "junho"),
@@ -666,7 +666,7 @@ public static class SlogsDbInitializer
             db.Users.Add(new UserRecord
             {
                 UserName = AuthUser.AdminUserName,
-                DisplayName = "운영 슬로거",
+                DisplayName = "관리자",
                 Email = string.Empty,
                 Password = string.Empty,
                 ProfileImageUrl = string.Empty,
@@ -678,9 +678,9 @@ public static class SlogsDbInitializer
         }
 
         var changed = false;
-        if (admin.DisplayName is "관리자" or "")
+        if (admin.DisplayName is "운영 슬로거" or "")
         {
-            admin.DisplayName = "운영 슬로거";
+            admin.DisplayName = "관리자";
             changed = true;
         }
 
@@ -710,10 +710,10 @@ public static class SlogsDbInitializer
         foreach (var user in users)
         {
             if (user.UserName.Equals(AuthUser.AdminUserName, StringComparison.OrdinalIgnoreCase)
-                && user.DisplayName == "관리자"
+                && user.DisplayName == "운영 슬로거"
                 && user.ProfileUpdatedAt is null)
             {
-                user.DisplayName = "운영 슬로거";
+                user.DisplayName = "관리자";
                 changed = true;
             }
 
