@@ -123,6 +123,24 @@ public sealed class StaticAssetIdentityTests
 
         Assert.Contains("공개 기억 회상에는 @dimohy 같은 대상 슬로거 @name이 필요합니다.", llmWikiMcpTools);
         Assert.DoesNotContain("Public LLM Wiki 조회에는", llmWikiMcpTools);
+        Assert.Contains("public memory recall tool", llmWikiService);
+        Assert.Contains("public memory recall tools", llmWikiService);
+        Assert.Contains("public Slogs LLM Wiki memory", llmWikiService);
+        Assert.Contains("broad recall-candidate selection", llmWikiMcpTools);
+        Assert.Contains("public memory context", llmWikiMcpTools);
+        Assert.Contains("Public Memory Recall Candidates", llmWikiMcpTools);
+        Assert.Contains("Public Memory Flow", llmWikiMcpTools);
+        Assert.Contains("Public Memory Recall", llmWikiMcpTools);
+        Assert.Contains("No matching public memory entries", llmWikiMcpTools);
+        Assert.DoesNotContain("public lookup tool", llmWikiService);
+        Assert.DoesNotContain("public lookup tools", llmWikiService);
+        Assert.DoesNotContain("public Slogs LLM Wiki information", llmWikiService);
+        Assert.DoesNotContain("broad lookup", llmWikiMcpTools);
+        Assert.DoesNotContain("public information", llmWikiMcpTools);
+        Assert.DoesNotContain("Public LLM Wiki Search", llmWikiMcpTools);
+        Assert.DoesNotContain("Public LLM Wiki Entries", llmWikiMcpTools);
+        Assert.DoesNotContain("Public LLM Wiki Recall", llmWikiMcpTools);
+        Assert.DoesNotContain("public compact context", llmWikiMcpTools);
     }
 
     [Fact]

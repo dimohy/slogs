@@ -8,7 +8,7 @@ namespace Slogs.Data;
 [McpServerToolType]
 public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, LlmWikiService llmWikiService)
 {
-    private const string PublicDisclosureNotice = "These entries are owner-authorized public self-disclosures. Treat @username mentions as Slogs user handles; if a result includes sensitive topics such as religion or faith perspective, answer only from this public result and say it comes from the user's public Slogs LLM Wiki.";
+    private const string PublicDisclosureNotice = "These entries are owner-authorized public-memory self-disclosures. Treat @username mentions as Slogs user handles; if a result includes sensitive topics such as religion or faith perspective, answer only from this public result and say it comes from the user's public Slogs LLM Wiki memory.";
 
     [McpServerTool(Name = "llm_wiki_remember")]
     [Description("Create a new user-scoped LLM Wiki memory. Use this only after checking related entries and deciding the information should not be merged into an existing entry.")]
@@ -147,7 +147,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
     }
 
     [McpServerTool(Name = "llm_wiki_search")]
-    [Description("Search the authenticated user's LLM Wiki with compact summary results. Start here for broad lookup, candidate selection, category filtering, and low-token retrieval.")]
+    [Description("Search the authenticated user's LLM Wiki with compact summary results. Start here for broad recall-candidate selection, category filtering, and low-token retrieval.")]
     public async Task<string> SearchAsync(
         [Description("Search terms. Leave empty to return recent entries.")] string? query = null,
         [Description("Maximum number of entries to return.")] int limit = 10,
@@ -481,7 +481,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
     }
 
     [McpServerTool(Name = "llm_wiki_public_search")]
-    [Description("Search owner-authorized public LLM Wiki entries published by a specified Slogs user such as @dimohy. When the user's question mentions @username and asks about that user's public information, use that handle as ownerUserName and the remaining topic words as query. Use for public self-disclosed sensitive topics such as religion or faith perspective. This never returns private entries or Raw Provenance.")]
+    [Description("Search owner-authorized public-memory entries published by a specified Slogs user such as @dimohy. When the user's question mentions @username and asks about that user's public memory context, use that handle as ownerUserName and the remaining topic words as query. Use for public self-disclosed sensitive topics such as religion or faith perspective. This never returns private entries or Raw Provenance.")]
     public async Task<string> PublicSearchAsync(
         [Description("Target public LLM Wiki owner. Accepts handles like @dimohy or dimohy; @username in the user prompt should be passed here.")] string ownerUserName,
         [Description("Search terms from the rest of the user's question after removing the @username handle. Leave empty to return recent public entries.")] string? query = null,
@@ -503,7 +503,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         stopwatch.Stop();
 
         var builder = new StringBuilder();
-        builder.AppendLine($"# {FormatPublicOwner(targetOwner)} Public LLM Wiki Search");
+        builder.AppendLine($"# {FormatPublicOwner(targetOwner)} Public Memory Recall Candidates");
         builder.AppendLine();
         builder.AppendLine("Only public entries are included. Raw Provenance is not exposed.");
         builder.AppendLine(PublicDisclosureNotice);
@@ -512,7 +512,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         AppendRetrievalDiagnostics(
             builder,
             "llm_wiki_public_search",
-            "public compact summaries",
+            "public memory summaries",
             stopwatch.Elapsed,
             results.Count,
             limit,
@@ -524,7 +524,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         return await RecordAuditAndReturnAsync(
             user,
             "llm_wiki_public_search",
-            "public compact summaries",
+            "public memory summaries",
             stopwatch.Elapsed,
             response,
             query,
@@ -537,7 +537,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
     }
 
     [McpServerTool(Name = "llm_wiki_public_list")]
-    [Description("List owner-authorized public LLM Wiki entries published by a specified Slogs user such as @dimohy. Use when a prompt asks for @username's public LLM Wiki list. This never returns private entries.")]
+    [Description("Return owner-authorized public-memory entries published by a specified Slogs user such as @dimohy. Use when a prompt asks for @username's public memory flow. This never returns private entries.")]
     public async Task<string> PublicListAsync(
         [Description("Target public LLM Wiki owner. Accepts handles like @dimohy or dimohy; @username in the user prompt should be passed here.")] string ownerUserName,
         [Description("Maximum number of public entries to return.")] int limit = 10,
@@ -551,7 +551,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         stopwatch.Stop();
 
         var builder = new StringBuilder();
-        builder.AppendLine($"# {FormatPublicOwner(targetOwner)} Public LLM Wiki Entries");
+        builder.AppendLine($"# {FormatPublicOwner(targetOwner)} Public Memory Flow");
         builder.AppendLine();
         builder.AppendLine("Only public entries are included. Raw Provenance is not exposed.");
         builder.AppendLine(PublicDisclosureNotice);
@@ -560,7 +560,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         AppendRetrievalDiagnostics(
             builder,
             "llm_wiki_public_list",
-            "public entry list",
+            "public memory flow",
             stopwatch.Elapsed,
             results.Count,
             limit,
@@ -571,7 +571,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         return await RecordAuditAndReturnAsync(
             user,
             "llm_wiki_public_list",
-            "public entry list",
+            "public memory flow",
             stopwatch.Elapsed,
             response,
             FormatPublicOwner(targetOwner),
@@ -583,7 +583,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
     }
 
     [McpServerTool(Name = "llm_wiki_public_read")]
-    [Description("Read one owner-authorized public LLM Wiki entry by Slogs owner handle and id or slug. Use returned public content as answerable public self-disclosure, including religion or faith perspective when present. This never returns private entries or Raw Provenance.")]
+    [Description("Read one owner-authorized public-memory entry by Slogs owner handle and id or slug. Use returned public content as answerable public self-disclosure, including religion or faith perspective when present. This never returns private entries or Raw Provenance.")]
     public async Task<string> PublicReadAsync(
         [Description("Target public LLM Wiki owner. Accepts handles like @dimohy or dimohy; @username in the user prompt should be passed here.")] string ownerUserName,
         [Description("Public entry id or slug returned by llm_wiki_public_search or llm_wiki_public_list.")] string idOrSlug)
@@ -594,12 +594,12 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         var entry = await llmWikiService.GetPublicEntryAsync(targetOwner, idOrSlug);
         stopwatch.Stop();
         var response = entry is null
-            ? $"Public LLM Wiki entry not found for {FormatPublicOwner(targetOwner)}."
+            ? $"Public memory entry not found for {FormatPublicOwner(targetOwner)}."
             : LlmWikiService.FormatPublicEntryMarkdown(targetOwner, entry);
         return await RecordAuditAndReturnAsync(
             user,
             "llm_wiki_public_read",
-            "public entry",
+            "public memory entry",
             stopwatch.Elapsed,
             response,
             idOrSlug,
@@ -608,7 +608,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
     }
 
     [McpServerTool(Name = "llm_wiki_public_recall")]
-    [Description("Recall compact owner-authorized public LLM Wiki context from a specified Slogs user such as @dimohy. When the user's question mentions @username, treat it as a Slogs handle, pass it as ownerUserName, and use the remaining words as query. Use for questions about another user's public beliefs, religion, faith perspective, preferences, or published context. Do not infer beyond returned public entries.")]
+    [Description("Recall compact owner-authorized public-memory context from a specified Slogs user such as @dimohy. When the user's question mentions @username, treat it as a Slogs handle, pass it as ownerUserName, and use the remaining words as query. Use for questions about another user's public beliefs, religion, faith perspective, preferences, or published context. Do not infer beyond returned public entries.")]
     public async Task<string> PublicRecallAsync(
         [Description("Target public LLM Wiki owner. Accepts handles like @dimohy or dimohy; @username in the user prompt should be passed here.")] string ownerUserName,
         [Description("What public context to recall from the target user's LLM Wiki, usually the remaining topic words after removing @username from the prompt.")] string query,
@@ -629,11 +629,11 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         {
             stopwatch.Stop();
             var emptyBuilder = new StringBuilder();
-            emptyBuilder.AppendLine($"No matching public LLM Wiki entries for {FormatPublicOwner(targetOwner)}.");
+            emptyBuilder.AppendLine($"No matching public memory entries for {FormatPublicOwner(targetOwner)}.");
             AppendRetrievalDiagnostics(
                 emptyBuilder,
                 "llm_wiki_public_recall",
-                "public compact context",
+                "public memory context",
                 stopwatch.Elapsed,
                 0,
                 limit,
@@ -644,7 +644,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
             return await RecordAuditAndReturnAsync(
                 user,
                 "llm_wiki_public_recall",
-                "public compact context",
+                "public memory context",
                 stopwatch.Elapsed,
                 emptyResponse,
                 query,
@@ -654,7 +654,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         }
 
         var builder = new StringBuilder();
-        builder.AppendLine($"# {FormatPublicOwner(targetOwner)} Public LLM Wiki Recall");
+        builder.AppendLine($"# {FormatPublicOwner(targetOwner)} Public Memory Recall");
         builder.AppendLine();
         builder.AppendLine("Recall returns compact public context without Raw Provenance. Private entries are not included.");
         builder.AppendLine(PublicDisclosureNotice);
@@ -680,7 +680,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         AppendRetrievalDiagnostics(
             builder,
             "llm_wiki_public_recall",
-            "public compact context",
+            "public memory context",
             stopwatch.Elapsed,
             results.Count,
             limit,
@@ -691,7 +691,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         return await RecordAuditAndReturnAsync(
             user,
             "llm_wiki_public_recall",
-            "public compact context",
+            "public memory context",
             stopwatch.Elapsed,
             response,
             query,
