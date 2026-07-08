@@ -51,7 +51,7 @@ else
         <div class="flex flex-wrap gap-2">
             <button class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
                     type="button" @onclick="SaveDraft" disabled="@isSaving">
-                @((isSaving && savingAction == "draft") ? "게시전 저장 중..." : "게시전 저장")
+                @((isSaving && savingAction == "draft") ? "게시전 기억 저장 중..." : "게시전 기억 저장")
             </button>
             <button class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                     type="button" @onclick="Publish" disabled="@isSaving">
@@ -139,7 +139,7 @@ else
 
         if (isDraft && string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(body))
         {
-            errorMessage = "게시전 저장할 로그 제목이나 본문을 입력해 주세요.";
+            errorMessage = "게시전 기억으로 남길 로그 제목이나 본문을 입력해 주세요.";
             return;
         }
 
@@ -159,7 +159,7 @@ else
         catch (Exception)
         {
             errorMessage = isDraft
-                ? "게시전 저장에 실패했습니다. 잠시 후 다시 시도해 주세요."
+                ? "게시전 기억 저장에 실패했습니다. 잠시 후 다시 시도해 주세요."
                 : "공개 공유에 실패했습니다. 잠시 후 다시 시도해 주세요.";
         }
         finally

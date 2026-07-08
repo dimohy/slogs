@@ -82,7 +82,7 @@ public sealed class RouteIdentitySmokeTests
             ("LlmWiki.razor", "/me/llm-wiki", "LLM Wiki 기억 연결"),
             ("LlmWikiSearch.razor", "/me/llm-wiki/search", "의미 회상"),
             ("WritePost.razor", "/write", "새 로그 남기기"),
-            ("EditPost.razor", "/edit/{Slug}", "로그 수정")
+            ("EditPost.razor", "/edit/{Slug}", "로그 흐름 정리")
         };
 
         foreach (var (fileName, route, identityText) in routes)
@@ -108,7 +108,7 @@ public sealed class RouteIdentitySmokeTests
         Assert.Contains("<PostFlowSignals Post=\"featuredPost\"", writerPage);
         Assert.Contains("<PostLogCard @key=\"post.Id\"", writerPage);
         Assert.Contains("ShowAuthor=\"false\"", writerPage);
-        Assert.Contains("DraftActionText=\"게시전 로그 수정\"", writerPage);
+        Assert.Contains("DraftActionText=\"게시전 기억 정리\"", writerPage);
         Assert.DoesNotContain("public knowledge-log home", writerPage);
         Assert.DoesNotContain("aria-label=\"@GetPostCardAriaLabel(post)\"", writerPage);
         Assert.DoesNotContain("<PostActionBar Post=\"post\"", writerPage);

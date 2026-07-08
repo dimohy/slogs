@@ -135,8 +135,10 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("Slogs log MCP call", postMcpTools);
         Assert.Contains("Slogs 공개 공유에는 로그 제목이 필요합니다.", postMcpTools);
         Assert.Contains("Slogs 공개 공유에는 로그 Markdown 본문이 필요합니다.", postMcpTools);
+        Assert.Contains("Slogs 게시전 기억 저장에는 제목이나 Markdown 본문 중 하나가 필요합니다.", postMcpTools);
         Assert.Contains("Status: {(post.IsDraft ? \"Before public sharing\" : \"Publicly shared\")}", postMcpTools);
         Assert.Contains("Former status: {(post.IsDraft ? \"Before public sharing\" : \"Publicly shared\")}", postMcpTools);
+        Assert.DoesNotContain("Slogs 게시전 저장", postMcpTools);
         Assert.DoesNotContain("Slogs post", postMcpTools);
         Assert.DoesNotContain("Slogs posts", postMcpTools);
         Assert.DoesNotContain("site post", postMcpTools);
@@ -744,16 +746,19 @@ public sealed class StaticAssetIdentityTests
         var writePost = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "WritePost.razor"));
         var editPost = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "EditPost.razor"));
 
-        Assert.Contains("게시전 저장", writePost);
+        Assert.Contains("게시전 기억 저장", writePost);
+        Assert.Contains("게시전 기억으로 남길 로그 제목이나 본문을 입력해 주세요.", writePost);
         Assert.Contains("공개 공유", writePost);
         Assert.Contains("SaveDraft", writePost);
         Assert.Contains("SaveAsync(isDraft: true)", writePost);
         Assert.Contains("SaveAsync(isDraft: false)", writePost);
         Assert.Contains("isDraft: isDraft", writePost);
 
-        Assert.Contains("게시전 로그 수정", editPost);
+        Assert.Contains("로그 흐름 정리", editPost);
+        Assert.Contains("게시전 기억 정리", editPost);
         Assert.Contains(">게시전 기억</span>", editPost);
-        Assert.Contains("게시전 저장", editPost);
+        Assert.Contains("게시전 기억 저장", editPost);
+        Assert.Contains("정리할 로그 흐름", editPost);
         Assert.Contains("공개 공유", editPost);
         Assert.Contains("리비전 공유", editPost);
         Assert.Contains("SaveAsync(isDraft: true)", editPost);
@@ -767,6 +772,11 @@ public sealed class StaticAssetIdentityTests
             Assert.DoesNotContain("게시하기", authoringPage);
             Assert.DoesNotContain(">게시전</span>", authoringPage);
             Assert.DoesNotContain(">게시후</span>", authoringPage);
+            Assert.DoesNotContain("게시전 저장", authoringPage);
+            Assert.DoesNotContain("게시전 로그 수정", authoringPage);
+            Assert.DoesNotContain("로그 수정 | slogs", authoringPage);
+            Assert.DoesNotContain("수정할 로그", authoringPage);
+            Assert.DoesNotContain("게시전 로그 저장에 실패", authoringPage);
             Assert.DoesNotContain("포스트", authoringPage);
         }
     }
@@ -865,7 +875,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("게시전 기억 흐름 열기", profilePage);
         Assert.Contains("공개 공유 로그 노드 열기", profilePage);
         Assert.Contains("<PostFlowSignals Post=\"post\" />", profilePage);
-        Assert.Contains("게시전 로그 수정", profilePage);
+        Assert.Contains("게시전 기억 정리", profilePage);
         Assert.Contains("새 리비전 남기기", profilePage);
         Assert.Contains("로그 지우기", profilePage);
         Assert.Contains("로그 지우는 중...", profilePage);
@@ -1072,6 +1082,8 @@ public sealed class StaticAssetIdentityTests
         var appCss = File.ReadAllText(FindRepoFile("src", "Slogs", "wwwroot", "app.css"));
 
         Assert.Contains("<PostRecallPath Post=\"Post\" />", postLogCard);
+        Assert.Contains("DraftActionText { get; set; } = \"게시전 기억 정리\"", postLogCard);
+        Assert.DoesNotContain("DraftActionText { get; set; } = \"게시전 로그 수정\"", postLogCard);
         Assert.Contains("post-log-card__recall-path", postRecallPath);
         Assert.Contains("로그 회상 경로", postRecallPath);
         Assert.Contains("FormatRecallPath(Post)", postRecallPath);

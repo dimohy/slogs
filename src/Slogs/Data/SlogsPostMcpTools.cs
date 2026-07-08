@@ -53,7 +53,7 @@ public sealed class SlogsPostMcpTools(
 
         if (string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(markdown))
         {
-            throw new InvalidOperationException("Slogs 게시전 저장에는 제목이나 Markdown 본문 중 하나가 필요합니다.");
+            throw new InvalidOperationException("Slogs 게시전 기억 저장에는 제목이나 Markdown 본문 중 하나가 필요합니다.");
         }
 
         var draft = await blogService.CreatePostAsync(

@@ -2,8 +2,8 @@
 @inject SlogsApiClient ApiClient
 @inject SlogsAuthState AuthState
 @inject NavigationManager Navigation
-<PageTitle>로그 수정</PageTitle>
-<SeoHead Title="로그 수정 | slogs" Description="slogs 로그를 수정합니다." NoIndex="true" />
+<PageTitle>로그 흐름 정리</PageTitle>
+<SeoHead Title="로그 흐름 정리 | slogs" Description="slogs 로그 흐름을 게시전 기억이나 새 리비전으로 정리합니다." NoIndex="true" />
 
 @if (CurrentUser is null)
 {
@@ -13,7 +13,7 @@
 }
 else if (post is null)
 {
-    <p class="rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">수정할 로그를 찾지 못했습니다.</p>
+    <p class="rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">정리할 로그 흐름을 찾지 못했습니다.</p>
 }
 else if (!CanEditPost)
 {
@@ -22,7 +22,7 @@ else if (!CanEditPost)
 else
 {
     <div class="flex flex-wrap items-center gap-2">
-        <h1 class="text-2xl font-bold text-slate-900">@(post.IsDraft ? "게시전 로그 수정" : "리비전 정리")</h1>
+        <h1 class="text-2xl font-bold text-slate-900">@(post.IsDraft ? "게시전 기억 정리" : "리비전 정리")</h1>
         @if (post.IsDraft)
         {
             <span class="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">게시전 기억</span>
@@ -76,7 +76,7 @@ else
             {
                 <button class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
                         type="button" @onclick="SaveDraft" disabled="@isSaving">
-                    @((isSaving && savingAction == "draft") ? "게시전 저장 중..." : "게시전 저장")
+                    @((isSaving && savingAction == "draft") ? "게시전 기억 저장 중..." : "게시전 기억 저장")
                 </button>
                 <button class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                         type="button" @onclick="Publish" disabled="@isSaving">
@@ -194,7 +194,7 @@ else
 
         if (post is null || CurrentUser is null)
         {
-            errorMessage = "수정할 로그를 찾을 수 없습니다.";
+            errorMessage = "정리할 로그 흐름을 찾을 수 없습니다.";
             return;
         }
 
@@ -206,7 +206,7 @@ else
 
         if (isDraft && string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(body))
         {
-            errorMessage = "게시전 저장할 로그 제목이나 본문을 입력해 주세요.";
+            errorMessage = "게시전 기억으로 남길 로그 제목이나 본문을 입력해 주세요.";
             return;
         }
 
@@ -236,7 +236,7 @@ else
         catch (Exception)
         {
             errorMessage = post.IsDraft
-                ? "게시전 로그 저장에 실패했습니다. 잠시 후 다시 시도해 주세요."
+                ? "게시전 기억 저장에 실패했습니다. 잠시 후 다시 시도해 주세요."
                 : "리비전 공유에 실패했습니다. 잠시 후 다시 시도해 주세요.";
             return;
         }

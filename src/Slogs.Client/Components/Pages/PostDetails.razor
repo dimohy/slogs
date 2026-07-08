@@ -283,7 +283,7 @@ else
 
             @if (CanEditCurrentPost)
             {
-                <a class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold transition hover:bg-slate-100" href="@GetEditHref()">@(post.IsDraft ? "게시전 로그 수정" : "새 리비전 남기기")</a>
+                <a class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold transition hover:bg-slate-100" href="@GetEditHref()">@(post.IsDraft ? "게시전 기억 정리" : "새 리비전 남기기")</a>
                 <button class="rounded-full border border-rose-300 px-3 py-1.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-50"
                         disabled="@isDeletingPost"
                         type="button" @onclick="ShowDeleteConfirm">
