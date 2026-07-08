@@ -331,7 +331,7 @@ else
                      data-card-click-href="@GetPostNavigationUrl(item)"
                      tabindex="0"
                      role="link"
-                     aria-label="@($"{item.Title} 연결 로그 흐름 열기")">
+                     aria-label="@($"{item.Title} 연결 로그 흐름 회상")">
                 <PostCardImage Post="item" PostUrl="@GetPostNavigationUrl(item)" Priority="@IsPriorityCardImage(index)" />
                 <PostFlowSignals Post="item" Class="post-log-card__signals post-detail-linked-card__signals" />
                 <PostRecallPath Post="item"
@@ -360,7 +360,7 @@ else
                      data-card-click-href="@(previousPost is null ? null : GetPostNavigationUrl(previousPost))"
                      tabindex="@(previousPost is null ? null : "0")"
                      role="@(previousPost is null ? null : "link")"
-                     aria-label="@(previousPost is null ? null : $"{previousPost.Title} 앞선 흐름 열기")">
+                     aria-label="@(previousPost is null ? null : $"{previousPost.Title} 앞선 흐름 회상")">
                 <p class="text-xs font-semibold text-slate-500">앞선 흐름</p>
                 @if (previousPost is null)
                 {
@@ -387,7 +387,7 @@ else
                      data-card-click-href="@(nextPost is null ? null : GetPostNavigationUrl(nextPost))"
                      tabindex="@(nextPost is null ? null : "0")"
                      role="@(nextPost is null ? null : "link")"
-                     aria-label="@(nextPost is null ? null : $"{nextPost.Title} 다음 흐름 열기")">
+                     aria-label="@(nextPost is null ? null : $"{nextPost.Title} 다음 흐름 회상")">
                 <p class="text-xs font-semibold text-slate-500">다음 흐름</p>
                 @if (nextPost is null)
                 {
