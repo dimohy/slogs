@@ -1330,11 +1330,7 @@ header.bg-white {
 
 @media (max-width: 1500px) {
     .slogs-brand {
-        max-width: min(8rem, 22vw);
-    }
-
-    .slogs-brand__tagline {
-        display: none;
+        max-width: min(18rem, 28vw);
     }
 }
 

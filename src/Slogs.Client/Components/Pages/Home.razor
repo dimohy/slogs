@@ -44,7 +44,6 @@
     <div class="min-w-0">
         <p class="text-xs font-bold text-slate-500">현재 흐름</p>
         <h1 class="text-lg font-bold text-slate-950">@GetVisibleFlowTitle()</h1>
-        <p class="mt-1 text-sm text-slate-600">@GetVisibleFlowDescription()</p>
     </div>
     <div class="slogs-home-flowline__signals" aria-label="흐름 신호">
         <span>@FormatLogNodeCount(totalCount)</span>
@@ -495,29 +494,11 @@ else
         };
     }
 
-    private string GetDiscoveryDescription()
-    {
-        return discoveryMode switch
-        {
-            "trending" => $"{GetPeriodLabel(normalizedPeriod)} 회상 접근, 대화 흔적, 공감 신호로 다시 이어진 공개 로그 흐름을 따라갑니다.",
-            "recommended" => $"{GetPeriodLabel(normalizedPeriod)} 회상 접근, 대화 흔적, 공감 신호, 단서, 시리즈가 겹치는 다음 의미 경로를 따라갑니다.",
-            "feed" => "관계로 이어진 슬로거 홈의 공개 로그 흐름만 따라갑니다.",
-            _ => "사람과 AI가 이어 쓰는 공개 지식 로그 흐름입니다."
-        };
-    }
-
     private string GetVisibleFlowTitle()
     {
         return string.IsNullOrWhiteSpace(Query)
             ? GetDiscoveryTitle()
             : $"{GetDisplayedQuery()} 의미 회상";
-    }
-
-    private string GetVisibleFlowDescription()
-    {
-        return string.IsNullOrWhiteSpace(Query)
-            ? GetDiscoveryDescription()
-            : $"단서, 슬로거, 시리즈, 본문 흐름에서 \"{GetDisplayedQuery()}\"와 이어지는 공개 로그를 회상합니다.";
     }
 
     private string GetFlowScopeLabel()
@@ -545,8 +526,19 @@ else
     private string GetSeoDescription()
     {
         return string.IsNullOrWhiteSpace(Query)
-            ? GetDiscoveryDescription()
+            ? GetSeoDiscoveryDescription()
             : $"slogs에서 {GetDisplayedQuery()}와 이어지는 의미 회상 흐름을 다시 따라갑니다.";
+    }
+
+    private string GetSeoDiscoveryDescription()
+    {
+        return discoveryMode switch
+        {
+            "trending" => $"{GetPeriodLabel(normalizedPeriod)} 회상 접근, 대화 흔적, 공감 신호로 다시 이어진 공개 로그 흐름을 따라갑니다.",
+            "recommended" => $"{GetPeriodLabel(normalizedPeriod)} 회상 접근, 대화 흔적, 공감 신호, 단서, 시리즈가 겹치는 다음 의미 경로를 따라갑니다.",
+            "feed" => "관계로 이어진 슬로거 홈의 공개 로그 흐름만 따라갑니다.",
+            _ => "최근 공개 공유 노드와 이어지는 지식 로그 흐름을 다시 따라갑니다."
+        };
     }
 
     private string GetSeoCanonicalPath()

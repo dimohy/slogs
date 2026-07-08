@@ -18,9 +18,6 @@ else
              CanonicalPath="@GetPostUrl(post)"
              ImageUrl="@GetPostSeoImageUrl(post)"
              Author="@post.Author"
-             Tags="@post.Tags"
-             PublishedAt="@post.PublishedAt"
-             UpdatedAt="@post.UpdatedAt"
              NoIndex="@post.IsDraft"
              JsonLd="@(post.IsDraft ? null : SeoMetadata.PublicLogNodeJsonLd(Navigation.BaseUri, post, GetPostUrl(post), GetPostSeoImageUrl(post)))" />
 }

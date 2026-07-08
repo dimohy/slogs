@@ -44,6 +44,7 @@ public sealed class StaticAssetIdentityTests
         var reconnectModal = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Layout", "ReconnectModal.razor"));
 
         Assert.Contains("aria-label=\"slogs 지식 로그 홈\"", mainLayout);
+        Assert.Contains("사람과 AI가 이어 쓰는 공개 지식 로그 흐름", mainLayout);
         Assert.Contains("placeholder=\"의미 회상\"", mainLayout);
         Assert.Contains("aria-label=\"전역 의미 회상어 입력\"", mainLayout);
         Assert.Contains("title=\"의미 회상\"", mainLayout);
@@ -1231,7 +1232,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("flex-basis: clamp(20rem, 42vw, 52rem);", appCss);
         Assert.Contains("min-width: min(18rem, 36vw);", appCss);
         Assert.Contains("@media (max-width: 1500px)", appCss);
-        Assert.Contains("max-width: min(8rem, 22vw);", appCss);
+        Assert.Contains("max-width: min(18rem, 28vw);", appCss);
         Assert.Contains("@media (max-width: 1180px) {\n    .slogs-brand__tagline {\n        display: none;\n    }\n}", appCss);
         Assert.Contains("@media (max-width: 900px)", appCss);
         Assert.Contains(".slogs-brand__tagline {\n        display: none;\n    }", appCss);
@@ -1505,20 +1506,16 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("aria-label=\"현재 지식 로그 흐름\"", homePage);
         Assert.Contains("현재 흐름", homePage);
         Assert.Contains("GetVisibleFlowTitle()", homePage);
-        Assert.Contains("GetVisibleFlowDescription()", homePage);
         Assert.Contains("FormatLogNodeCount(totalCount)", homePage);
         Assert.Contains("GetFlowScopeLabel()", homePage);
         Assert.Contains("개 로그 노드", homePage);
         Assert.Contains(">반응 회상</a>", homePage);
         Assert.Contains("반응으로 이어진 로그", homePage);
-        Assert.Contains("회상 접근, 대화 흔적, 공감 신호로 다시 이어진 공개 로그 흐름을 따라갑니다.", homePage);
         Assert.Contains(">의미 회상</a>", homePage);
         Assert.Contains("의미가 이어진 로그", homePage);
-        Assert.Contains("회상 접근, 대화 흔적, 공감 신호, 단서, 시리즈가 겹치는 다음 의미 경로를 따라갑니다.", homePage);
         Assert.Contains(">최근 흐름</a>", homePage);
         Assert.Contains("최근 공개 로그 흐름", homePage);
         Assert.Contains("의미 회상", homePage);
-        Assert.Contains("사람과 AI가 이어 쓰는 공개 지식 로그 흐름입니다.", homePage);
         Assert.Contains("의미 회상 흐름 | slogs", homePage);
         Assert.Contains("slogs에서 {GetDisplayedQuery()}와 이어지는 의미 회상 흐름을 다시 따라갑니다.", homePage);
         Assert.Contains("와 이어지는 의미 회상 흐름이 없습니다.", homePage);
@@ -1538,6 +1535,7 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("추천 회상", homePage);
         Assert.DoesNotContain("의미로 추천된 로그", homePage);
         Assert.DoesNotContain("이어 읽을 로그를 고릅니다.", homePage);
+        Assert.DoesNotContain("사람과 AI가 이어 쓰는 공개 지식 로그 흐름입니다.", homePage);
         Assert.DoesNotContain(">반응 로그</a>", homePage);
         Assert.DoesNotContain("반응이 모이는 로그", homePage);
         Assert.DoesNotContain("공개 로그를 먼저 봅니다.", homePage);
@@ -1728,6 +1726,9 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("post-detail-article-summary-card", postDetailsPage);
         Assert.DoesNotContain("SeoMetadata.ArticleJsonLd", postDetailsPage);
         Assert.DoesNotContain("Type=\"article\"", postDetailsPage);
+        Assert.DoesNotContain("Tags=\"@post.Tags\"", postDetailsPage);
+        Assert.DoesNotContain("PublishedAt=\"@post.PublishedAt\"", postDetailsPage);
+        Assert.DoesNotContain("UpdatedAt=\"@post.UpdatedAt\"", postDetailsPage);
         Assert.DoesNotContain("Title=\"@($\"{post.Title} | slogs\")\"", postDetailsPage);
         Assert.DoesNotContain("Description=\"@post.Summary\"", postDetailsPage);
         Assert.DoesNotContain(">게시전 로그</span>", postDetailsPage);
@@ -1749,6 +1750,24 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("이전 로그가 없습니다.", postDetailsPage);
         Assert.DoesNotContain("다음 로그가 없습니다.", postDetailsPage);
         Assert.DoesNotContain("수정 @FormatDateTime(post.UpdatedAt)", postDetailsPage);
+    }
+
+    [Fact]
+    public void SeoHeadDoesNotExposeGenericArticleMetadata()
+    {
+        var seoHead = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "SeoHead.razor"));
+
+        Assert.Contains("<meta property=\"og:type\" content=\"@Type\" />", seoHead);
+        Assert.Contains("<meta name=\"author\" content=\"@Author\" />", seoHead);
+        Assert.DoesNotContain("article:author", seoHead);
+        Assert.DoesNotContain("article:published_time", seoHead);
+        Assert.DoesNotContain("article:modified_time", seoHead);
+        Assert.DoesNotContain("article:tag", seoHead);
+        Assert.DoesNotContain("IsArticleType", seoHead);
+        Assert.DoesNotContain("Type, \"article\"", seoHead);
+        Assert.DoesNotContain("IReadOnlyList<string>? Tags", seoHead);
+        Assert.DoesNotContain("DateTime? PublishedAt", seoHead);
+        Assert.DoesNotContain("DateTime? UpdatedAt", seoHead);
     }
 
     [Fact]
