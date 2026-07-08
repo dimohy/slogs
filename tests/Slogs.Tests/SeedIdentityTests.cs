@@ -60,6 +60,91 @@ public sealed class SeedIdentityTests
     }
 
     [Fact]
+    public async Task SeedIdentityRepairUpdatesLegacyBlazorSampleLog()
+    {
+        await using var fixture = await SeedFixture.CreateAsync();
+        await InvokeInitializerAsync("SeedUsersAsync", fixture.Db);
+
+        var now = DateTime.UtcNow;
+        var legacyPost = new PostRecord
+        {
+            Title = "Blazor로 만드는 Markdown 블로그 구조",
+            Author = "devin",
+            Summary = "Blazor 앱에서 블로그 구조와 포스트 흐름을 구성하는 방법입니다.",
+            Body = "# Markdown 블로그 구조\n\n블로그 글 목록과 포스트 상세 페이지를 구성합니다.",
+            ThumbnailUrl = string.Empty,
+            PublishedAt = now.AddDays(-4),
+            UpdatedAt = now,
+            Slug = "blazor-markdown-blog",
+            TagsJson = "[\"blazor\",\"dotnet\",\"csharp\"]",
+            SeriesJson = "[\"블로그 시리즈\"]",
+            ReadTimeMinutes = 6
+        };
+        legacyPost.Comments.Add(new CommentRecord
+        {
+            Author = "guest",
+            AuthorNormalized = "guest",
+            Content = "좋은 포스트네요. 라우팅 설계가 가장 먼저라고 동의합니다.",
+            CreatedAt = now.AddHours(-2),
+            UpdatedAt = now.AddHours(-2)
+        });
+        legacyPost.Comments.Add(new CommentRecord
+        {
+            Author = "alex",
+            AuthorNormalized = "alex",
+            Content = "글 제목이 잘 보이도록 헤더 고정도 좋은 패턴 같아요.",
+            CreatedAt = now.AddHours(-1),
+            UpdatedAt = now.AddHours(-1)
+        });
+        legacyPost.Revisions.Add(new PostRevisionRecord
+        {
+            RevisionNumber = 1,
+            Title = legacyPost.Title,
+            Summary = legacyPost.Summary,
+            Body = legacyPost.Body,
+            ThumbnailUrl = legacyPost.ThumbnailUrl,
+            TagsJson = legacyPost.TagsJson,
+            SeriesJson = legacyPost.SeriesJson,
+            CreatedAt = legacyPost.PublishedAt,
+            Author = legacyPost.Author
+        });
+        fixture.Db.Posts.Add(legacyPost);
+        await fixture.Db.SaveChangesAsync();
+
+        await InvokeInitializerAsync("EnsureSeedIdentityDefaultsAsync", fixture.Db);
+
+        var repairedPost = await fixture.Db.Posts
+            .Include(x => x.Comments)
+            .Include(x => x.Revisions)
+            .SingleAsync(x => x.Author == "devin" && x.Slug == "blazor-markdown-knowledge-log");
+        var repairedText = string.Join(
+            "\n",
+            new[]
+            {
+                repairedPost.Title,
+                repairedPost.Summary,
+                repairedPost.Body,
+                repairedPost.SeriesJson
+            }
+            .Concat(repairedPost.Comments.Select(comment => comment.Content))
+            .Concat(repairedPost.Revisions.SelectMany(revision => new[]
+            {
+                revision.Title,
+                revision.Summary,
+                revision.Body,
+                revision.SeriesJson
+            })));
+
+        Assert.Contains("Blazor로 남기는 Markdown 지식 로그 구조", repairedText);
+        Assert.Contains("공개 로그 흐름", repairedText);
+        Assert.Contains("좋은 로그네요. 라우팅 설계가 가장 먼저라고 동의합니다.", repairedText);
+        Assert.Contains("로그 제목이 잘 보이도록 헤더 고정도 좋은 패턴 같아요.", repairedText);
+        Assert.DoesNotContain("블로그", repairedText);
+        Assert.DoesNotContain("포스트", repairedText);
+        Assert.DoesNotContain("글 제목", repairedText);
+    }
+
+    [Fact]
     public async Task SeedIdentityRepairUpdatesLegacyCsharpSampleLog()
     {
         await using var fixture = await SeedFixture.CreateAsync();
