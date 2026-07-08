@@ -123,11 +123,11 @@ else
                             <h4 class="text-base font-bold text-slate-950 sm:text-lg">@GetRecallFlowTitle()</h4>
                             <p class="mt-1 text-sm text-slate-600">@GetRecallFlowDescription()</p>
                         </div>
-                        <div class="slogs-home-flowline__signals" aria-label="기억에서 공개 로그까지 이어지는 흐름 신호">
+                        <div class="slogs-home-flowline__signals" aria-label="기억에서 공개 공유까지 이어지는 흐름 신호">
                             <span>@FormatVisibleMemoryNodeCount()</span>
                             <span>@GetRecallScopeSignal()</span>
                             <span>@GetDraftBridgeSignal()</span>
-                            <span>검토 후 공개 로그 흐름</span>
+                            <span>검토 후 공개 공유 흐름</span>
                         </div>
                     </section>
 
@@ -255,7 +255,7 @@ else
                          data-llm-wiki-draft-safety-note="true">
                         <span class="font-bold">소유자 전용 게시전 기억</span>
                         선택한 기억은 바로 공개되지 않습니다. 편집 화면에서 민감한 단서와 내부 맥락을 정리한 뒤 공개 여부를 결정합니다.
-                        공개 공유 후에는 슬로거 홈, 공개 로그 흐름, 대화 흔적, 리비전 흐름으로 이어집니다.
+                        공개 공유 후에는 슬로거 홈, 공개 공유 노드, 대화 흔적, 리비전 흐름으로 이어집니다.
                     </div>
                     @if (!string.IsNullOrWhiteSpace(draftMessage))
                     {
@@ -567,7 +567,7 @@ else
             : $"\"{activeSearchQuery}\" 기억 회상 흐름";
 
     private string GetRecallFlowDescription()
-        => "기억 후보를 소유자 전용 게시전 기억으로 잇고, 검토 후 공개 로그 흐름을 결정합니다.";
+        => "기억 후보를 소유자 전용 게시전 기억으로 잇고, 검토 후 공개 공유 흐름을 결정합니다.";
 
     private string FormatVisibleMemoryNodeCount()
         => hasMoreResults
@@ -711,7 +711,7 @@ else
 
         - 현재 단계: 비공개 기억 -> 소유자 전용 게시전 기억
         - 다음 단계: 민감한 단서 정리 -> 검토 후 공개 공유
-        - 공개 공유 후 흐름: 슬로거 홈 -> 공개 로그 흐름 -> 대화 흔적 -> 리비전 흐름
+        - 공개 공유 후 흐름: 슬로거 홈 -> 공개 공유 노드 -> 대화 흔적 -> 리비전 흐름
         - 원칙: 이 게시전 기억은 공개 공유 전까지 소유자에게만 보입니다.
 
         ## 기억 단서
@@ -721,7 +721,7 @@ else
         - 현재 상태: {visibility}
         - 회상 요약: {BuildDraftSummary(entry)}
 
-        ## 공개 로그로 정리할 흐름
+        ## 공개 공유 노드로 정리할 흐름
 
         ### 시작된 생각과 작업
 
