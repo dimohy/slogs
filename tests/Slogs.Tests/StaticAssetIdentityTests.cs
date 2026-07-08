@@ -661,8 +661,8 @@ public sealed class StaticAssetIdentityTests
         var profileSettingsForm = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "ProfileSettingsForm.razor"));
 
         Assert.Contains("지식 로그 연결", settingsPage);
-        Assert.Contains("슬로거 홈 정체성, Agent 회상, LLM Wiki 기억, Obsidian 노트 Vault, 공개 로그 흐름을 한 연결 계층으로 이어 둡니다.", settingsPage);
-        Assert.Contains("슬로거 홈 정체성, Agent 회상, 기억, 로컬 노트, 공개 로그 흐름을 한 연결 계층으로 이어 둡니다.", settingsPage);
+        Assert.Contains("슬로거 홈 정체성, Agent 회상, LLM Wiki 기억, Obsidian 노트 Vault, 공개 공유 흐름을 한 연결 계층으로 이어 둡니다.", settingsPage);
+        Assert.Contains("슬로거 홈 정체성, Agent 회상, 기억, 로컬 노트, 공개 공유 흐름을 한 연결 계층으로 이어 둡니다.", settingsPage);
         Assert.Contains("기억과 노트가 로그로 이어지는 경로", settingsPage);
         Assert.Contains("Agent는 비공개 기억을 회상하고, Obsidian은 로컬 노트를 원격 노트 Vault에 남기며", settingsPage);
         Assert.Contains("data-settings-connection-status", settingsPage);
@@ -708,6 +708,8 @@ public sealed class StaticAssetIdentityTests
 
         Assert.DoesNotContain("공개 로그 연결을 설정합니다.", settingsPage);
         Assert.DoesNotContain("공개 로그 흐름을 관리합니다.", settingsPage);
+        Assert.DoesNotContain("슬로거 홈 정체성, Agent 회상, LLM Wiki 기억, Obsidian 노트 Vault, 공개 로그 흐름을 한 연결 계층으로 이어 둡니다.", settingsPage);
+        Assert.DoesNotContain("슬로거 홈 정체성, Agent 회상, 기억, 로컬 노트, 공개 로그 흐름을 한 연결 계층으로 이어 둡니다.", settingsPage);
         Assert.DoesNotContain("Slogs 계정", settingsPage);
         Assert.DoesNotContain("프로필, Agent", settingsPage);
         Assert.DoesNotContain("판단 기준과 작업 맥락을 찾습니다.", settingsPage);
