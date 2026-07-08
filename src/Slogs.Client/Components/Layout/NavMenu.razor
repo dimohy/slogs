@@ -160,13 +160,13 @@
             ? NormalizeAdminUsersView(GetQueryValue("view"))
             : string.Empty;
 
-    private string TagSectionTitle => IsPersonalSideContext ? "내 단서" : "인기 단서";
+    private string TagSectionTitle => IsPersonalSideContext ? "내 단서 흐름" : "반응 단서 흐름";
 
-    private string SeriesSectionTitle => IsPersonalSideContext ? "내 로그 시리즈" : "인기 로그 시리즈";
+    private string SeriesSectionTitle => IsPersonalSideContext ? "내 로그 시리즈 흐름" : "반응 로그 시리즈 흐름";
 
-    private string TagEmptyText => IsPersonalSideContext ? "내 단서가 없습니다." : "단서가 준비 중입니다.";
+    private string TagEmptyText => IsPersonalSideContext ? "내 단서 흐름이 아직 없습니다." : "공개 단서 흐름이 준비 중입니다.";
 
-    private string SeriesEmptyText => IsPersonalSideContext ? "내 로그 시리즈가 없습니다." : "로그 시리즈가 없습니다.";
+    private string SeriesEmptyText => IsPersonalSideContext ? "내 로그 시리즈 흐름이 아직 없습니다." : "공개 로그 시리즈 흐름이 아직 없습니다.";
 
     private string CurrentPath
     {

@@ -39,6 +39,14 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("aria-label=\"지식 로그 흐름 메뉴 닫기\"", mainLayout);
         Assert.Contains(">흐름 메뉴</span>", mainLayout);
         Assert.Contains("aria-label=\"지식 로그 흐름 메뉴\"", navMenu);
+        Assert.Contains("반응 단서 흐름", navMenu);
+        Assert.Contains("반응 로그 시리즈 흐름", navMenu);
+        Assert.Contains("내 단서 흐름", navMenu);
+        Assert.Contains("내 로그 시리즈 흐름", navMenu);
+        Assert.Contains("공개 단서 흐름이 준비 중입니다.", navMenu);
+        Assert.Contains("공개 로그 시리즈 흐름이 아직 없습니다.", navMenu);
+        Assert.Contains("내 단서 흐름이 아직 없습니다.", navMenu);
+        Assert.Contains("내 로그 시리즈 흐름이 아직 없습니다.", navMenu);
         Assert.Contains("운영 흐름 모드", mainLayout);
         Assert.Contains("시작 슬로거 @", mainLayout);
         Assert.Contains("운영 흐름으로 전환", mainLayout);
@@ -52,6 +60,12 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("aria-label=\"메뉴 열기\"", mainLayout);
         Assert.DoesNotContain("aria-label=\"모바일 메뉴\"", mainLayout);
         Assert.DoesNotContain("aria-label=\"main menu\"", navMenu);
+        Assert.DoesNotContain("인기 단서", navMenu);
+        Assert.DoesNotContain("인기 로그 시리즈", navMenu);
+        Assert.DoesNotContain("내 단서가 없습니다.", navMenu);
+        Assert.DoesNotContain("단서가 준비 중입니다.", navMenu);
+        Assert.DoesNotContain("내 로그 시리즈가 없습니다.", navMenu);
+        Assert.DoesNotContain("로그 시리즈가 없습니다.", navMenu);
         Assert.DoesNotContain("관리자 모드", mainLayout);
         Assert.DoesNotContain("원래 사용자 @", mainLayout);
         Assert.DoesNotContain("어드민 전환", mainLayout);
