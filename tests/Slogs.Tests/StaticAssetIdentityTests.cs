@@ -1294,6 +1294,8 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains(">의미 회상</a>", homePage);
         Assert.Contains("의미가 이어진 로그", homePage);
         Assert.Contains("회상 접근, 대화 흔적, 공감 신호, 단서, 시리즈가 겹치는 다음 의미 경로를 따라갑니다.", homePage);
+        Assert.Contains(">최근 흐름</a>", homePage);
+        Assert.Contains("최근 공개 로그 흐름", homePage);
         Assert.Contains("의미 회상", homePage);
         Assert.Contains("사람과 AI가 이어 쓰는 공개 지식 로그 흐름입니다.", homePage);
         Assert.Contains("의미 회상 흐름 | slogs", homePage);
@@ -1318,6 +1320,8 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain(">반응 로그</a>", homePage);
         Assert.DoesNotContain("반응이 모이는 로그", homePage);
         Assert.DoesNotContain("공개 로그를 먼저 봅니다.", homePage);
+        Assert.DoesNotContain(">새 로그</a>", homePage);
+        Assert.DoesNotContain("새 로그 스트림", homePage);
     }
 
     [Fact]

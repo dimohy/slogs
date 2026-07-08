@@ -17,7 +17,7 @@
     <div class="flex flex-wrap gap-2">
         <a class="@GetDiscoveryTabClass("trending")" href="@TrendingHref" @onclick="() => NavigateHomeLink(TrendingHref)" @onclick:preventDefault="true">반응 회상</a>
         <a class="@GetDiscoveryTabClass("recommended")" href="@RecommendedHref" @onclick="() => NavigateHomeLink(RecommendedHref)" @onclick:preventDefault="true">의미 회상</a>
-        <a class="@GetDiscoveryTabClass("recent")" href="@RecentHref" @onclick="() => NavigateHomeLink(RecentHref)" @onclick:preventDefault="true">새 로그</a>
+        <a class="@GetDiscoveryTabClass("recent")" href="@RecentHref" @onclick="() => NavigateHomeLink(RecentHref)" @onclick:preventDefault="true">최근 흐름</a>
         <a class="@GetDiscoveryTabClass("feed")" href="@FeedHref" @onclick="() => NavigateHomeLink(FeedHref)" @onclick:preventDefault="true">이어 둔 로그</a>
     </div>
 
@@ -491,7 +491,7 @@ else
             "trending" => $"{GetPeriodTitlePrefix()} 반응으로 이어진 로그",
             "recommended" => $"{GetPeriodTitlePrefix()} 의미가 이어진 로그",
             "feed" => "이어 둔 로그 흐름",
-            _ => "새 로그 스트림"
+            _ => "최근 공개 로그 흐름"
         };
     }
 
