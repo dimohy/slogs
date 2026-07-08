@@ -4,7 +4,7 @@
 @inject IJSRuntime JS
 
 <PageTitle>LLM Wiki 기억 연결</PageTitle>
-<SeoHead Title="LLM Wiki 기억 연결 | slogs" Description="Slogs LLM Wiki가 비공개 기억을 Agent 회상과 소유자 전용 게시전 로그로 이어 두는 연결면입니다." NoIndex="true" />
+<SeoHead Title="LLM Wiki 기억 연결 | slogs" Description="Slogs LLM Wiki가 비공개 기억을 Agent 회상과 소유자 전용 게시전 기억으로 이어 두는 연결면입니다." NoIndex="true" />
 
 @if (CurrentUser is null)
 {
@@ -17,7 +17,7 @@ else
             <div>
                 <p class="text-xs font-bold text-slate-500">slogs 기억 계층</p>
                 <h1 class="mt-1 text-2xl font-bold text-slate-900">LLM Wiki 기억 연결</h1>
-                <p class="mt-1 text-sm text-slate-500">@CurrentUser.DisplayName 님의 비공개 기억을 Agent 회상과 Slogs 게시전 로그로 이어 두는 연결면입니다.</p>
+                <p class="mt-1 text-sm text-slate-500">@CurrentUser.DisplayName 님의 비공개 기억을 Agent 회상과 Slogs 게시전 기억으로 이어 두는 연결면입니다.</p>
             </div>
         </div>
 
@@ -26,13 +26,13 @@ else
                 <p class="text-xs font-bold text-slate-500">기억에서 로그로</p>
                 <h2 class="mt-1 text-lg font-bold text-slate-900">LLM Wiki는 공개 로그 뒤의 기억 계층입니다</h2>
                 <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                    Agent가 남긴 판단 기준과 작업 맥락은 비공개 기억으로 축적되고, 필요한 순간 의미 회상에서 소유자 전용 게시전 로그로 이어집니다. 공개는 게시전 로그를 검토하고 리비전으로 남긴 뒤 사용자가 결정합니다.
+                    Agent가 남긴 판단 기준과 작업 맥락은 비공개 기억으로 축적되고, 필요한 순간 의미 회상에서 소유자 전용 게시전 기억으로 이어집니다. 공개는 게시전 기억을 검토하고 리비전으로 남긴 뒤 사용자가 결정합니다.
                 </p>
             </div>
             <div class="llm-wiki-flow-panel__steps mt-4">
                 <span>기억 남김</span>
                 <span>의미 회상</span>
-                <span>게시전 로그</span>
+                <span>게시전 기억</span>
                 <span>공개 공유</span>
             </div>
             <div class="mt-4">

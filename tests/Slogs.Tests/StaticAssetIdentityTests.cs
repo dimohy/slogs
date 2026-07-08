@@ -470,8 +470,8 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("GetDraftBridgeSignal()", llmWikiSearchPage);
         Assert.Contains("검토 후 공개 로그 흐름", llmWikiSearchPage);
         Assert.Contains("회상 기억 노드", llmWikiSearchPage);
-        Assert.Contains("게시전 로그 연결", llmWikiSearchPage);
-        Assert.Contains("게시전 로그 연결 대기", llmWikiSearchPage);
+        Assert.Contains("게시전 기억 연결", llmWikiSearchPage);
+        Assert.Contains("게시전 기억 연결 대기", llmWikiSearchPage);
         Assert.Contains("범주+의미 회상", llmWikiSearchPage);
         Assert.Contains("개 기억 회상 중", llmWikiSearchPage);
         Assert.Contains("회 회상 접근", llmWikiSearchPage);
@@ -504,30 +504,41 @@ public sealed class StaticAssetIdentityTests
     }
 
     [Fact]
-    public void LlmWikiMemoryToLogBridgeUsesPrePublishLogWording()
+    public void LlmWikiMemoryToLogBridgeUsesPrePublishMemoryWording()
     {
         var llmWikiGuidePage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "LlmWiki.razor"));
         var llmWikiSearchPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "LlmWikiSearch.razor"));
 
-        Assert.Contains("개인 LLM Wiki 기억을 회상하고 Slogs 게시전 로그로 이어 씁니다.", llmWikiSearchPage);
-        Assert.Contains("소유자 전용 게시전 로그로 이어 씁니다.", llmWikiSearchPage);
-        Assert.Contains("비공개 기억을 바로 공개하지 않고 소유자 전용 게시전 로그로 옮긴 뒤", llmWikiSearchPage);
-        Assert.Contains("게시전 로그로 이어쓰기", llmWikiSearchPage);
-        Assert.Contains("게시전 로그 여는 중...", llmWikiSearchPage);
+        Assert.Contains("개인 LLM Wiki 기억을 회상하고 Slogs 게시전 기억으로 이어 씁니다.", llmWikiSearchPage);
+        Assert.Contains("소유자 전용 게시전 기억으로 이어 씁니다.", llmWikiSearchPage);
+        Assert.Contains("비공개 기억을 바로 공개하지 않고 소유자 전용 게시전 기억으로 옮긴 뒤", llmWikiSearchPage);
+        Assert.Contains("게시전 기억으로 이어쓰기", llmWikiSearchPage);
+        Assert.Contains("게시전 기억 여는 중...", llmWikiSearchPage);
         Assert.Contains("data-llm-wiki-draft-action-boundary=\"true\"", llmWikiSearchPage);
-        Assert.Contains("비공개 기억 -> 소유자 전용 게시전 로그 -> 검토 후 공개 공유", llmWikiSearchPage);
-        Assert.Contains("소유자 전용 게시전 로그", llmWikiSearchPage);
+        Assert.Contains("비공개 기억 -> 소유자 전용 게시전 기억 -> 검토 후 공개 공유", llmWikiSearchPage);
+        Assert.Contains("소유자 전용 게시전 기억", llmWikiSearchPage);
         Assert.Contains("공개 공유 후에는 슬로거 홈, 공개 로그 흐름, 대화 흔적, 리비전 흐름으로 이어집니다.", llmWikiSearchPage);
-        Assert.Contains("이 게시전 로그는 Slogs LLM Wiki에서 이어온 소유자 전용 흐름입니다.", llmWikiSearchPage);
+        Assert.Contains("이 게시전 기억은 Slogs LLM Wiki에서 이어온 소유자 전용 흐름입니다.", llmWikiSearchPage);
         Assert.Contains("## 게시전 공유 경계", llmWikiSearchPage);
-        Assert.Contains("현재 단계: 비공개 기억 -> 소유자 전용 게시전 로그", llmWikiSearchPage);
+        Assert.Contains("현재 단계: 비공개 기억 -> 소유자 전용 게시전 기억", llmWikiSearchPage);
         Assert.Contains("다음 단계: 민감한 단서 정리 -> 검토 후 공개 공유", llmWikiSearchPage);
         Assert.Contains("공개 공유 후 흐름: 슬로거 홈 -> 공개 로그 흐름 -> 대화 흔적 -> 리비전 흐름", llmWikiSearchPage);
-        Assert.Contains("공개 공유 전까지 소유자에게만 보입니다.", llmWikiSearchPage);
+        Assert.Contains("이 게시전 기억은 공개 공유 전까지 소유자에게만 보입니다.", llmWikiSearchPage);
         Assert.Contains("이 로그에서 이어질 작업이나 다시 따라갈 지점을 남깁니다.", llmWikiSearchPage);
-        Assert.Contains("소유자 전용 게시전 로그로 이어집니다.", llmWikiGuidePage);
-        Assert.Contains("<span>게시전 로그</span>", llmWikiGuidePage);
+        Assert.Contains("소유자 전용 게시전 기억으로 이어집니다.", llmWikiGuidePage);
+        Assert.Contains("<span>게시전 기억</span>", llmWikiGuidePage);
 
+        Assert.DoesNotContain("개인 LLM Wiki 기억을 회상하고 Slogs 게시전 로그로 이어 씁니다.", llmWikiSearchPage);
+        Assert.DoesNotContain("소유자 전용 게시전 로그로 이어 씁니다.", llmWikiSearchPage);
+        Assert.DoesNotContain("비공개 기억을 바로 공개하지 않고 소유자 전용 게시전 로그로 옮긴 뒤", llmWikiSearchPage);
+        Assert.DoesNotContain("게시전 로그로 이어쓰기", llmWikiSearchPage);
+        Assert.DoesNotContain("게시전 로그 여는 중...", llmWikiSearchPage);
+        Assert.DoesNotContain("비공개 기억 -> 소유자 전용 게시전 로그 -> 검토 후 공개 공유", llmWikiSearchPage);
+        Assert.DoesNotContain("이 게시전 로그는 Slogs LLM Wiki", llmWikiSearchPage);
+        Assert.DoesNotContain("현재 단계: 비공개 기억 -> 소유자 전용 게시전 로그", llmWikiSearchPage);
+        Assert.DoesNotContain("Slogs LLM Wiki가 비공개 기억을 Agent 회상과 소유자 전용 게시전 로그로 이어 두는 연결면입니다.", llmWikiGuidePage);
+        Assert.DoesNotContain("비공개 기억을 Agent 회상과 Slogs 게시전 로그로 이어 두는 연결면입니다.", llmWikiGuidePage);
+        Assert.DoesNotContain("<span>게시전 로그</span>", llmWikiGuidePage);
         Assert.DoesNotContain("Slogs 로그 초안으로 이어 씁니다.", llmWikiSearchPage);
         Assert.DoesNotContain("게시전 로그 초안", llmWikiSearchPage);
         Assert.DoesNotContain("초안 생성 중...", llmWikiSearchPage);
@@ -575,8 +586,8 @@ public sealed class StaticAssetIdentityTests
         var navMenu = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Layout", "NavMenu.razor"));
 
         Assert.Contains("LLM Wiki 기억 연결", llmWikiGuidePage);
-        Assert.Contains("Slogs LLM Wiki가 비공개 기억을 Agent 회상과 소유자 전용 게시전 로그로 이어 두는 연결면입니다.", llmWikiGuidePage);
-        Assert.Contains("비공개 기억을 Agent 회상과 Slogs 게시전 로그로 이어 두는 연결면입니다.", llmWikiGuidePage);
+        Assert.Contains("Slogs LLM Wiki가 비공개 기억을 Agent 회상과 소유자 전용 게시전 기억으로 이어 두는 연결면입니다.", llmWikiGuidePage);
+        Assert.Contains("비공개 기억을 Agent 회상과 Slogs 게시전 기억으로 이어 두는 연결면입니다.", llmWikiGuidePage);
         Assert.Contains(">비공개 기억</div>", navMenu);
         Assert.Contains("기억 연결 가이드", navMenu);
         Assert.Contains("<span>기억 남김</span>", llmWikiGuidePage);
@@ -610,6 +621,8 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("저장 전에는 관련 기억을 먼저 회상하고", llmWikiGuidePage);
         Assert.DoesNotContain("categoryPath</code>를 정하고 저장합니다.", llmWikiGuidePage);
         Assert.DoesNotContain("저장하지 않습니다.", llmWikiGuidePage);
+        Assert.DoesNotContain("Slogs LLM Wiki가 비공개 기억을 Agent 회상과 소유자 전용 게시전 로그로 이어 두는 연결면입니다.", llmWikiGuidePage);
+        Assert.DoesNotContain("비공개 기억을 Agent 회상과 Slogs 게시전 로그로 이어 두는 연결면입니다.", llmWikiGuidePage);
         Assert.DoesNotContain("Slogs LLM Wiki가 비공개 기억을 Agent 회상과 게시전 로그로 이어 쓰는 흐름을 확인합니다.", llmWikiGuidePage);
         Assert.DoesNotContain("Slogs MCP 키 입력과 전역/프로젝트/현재 세션 범위 선택을 안내하고", llmWikiGuidePage);
         Assert.DoesNotContain("처음 설치할 때만 Agent가 Slogs MCP 키를 요청하고", llmWikiGuidePage);
