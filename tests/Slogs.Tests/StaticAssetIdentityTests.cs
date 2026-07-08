@@ -291,7 +291,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("\"정리 중\" : \"정리\"", adminUsersPage);
         Assert.Contains("aria-label=\"LLM Wiki 기억 요약\"", adminUsersPage);
         Assert.Contains("slogs 슬로거, 기억 회상, 노트 Vault 흐름을 함께 따라갑니다.", adminUsersPage);
-        Assert.Contains("슬로거 홈과 공개/게시전 로그가 어떻게 이어지는지 함께 따라갑니다.", adminUsersPage);
+        Assert.Contains("슬로거 홈과 공개 공유 노드, 게시전 기억이 어떻게 이어지는지 함께 따라갑니다.", adminUsersPage);
         Assert.Contains("비공개 기억, 회상 접근, Agent 연결 품질 신호를 함께 살핍니다.", adminUsersPage);
         Assert.Contains("로컬 노트 Vault, 노트 원문, 연결 흔적 흐름을 함께 따라갑니다.", adminUsersPage);
         Assert.Contains(">기억 노드</div>", adminUsersPage);
@@ -337,7 +337,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains(">최근 기억</th>", adminUsersPage);
         Assert.Contains(">최근 회상</th>", adminUsersPage);
         Assert.Contains("이어 볼 LLM Wiki 기억 슬로거가 없습니다.", adminUsersPage);
-        Assert.Contains("공개 로그 {user.PublishedPostCount:N0} / 게시전 로그 {user.DraftPostCount:N0}", adminUsersPage);
+        Assert.Contains("공개 공유 {user.PublishedPostCount:N0} / 게시전 기억 {user.DraftPostCount:N0}", adminUsersPage);
 
         Assert.DoesNotContain("placeholder=\"사용자 검색\"", adminUsersPage);
         Assert.DoesNotContain("사용자 검색어 입력", adminUsersPage);
@@ -367,6 +367,7 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("슬로거 홈, 공개 로그, 게시전 로그 흐름 신호를 확인합니다.", adminUsersPage);
         Assert.DoesNotContain("slogs 슬로거, 기억 회상, 노트 Vault 흐름을 확인합니다.", adminUsersPage);
         Assert.DoesNotContain("슬로거 홈과 공개/게시전 로그가 어떻게 이어지는지 확인합니다.", adminUsersPage);
+        Assert.DoesNotContain("슬로거 홈과 공개/게시전 로그가 어떻게 이어지는지 함께 따라갑니다.", adminUsersPage);
         Assert.DoesNotContain(">사용자 관리</a>", navMenu);
         Assert.DoesNotContain(">슬로거 관리</a>", adminUsersPage);
         Assert.DoesNotContain(">슬로거 관리</a>", navMenu);
@@ -398,6 +399,7 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain(">MCP 토큰</th>", adminUsersPage);
         Assert.DoesNotContain("저장 {user.LlmWikiRememberCount:N0} / 병합 {user.LlmWikiMergeCount:N0} / 수정 {user.LlmWikiUpdateCount:N0}", adminUsersPage);
         Assert.DoesNotContain("게시전 로그 관리 신호", adminUsersPage);
+        Assert.DoesNotContain("공개 로그 {user.PublishedPostCount:N0} / 게시전 로그 {user.DraftPostCount:N0}", adminUsersPage);
         Assert.DoesNotContain("Obsidian Sync 노트 Vault, 노트 원문, 연결 기기 흐름을 확인합니다.", adminUsersPage);
         Assert.DoesNotContain(">LLM Wiki</a>", navMenu);
         Assert.DoesNotContain(">Obsidian Sync</a>", navMenu);
