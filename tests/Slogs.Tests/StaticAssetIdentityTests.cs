@@ -28,6 +28,7 @@ public sealed class StaticAssetIdentityTests
     {
         var mainLayout = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Layout", "MainLayout.razor"));
         var navMenu = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Layout", "NavMenu.razor"));
+        var reconnectModal = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Layout", "ReconnectModal.razor"));
 
         Assert.Contains("aria-label=\"slogs 지식 로그 홈\"", mainLayout);
         Assert.Contains("placeholder=\"의미 회상\"", mainLayout);
@@ -59,6 +60,12 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("지식 로그 흐름이 잠시 끊겼습니다.", mainLayout);
         Assert.Contains("흐름 다시 잇기", mainLayout);
         Assert.Contains("흐름 알림 닫기", mainLayout);
+        Assert.Contains("흐름 연결됨", reconnectModal);
+        Assert.Contains("흐름 다시 잇는 중", reconnectModal);
+        Assert.Contains("흐름 연결 실패", reconnectModal);
+        Assert.Contains("흐름 일시 중지", reconnectModal);
+        Assert.Contains("흐름 복구 실패", reconnectModal);
+        Assert.Contains("흐름 재개", reconnectModal);
         Assert.Contains(">운영 흐름</div>", navMenu);
         Assert.DoesNotContain("href=\"/me\">내 로그", mainLayout);
         Assert.DoesNotContain("placeholder=\"회상어\"", mainLayout);
@@ -84,6 +91,14 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("일반 모드로 전환", mainLayout);
         Assert.DoesNotContain("오류가 발생했습니다.", mainLayout);
         Assert.DoesNotContain(">다시 시도</a>", mainLayout);
+        Assert.DoesNotContain(">연결됨</span>", reconnectModal);
+        Assert.DoesNotContain(">연결 중</span>", reconnectModal);
+        Assert.DoesNotContain("재연결 중", reconnectModal);
+        Assert.DoesNotContain(">연결 실패</span>", reconnectModal);
+        Assert.DoesNotContain(">일시 중지됨</span>", reconnectModal);
+        Assert.DoesNotContain(">복구 실패</span>", reconnectModal);
+        Assert.DoesNotContain(">재시도", reconnectModal);
+        Assert.DoesNotContain(">재개", reconnectModal);
         Assert.DoesNotContain(">어드민</div>", navMenu);
     }
 
