@@ -408,10 +408,12 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("data-llm-wiki-draft-action-boundary=\"true\"", llmWikiSearchPage);
         Assert.Contains("비공개 기억 -> 소유자 전용 게시전 로그 -> 검토 후 공개 공유", llmWikiSearchPage);
         Assert.Contains("소유자 전용 게시전 로그", llmWikiSearchPage);
+        Assert.Contains("공개 공유 후에는 슬로거 홈, 공개 로그 흐름, 대화 흔적, 리비전 흐름으로 이어집니다.", llmWikiSearchPage);
         Assert.Contains("이 게시전 로그는 Slogs LLM Wiki에서 이어온 소유자 전용 흐름입니다.", llmWikiSearchPage);
         Assert.Contains("## 게시전 공유 경계", llmWikiSearchPage);
         Assert.Contains("현재 단계: 비공개 기억 -> 소유자 전용 게시전 로그", llmWikiSearchPage);
         Assert.Contains("다음 단계: 민감한 단서 정리 -> 검토 후 공개 공유", llmWikiSearchPage);
+        Assert.Contains("공개 공유 후 흐름: 슬로거 홈 -> 공개 로그 흐름 -> 대화 흔적 -> 리비전 흐름", llmWikiSearchPage);
         Assert.Contains("공개 공유 전까지 소유자에게만 보입니다.", llmWikiSearchPage);
         Assert.Contains("이 로그에서 이어질 작업이나 다시 따라갈 지점을 남깁니다.", llmWikiSearchPage);
         Assert.Contains("소유자 전용 게시전 로그로 이어집니다.", llmWikiGuidePage);
