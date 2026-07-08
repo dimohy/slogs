@@ -44,17 +44,17 @@ else
         <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div class="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                    <p class="text-xs font-bold uppercase text-slate-500">동작 원리</p>
-                    <h2 class="mt-1 text-lg font-bold text-slate-900">LLM Wiki는 기록을 GraphRAG 기억으로 바꿉니다</h2>
+                    <p class="text-xs font-bold uppercase text-slate-500">기억 흐름 원리</p>
+                    <h2 class="mt-1 text-lg font-bold text-slate-900">LLM Wiki는 판단 단서를 GraphRAG 기억 흐름으로 바꿉니다</h2>
                 </div>
                 <p class="max-w-2xl text-sm leading-6 text-slate-600">
-                    자연어로 남긴 기록은 제목, 태그, 프롬프트, 본문을 함께 인덱싱합니다. 의미로 회상할 때는 서버 로컬 EmbeddingGemma와 PostgreSQL pgvector, graph node 관계 점수를 결합해 이어 쓸 기억을 찾고 관련도 퍼센트를 표시합니다.
+                    자연어로 남긴 판단 단서는 제목, 태그, 프롬프트, 본문을 함께 기억 신호로 엮습니다. 의미로 회상할 때는 서버 로컬 EmbeddingGemma와 PostgreSQL pgvector, graph node 관계 점수를 결합해 이어 쓸 기억을 찾고 관련도 퍼센트를 표시합니다.
                 </p>
             </div>
 
             <div class="mt-5 grid gap-5 lg:grid-cols-3">
                 <div>
-                    <h3 class="text-sm font-bold text-slate-900">1. 기록</h3>
+                    <h3 class="text-sm font-bold text-slate-900">1. 기억 단서 남김</h3>
                     <p class="mt-2 text-sm leading-6 text-slate-600">사용자가 남긴 결정, 선호, 판단 기준, 프로젝트 맥락을 하나의 기억 흐름으로 남깁니다. 제목과 태그도 나중에 같은 맥락을 다시 떠올리는 회상 신호로 함께 쓰입니다.</p>
                 </div>
                 <div>

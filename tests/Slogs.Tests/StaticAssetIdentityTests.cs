@@ -604,6 +604,10 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains(">비공개 기억</div>", navMenu);
         Assert.Contains("기억 연결 가이드", navMenu);
         Assert.Contains("<span>기억 남김</span>", llmWikiGuidePage);
+        Assert.Contains(">기억 흐름 원리</p>", llmWikiGuidePage);
+        Assert.Contains("LLM Wiki는 판단 단서를 GraphRAG 기억 흐름으로 바꿉니다", llmWikiGuidePage);
+        Assert.Contains("자연어로 남긴 판단 단서는 제목, 태그, 프롬프트, 본문을 함께 기억 신호로 엮습니다.", llmWikiGuidePage);
+        Assert.Contains(">1. 기억 단서 남김</h3>", llmWikiGuidePage);
         Assert.Contains("하나의 기억 흐름으로 남깁니다.", llmWikiGuidePage);
         Assert.Contains("768차원 기억 벡터로 남고", llmWikiGuidePage);
         Assert.Contains("graph node 관계 신호로 이어집니다.", llmWikiGuidePage);
@@ -642,6 +646,10 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("Slogs LLM Wiki가 비공개 기억을 Agent 회상과 게시전 로그로 이어 쓰는 흐름을 확인합니다.", llmWikiGuidePage);
         Assert.DoesNotContain("기억에서 로그로", llmWikiGuidePage);
         Assert.DoesNotContain("LLM Wiki는 공개 로그 뒤의 기억 계층입니다", llmWikiGuidePage);
+        Assert.DoesNotContain(">동작 원리</p>", llmWikiGuidePage);
+        Assert.DoesNotContain("LLM Wiki는 기록을 GraphRAG 기억으로 바꿉니다", llmWikiGuidePage);
+        Assert.DoesNotContain("자연어로 남긴 기록은 제목, 태그, 프롬프트, 본문을 함께 인덱싱합니다.", llmWikiGuidePage);
+        Assert.DoesNotContain(">1. 기록</h3>", llmWikiGuidePage);
         Assert.DoesNotContain("Slogs MCP 키 입력과 전역/프로젝트/현재 세션 범위 선택을 안내하고", llmWikiGuidePage);
         Assert.DoesNotContain("처음 설치할 때만 Agent가 Slogs MCP 키를 요청하고", llmWikiGuidePage);
         Assert.DoesNotContain("최초 설치 시 MCP 키와 적용 범위를 묻도록 안내합니다.", llmWikiGuidePage);
