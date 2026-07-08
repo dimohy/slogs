@@ -56,7 +56,7 @@
                                 @if (CurrentUser.IsAdminMode)
                                 {
                                     <div class="border-b border-slate-100 px-4 py-2 text-xs leading-5 text-slate-500">
-                                        <span class="block font-bold text-slate-800">운영 흐름 모드</span>
+                                        <span class="block font-bold text-slate-800">운영 모드</span>
                                         <span class="block">@($"시작 슬로거 @{CurrentUser.AdminModeSourceUserName}")</span>
                                     </div>
                                 }
@@ -69,14 +69,14 @@
                                     <button class="block w-full px-4 py-2 text-left text-slate-700 transition hover:bg-slate-100"
                                             type="button"
                                             role="menuitem"
-                                            @onclick="EnterAdminMode">운영 흐름으로 전환</button>
+                                            @onclick="EnterAdminMode">운영으로 전환</button>
                                 }
                                 @if (CurrentUser.CanExitAdminMode)
                                 {
                                     <button class="block w-full px-4 py-2 text-left text-slate-700 transition hover:bg-slate-100"
                                             type="button"
                                             role="menuitem"
-                                            @onclick="ExitAdminMode">슬로거 흐름으로 돌아가기</button>
+                                            @onclick="ExitAdminMode">슬로거로 돌아가기</button>
                                 }
                                 <a class="block px-4 py-2 text-slate-700 transition hover:bg-slate-100"
                                    href="/me/settings"
@@ -91,8 +91,8 @@
                     }
                     <button class="slogs-mobile-menu-toggle rounded-full border border-slate-300 bg-white p-2 text-slate-800 transition hover:bg-slate-100"
                             type="button"
-                            title="흐름 메뉴"
-                            aria-label="지식 로그 흐름 메뉴 열기"
+                            title="메뉴"
+                            aria-label="지식 로그 메뉴 열기"
                             aria-controls="slogs-mobile-menu"
                             aria-expanded="@isMobileMenuOpen"
                             @onclick="ToggleMobileMenu">
@@ -105,22 +105,22 @@
 
     <button class="@GetMobileMenuBackdropClass()"
             type="button"
-            aria-label="지식 로그 흐름 메뉴 닫기"
+            aria-label="지식 로그 메뉴 닫기"
             tabindex="-1"
             @onclick="CloseMobileMenu"></button>
     <aside id="slogs-mobile-menu"
            class="@GetMobileMenuClass()"
            role="dialog"
            aria-modal="true"
-           aria-label="지식 로그 흐름 메뉴"
+           aria-label="지식 로그 메뉴"
            aria-hidden="@(!isMobileMenuOpen)">
         <div class="slogs-mobile-menu-panel">
             <div class="mb-4 flex items-center justify-between gap-3">
-                <span class="text-base font-bold text-slate-900">흐름 메뉴</span>
+                <span class="text-base font-bold text-slate-900">메뉴</span>
                 <button class="rounded-full border border-slate-300 bg-white p-2 text-slate-800 transition hover:bg-slate-100"
                         type="button"
-                        title="흐름 메뉴 닫기"
-                        aria-label="지식 로그 흐름 메뉴 닫기"
+                        title="메뉴 닫기"
+                        aria-label="지식 로그 메뉴 닫기"
                         @onclick="CloseMobileMenu">
                     <SlogsIcon Name="x" Class="h-5 w-5" />
                 </button>
