@@ -335,7 +335,7 @@ else
                                     <td class="px-3 py-3 text-right font-semibold text-slate-700">@FormatCount(user.LlmWikiSourceRecordCount)</td>
                                     <td class="px-3 py-3 text-right text-slate-700">
                                         <div class="font-bold">@FormatCount(user.LlmWikiActivityCount)</div>
-                                        <div class="text-xs text-slate-400">@($"저장 {user.LlmWikiRememberCount:N0} / 병합 {user.LlmWikiMergeCount:N0} / 수정 {user.LlmWikiUpdateCount:N0}")</div>
+                                        <div class="text-xs text-slate-400">@($"남김 {user.LlmWikiRememberCount:N0} / 병합 {user.LlmWikiMergeCount:N0} / 갱신 {user.LlmWikiUpdateCount:N0}")</div>
                                     </td>
                                     <td class="px-3 py-3 text-right font-semibold text-slate-700">@FormatCount(user.LlmWikiRecent7DayActivityCount)</td>
                                     <td class="px-3 py-3 text-right font-semibold text-slate-700">@FormatCount(user.LlmWikiRecent30DayActivityCount)</td>
@@ -414,7 +414,7 @@ else
                                 class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
                                 disabled="@isStorageSettingsBusy"
                                 @onclick="UpdateObsidianStorageCapacityAsync">
-                            @(isStorageSettingsBusy ? "저장 중" : "저장")
+                            @(isStorageSettingsBusy ? "흐름 한도 반영 중" : "흐름 한도 반영")
                         </button>
                     </div>
                 </div>
@@ -791,7 +791,7 @@ else
             await ApiClient.UpdateAdminObsidianStorageSettingsAsync(capacityBytes);
             usage = await ApiClient.GetAdminUserUsageAsync();
             SyncObsidianStorageInput();
-            storageSettingsSuccess = $"노트 Vault 흐름 한도를 {FormatBytes(capacityBytes)}로 저장했습니다.";
+            storageSettingsSuccess = $"노트 Vault 흐름 한도를 {FormatBytes(capacityBytes)}로 반영했습니다.";
         }
         catch (OverflowException)
         {
@@ -891,8 +891,8 @@ else
             "adminRequired" => "운영 흐름 권한이 필요합니다.",
             "obsidianStorageCapacityInvalid" => "노트 Vault 흐름 한도는 1GiB 이상, 1PiB 이하로 입력해 주세요.",
             "obsidianStorageCapacityBelowUsage" => "노트 Vault 흐름 한도는 현재 Vault 사용보다 작게 설정할 수 없습니다.",
-            "obsidianStorageSettingInvalid" => "저장된 노트 Vault 용량 설정 값이 올바르지 않습니다.",
-            _ => "노트 Vault 용량 설정 저장에 실패했습니다."
+            "obsidianStorageSettingInvalid" => "반영된 노트 Vault 흐름 한도 값이 올바르지 않습니다.",
+            _ => "노트 Vault 흐름 한도 반영에 실패했습니다."
         };
 
     private static string FormatCount(int value)

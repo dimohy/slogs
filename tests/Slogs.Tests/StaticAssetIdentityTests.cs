@@ -263,6 +263,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains(">기억 노드</th>", adminUsersPage);
         Assert.Contains(">근거 흐름</th>", adminUsersPage);
         Assert.Contains(">기억 흐름</th>", adminUsersPage);
+        Assert.Contains("남김 {user.LlmWikiRememberCount:N0} / 병합 {user.LlmWikiMergeCount:N0} / 갱신 {user.LlmWikiUpdateCount:N0}", adminUsersPage);
         Assert.Contains(">7일 기억 흐름</th>", adminUsersPage);
         Assert.Contains(">30일 기억 흐름</th>", adminUsersPage);
         Assert.Contains(">회상 접근</th>", adminUsersPage);
@@ -329,6 +330,7 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("최근 MCP 회상 감사 로그가 없습니다.", adminUsersPage);
         Assert.DoesNotContain("MCP 토큰순", adminUsersPage);
         Assert.DoesNotContain(">MCP 토큰</th>", adminUsersPage);
+        Assert.DoesNotContain("저장 {user.LlmWikiRememberCount:N0} / 병합 {user.LlmWikiMergeCount:N0} / 수정 {user.LlmWikiUpdateCount:N0}", adminUsersPage);
         Assert.DoesNotContain("게시전 로그 관리 신호", adminUsersPage);
         Assert.DoesNotContain("Obsidian Sync 노트 Vault, 노트 원문, 연결 기기 흐름을 확인합니다.", adminUsersPage);
         Assert.DoesNotContain(">LLM Wiki</a>", navMenu);
@@ -659,6 +661,11 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("슬로거 홈당 {FormatBytes(usage.ObsidianPerAccountStorageLimitBytes)} · 전체 Vault 흐름 {FormatBytes(usage.ObsidianTotalStorageCapacityBytes)}", adminUsersPage);
         Assert.Contains(">노트 Vault 흐름 한도 GiB</label>", adminUsersPage);
         Assert.Contains("aria-label=\"노트 Vault 흐름 한도 GiB\"", adminUsersPage);
+        Assert.Contains("흐름 한도 반영 중", adminUsersPage);
+        Assert.Contains("흐름 한도 반영", adminUsersPage);
+        Assert.Contains("노트 Vault 흐름 한도를 {FormatBytes(capacityBytes)}로 반영했습니다.", adminUsersPage);
+        Assert.Contains("반영된 노트 Vault 흐름 한도 값이 올바르지 않습니다.", adminUsersPage);
+        Assert.Contains("노트 Vault 흐름 한도 반영에 실패했습니다.", adminUsersPage);
         Assert.Contains(">Vault 사용</div>", adminUsersPage);
         Assert.Contains(">Vault 여유</div>", adminUsersPage);
         Assert.Contains(">물리 여유</div>", adminUsersPage);
@@ -697,6 +704,10 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain(">연결 기기</div>", adminUsersPage);
         Assert.DoesNotContain("Obsidian Sync 노트 흐름 요약", adminUsersPage);
         Assert.DoesNotContain("Obsidian Sync 노트 Vault 용량 한도", adminUsersPage);
+        Assert.DoesNotContain("노트 Vault 흐름 한도를 {FormatBytes(capacityBytes)}로 저장했습니다.", adminUsersPage);
+        Assert.DoesNotContain("저장된 노트 Vault 용량 설정 값이 올바르지 않습니다.", adminUsersPage);
+        Assert.DoesNotContain("노트 Vault 용량 설정 저장에 실패했습니다.", adminUsersPage);
+        Assert.DoesNotContain("@(isStorageSettingsBusy ? \"저장 중\" : \"저장\")", adminUsersPage);
         Assert.DoesNotContain(">스토리지 한도</h2>", adminUsersPage);
         Assert.DoesNotContain(">전체 한도 GiB</label>", adminUsersPage);
         Assert.DoesNotContain(">전체 Vault 한도 GiB</label>", adminUsersPage);
