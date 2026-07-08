@@ -1060,7 +1060,8 @@ public sealed class StaticAssetIdentityTests
         var profilePage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "Profile.razor"));
         var postDetailsPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "PostDetails.razor"));
 
-        Assert.Contains("공개 로그, 게시전 기억, 노트 Vault 흐름이 모이는 슬로거 홈", program);
+        Assert.Contains("공개 공유 노드, 게시전 기억, 노트 Vault 흐름이 모이는 슬로거 홈", program);
+        Assert.DoesNotContain("공개 로그, 게시전 기억, 노트 Vault 흐름이 모이는 슬로거 홈", program);
         Assert.DoesNotContain("글과 프로필", program);
 
         Assert.Contains("내 지식 로그 흐름", profilePage);
@@ -1876,7 +1877,8 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("Google로 지식 로그 이어가기", program);
         Assert.Contains("슬로거 홈 주소 단서", program);
         Assert.Contains("Google 계정에서 이어질 지식 로그 홈의 주소 단서를 정해 주세요.", program);
-        Assert.Contains("공개 로그, 게시전 기억, 노트 Vault 흐름이 모이는 슬로거 홈", program);
+        Assert.Contains("공개 공유 노드, 게시전 기억, 노트 Vault 흐름이 모이는 슬로거 홈", program);
+        Assert.DoesNotContain("공개 로그, 게시전 기억, 노트 Vault 흐름이 모이는 슬로거 홈", program);
         Assert.Contains("슬로거 홈 주소", program);
         Assert.Contains("홈 주소 잇기", program);
         Assert.Contains("연결 취소", program);

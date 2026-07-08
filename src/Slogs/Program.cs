@@ -788,7 +788,7 @@ static string BuildGoogleConfirmPage(
                 </div>
             </div>
 
-            <p class="text-sm leading-6 text-slate-600">Google 계정에서 이어질 지식 로그 홈의 주소 단서를 정해 주세요. 이 <strong>@id</strong>는 공개 로그, 게시전 기억, 노트 Vault 흐름이 모이는 슬로거 홈에 표시됩니다.</p>
+            <p class="text-sm leading-6 text-slate-600">Google 계정에서 이어질 지식 로그 홈의 주소 단서를 정해 주세요. 이 <strong>@id</strong>는 공개 공유 노드, 게시전 기억, 노트 Vault 흐름이 모이는 슬로거 홈에 표시됩니다.</p>
 
             <label class="grid gap-1 text-sm font-semibold text-slate-700" for="google-user-name">
                 슬로거 홈 주소
