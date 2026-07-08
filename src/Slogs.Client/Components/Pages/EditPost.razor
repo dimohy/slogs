@@ -3,7 +3,7 @@
 @inject SlogsAuthState AuthState
 @inject NavigationManager Navigation
 <PageTitle>로그 흐름 정리</PageTitle>
-<SeoHead Title="로그 흐름 정리 | slogs" Description="slogs 로그 흐름을 게시전 기억이나 새 리비전으로 정리합니다." NoIndex="true" />
+<SeoHead Title="로그 흐름 정리 | slogs" Description="slogs 로그 흐름을 게시전 기억 정리와 리비전 공유로 이어갑니다." NoIndex="true" />
 
 @if (CurrentUser is null)
 {
@@ -22,7 +22,7 @@ else if (!CanEditPost)
 else
 {
     <div class="flex flex-wrap items-center gap-2">
-        <h1 class="text-2xl font-bold text-slate-900">@(post.IsDraft ? "게시전 기억 정리" : "리비전 정리")</h1>
+        <h1 class="text-2xl font-bold text-slate-900">@(post.IsDraft ? "게시전 기억 정리" : "리비전 공유 정리")</h1>
         @if (post.IsDraft)
         {
             <span class="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">게시전 기억</span>

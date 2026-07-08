@@ -85,7 +85,7 @@ public sealed class RouteIdentitySmokeTests
             ("Settings.razor", "/me/settings", "연결"),
             ("LlmWiki.razor", "/me/llm-wiki", "LLM Wiki 기억 연결"),
             ("LlmWikiSearch.razor", "/me/llm-wiki/search", "의미 회상"),
-            ("WritePost.razor", "/write", "새 로그 남기기"),
+            ("WritePost.razor", "/write", "게시전 기억 남기기"),
             ("EditPost.razor", "/edit/{Slug}", "로그 흐름 정리")
         };
 

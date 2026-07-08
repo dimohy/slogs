@@ -873,6 +873,10 @@ public sealed class StaticAssetIdentityTests
         var editPost = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "EditPost.razor"));
         var representativeImageField = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "RepresentativeImageField.razor"));
 
+        Assert.Contains("<PageTitle>게시전 기억 남기기</PageTitle>", writePost);
+        Assert.Contains("Title=\"게시전 기억 남기기 | slogs\"", writePost);
+        Assert.Contains("생각, 작업, 판단, 검증 흐름을 게시전 기억으로 남기고 필요할 때 공개 공유합니다.", writePost);
+        Assert.Contains(">게시전 기억 남기기</h1>", writePost);
         Assert.Contains("게시전 기억 저장", writePost);
         Assert.Contains("게시전 기억으로 남길 로그 제목이나 본문을 입력해 주세요.", writePost);
         Assert.Contains("공개 공유에는 로그 제목과 본문 흐름이 필요합니다.", writePost);
@@ -884,7 +888,9 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("isDraft: isDraft", writePost);
 
         Assert.Contains("로그 흐름 정리", editPost);
+        Assert.Contains("slogs 로그 흐름을 게시전 기억 정리와 리비전 공유로 이어갑니다.", editPost);
         Assert.Contains("게시전 기억 정리", editPost);
+        Assert.Contains("리비전 공유 정리", editPost);
         Assert.Contains(">게시전 기억</span>", editPost);
         Assert.Contains("게시전 기억 저장", editPost);
         Assert.Contains("정리할 수 있는 로그 흐름 노드를 찾지 못했습니다.", editPost);
@@ -915,6 +921,10 @@ public sealed class StaticAssetIdentityTests
             Assert.DoesNotContain("게시전 저장", authoringPage);
             Assert.DoesNotContain("게시전 로그 수정", authoringPage);
             Assert.DoesNotContain("로그 수정 | slogs", authoringPage);
+            Assert.DoesNotContain("slogs에 새 로그를 남깁니다.", authoringPage);
+            Assert.DoesNotContain(">새 로그 남기기</h1>", authoringPage);
+            Assert.DoesNotContain("게시전 기억이나 새 리비전", authoringPage);
+            Assert.DoesNotContain(">리비전 정리</h1>", authoringPage);
             Assert.DoesNotContain("수정할 로그", authoringPage);
             Assert.DoesNotContain("정리할 로그 흐름을 찾지 못했습니다.", authoringPage);
             Assert.DoesNotContain(">권한이 없습니다.</p>", authoringPage);

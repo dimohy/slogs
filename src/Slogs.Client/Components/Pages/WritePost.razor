@@ -2,8 +2,8 @@
 @inject SlogsApiClient ApiClient
 @inject SlogsAuthState AuthState
 @inject NavigationManager Navigation
-<PageTitle>로그 남기기</PageTitle>
-<SeoHead Title="로그 남기기 | slogs" Description="slogs에 새 로그를 남깁니다." NoIndex="true" />
+<PageTitle>게시전 기억 남기기</PageTitle>
+<SeoHead Title="게시전 기억 남기기 | slogs" Description="생각, 작업, 판단, 검증 흐름을 게시전 기억으로 남기고 필요할 때 공개 공유합니다." NoIndex="true" />
 
 @if (CurrentUser is null)
 {
@@ -11,7 +11,7 @@
 }
 else
 {
-    <h1 class="text-2xl font-bold text-slate-900">새 로그 남기기</h1>
+    <h1 class="text-2xl font-bold text-slate-900">게시전 기억 남기기</h1>
 
     <div class="mt-4 grid min-w-0 gap-3">
         <label class="text-sm font-semibold text-slate-700" for="write-title">로그 제목</label>
