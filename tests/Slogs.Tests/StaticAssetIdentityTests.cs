@@ -1330,6 +1330,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("GetPrimaryClue(post)", postRecallPath);
         Assert.Contains("GetSeriesPath(post)", postRecallPath);
         Assert.Contains("GetConversationSignal(post)", postRecallPath);
+        Assert.Contains("{post.CommentCount:N0} 대화 흔적 / {post.LikeCount:N0} 공감 신호", postRecallPath);
         Assert.Contains("단서 미지정", postRecallPath);
         Assert.Contains("단일 로그", postRecallPath);
 
@@ -1339,6 +1340,7 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("Post.IsDraft ? \"게시전 로그\" : \"공개 로그\"", postFlowSignals);
         Assert.DoesNotContain("} 대화\")", postFlowSignals);
         Assert.DoesNotContain("} 반응\")", postFlowSignals);
+        Assert.DoesNotContain("대화/{post.LikeCount:N0} 반응", postRecallPath);
         Assert.DoesNotContain("article teaser", postRecallPath, StringComparison.OrdinalIgnoreCase);
     }
 
