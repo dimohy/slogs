@@ -13,8 +13,8 @@ public static class SeoMetadata
     public const string SiteName = "slogs";
     public const string SiteIconPath = "/favicon.svg";
     public const string DefaultDescription = "slogs는 사람과 AI가 생각, 작업, 판단, 검증을 이어 남기는 한국어 지식 로그 플랫폼입니다.";
-    public const string PublicFeedTitle = "slogs public knowledge-log flow";
-    public const string PublicFeedDescription = "slogs에서 공개 공유된 지식 로그 노드가 시간과 의미를 따라 이어지는 흐름입니다.";
+    public const string PublicFeedTitle = "slogs public knowledge-log feed";
+    public const string PublicFeedDescription = "slogs에서 공개된 지식 로그가 시간과 의미를 따라 이어지는 목록입니다.";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -65,10 +65,10 @@ public static class SeoMetadata
             "Disallow: /register",
             $"Sitemap: {sitemapUrl}",
             $"# LLM guide: {llmsUrl}",
-            $"# Full knowledge-log Markdown flow: {llmsFullUrl}",
-            $"# RSS knowledge-log flow: {rssUrl}",
-            $"# Atom knowledge-log flow: {atomUrl}",
-            $"# JSON knowledge-log flow: {jsonFeedUrl}",
+            $"# Full knowledge-log Markdown: {llmsFullUrl}",
+            $"# RSS knowledge-log feed: {rssUrl}",
+            $"# Atom knowledge-log feed: {atomUrl}",
+            $"# JSON knowledge-log feed: {jsonFeedUrl}",
             string.Empty
         ]);
     }
@@ -111,8 +111,8 @@ public static class SeoMetadata
             ["potentialAction"] = new Dictionary<string, object?>
             {
                 ["@type"] = "SearchAction",
-                ["name"] = "Meaning recall",
-                ["description"] = "Recall public knowledge-log flow by meaning clue.",
+                ["name"] = "Search slogs",
+                ["description"] = "Search public knowledge logs by keyword, tag, or topic.",
                 ["target"] = AbsoluteUrl(baseUri, "/?q={search_term_string}"),
                 ["queryInput"] = "required name=search_term_string"
             }
@@ -176,7 +176,7 @@ public static class SeoMetadata
                 {
                     ["@type"] = "ItemList",
                     ["@id"] = listId,
-                    ["name"] = $"{name} 공개 지식 로그 흐름",
+                    ["name"] = $"{name} 공개 지식 로그",
                     ["description"] = description,
                     ["itemListOrder"] = "https://schema.org/ItemListOrderDescending",
                     ["numberOfItems"] = publicPosts.Count,
@@ -250,7 +250,7 @@ public static class SeoMetadata
                 {
                     ["@type"] = "ItemList",
                     ["@id"] = publicLogFlowId,
-                    ["name"] = $"{displayName} 공개 지식 로그 흐름",
+                    ["name"] = $"{displayName} 공개 지식 로그",
                     ["description"] = description,
                     ["itemListOrder"] = "https://schema.org/ItemListOrderDescending",
                     ["numberOfItems"] = publicPosts.Count,
@@ -335,43 +335,43 @@ public static class SeoMetadata
         var builder = new StringBuilder();
         builder.AppendLine("# slogs");
         builder.AppendLine();
-        builder.AppendLine("> slogs is a Korean knowledge-log platform for public Markdown logs, Slogger homes, clue and log-series recall, social reading, Slogs MCP, and LLM Wiki workflows.");
+        builder.AppendLine("> slogs is a Korean knowledge-log platform for public Markdown logs, Slogger pages, tags, series, social reading, Slogs MCP, and LLM Wiki workflows.");
         builder.AppendLine();
         builder.AppendLine("Primary language: ko-KR.");
         builder.AppendLine($"Canonical site: {EscapedAbsoluteUrl(baseUri, "/")}");
-        builder.AppendLine("Only public shared knowledge-log nodes are exposed here. Authenticated memory, pre-publish notes, editor routes, and account pages are intentionally excluded.");
+        builder.AppendLine("Only public shared knowledge logs are exposed here. Private LLM Wiki memories, pre-publish logs, editor routes, and account pages are intentionally excluded.");
         builder.AppendLine();
-        builder.AppendLine("## AI-readable knowledge flow");
+        builder.AppendLine("## AI-readable knowledge logs");
         builder.AppendLine();
-        AppendMarkdownLink(builder, "Full public knowledge-log flow", EscapedAbsoluteUrl(baseUri, "/llms-full.txt"), "Single Markdown flow containing the current public knowledge-log corpus.");
+        AppendMarkdownLink(builder, "Full public knowledge-log Markdown", EscapedAbsoluteUrl(baseUri, "/llms-full.txt"), "Single Markdown file containing the current public knowledge-log corpus.");
         AppendMarkdownLink(builder, "Sitemap", EscapedAbsoluteUrl(baseUri, "/sitemap.xml"), "Complete public URL set for conventional crawlers.");
         AppendMarkdownLink(builder, "Robots", EscapedAbsoluteUrl(baseUri, "/robots.txt"), "Crawler access guidance.");
-        AppendMarkdownLink(builder, "RSS knowledge-log flow", EscapedAbsoluteUrl(baseUri, "/feed.xml"), "Public sharing nodes in RSS format.");
-        AppendMarkdownLink(builder, "Atom knowledge-log flow", EscapedAbsoluteUrl(baseUri, "/atom.xml"), "Public sharing nodes in Atom format.");
-        AppendMarkdownLink(builder, "JSON knowledge-log flow", EscapedAbsoluteUrl(baseUri, "/feed.json"), "Public sharing nodes in JSON Feed format.");
+        AppendMarkdownLink(builder, "RSS knowledge-log feed", EscapedAbsoluteUrl(baseUri, "/feed.xml"), "Public logs in RSS format.");
+        AppendMarkdownLink(builder, "Atom knowledge-log feed", EscapedAbsoluteUrl(baseUri, "/atom.xml"), "Public logs in Atom format.");
+        AppendMarkdownLink(builder, "JSON knowledge-log feed", EscapedAbsoluteUrl(baseUri, "/feed.json"), "Public logs in JSON Feed format.");
         AppendMarkdownLink(builder, "Slogs MCP prompt", EscapedAbsoluteUrl(baseUri, "/prompts/slogs-mcp.md"), "Korean Agent policy prompt for connecting Slogs MCP and LLM Wiki.");
         builder.AppendLine();
         builder.AppendLine("## Core pages");
         builder.AppendLine();
-        AppendMarkdownLink(builder, "Knowledge-log home", EscapedAbsoluteUrl(baseUri, "/"), "Public knowledge-log stream and meaning-recall navigation.");
-        AppendMarkdownLink(builder, "Recent public flow", EscapedAbsoluteUrl(baseUri, "/recent"), "Newest public sharing nodes.");
-        AppendMarkdownLink(builder, "Resonance recall flow", EscapedAbsoluteUrl(baseUri, "/trending"), "Public knowledge-log nodes with strong response signals.");
-        AppendMarkdownLink(builder, "Meaning recall flow", EscapedAbsoluteUrl(baseUri, "/recommended"), "Public knowledge-log nodes connected by meaning signals.");
-        AppendMarkdownLink(builder, "Clue flow entrances", EscapedAbsoluteUrl(baseUri, "/tag"), "Public clue recall paths.");
-        AppendMarkdownLink(builder, "Log-series flow entrances", EscapedAbsoluteUrl(baseUri, "/series"), "Public log-series recall paths.");
-        AppendMarkdownLink(builder, "Slogger home flows", EscapedAbsoluteUrl(baseUri, "/writer"), "Public Slogger home-flow recall.");
+        AppendMarkdownLink(builder, "Knowledge-log home", EscapedAbsoluteUrl(baseUri, "/"), "Public knowledge-log list and search navigation.");
+        AppendMarkdownLink(builder, "Recent public logs", EscapedAbsoluteUrl(baseUri, "/recent"), "Newest public logs.");
+        AppendMarkdownLink(builder, "Response logs", EscapedAbsoluteUrl(baseUri, "/trending"), "Public knowledge logs with strong response activity.");
+        AppendMarkdownLink(builder, "Recommended logs", EscapedAbsoluteUrl(baseUri, "/recommended"), "Public knowledge logs connected by meaning.");
+        AppendMarkdownLink(builder, "Tags", EscapedAbsoluteUrl(baseUri, "/tag"), "Public tag pages.");
+        AppendMarkdownLink(builder, "Log series", EscapedAbsoluteUrl(baseUri, "/series"), "Public log series pages.");
+        AppendMarkdownLink(builder, "Sloggers", EscapedAbsoluteUrl(baseUri, "/writer"), "Public Slogger pages.");
 
         if (publicPosts.Count > 0)
         {
             builder.AppendLine();
-            builder.AppendLine("## Public knowledge-log flow");
+            builder.AppendLine("## Public knowledge logs");
             builder.AppendLine();
             foreach (var post in publicPosts)
             {
-                var description = $"{NormalizePlainText(post.Summary, 260)} Public sharing node from @{post.Author}, shared {FormatDate(post.PublishedAt)}.";
+                var description = $"{NormalizePlainText(post.Summary, 260)} Public log from @{post.Author}, shared {FormatDate(post.PublishedAt)}.";
                 if (post.Tags.Count > 0)
                 {
-                    description += $" Clues: {string.Join(", ", post.Tags.Select(tag => $"#{tag}"))}.";
+                    description += $" Tags: {string.Join(", ", post.Tags.Select(tag => $"#{tag}"))}.";
                 }
 
                 AppendMarkdownLink(
@@ -382,9 +382,9 @@ public static class SeoMetadata
             }
         }
 
-        AppendTopicSection(builder, "Clue recall paths", tagList.Select(tag => (tag.Tag, EscapedAbsoluteUrl(baseUri, $"/tag/{Uri.EscapeDataString(tag.Tag)}"), $"{tag.Count} public knowledge-log nodes.")));
-        AppendTopicSection(builder, "Log-series recall paths", seriesList.Select(item => (item.Series, EscapedAbsoluteUrl(baseUri, $"/series/{Uri.EscapeDataString(item.Series)}"), $"{item.Count} public knowledge-log nodes.")));
-        AppendTopicSection(builder, "Slogger home recall paths", authorList.Select(author => ($"@{author.Author}", EscapedAbsoluteUrl(baseUri, WriterPath(author.Author)), $"{author.Count} public sharing nodes from this Slogger home.")));
+        AppendTopicSection(builder, "Tags", tagList.Select(tag => (tag.Tag, EscapedAbsoluteUrl(baseUri, $"/tag/{Uri.EscapeDataString(tag.Tag)}"), $"{tag.Count} public knowledge logs.")));
+        AppendTopicSection(builder, "Log series", seriesList.Select(item => (item.Series, EscapedAbsoluteUrl(baseUri, $"/series/{Uri.EscapeDataString(item.Series)}"), $"{item.Count} public knowledge logs.")));
+        AppendTopicSection(builder, "Sloggers", authorList.Select(author => ($"@{author.Author}", EscapedAbsoluteUrl(baseUri, WriterPath(author.Author)), $"{author.Count} public logs from this Slogger.")));
 
         return builder.ToString();
     }
@@ -399,9 +399,9 @@ public static class SeoMetadata
             .ToList();
 
         var builder = new StringBuilder();
-        builder.AppendLine("# slogs public knowledge-log Markdown flow");
+        builder.AppendLine("# slogs public knowledge-log Markdown");
         builder.AppendLine();
-        builder.AppendLine("> Current public Markdown flow for slogs. The site is primarily Korean and connects developer-focused knowledge logs, Slogs MCP guidance, and LLM Wiki memory context.");
+        builder.AppendLine("> Current public Markdown corpus for slogs. The site is primarily Korean and connects developer-focused knowledge logs, Slogs MCP guidance, and LLM Wiki memory context.");
         builder.AppendLine();
         builder.AppendLine($"Canonical site: {EscapedAbsoluteUrl(baseUri, "/")}");
         builder.AppendLine($"Source index: {EscapedAbsoluteUrl(baseUri, "/llms.txt")}");
@@ -620,20 +620,20 @@ public static class SeoMetadata
         var builder = new StringBuilder();
         builder.AppendLine($"# {NormalizePlainText(post.Title, 160)}");
         builder.AppendLine();
-        builder.AppendLine($"- Public sharing node: {EscapedAbsoluteUrl(baseUri, PostPath(post))}");
-        builder.AppendLine($"- Markdown recall node: {EscapedAbsoluteUrl(baseUri, PostMarkdownPath(post))}");
+        builder.AppendLine($"- Public log: {EscapedAbsoluteUrl(baseUri, PostPath(post))}");
+        builder.AppendLine($"- Markdown version: {EscapedAbsoluteUrl(baseUri, PostMarkdownPath(post))}");
         builder.AppendLine($"- Slogger home: @{post.Author}");
-        builder.AppendLine($"- Public sharing point: {FormatDate(post.PublishedAt)}");
-        builder.AppendLine($"- Flow refresh: {FormatDate(post.UpdatedAt)}");
+        builder.AppendLine($"- Published: {FormatDate(post.PublishedAt)}");
+        builder.AppendLine($"- Updated: {FormatDate(post.UpdatedAt)}");
         builder.AppendLine($"- Reading span: {post.ReadTimeMinutes} minutes");
         if (post.Tags.Count > 0)
         {
-            builder.AppendLine($"- Recall clues: {string.Join(", ", post.Tags.Select(tag => $"#{tag}"))}");
+            builder.AppendLine($"- Tags: {string.Join(", ", post.Tags.Select(tag => $"#{tag}"))}");
         }
 
         if (post.Series.Count > 0)
         {
-            builder.AppendLine($"- Log-series flow: {string.Join(", ", post.Series)}");
+            builder.AppendLine($"- Log series: {string.Join(", ", post.Series)}");
         }
 
         if (!string.IsNullOrWhiteSpace(post.ThumbnailUrl))
@@ -642,7 +642,7 @@ public static class SeoMetadata
         }
 
         builder.AppendLine();
-        builder.AppendLine("## Flow Summary");
+        builder.AppendLine("## Summary");
         builder.AppendLine();
         builder.AppendLine(NormalizePlainText(post.Summary, 500));
         builder.AppendLine();

@@ -4,40 +4,40 @@
 @inject SlogsAuthState AuthState
 @inject NavigationManager Navigation
 
-<PageTitle>@($"{Writer} 관계 흐름")</PageTitle>
-<SeoHead Title="@($"{Writer} 관계 흐름 | slogs")"
-         Description="@($"{Writer} 슬로거의 {(IsFollowersView ? "로그 홈으로 들어오는" : "이어 둔")} 관계 흐름입니다.")"
+<PageTitle>@($"{Writer} 팔로우")</PageTitle>
+<SeoHead Title="@($"{Writer} 팔로우 | slogs")"
+         Description="@($"{Writer} 슬로거의 {(IsFollowersView ? "로그 홈으로 들어오는" : "이어 둔")} 팔로우입니다.")"
          NoIndex="true" />
 
 @if (!isWriterKnown)
 {
     <section class="rounded-2xl border border-slate-200 bg-white p-4">
-        <p class="text-sm font-semibold text-slate-700">요청한 슬로거 관계 흐름을 찾지 못했습니다.</p>
-        <p class="mt-2 text-sm leading-6 text-slate-500">공개 로그 홈 주소가 바뀌었거나 아직 공개 흐름에 나타나지 않은 슬로거입니다.</p>
+        <p class="text-sm font-semibold text-slate-700">요청한 슬로거 팔로우를 찾지 못했습니다.</p>
+        <p class="mt-2 text-sm leading-6 text-slate-500">공개 로그 홈 주소가 바뀌었거나 아직 공개 목록에 나타나지 않은 슬로거입니다.</p>
         <div class="mt-4 flex flex-wrap gap-2">
             <a class="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-slate-800"
                href="/writer">
                 <SlogsIcon Name="search" Class="h-4 w-4" />
-                슬로거 회상
+                슬로거 검색
             </a>
             <a class="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
                href="/post">
-                공개 로그 흐름
+                공개 로그
             </a>
         </div>
     </section>
 }
 else
 {
-    <h1 class="break-words text-2xl font-bold text-slate-900">@Writer 님의 관계 흐름</h1>
-    <p class="mt-1 text-sm leading-6 text-slate-500">공개 로그 홈이 누구에게 이어지고, 어떤 슬로거의 기억 흐름을 다시 따라갈지 회상합니다.</p>
+    <h1 class="break-words text-2xl font-bold text-slate-900">@Writer 님의 팔로우</h1>
+    <p class="mt-1 text-sm leading-6 text-slate-500">공개 로그 홈이 누구에게 이어지고, 어떤 슬로거의 기억을 다시 따라갈지 검색합니다.</p>
 
     <div class="mt-2 flex flex-wrap gap-2">
         <a class="@GetTabClass(true)" href="@GetFollowersPath()">이 로그 홈을 잇는 슬로거 (@followerCount)</a>
         <a class="@GetTabClass(false)" href="@GetFollowingPath()">이어 둔 로그 홈 (@followingCount)</a>
     </div>
 
-    <p class="mt-2 text-sm text-slate-500">@($"{totalCount}개 관계 흐름")</p>
+    <p class="mt-2 text-sm text-slate-500">@($"{totalCount}개 팔로우")</p>
 
     <section class="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
         @if (!users.Any())
@@ -49,11 +49,11 @@ else
                     <a class="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-slate-800"
                        href="/writer">
                         <SlogsIcon Name="search" Class="h-4 w-4" />
-                        슬로거 회상
+                        슬로거 검색
                     </a>
                     <a class="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
                        href="/post">
-                        공개 로그 흐름
+                        공개 로그
                     </a>
                 </div>
             </div>
@@ -92,7 +92,7 @@ else
                         IsLoading="@isLoadingMoreUsers"
                         OnLoadMore="LoadMoreUsersAsync"
                         ShowDoneText="@(allUsers.Count > PageSize)"
-                        DoneText="모든 관계 흐름을 불러왔습니다." />
+                        DoneText="모든 팔로우를 불러왔습니다." />
 
 @code {
     private const int PageSize = 20;
@@ -226,8 +226,8 @@ else
 
     private string GetEmptyStateDescription()
         => IsFollowersView
-            ? "공개 로그 흐름에서 이 슬로거의 기억을 따라오는 사람이 생기면 여기에서 관계가 이어집니다."
-            : "다시 읽고 싶은 슬로거의 공개 로그 홈을 관계로 이어 두면 여기에서 흐름을 따라갑니다.";
+            ? "공개 로그에서 이 슬로거의 기억을 따라오는 사람이 생기면 여기에서 관계가 이어집니다."
+            : "다시 읽고 싶은 슬로거의 공개 로그 홈을 관계로 이어 두면 여기에서 내용을 따라갑니다.";
 
     private async Task ToggleFollowAsync(string targetUser)
     {

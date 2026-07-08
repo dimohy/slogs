@@ -919,7 +919,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         var owner = (ownerUserName ?? string.Empty).Trim().TrimStart('@').ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(owner))
         {
-            throw new InvalidOperationException("공개 기억 회상에는 @dimohy 같은 대상 슬로거 @name이 필요합니다.");
+            throw new InvalidOperationException("공개 기억 검색에는 @dimohy 같은 대상 슬로거 @name이 필요합니다.");
         }
 
         return owner;

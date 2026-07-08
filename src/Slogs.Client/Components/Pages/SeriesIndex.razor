@@ -4,30 +4,30 @@
 
 <PageTitle>로그 시리즈</PageTitle>
 <SeoHead Title="로그 시리즈 | slogs"
-         Description="slogs의 로그 시리즈를 회상하며 시간과 의미로 이어진 흐름을 다시 따라갑니다."
+         Description="slogs의 로그 시리즈를 검색하며 시간과 의미로 이어진 내용을 다시 따라갑니다."
          CanonicalPath="/series"
          NoIndex="@(!string.IsNullOrWhiteSpace(Query))"
-         JsonLd="@(SeoMetadata.CollectionPageJsonLd(Navigation.BaseUri, "/series", "slogs 로그 시리즈", "slogs의 로그 시리즈를 회상하며 시간과 의미로 이어진 흐름을 다시 따라갑니다."))" />
+         JsonLd="@(SeoMetadata.CollectionPageJsonLd(Navigation.BaseUri, "/series", "slogs 로그 시리즈", "slogs의 로그 시리즈를 검색하며 시간과 의미로 이어진 내용을 다시 따라갑니다."))" />
 
 <h1 class="text-2xl font-bold text-slate-900">로그 시리즈</h1>
-<p class="mb-3 text-sm text-slate-500">같은 문제의식과 작업 맥락으로 이어진 로그 묶음을 회상합니다.</p>
+<p class="mb-3 text-sm text-slate-500">같은 문제의식과 작업 맥락으로 이어진 로그 묶음을 검색합니다.</p>
 
 <div class="mb-4 flex flex-wrap gap-2">
     <input class="min-w-0 flex-1 rounded-full border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900"
            value="@searchText"
            @oninput="HandleSearchInputChanged"
            @onkeydown="HandleSearchKeyDown"
-           placeholder="로그 시리즈 회상"
-           aria-label="로그 시리즈 회상어 입력" />
+           placeholder="로그 시리즈 검색"
+           aria-label="로그 시리즈 검색어 입력" />
     <a class="rounded-full border border-slate-300 bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
        href="@GetSearchResultHref()">
-        회상
+        검색
     </a>
     @if (!string.IsNullOrWhiteSpace(Query))
     {
         <a class="rounded-full border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
            href="@GetListQuery(Sort)">
-            회상 초기화
+            검색 초기화
         </a>
     }
 </div>
@@ -37,13 +37,13 @@
     <a class="@GetSortChipClass("name")" href='@GetListQuery("name")'>시리즈명순</a>
 </div>
 
-<section class="slogs-home-flowline mb-4" aria-label="로그 시리즈 흐름 신호">
+<section class="slogs-home-flowline mb-4" aria-label="로그 시리즈 목록 정보">
     <div class="min-w-0">
-        <p class="text-xs font-bold text-slate-500">현재 시리즈 흐름</p>
+        <p class="text-xs font-bold text-slate-500">현재 시리즈 목록</p>
         <h2 class="text-lg font-bold text-slate-950">@GetFlowStatusTitle()</h2>
         <p class="mt-1 text-sm text-slate-600">@GetFlowStatusDescription()</p>
     </div>
-    <div class="slogs-home-flowline__signals" aria-label="로그 시리즈 흐름 신호">
+    <div class="slogs-home-flowline__signals" aria-label="로그 시리즈 목록 정보">
         <span>@FormatSeriesCount(allSeries.Count)</span>
         <span>@GetFlowScopeLabel()</span>
     </div>
@@ -79,7 +79,7 @@
                         IsLoading="@isLoadingMoreSeries"
                         OnLoadMore="LoadMoreSeriesAsync"
                         ShowDoneText="@(allSeries.Count > PageSize)"
-                        DoneText="모든 시리즈 흐름을 불러왔습니다." />
+                        DoneText="모든 시리즈 내용을 불러왔습니다." />
 
 @code {
     private const int PageSize = 12;
@@ -161,7 +161,7 @@
     {
         if (!string.IsNullOrWhiteSpace(Query))
         {
-            return $"\"{Query.Trim()}\"와 이어지는 로그 시리즈 회상 흐름이 없습니다.";
+            return $"\"{Query.Trim()}\"와 이어지는 로그 시리즈 검색 내용이 없습니다.";
         }
 
         return "아직 이어진 로그 시리즈가 없습니다.";
@@ -170,23 +170,23 @@
     private string GetFlowStatusTitle()
     {
         return string.IsNullOrWhiteSpace(Query)
-            ? "로그 시리즈 흐름"
-            : $"\"{Query.Trim()}\" 시리즈 회상 흐름";
+            ? "로그 시리즈"
+            : $"\"{Query.Trim()}\" 시리즈 검색 목록";
     }
 
     private string GetFlowStatusDescription()
     {
         return string.IsNullOrWhiteSpace(Query)
             ? "같은 문제의식과 작업 맥락으로 이어진 로그 시리즈를 따라갑니다."
-            : $"\"{Query.Trim()}\"와 이어지는 로그 시리즈 흐름을 회상합니다.";
+            : $"\"{Query.Trim()}\"와 이어지는 로그 시리즈을 검색합니다.";
     }
 
     private string GetFlowScopeLabel()
     {
         return normalizedSort switch
         {
-            "name" => "시리즈명 흐름",
-            _ => "반응 흐름"
+            "name" => "시리즈명 목록",
+            _ => "반응 목록"
         };
     }
 
@@ -194,7 +194,7 @@
         => $"{count:N0}개 로그 시리즈";
 
     private static string GetSeriesRecallPath(SeriesSummary item)
-        => $"로그 시리즈 회상 경로: {item.Series} -> 공개 로그 흐름";
+        => $"로그 시리즈 정보 경로: {item.Series} -> 공개 로그";
 
     private string GetListQuery(string? sort)
     {

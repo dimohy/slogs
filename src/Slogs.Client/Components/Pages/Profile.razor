@@ -3,25 +3,25 @@
 @inject SlogsApiClient ApiClient
 @inject NavigationManager Navigation
 
-<PageTitle>내 지식 로그 흐름</PageTitle>
-<SeoHead Title="내 지식 로그 흐름 | slogs" Description="내가 남긴 공개 공유 로그와 소유자 전용 게시전 기억 흐름을 이어 봅니다." NoIndex="true" />
+<PageTitle>내 지식 로그</PageTitle>
+<SeoHead Title="내 지식 로그 | slogs" Description="내가 남긴 공개 로그와 소유자 전용 게시전 로그를 이어 봅니다." NoIndex="true" />
 
 @if (CurrentUser is null)
 {
-    <p class="rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">내 공개 공유 로그와 게시전 기억 흐름을 보려면 지식 로그 홈으로 돌아가야 합니다. <a class="font-semibold underline" href="@GetLoginHref()">지식 로그로 돌아가기</a></p>
+    <p class="rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">내 공개 로그와 게시전 로그를 보려면 지식 로그 홈으로 돌아가야 합니다. <a class="font-semibold underline" href="@GetLoginHref()">지식 로그로 돌아가기</a></p>
 }
 else
 {
     <section class="space-y-4">
         <div class="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4">
             <div>
-                <h1 class="text-2xl font-bold text-slate-900">내 지식 로그 흐름</h1>
-                <p class="mt-1 text-sm text-slate-500">@CurrentUser.DisplayName 님이 남긴 공개 공유 로그와 소유자 전용 게시전 기억 흐름을 이어 봅니다.</p>
+                <h1 class="text-2xl font-bold text-slate-900">내 지식 로그</h1>
+                <p class="mt-1 text-sm text-slate-500">@CurrentUser.DisplayName 님이 남긴 공개 로그와 소유자 전용 게시전 로그를 이어 봅니다.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 @if (totalCount > 0)
                 {
-                    <span class="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600">@($"{totalCount}개 로그 노드")</span>
+                    <span class="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600">@($"{totalCount}개 로그")</span>
                 }
             </div>
         </div>
@@ -36,8 +36,8 @@ else
             {
                 <div class="slogs-post-list-empty grid min-h-64 place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center md:col-span-2">
                     <div class="max-w-sm">
-                        <p class="text-sm font-semibold text-slate-700">아직 이어진 지식 로그 흐름이 없습니다.</p>
-                        <p class="mt-2 text-sm leading-6 text-slate-500">생각, 작업, 판단, 검증을 먼저 게시전 기억으로 남긴 뒤 필요할 때 공개 공유하세요.</p>
+                        <p class="text-sm font-semibold text-slate-700">아직 이어진 지식 로그가 없습니다.</p>
+                        <p class="mt-2 text-sm leading-6 text-slate-500">생각, 작업, 판단, 검증을 먼저 게시전 로그로 남긴 뒤 필요할 때 공개하세요.</p>
                         <div class="mt-4 flex flex-wrap justify-center gap-2">
                             <a class="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-slate-800"
                                href="/write">
@@ -47,7 +47,7 @@ else
                             <a class="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
                                href="/me/llm-wiki/search">
                                 <SlogsIcon Name="search" Class="h-4 w-4" />
-                                기억에서 회상
+                                기억에서 검색
                             </a>
                         </div>
                     </div>
@@ -69,12 +69,12 @@ else
                         <div class="flex flex-wrap items-center gap-2 text-sm text-slate-500">
                             @if (post.IsDraft)
                             {
-                                <span class="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">게시전 기억</span>
-                                <span>흐름 갱신 @FormatDate(post.UpdatedAt)</span>
+                                <span class="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">게시전 로그</span>
+                                <span>목록 갱신 @FormatDate(post.UpdatedAt)</span>
                             }
                             else
                             {
-                                <span class="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-800">공개 공유</span>
+                                <span class="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-800">공개</span>
                             }
                             @if (!post.IsDraft)
                             {
@@ -87,7 +87,7 @@ else
                                 <SlogsIcon Name="clock" Class="h-3.5 w-3.5" />
                                 <span>@post.ReadTimeMinutes 분</span>
                             </span>
-                            <span class="inline-flex items-center gap-1" title="회상 접근">
+                            <span class="inline-flex items-center gap-1" title="조회">
                                 <SlogsIcon Name="eye" Class="h-3.5 w-3.5" />
                                 <span>@FormatRecallAccessCount(post.ViewCount)</span>
                             </span>
@@ -114,7 +114,7 @@ else
 
                         <div class="mt-3 flex flex-wrap gap-2">
                             <a class="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
-                               href="@($"/edit/{Uri.EscapeDataString(post.Slug)}")">@(post.IsDraft ? "게시전 기억 정리" : "새 리비전 남기기")</a>
+                               href="@($"/edit/{Uri.EscapeDataString(post.Slug)}")">@(post.IsDraft ? "게시전 로그 정리" : "새 리비전 남기기")</a>
                             <button class="rounded-full border border-rose-300 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
                                     disabled="@(isDeleting && deletingSlug == post.Slug)"
                                     type="button" @onclick="() => RequestDelete(post.Slug)">
@@ -131,14 +131,14 @@ else
                                 IsLoading="@isLoadingMorePosts"
                                 OnLoadMore="LoadMorePostsAsync"
                                 ShowDoneText="@(allPosts.Count > PageSize)"
-                                DoneText="내 지식 로그 흐름을 모두 불러왔습니다." />
+                                DoneText="내 지식 로그를 모두 불러왔습니다." />
     </section>
 }
 
 @if (showDeleteConfirm)
 {
     <div class="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4">
-        <p class="text-sm font-semibold text-rose-900">이 로그 흐름을 지울까요?</p>
+        <p class="text-sm font-semibold text-rose-900">이 로그 내용을 지울까요?</p>
         <p class="mb-2 text-sm text-rose-800">@($"\"{postToDeleteTitle}\"")</p>
         <div class="flex flex-wrap gap-2">
             <button class="rounded-full border border-rose-300 bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-rose-700"
@@ -329,13 +329,13 @@ else
         => PostNavigationUrlBuilder.BuildPostUrl(post, PostNavigationUrlBuilder.PersonalMenuContext);
 
     private static string GetPostCardAriaLabel(BlogPost post)
-        => post.IsDraft ? $"{post.Title} 게시전 기억 흐름 회상" : $"{post.Title} 공개 공유 로그 노드 회상";
+        => post.IsDraft ? $"{post.Title} 게시전 로그 검색" : $"{post.Title} 공개 로그 검색";
 
     private static bool IsPriorityCardImage(int index) => index < 2;
 
     private static string FormatDate(DateTime dateTime) => dateTime.ToLocalTime().ToString("yyyy.MM.dd");
 
-    private static string FormatRecallAccessCount(int viewCount) => $"{viewCount:N0} 회상 접근";
+    private static string FormatRecallAccessCount(int viewCount) => $"{viewCount:N0} 조회";
 
     private static string Shorten(string text, int maxLength)
     {

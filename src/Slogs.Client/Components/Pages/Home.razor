@@ -15,37 +15,37 @@
 
 <div class="slogs-home-tabs mb-4 flex flex-wrap items-center gap-2" data-enhance-nav="false">
     <div class="flex flex-wrap gap-2">
-        <a class="@GetDiscoveryTabClass("trending")" href="@TrendingHref" @onclick="() => NavigateHomeLink(TrendingHref)" @onclick:preventDefault="true">반응 회상</a>
-        <a class="@GetDiscoveryTabClass("recommended")" href="@RecommendedHref" @onclick="() => NavigateHomeLink(RecommendedHref)" @onclick:preventDefault="true">의미 회상</a>
-        <a class="@GetDiscoveryTabClass("recent")" href="@RecentHref" @onclick="() => NavigateHomeLink(RecentHref)" @onclick:preventDefault="true">최근 흐름</a>
-        <a class="@GetDiscoveryTabClass("feed")" href="@FeedHref" @onclick="() => NavigateHomeLink(FeedHref)" @onclick:preventDefault="true">관계 흐름</a>
+        <a class="@GetDiscoveryTabClass("trending")" href="@TrendingHref" @onclick="() => NavigateHomeLink(TrendingHref)" @onclick:preventDefault="true">반응 로그</a>
+        <a class="@GetDiscoveryTabClass("recommended")" href="@RecommendedHref" @onclick="() => NavigateHomeLink(RecommendedHref)" @onclick:preventDefault="true">검색</a>
+        <a class="@GetDiscoveryTabClass("recent")" href="@RecentHref" @onclick="() => NavigateHomeLink(RecentHref)" @onclick:preventDefault="true">최근 로그</a>
+        <a class="@GetDiscoveryTabClass("feed")" href="@FeedHref" @onclick="() => NavigateHomeLink(FeedHref)" @onclick:preventDefault="true">팔로우</a>
     </div>
 
     @if (!string.IsNullOrWhiteSpace(Query))
     {
         <a class="inline-flex rounded-full border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
            href="@GetHomeQuery(sort: normalizedSort, feed: normalizedFeed, period: normalizedPeriod)">
-            회상 초기화
+            검색 초기화
         </a>
     }
 </div>
 
 @if (UsesPeriodRecall)
 {
-    <div class="slogs-home-period mb-4 flex flex-wrap items-center gap-2" aria-label="로그 흐름 기간">
-        <span class="text-xs font-bold text-slate-500">흐름 범위</span>
+    <div class="slogs-home-period mb-4 flex flex-wrap items-center gap-2" aria-label="로그 기간">
+        <span class="text-xs font-bold text-slate-500">기간</span>
         <a class="@GetPeriodChipClass("week")" href="@GetPeriodQuery("week")">최근 7일</a>
         <a class="@GetPeriodChipClass("month")" href="@GetPeriodQuery("month")">최근 30일</a>
         <a class="@GetPeriodChipClass("all")" href="@GetPeriodQuery("all")">전체</a>
     </div>
 }
 
-<section class="slogs-home-flowline mb-4" aria-label="현재 지식 로그 흐름">
+<section class="slogs-home-flowline mb-4" aria-label="현재 지식 로그">
     <div class="min-w-0">
-        <p class="text-xs font-bold text-slate-500">현재 흐름</p>
+        <p class="text-xs font-bold text-slate-500">현재 목록</p>
         <h1 class="text-lg font-bold text-slate-950">@GetVisibleFlowTitle()</h1>
     </div>
-    <div class="slogs-home-flowline__signals" aria-label="흐름 신호">
+    <div class="slogs-home-flowline__signals" aria-label="목록 정보">
         <span>@FormatLogNodeCount(totalCount)</span>
         <span>@GetFlowScopeLabel()</span>
     </div>
@@ -71,10 +71,10 @@
     @if (IsFollowingFeed && string.IsNullOrWhiteSpace(Query) && CurrentUser is not null)
     {
         <div class="slogs-post-list-empty rounded-2xl border border-slate-200 bg-white p-4">
-            <p class="text-slate-500">아직 관계로 이어진 슬로거 홈의 공개 흐름이 없습니다.</p>
+            <p class="text-slate-500">아직 팔로우한 슬로거의 공개 로그가 없습니다.</p>
             <a class="mt-2 inline-block rounded-full border border-slate-300 bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
                href="/writer">
-                슬로거 홈 흐름 회상
+                슬로거 찾기
             </a>
         </div>
     }
@@ -107,7 +107,7 @@ else
                         IsLoading="@isLoadingMorePosts"
                         OnLoadMore="LoadMorePostsAsync"
                         ShowDoneText="@(totalCount > PageSize)"
-                        DoneText="현재 지식 로그 흐름을 모두 불러왔습니다." />
+                        DoneText="현재 지식 로그를 모두 불러왔습니다." />
 @code {
     private const int PageSize = 6;
     private const string TrendingHref = "/trending";
@@ -261,28 +261,28 @@ else
 
         if (string.IsNullOrWhiteSpace(Query) && IsFollowingFeed && CurrentUser is null)
         {
-            displayedSearchMessage = "관계 흐름을 보려면 지식 로그 홈으로 돌아가야 합니다.";
+            displayedSearchMessage = "팔로우를 보려면 지식 로그 홈으로 돌아가야 합니다.";
         }
         else if (string.IsNullOrWhiteSpace(Query) && IsFollowingFeed && !allPosts.Any())
         {
-            displayedSearchMessage = "아직 관계로 이어진 슬로거 홈이 없습니다. 슬로거 홈에서 관계 흐름을 이어 보세요.";
+            displayedSearchMessage = "아직 팔로우한 슬로거가 없습니다. 슬로거 홈에서 팔로우해 보세요.";
         }
 
         if (IsSearchOnlyPrefix(Query))
         {
-            displayedSearchMessage = $"{GetDisplayedQuery()} 뒤에 회상할 단서를 입력해 주세요.";
+            displayedSearchMessage = $"{GetDisplayedQuery()} 뒤에 검색할 태그를 입력해 주세요.";
         }
         else if (!string.IsNullOrWhiteSpace(Query) && allPosts.Count == 0)
         {
             displayedSearchMessage = IsFollowingFeed
-                ? $"관계 흐름에서 \"{GetDisplayedQuery()}\"와 이어지는 회상 흐름이 없습니다."
+                ? $"팔로우에서 \"{GetDisplayedQuery()}\"와 이어지는 검색 결과이 없습니다."
                 : UsesPeriodRecall && normalizedPeriod != "all"
-                    ? $"{GetPeriodLabel(normalizedPeriod)} \"{GetDisplayedQuery()}\"와 이어지는 회상 흐름이 없습니다."
-                    : $"\"{GetDisplayedQuery()}\"와 이어지는 의미 회상 흐름이 없습니다.";
+                    ? $"{GetPeriodLabel(normalizedPeriod)} \"{GetDisplayedQuery()}\"와 이어지는 검색 결과이 없습니다."
+                    : $"\"{GetDisplayedQuery()}\"와 이어지는 검색 결과이 없습니다.";
         }
         else if (string.IsNullOrWhiteSpace(Query) && UsesPeriodRecall && normalizedPeriod != "all" && allPosts.Count == 0)
         {
-            displayedSearchMessage = $"{GetPeriodLabel(normalizedPeriod)} 이어진 로그가 없습니다. 전체 흐름으로 넓혀 볼 수 있습니다.";
+            displayedSearchMessage = $"{GetPeriodLabel(normalizedPeriod)} 이어진 로그가 없습니다. 전체 범위로 넓혀 볼 수 있습니다.";
         }
 
         allPosts = SortPosts(allPosts);
@@ -489,8 +489,8 @@ else
         {
             "trending" => $"{GetPeriodTitlePrefix()} 반응으로 이어진 로그",
             "recommended" => $"{GetPeriodTitlePrefix()} 의미가 이어진 로그",
-            "feed" => "관계로 이어진 로그 흐름",
-            _ => "최근 공개 로그 흐름"
+            "feed" => "관계로 이어진 로그",
+            _ => "최근 공개 로그"
         };
     }
 
@@ -498,46 +498,46 @@ else
     {
         return string.IsNullOrWhiteSpace(Query)
             ? GetDiscoveryTitle()
-            : $"{GetDisplayedQuery()} 의미 회상";
+            : $"{GetDisplayedQuery()} 검색";
     }
 
     private string GetFlowScopeLabel()
     {
         if (IsFollowingFeed)
         {
-            return "관계 흐름";
+            return "팔로우";
         }
 
         return UsesPeriodRecall
             ? GetPeriodLabel(normalizedPeriod)
-            : "공개 흐름";
+            : "공개 로그";
     }
 
     private static string FormatLogNodeCount(int count)
-        => $"{count:N0}개 로그 노드";
+        => $"{count:N0}개 로그";
 
     private string GetSeoTitle()
     {
         return string.IsNullOrWhiteSpace(Query)
             ? $"{GetDiscoveryTitle()} | slogs"
-            : $"{GetDisplayedQuery()} 의미 회상 흐름 | slogs";
+            : $"{GetDisplayedQuery()} 검색 결과 | slogs";
     }
 
     private string GetSeoDescription()
     {
         return string.IsNullOrWhiteSpace(Query)
             ? GetSeoDiscoveryDescription()
-            : $"slogs에서 {GetDisplayedQuery()}와 이어지는 의미 회상 흐름을 다시 따라갑니다.";
+            : $"slogs에서 {GetDisplayedQuery()}와 이어지는 검색 결과을 다시 따라갑니다.";
     }
 
     private string GetSeoDiscoveryDescription()
     {
         return discoveryMode switch
         {
-            "trending" => $"{GetPeriodLabel(normalizedPeriod)} 회상 접근, 대화 흔적, 공감 신호로 다시 이어진 공개 로그 흐름을 따라갑니다.",
-            "recommended" => $"{GetPeriodLabel(normalizedPeriod)} 회상 접근, 대화 흔적, 공감 신호, 단서, 시리즈가 겹치는 다음 의미 경로를 따라갑니다.",
-            "feed" => "관계로 이어진 슬로거 홈의 공개 로그 흐름만 따라갑니다.",
-            _ => "최근 공개 공유 노드와 이어지는 지식 로그 흐름을 다시 따라갑니다."
+            "trending" => $"{GetPeriodLabel(normalizedPeriod)} 조회, 댓글, 공감으로 다시 이어진 공개 로그를 따라갑니다.",
+            "recommended" => $"{GetPeriodLabel(normalizedPeriod)} 조회, 댓글, 공감, 태그, 시리즈가 겹치는 다음 의미 경로를 따라갑니다.",
+            "feed" => "관계로 이어진 슬로거 홈의 공개 로그만 따라갑니다.",
+            _ => "최근 공개 로그와 이어지는 지식 로그를 다시 따라갑니다."
         };
     }
 
@@ -551,15 +551,15 @@ else
     {
         if (!string.IsNullOrWhiteSpace(Query))
         {
-            return $"\"{GetDisplayedQuery()}\"에 이어지는 의미 회상 로그가 없습니다.";
+            return $"\"{GetDisplayedQuery()}\"에 이어지는 검색 로그가 없습니다.";
         }
 
         if (UsesPeriodRecall && normalizedPeriod != "all")
         {
-            return $"{GetPeriodLabel(normalizedPeriod)} 이어진 로그 흐름이 없습니다.";
+            return $"{GetPeriodLabel(normalizedPeriod)} 이어진 로그가 없습니다.";
         }
 
-        return "아직 이어진 공개 로그 흐름이 없습니다.";
+        return "아직 이어진 공개 로그가 없습니다.";
     }
 
     private bool ShouldNoIndex => IsFollowingFeed || !string.IsNullOrWhiteSpace(Query);
@@ -613,7 +613,7 @@ else
         {
             var tag = query[1..].Trim();
             return string.IsNullOrWhiteSpace(tag)
-                ? ("단서", () => GetFallbackQueryPostsAsync())
+                ? ("태그", () => GetFallbackQueryPostsAsync())
                 : ($"# {tag}", () => ApiClient.GetByTagAsync(tag));
         }
 
@@ -633,11 +633,11 @@ else
                 : ($"슬로거: {writer}", () => ApiClient.GetByAuthorAsync(writer));
         }
 
-        if (TryReadRecallPrefix(query, ["tag:", "단서:"], out var tagValue))
+        if (TryReadRecallPrefix(query, ["tag:", "태그:"], out var tagValue))
         {
             return string.IsNullOrWhiteSpace(tagValue)
-                ? ("단서", () => GetFallbackQueryPostsAsync())
-                : ($"단서: {tagValue}", () => ApiClient.GetByTagAsync(tagValue));
+                ? ("태그", () => GetFallbackQueryPostsAsync())
+                : ($"태그: {tagValue}", () => ApiClient.GetByTagAsync(tagValue));
         }
 
         if (TryReadRecallPrefix(query, ["writer:", "슬로거:"], out var writerValue))
@@ -678,7 +678,7 @@ else
         var trimmed = query.Trim();
         return trimmed is "#" or "@"
             || trimmed is "@@"
-            || IsRecallPrefixOnly(trimmed, ["tag:", "단서:", "writer:", "슬로거:", "series:", "시리즈:", "로그 시리즈:"]);
+            || IsRecallPrefixOnly(trimmed, ["tag:", "태그:", "writer:", "슬로거:", "series:", "시리즈:", "로그 시리즈:"]);
     }
 
     private static bool TryReadRecallPrefix(string value, IReadOnlyList<string> prefixes, out string remainder)
@@ -828,7 +828,7 @@ else
         return NormalizePeriodValue(period) switch
         {
             "month" => "최근 30일 동안",
-            "all" => "전체 흐름에서",
+            "all" => "전체에서",
             _ => "최근 7일 동안"
         };
     }
@@ -838,7 +838,7 @@ else
         return normalizedPeriod switch
         {
             "month" => "최근 30일",
-            "all" => "전체 흐름",
+            "all" => "전체",
             _ => "최근 7일"
         };
     }

@@ -36,7 +36,7 @@ public sealed class BlogRevisionTests
         var revisions = await fixture.Blog.GetPostRevisionsAsync(post.Slug, "alice");
         Assert.Equal(2, revisions.Count);
         Assert.All(revisions, revision => Assert.IsType<PostRevisionSummaryResponse>(revision));
-        Assert.Contains("첫 공개 공유", revisions[0].ChangedFields);
+        Assert.Contains("첫 공개", revisions[0].ChangedFields);
         Assert.DoesNotContain("초기 게시", revisions[0].ChangedFields);
         Assert.Contains("요약", revisions[1].ChangedFields);
         Assert.Contains("본문", revisions[1].ChangedFields);

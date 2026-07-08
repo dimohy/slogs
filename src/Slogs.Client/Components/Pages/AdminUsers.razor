@@ -3,20 +3,20 @@
 @inject SlogsApiClient ApiClient
 @inject NavigationManager Navigation
 
-<PageTitle>관리자 흐름 | slogs</PageTitle>
-<SeoHead Title="관리자 흐름 | slogs" Description="slogs 슬로거, 기억 회상, 노트 Vault 흐름을 함께 따라갑니다." NoIndex="true" />
+<PageTitle>관리자 | slogs</PageTitle>
+<SeoHead Title="관리자 | slogs" Description="slogs 슬로거, LLM Wiki, 노트 Vault를 함께 관리합니다." NoIndex="true" />
 
 @if (CurrentUser is null)
 {
-    <p class="rounded-lg border border-slate-200 bg-white p-4 text-slate-500">운영 흐름을 따라가려면 지식 로그 홈으로 돌아가야 합니다. <a class="font-semibold underline" href="@GetLoginHref()">지식 로그로 돌아가기</a></p>
+    <p class="rounded-lg border border-slate-200 bg-white p-4 text-slate-500">관리자 화면으로 가려면 지식 로그 홈으로 돌아가야 합니다. <a class="font-semibold underline" href="@GetLoginHref()">지식 로그로 돌아가기</a></p>
 }
 else if (!CurrentUser.IsAdmin)
 {
-    <p class="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800">운영 흐름 권한이 필요합니다.</p>
+    <p class="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800">관리자 권한이 필요합니다.</p>
 }
 else if (usage is null)
 {
-    <p class="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-500">슬로거 흐름을 불러오는 중입니다.</p>
+    <p class="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-500">슬로거를 불러오는 중입니다.</p>
 }
 else
 {
@@ -25,7 +25,7 @@ else
     <section class="space-y-5">
         <div class="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4">
             <div>
-                <h1 class="text-2xl font-bold text-slate-900">관리자 흐름</h1>
+                <h1 class="text-2xl font-bold text-slate-900">관리자</h1>
                 <p class="mt-1 text-sm text-slate-500">@GetViewDescription(activeView)</p>
             </div>
         </div>
@@ -40,17 +40,17 @@ else
         {
             var users = GetVisibleUserManagementUsers();
 
-            <section class="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="슬로거 홈 흐름 요약">
+            <section class="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="슬로거 요약">
                 <div class="rounded-lg border border-slate-200 bg-white p-3">
                     <div class="text-xs font-bold text-slate-500">등록 슬로거</div>
                     <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.TotalUsers)</div>
                 </div>
                 <div class="rounded-lg border border-slate-200 bg-white p-3">
-                    <div class="text-xs font-bold text-slate-500">로그 흐름</div>
+                    <div class="text-xs font-bold text-slate-500">로그</div>
                     <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(TotalPostCount)</div>
                 </div>
                 <div class="rounded-lg border border-slate-200 bg-white p-3">
-                    <div class="text-xs font-bold text-slate-500">공개 공유 노드</div>
+                    <div class="text-xs font-bold text-slate-500">공개 로그</div>
                     <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(TotalPublishedPostCount)</div>
                 </div>
                 <div class="rounded-lg border border-slate-200 bg-white p-3">
@@ -64,18 +64,18 @@ else
                     <input class="min-w-56 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900"
                            value="@userSearchText"
                            @oninput="HandleUserSearchInputChanged"
-                           placeholder="슬로거 단서"
-                           aria-label="슬로거 단서 입력" />
+                           placeholder="슬로거 태그"
+                           aria-label="슬로거 태그 입력" />
                     <select class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none transition focus:border-slate-900"
                             @bind="userSortMode"
-                            aria-label="슬로거 홈 흐름 정렬">
+                            aria-label="슬로거 정렬">
                         <option value="registered">처음 연결순</option>
-                        <option value="profile">홈 갱신순</option>
-                        <option value="posts">로그 흐름순</option>
+                        <option value="profile">최근 갱신순</option>
+                        <option value="posts">로그순</option>
                         <option value="name">@@name순</option>
                     </select>
                 </div>
-                <div class="mt-2 text-xs font-semibold text-slate-500">@($"{users.Count:N0}명 홈 흐름 표시")</div>
+                <div class="mt-2 text-xs font-semibold text-slate-500">@($"{users.Count:N0}명 표시")</div>
                 @if (!string.IsNullOrWhiteSpace(renameError))
                 {
                     <div class="mt-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">@renameError</div>
@@ -93,16 +93,16 @@ else
                             <th class="px-3 py-2">슬로거</th>
                             <th class="px-3 py-2">처음 연결</th>
                             <th class="px-3 py-2">홈 갱신</th>
-                            <th class="px-3 py-2 text-right">로그 흐름</th>
+                            <th class="px-3 py-2 text-right">로그</th>
                             <th class="px-3 py-2">공개 홈</th>
-                            <th class="px-3 py-2">@@name 흐름</th>
+                            <th class="px-3 py-2">@@name</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         @if (users.Count == 0)
                         {
                             <tr>
-                                <td class="px-3 py-8 text-center text-sm text-slate-500" colspan="6">이어 볼 슬로거 홈 흐름이 없습니다.</td>
+                                <td class="px-3 py-8 text-center text-sm text-slate-500" colspan="6">표시할 슬로거가 없습니다.</td>
                             </tr>
                         }
                         else
@@ -122,7 +122,7 @@ else
                                     <td class="whitespace-nowrap px-3 py-3 text-slate-600">@FormatNullableDate(user.ProfileUpdatedAt)</td>
                                     <td class="px-3 py-3 text-right text-slate-700">
                                         <div class="font-bold">@FormatCount(user.PostCount)</div>
-                                        <div class="text-xs text-slate-400">@($"공개 공유 {user.PublishedPostCount:N0} / 게시전 기억 {user.DraftPostCount:N0}")</div>
+                                        <div class="text-xs text-slate-400">@($"공개 {user.PublishedPostCount:N0} / 게시전 로그 {user.DraftPostCount:N0}")</div>
                                     </td>
                                     <td class="whitespace-nowrap px-3 py-3">
                                         <a class="text-xs font-bold text-slate-700 underline decoration-slate-300 underline-offset-2 hover:text-slate-950"
@@ -172,28 +172,28 @@ else
                     <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.LlmWikiUserCount)</div>
                 </div>
                 <div class="rounded-lg border border-slate-200 bg-white p-3">
-                    <div class="text-xs font-bold text-slate-500">기억 노드</div>
+                    <div class="text-xs font-bold text-slate-500">기억</div>
                     <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.TotalLlmWikiEntries)</div>
                 </div>
                 <div class="rounded-lg border border-slate-200 bg-white p-3">
-                    <div class="text-xs font-bold text-slate-500">기억 흐름</div>
+                    <div class="text-xs font-bold text-slate-500">기억 활동</div>
                     <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.TotalLlmWikiActivityCount)</div>
                 </div>
                 <div class="rounded-lg border border-slate-200 bg-white p-3">
-                    <div class="text-xs font-bold text-slate-500">7일 기억 흐름</div>
+                    <div class="text-xs font-bold text-slate-500">7일 기억 활동</div>
                     <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.Recent7DayLlmWikiActivityCount)</div>
                 </div>
                 <div class="rounded-lg border border-slate-200 bg-white p-3">
-                    <div class="text-xs font-bold text-slate-500">30일 기억 흐름</div>
+                    <div class="text-xs font-bold text-slate-500">30일 기억 활동</div>
                     <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.Recent30DayLlmWikiActivityCount)</div>
                 </div>
             </section>
 
-            <section class="space-y-3 rounded-lg border border-slate-200 bg-white p-3" aria-label="Agent 회상 품질 지표">
+            <section class="space-y-3 rounded-lg border border-slate-200 bg-white p-3" aria-label="Agent 품질 지표">
                 <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                     <div>
-                        <h2 class="text-base font-bold text-slate-900">LLM Wiki 회상 품질</h2>
-                        <p class="text-xs font-semibold text-slate-500">@($"{FormatDate(usage.LlmWikiMcpQuality.WindowStartedAt)} 이후 감사 흐름 기준")</p>
+                        <h2 class="text-base font-bold text-slate-900">LLM Wiki 품질</h2>
+                        <p class="text-xs font-semibold text-slate-500">@($"{FormatDate(usage.LlmWikiMcpQuality.WindowStartedAt)} 이후 감사 정렬")</p>
                     </div>
                     <p class="text-xs font-semibold text-slate-500">@($"최근 Agent 접근 {FormatNullableDate(usage.LlmWikiMcpQuality.LastCallAt)}")</p>
                 </div>
@@ -205,24 +205,24 @@ else
                         <div class="mt-1 text-xs font-semibold text-slate-500">@($"7일 {usage.LlmWikiMcpQuality.Recent7DayCallCount:N0}")</div>
                     </div>
                     <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                        <div class="text-xs font-bold text-slate-500">후보 회상</div>
+                        <div class="text-xs font-bold text-slate-500">후보</div>
                         <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.LlmWikiMcpQuality.SearchRecallCallCount)</div>
-                        <div class="mt-1 text-xs font-semibold text-slate-500">후보 회상 접근</div>
+                        <div class="mt-1 text-xs font-semibold text-slate-500">후보 조회</div>
                     </div>
                     <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                        <div class="text-xs font-bold text-slate-500">유효 회상률</div>
+                        <div class="text-xs font-bold text-slate-500">유효 결과율</div>
                         <div class="mt-1 text-2xl font-bold text-slate-900">@($"{usage.LlmWikiMcpQuality.SearchRecallSuccessRatePercent}%")</div>
-                        <div class="mt-1 text-xs font-semibold text-slate-500">@($"빈 회상 {usage.LlmWikiMcpQuality.SearchRecallEmptyResultRatePercent}%")</div>
+                        <div class="mt-1 text-xs font-semibold text-slate-500">@($"빈 결과 {usage.LlmWikiMcpQuality.SearchRecallEmptyResultRatePercent}%")</div>
                     </div>
                     <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                        <div class="text-xs font-bold text-slate-500">회상 속도</div>
+                        <div class="text-xs font-bold text-slate-500">응답 속도</div>
                         <div class="mt-1 text-2xl font-bold text-slate-900">@($"{usage.LlmWikiMcpQuality.SearchRecallAverageElapsedMs:N0}ms")</div>
                         <div class="mt-1 text-xs font-semibold text-slate-500">@($"p95 {usage.LlmWikiMcpQuality.SearchRecallP95ElapsedMs:N0}ms")</div>
                     </div>
                     <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                        <div class="text-xs font-bold text-slate-500">반복 회상률</div>
+                        <div class="text-xs font-bold text-slate-500">반복 요청률</div>
                         <div class="mt-1 text-2xl font-bold text-slate-900">@($"{usage.LlmWikiMcpQuality.SearchRecallRepeatQueryRatePercent}%")</div>
-                        <div class="mt-1 text-xs font-semibold text-slate-500">@($"느린 회상 {usage.LlmWikiMcpQuality.SearchRecallSlowCallCount:N0}")</div>
+                        <div class="mt-1 text-xs font-semibold text-slate-500">@($"느린 요청 {usage.LlmWikiMcpQuality.SearchRecallSlowCallCount:N0}")</div>
                     </div>
                     <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
                         <div class="text-xs font-bold text-slate-500">기억 변경</div>
@@ -235,11 +235,11 @@ else
                     <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
                         <thead class="bg-slate-50 font-bold text-slate-500">
                             <tr>
-                                <th class="px-3 py-2">회상 도구</th>
+                                <th class="px-3 py-2">도구</th>
                                 <th class="px-3 py-2 text-right">접근</th>
                                 <th class="px-3 py-2 text-right">7일</th>
                                 <th class="px-3 py-2 text-right">유효</th>
-                                <th class="px-3 py-2 text-right">빈 회상</th>
+                                <th class="px-3 py-2 text-right">빈 결과</th>
                                 <th class="px-3 py-2 text-right">평균</th>
                                 <th class="px-3 py-2 text-right">p95</th>
                                 <th class="px-3 py-2 text-right">1초+</th>
@@ -250,7 +250,7 @@ else
                             @if (usage.LlmWikiMcpQuality.Tools.Count == 0)
                             {
                                 <tr>
-                                    <td class="px-3 py-5 text-center text-sm text-slate-500" colspan="9">최근 Agent 회상 감사 흐름이 없습니다.</td>
+                                    <td class="px-3 py-5 text-center text-sm text-slate-500" colspan="9">최근 Agent 감사 로그가 없습니다.</td>
                                 </tr>
                             }
                             else
@@ -280,8 +280,8 @@ else
                     <input class="min-w-56 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900"
                            value="@llmWikiSearchText"
                            @oninput="HandleLlmWikiSearchInputChanged"
-                           placeholder="LLM Wiki 슬로거 단서"
-                           aria-label="LLM Wiki 슬로거 단서 입력" />
+                           placeholder="LLM Wiki 슬로거 태그"
+                           aria-label="LLM Wiki 슬로거 태그 입력" />
                     <label class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700">
                         <input type="checkbox" class="h-4 w-4 accent-slate-900" @bind="showLlmWikiUsersOnly" />
                         기억 슬로거만
@@ -290,13 +290,13 @@ else
                             @bind="llmWikiSortMode"
                             aria-label="LLM Wiki 기억 정렬">
                         <option value="activity">최근 기억순</option>
-                        <option value="entries">기억 노드순</option>
-                        <option value="accesses">회상 접근순</option>
+                        <option value="entries">기억순</option>
+                        <option value="accesses">조회순</option>
                         <option value="tokens">Agent 연결순</option>
                         <option value="name">@@name순</option>
                     </select>
                 </div>
-                <div class="mt-2 text-xs font-semibold text-slate-500">@($"{users.Count:N0}명 기억 흐름 표시")</div>
+                <div class="mt-2 text-xs font-semibold text-slate-500">@($"{users.Count:N0}명 기억 활동 표시")</div>
             </section>
 
             <section class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
@@ -304,15 +304,15 @@ else
                     <thead class="bg-slate-50 text-xs font-bold text-slate-500">
                         <tr>
                             <th class="px-3 py-2">슬로거</th>
-                            <th class="px-3 py-2 text-right">기억 노드</th>
-                            <th class="px-3 py-2 text-right">근거 흐름</th>
-                            <th class="px-3 py-2 text-right">기억 흐름</th>
-                            <th class="px-3 py-2 text-right">7일 기억 흐름</th>
-                            <th class="px-3 py-2 text-right">30일 기억 흐름</th>
-                            <th class="px-3 py-2 text-right">회상 접근</th>
+                            <th class="px-3 py-2 text-right">기억</th>
+                            <th class="px-3 py-2 text-right">근거</th>
+                            <th class="px-3 py-2 text-right">기억 활동</th>
+                            <th class="px-3 py-2 text-right">7일 기억 활동</th>
+                            <th class="px-3 py-2 text-right">30일 기억 활동</th>
+                            <th class="px-3 py-2 text-right">조회</th>
                             <th class="px-3 py-2 text-right">Agent 연결</th>
                             <th class="px-3 py-2">최근 기억</th>
-                            <th class="px-3 py-2">최근 회상</th>
+                            <th class="px-3 py-2">최근 접근</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
@@ -360,7 +360,7 @@ else
         {
             var users = GetVisibleObsidianUsers();
 
-            <section class="grid grid-cols-2 gap-3 lg:grid-cols-6" aria-label="노트 Vault 흐름 요약">
+            <section class="grid grid-cols-2 gap-3 lg:grid-cols-6" aria-label="노트 Vault 요약">
                 <div class="rounded-lg border border-slate-200 bg-white p-3">
                     <div class="text-xs font-bold text-slate-500">노트 Vault 슬로거</div>
                     <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.ObsidianSyncUserCount)</div>
@@ -382,17 +382,17 @@ else
                     <div class="mt-1 text-2xl font-bold text-slate-900">@FormatCount(usage.TotalObsidianClients)</div>
                 </div>
                 <div class="rounded-lg border border-slate-200 bg-white p-3">
-                    <div class="text-xs font-bold text-slate-500">노트 용량 흐름</div>
+                    <div class="text-xs font-bold text-slate-500">노트 용량</div>
                     <div class="mt-1 text-2xl font-bold text-slate-900">@FormatBytes(usage.TotalObsidianSizeBytes)</div>
                 </div>
             </section>
 
-            <section class="space-y-3 rounded-lg border border-slate-200 bg-white p-3" aria-label="노트 Vault 용량 흐름">
+            <section class="space-y-3 rounded-lg border border-slate-200 bg-white p-3" aria-label="노트 Vault 용량">
                 <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                     <div>
-                        <h2 class="text-base font-bold text-slate-900">노트 Vault 용량 흐름</h2>
+                        <h2 class="text-base font-bold text-slate-900">노트 Vault 용량</h2>
                         <p class="mt-1 text-xs font-semibold text-slate-500">
-                            @($"슬로거 홈당 {FormatBytes(usage.ObsidianPerAccountStorageLimitBytes)} · 전체 Vault 흐름 {FormatBytes(usage.ObsidianTotalStorageCapacityBytes)}")
+                            @($"슬로거 홈당 {FormatBytes(usage.ObsidianPerAccountStorageLimitBytes)} · 전체 Vault {FormatBytes(usage.ObsidianTotalStorageCapacityBytes)}")
                             <span>@($" · 물리 여유 {FormatBytes(usage.ObsidianPhysicalStorageRemainingBytes)}")</span>
                             @if (!usage.ObsidianTotalStorageCapacityConfigured)
                             {
@@ -401,7 +401,7 @@ else
                         </p>
                     </div>
                     <div class="flex flex-wrap items-center gap-2">
-                        <label class="text-xs font-bold text-slate-500" for="obsidian-total-capacity">노트 Vault 흐름 한도 GiB</label>
+                        <label class="text-xs font-bold text-slate-500" for="obsidian-total-capacity">노트 Vault 한도 GiB</label>
                         <input id="obsidian-total-capacity"
                                type="number"
                                min="1"
@@ -409,12 +409,12 @@ else
                                class="w-32 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 outline-none transition focus:border-slate-900"
                                @bind="obsidianTotalCapacityGiB"
                                disabled="@isStorageSettingsBusy"
-                               aria-label="노트 Vault 흐름 한도 GiB" />
+                               aria-label="노트 Vault 한도 GiB" />
                         <button type="button"
                                 class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
                                 disabled="@isStorageSettingsBusy"
                                 @onclick="UpdateObsidianStorageCapacityAsync">
-                            @(isStorageSettingsBusy ? "흐름 한도 반영 중" : "흐름 한도 반영")
+                            @(isStorageSettingsBusy ? "한도 반영 중" : "한도 반영")
                         </button>
                     </div>
                 </div>
@@ -432,7 +432,7 @@ else
                         <div class="mt-1 text-xl font-bold text-slate-900">@FormatBytes(usage.ObsidianPhysicalStorageRemainingBytes)</div>
                     </div>
                     <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                        <div class="text-xs font-bold text-slate-500">전체 흐름 사용률</div>
+                        <div class="text-xs font-bold text-slate-500">전체 사용률</div>
                         <div class="mt-1 text-xl font-bold text-slate-900">@($"{usage.ObsidianTotalStorageUsagePercent}%")</div>
                     </div>
                 </div>
@@ -454,16 +454,16 @@ else
                     <input class="min-w-56 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900"
                            value="@obsidianSearchText"
                            @oninput="HandleObsidianSearchInputChanged"
-                           placeholder="노트 Vault 슬로거 단서"
-                           aria-label="노트 Vault 슬로거 단서 입력" />
+                           placeholder="노트 Vault 슬로거 태그"
+                           aria-label="노트 Vault 슬로거 태그 입력" />
                     <label class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700">
                         <input type="checkbox" class="h-4 w-4 accent-slate-900" @bind="showObsidianUsersOnly" />
                         노트 Vault 슬로거만
                     </label>
                     <select class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none transition focus:border-slate-900"
                             @bind="obsidianSortMode"
-                            aria-label="노트 Vault 흐름 정렬">
-                        <option value="updated">최근 노트 흐름순</option>
+                            aria-label="노트 Vault 정렬">
+                        <option value="updated">최근 노트순</option>
                         <option value="vaults">노트 Vault순</option>
                         <option value="files">노트 원문순</option>
                         <option value="clients">연결 흔적순</option>
@@ -471,7 +471,7 @@ else
                         <option value="name">@@name순</option>
                     </select>
                 </div>
-                <div class="mt-2 text-xs font-semibold text-slate-500">@($"{users.Count:N0}명 노트 흐름 표시")</div>
+                <div class="mt-2 text-xs font-semibold text-slate-500">@($"{users.Count:N0}명 표시")</div>
             </section>
 
             <section class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
@@ -484,11 +484,11 @@ else
                             <th class="px-3 py-2 text-right">이어진 노트</th>
                             <th class="px-3 py-2 text-right">지운 노트 흔적</th>
                             <th class="px-3 py-2 text-right">연결 흔적</th>
-                            <th class="px-3 py-2 text-right">노트 흐름</th>
+                            <th class="px-3 py-2 text-right">노트</th>
                             <th class="px-3 py-2 text-right">노트 용량</th>
-                            <th class="px-3 py-2 text-right">Vault 흐름 한도</th>
+                            <th class="px-3 py-2 text-right">Vault 한도</th>
                             <th class="px-3 py-2 text-right">Vault 여유</th>
-                            <th class="px-3 py-2">최근 Vault 흐름</th>
+                            <th class="px-3 py-2">최근 Vault</th>
                             <th class="px-3 py-2">최근 연결 흔적</th>
                         </tr>
                     </thead>
@@ -780,7 +780,7 @@ else
 
         if (obsidianTotalCapacityGiB < 1)
         {
-            storageSettingsError = "노트 Vault 흐름 한도는 1GiB 이상이어야 합니다.";
+            storageSettingsError = "노트 Vault 한도는 1GiB 이상이어야 합니다.";
             return;
         }
 
@@ -791,11 +791,11 @@ else
             await ApiClient.UpdateAdminObsidianStorageSettingsAsync(capacityBytes);
             usage = await ApiClient.GetAdminUserUsageAsync();
             SyncObsidianStorageInput();
-            storageSettingsSuccess = $"노트 Vault 흐름 한도를 {FormatBytes(capacityBytes)}로 반영했습니다.";
+            storageSettingsSuccess = $"노트 Vault 한도를 {FormatBytes(capacityBytes)}로 반영했습니다.";
         }
         catch (OverflowException)
         {
-            storageSettingsError = "노트 Vault 흐름 한도가 너무 큽니다.";
+            storageSettingsError = "노트 Vault 한도가 너무 큽니다.";
         }
         catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException)
         {
@@ -835,9 +835,9 @@ else
     private static string GetViewDescription(string view)
         => view switch
         {
-            LlmWikiView => "비공개 기억, 회상 접근, Agent 연결 품질 신호를 함께 살핍니다.",
-            ObsidianView => "로컬 노트 Vault, 노트 원문, 연결 흔적 흐름을 함께 따라갑니다.",
-            _ => "슬로거 홈과 공개 공유 노드, 게시전 기억이 어떻게 이어지는지 함께 따라갑니다."
+            LlmWikiView => "비공개 기억, 조회, Agent 연결 품질를 함께 확인합니다.",
+            ObsidianView => "로컬 노트 Vault, 노트 원문, 연결 기록을 함께 관리합니다.",
+            _ => "슬로거 홈, 공개 로그, 게시전 로그를 함께 관리합니다."
         };
 
     private string GetViewTabClass(string view)
@@ -874,7 +874,7 @@ else
     private static string FormatRenameError(string error)
         => error switch
         {
-            "adminRequired" => "운영 흐름 권한이 필요합니다.",
+            "adminRequired" => "관리자 권한이 필요합니다.",
             "adminUserNameUnchanged" => "기존 @name과 새 @name이 같습니다.",
             "adminUserNameReserved" => "예약 @name은 변경하거나 대상으로 사용할 수 없습니다.",
             "adminUserNameNotFound" => "정리할 슬로거를 찾을 수 없습니다.",
@@ -888,11 +888,11 @@ else
     private static string FormatStorageSettingsError(string error)
         => error switch
         {
-            "adminRequired" => "운영 흐름 권한이 필요합니다.",
-            "obsidianStorageCapacityInvalid" => "노트 Vault 흐름 한도는 1GiB 이상, 1PiB 이하로 입력해 주세요.",
-            "obsidianStorageCapacityBelowUsage" => "노트 Vault 흐름 한도는 현재 Vault 사용보다 작게 설정할 수 없습니다.",
-            "obsidianStorageSettingInvalid" => "반영된 노트 Vault 흐름 한도 값이 올바르지 않습니다.",
-            _ => "노트 Vault 흐름 한도 반영에 실패했습니다."
+            "adminRequired" => "관리자 권한이 필요합니다.",
+            "obsidianStorageCapacityInvalid" => "노트 Vault 한도는 1GiB 이상, 1PiB 이하로 입력해 주세요.",
+            "obsidianStorageCapacityBelowUsage" => "노트 Vault 한도는 현재 Vault 사용보다 작게 설정할 수 없습니다.",
+            "obsidianStorageSettingInvalid" => "반영된 노트 Vault 한도 값이 올바르지 않습니다.",
+            _ => "노트 Vault 한도 반영에 실패했습니다."
         };
 
     private static string FormatCount(int value)

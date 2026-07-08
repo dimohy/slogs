@@ -42,6 +42,6 @@ public sealed class AuthUser
     public IReadOnlyList<string> Badges =>
         IsAdmin
         || UserName.Equals(AdminUserName, StringComparison.OrdinalIgnoreCase)
-            ? ["운영 흐름", "시그니처 슬로거"]
+            ? ["관리자", "시그니처 슬로거"]
             : [];
 }

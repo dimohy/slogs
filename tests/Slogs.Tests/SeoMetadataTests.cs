@@ -12,9 +12,9 @@ public sealed class SeoMetadataTests
         var lines = robots.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
         Assert.DoesNotContain("Disallow: /feed", lines);
-        Assert.Contains("# Full knowledge-log Markdown flow: https://slogs.dev/llms-full.txt", lines);
-        Assert.Contains("# RSS knowledge-log flow: https://slogs.dev/feed.xml", lines);
-        Assert.Contains("# JSON knowledge-log flow: https://slogs.dev/feed.json", lines);
+        Assert.Contains("# Full knowledge-log Markdown: https://slogs.dev/llms-full.txt", lines);
+        Assert.Contains("# RSS knowledge-log feed: https://slogs.dev/feed.xml", lines);
+        Assert.Contains("# JSON knowledge-log feed: https://slogs.dev/feed.json", lines);
         Assert.DoesNotContain("# Full LLM Markdown export: https://slogs.dev/llms-full.txt", lines);
         Assert.DoesNotContain("# RSS feed: https://slogs.dev/feed.xml", lines);
         Assert.DoesNotContain("# JSON feed: https://slogs.dev/feed.json", lines);
@@ -25,11 +25,11 @@ public sealed class SeoMetadataTests
     {
         var post = new BlogPost
         {
-            Title = "검증 흐름을 남기는 로그",
+            Title = "검증 내용을 남기는 로그",
             Slug = "verified-flow-log",
             Author = "devin",
-            Summary = "작업 판단과 검증 단서를 이어 남긴 공개 로그입니다.",
-            Body = "검증한 결정과 다음 단서를 기록합니다.",
+            Summary = "작업 판단과 검증 태그를 이어 남긴 공개 로그입니다.",
+            Body = "검증한 결정과 다음 정보를 기록합니다.",
             Tags = ["verification", "agent"],
             Series = ["identity flow"],
             PublishedAt = new DateTime(2026, 7, 7, 0, 0, 0, DateTimeKind.Utc),
@@ -47,36 +47,36 @@ public sealed class SeoMetadataTests
         var postMarkdown = SeoMetadata.BuildPostMarkdown("https://slogs.dev/", post);
         post.ViewCount = 5;
         post.LikedBy.Add("mina");
-        post.AddComment(new BlogComment { Author = "junho", Content = "검증 단서가 이어집니다." });
+        post.AddComment(new BlogComment { Author = "junho", Content = "검증 태그가 이어집니다." });
 
         var jsonLd = SeoMetadata.PublicLogNodeJsonLd("https://slogs.dev/", post, "/@devin/verified-flow-log", null);
 
         Assert.Contains("지식 로그 플랫폼", SeoMetadata.DefaultDescription);
         Assert.Contains("knowledge-log platform", llmsText);
-        Assert.Contains("Only public shared knowledge-log nodes are exposed here.", llmsText);
-        Assert.Contains("Public knowledge-log flow", llmsText);
-        Assert.Contains("Public sharing node from @devin", llmsText);
-        Assert.Contains("Clue recall paths", llmsText);
-        Assert.Contains("Log-series recall paths", llmsText);
-        Assert.Contains("Slogger home recall paths", llmsText);
-        Assert.Contains("RSS knowledge-log flow", llmsText);
-        Assert.Contains("Public sharing nodes in RSS format.", llmsText);
-        Assert.Contains("AI-readable knowledge flow", llmsText);
-        Assert.Contains("Full public knowledge-log flow", llmsText);
-        Assert.Contains("Single Markdown flow containing the current public knowledge-log corpus.", llmsText);
-        Assert.Contains("public knowledge-log Markdown flow", llmsFullText);
-        Assert.Contains("Current public Markdown flow for slogs.", llmsFullText);
-        Assert.Contains("- Public sharing node: https://slogs.dev/@devin/verified-flow-log", postMarkdown);
-        Assert.Contains("- Markdown recall node: https://slogs.dev/@devin/verified-flow-log.md", postMarkdown);
+        Assert.Contains("Only public shared knowledge logs are exposed here.", llmsText);
+        Assert.Contains("Public knowledge logs", llmsText);
+        Assert.Contains("Public log from @devin", llmsText);
+        Assert.Contains("Tags", llmsText);
+        Assert.Contains("Log series", llmsText);
+        Assert.Contains("Sloggers", llmsText);
+        Assert.Contains("RSS knowledge-log feed", llmsText);
+        Assert.Contains("Public logs in RSS format.", llmsText);
+        Assert.Contains("AI-readable knowledge logs", llmsText);
+        Assert.Contains("Full public knowledge-log Markdown", llmsText);
+        Assert.Contains("Single Markdown file containing the current public knowledge-log corpus.", llmsText);
+        Assert.Contains("public knowledge-log Markdown", llmsFullText);
+        Assert.Contains("Current public Markdown corpus for slogs.", llmsFullText);
+        Assert.Contains("- Public log: https://slogs.dev/@devin/verified-flow-log", postMarkdown);
+        Assert.Contains("- Markdown version: https://slogs.dev/@devin/verified-flow-log.md", postMarkdown);
         Assert.Contains("- Slogger home: @devin", postMarkdown);
-        Assert.Contains("- Public sharing point: 2026-07-07", postMarkdown);
-        Assert.Contains("- Flow refresh: 2026-07-07", postMarkdown);
+        Assert.Contains("- Published: 2026-07-07", postMarkdown);
+        Assert.Contains("- Updated: 2026-07-07", postMarkdown);
         Assert.Contains("- Reading span: 2 minutes", postMarkdown);
-        Assert.Contains("- Recall clues: #verification, #agent", postMarkdown);
-        Assert.Contains("- Log-series flow: identity flow", postMarkdown);
+        Assert.Contains("- Tags: #verification, #agent", postMarkdown);
+        Assert.Contains("- Log series: identity flow", postMarkdown);
         Assert.Contains("## Knowledge-Log Body", postMarkdown);
         Assert.Contains("\"@type\":\"CreativeWork\"", jsonLd);
-        Assert.Contains("\"name\":\"검증 흐름을 남기는 로그\"", jsonLd);
+        Assert.Contains("\"name\":\"검증 내용을 남기는 로그\"", jsonLd);
         Assert.Contains("\"genre\":\"knowledge log\"", jsonLd);
         Assert.Contains("\"interactionType\":\"https://schema.org/CommentAction\"", jsonLd);
         Assert.Contains("\"interactionType\":\"https://schema.org/LikeAction\"", jsonLd);
@@ -86,7 +86,6 @@ public sealed class SeoMetadataTests
         Assert.DoesNotContain("developer blogging service", llmsText);
         Assert.DoesNotContain("Public posts", llmsText);
         Assert.DoesNotContain("Public Slogger directory", llmsText);
-        Assert.DoesNotContain("public logs.", llmsText);
         Assert.DoesNotContain("RSS feed", llmsText);
         Assert.DoesNotContain("Latest public logs", llmsText);
         Assert.DoesNotContain("AI-readable exports", llmsText);
@@ -95,10 +94,9 @@ public sealed class SeoMetadataTests
         Assert.DoesNotContain("- Canonical URL:", postMarkdown);
         Assert.DoesNotContain("- Markdown URL:", postMarkdown);
         Assert.DoesNotContain("- Shared:", postMarkdown);
-        Assert.DoesNotContain("- Updated:", postMarkdown);
         Assert.DoesNotContain("- Read time:", postMarkdown);
         Assert.DoesNotContain("- Clues:", postMarkdown);
-        Assert.DoesNotContain("- Log series:", postMarkdown);
+        Assert.DoesNotContain("- Log-series flow:", postMarkdown);
         Assert.DoesNotContain("## Log Body", postMarkdown);
         Assert.DoesNotContain("\"@type\":\"Article\"", jsonLd);
         Assert.DoesNotContain("BlogPosting", jsonLd);
@@ -109,11 +107,11 @@ public sealed class SeoMetadataTests
     {
         var post = new BlogPost
         {
-            Title = "공개 공유 흐름 로그",
+            Title = "공개 목록 로그",
             Slug = "public-sharing-flow-log",
             Author = "devin",
-            Summary = "공개 공유된 지식 로그 노드가 이어집니다.",
-            Body = "작업과 검증 흐름입니다.",
+            Summary = "공개된 지식 로그가 이어집니다.",
+            Body = "작업과 검증 목록입니다.",
             Tags = ["flow"],
             PublishedAt = new DateTime(2026, 7, 8, 0, 0, 0, DateTimeKind.Utc),
             UpdatedAt = new DateTime(2026, 7, 8, 1, 0, 0, DateTimeKind.Utc),
@@ -134,13 +132,13 @@ public sealed class SeoMetadataTests
     }
 
     [Fact]
-    public void WebSiteJsonLdFramesSearchAsMeaningRecallFlow()
+    public void WebSiteJsonLdFramesSearchAsSiteSearch()
     {
         var jsonLd = SeoMetadata.WebSiteJsonLd("https://slogs.dev/");
 
         Assert.Contains("\"@type\":\"SearchAction\"", jsonLd);
-        Assert.Contains("\"name\":\"Meaning recall\"", jsonLd);
-        Assert.Contains("\"description\":\"Recall public knowledge-log flow by meaning clue.\"", jsonLd);
+        Assert.Contains("\"name\":\"Search slogs\"", jsonLd);
+        Assert.Contains("\"description\":\"Search public knowledge logs by keyword, tag, or topic.\"", jsonLd);
         Assert.Contains("\"target\":\"https://slogs.dev/?q={search_term_string}\"", jsonLd);
         Assert.DoesNotContain("\"target\":\"https://slogs.dev/post?q={search_term_string}\"", jsonLd);
     }
@@ -150,10 +148,10 @@ public sealed class SeoMetadataTests
     {
         var post = new BlogPost
         {
-            Title = "회상 가능한 작업 로그",
+            Title = "검색 가능한 작업 로그",
             Slug = "recallable-work-log",
             Author = "mina",
-            Summary = "작업 판단과 다음 단서가 이어지는 공개 지식 로그입니다.",
+            Summary = "작업 판단과 다음 정보가 이어지는 공개 지식 로그입니다.",
             Body = "본문",
             Tags = ["recall", "workflow"],
             Series = ["knowledge flow"],
@@ -163,13 +161,13 @@ public sealed class SeoMetadataTests
             ViewCount = 7
         };
         post.LikedBy.Add("junho");
-        post.AddComment(new BlogComment { Author = "junho", Content = "좋은 단서입니다." });
+        post.AddComment(new BlogComment { Author = "junho", Content = "좋은 태그입니다." });
 
         var jsonLd = SeoMetadata.PublicLogCollectionJsonLd(
             "https://slogs.dev/",
             "/tag/recall",
-            "#recall 단서 흐름",
-            "slogs에서 #recall 단서로 이어진 공개 로그 흐름을 회상합니다.",
+            "#recall 태그",
+            "slogs에서 #recall 태그로 이어진 공개 로그를 검색합니다.",
             [post]);
 
         Assert.Contains("\"@type\":\"ItemList\"", jsonLd);
@@ -192,7 +190,7 @@ public sealed class SeoMetadataTests
             Title = "슬로거 홈에서 이어지는 작업 로그",
             Slug = "slogger-home-flow-log",
             Author = "devin",
-            Summary = "슬로거 홈의 공개 지식 흐름을 보여 주는 로그입니다.",
+            Summary = "슬로거 홈의 공개 지식 내용을 보여 주는 로그입니다.",
             Body = "작업과 판단이 이어집니다.",
             Tags = ["slogger", "flow"],
             Series = ["home flow"],
@@ -202,7 +200,7 @@ public sealed class SeoMetadataTests
             ViewCount = 3
         };
         publicPost.LikedBy.Add("mina");
-        publicPost.AddComment(new BlogComment { Author = "junho", Content = "흐름이 이어집니다." });
+        publicPost.AddComment(new BlogComment { Author = "junho", Content = "내용이 이어집니다." });
 
         var draftPost = new BlogPost
         {
@@ -228,7 +226,7 @@ public sealed class SeoMetadataTests
         Assert.Contains("\"@type\":\"ItemList\"", jsonLd);
         Assert.Contains("\"@id\":\"https://slogs.dev/@devin#public-log-flow\"", jsonLd);
         Assert.Contains("\"name\":\"Devin 지식 로그 홈\"", jsonLd);
-        Assert.Contains("\"name\":\"Devin 공개 지식 로그 흐름\"", jsonLd);
+        Assert.Contains("\"name\":\"Devin 공개 지식 로그\"", jsonLd);
         Assert.Contains("\"alternateName\":\"@devin\"", jsonLd);
         Assert.Contains("\"@type\":\"CreativeWork\"", jsonLd);
         Assert.Contains("\"genre\":\"knowledge log\"", jsonLd);

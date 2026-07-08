@@ -4,15 +4,15 @@
 @inject IJSRuntime JS
 
 <PageTitle>지식 로그로 돌아가기</PageTitle>
-<SeoHead Title="지식 로그로 돌아가기 | slogs" Description="내 비공개 기억, 게시전 기억, 저장 회상 흐름과 공감 신호 흐름으로 돌아갑니다." NoIndex="true" />
+<SeoHead Title="지식 로그로 돌아가기 | slogs" Description="내 비공개 기억, 게시전 로그, 저장한 로그와 공감한 로그로 돌아갑니다." NoIndex="true" />
 
 <form class="grid max-w-xl gap-3 rounded-2xl border border-slate-200 bg-white p-4"
       @onsubmit="SubmitLogin"
       @onsubmit:preventDefault>
     <div class="grid gap-1">
-        <p class="text-xs font-bold text-teal-700">비공개 기억 . 게시전 기억 . 저장 회상 . 공감 신호</p>
+        <p class="text-xs font-bold text-teal-700">비공개 기억 . 게시전 로그 . 저장 . 공감</p>
         <h1 class="text-2xl font-bold text-slate-900">지식 로그로 돌아가기</h1>
-        <p class="text-sm leading-6 text-slate-600">내 비공개 기억, 게시전 기억, 저장 회상 흐름과 공감 신호 흐름이 이 슬로거 홈 &#64;주소에 이어집니다.</p>
+        <p class="text-sm leading-6 text-slate-600">내 비공개 기억, 게시전 로그, 저장한 로그와 공감한 로그가 이 슬로거 홈 &#64;주소에 이어집니다.</p>
     </div>
 
     <label class="text-sm font-semibold text-slate-700" for="login-user-name">슬로거 홈 &#64;주소</label>
@@ -22,7 +22,7 @@
     <input id="login-password" name="password" class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" type="password" autocomplete="current-password" @bind="password" @bind:event="oninput" />
 
     <button class="w-fit rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-            type="submit" disabled="@isSubmitting">@((isSubmitting) ? "흐름 연결 중..." : "로그 흐름으로 돌아가기")</button>
+            type="submit" disabled="@isSubmitting">@((isSubmitting) ? "연결 중..." : "로그 목록으로 돌아가기")</button>
 
     <div class="grid gap-2 border-t border-slate-200 pt-3">
         <a class="inline-flex w-fit items-center gap-2 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
@@ -115,11 +115,11 @@
 
             apiError = result.Status == 401
                 ? "슬로거 홈 @주소 또는 비밀번호가 틀렸습니다."
-                : MapAuthError(result.Error, "지식 로그 흐름으로 돌아가지 못했습니다.");
+                : MapAuthError(result.Error, "지식 로그로 돌아가지 못했습니다.");
         }
         catch (Exception)
         {
-            apiError = "지식 로그 흐름 연결 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+            apiError = "지식 로그 연결 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
         }
         finally
         {

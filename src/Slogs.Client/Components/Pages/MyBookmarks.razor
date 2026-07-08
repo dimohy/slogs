@@ -2,18 +2,18 @@
 @inject SlogsAuthState AuthState
 @inject SlogsApiClient ApiClient
 @inject NavigationManager Navigation
-<PageTitle>저장 회상 흐름</PageTitle>
-<SeoHead Title="저장 회상 흐름 | slogs" Description="내가 저장한 slogs 로그 흐름을 다시 회상하고 이어 읽습니다." NoIndex="true" />
+<PageTitle>저장한 로그</PageTitle>
+<SeoHead Title="저장한 로그 | slogs" Description="내가 저장한 slogs 로그를 다시 검색하고 이어 읽습니다." NoIndex="true" />
 
 @if (CurrentUser is null)
 {
-    <p class="rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">저장 회상 흐름을 다시 열려면 지식 로그 홈으로 돌아가야 합니다. <a class="font-semibold underline" href="@GetLoginHref()">지식 로그로 돌아가기</a></p>
+    <p class="rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">저장한 로그를 다시 열려면 지식 로그 홈으로 돌아가야 합니다. <a class="font-semibold underline" href="@GetLoginHref()">지식 로그로 돌아가기</a></p>
 }
 else
 {
     <div class="border-b border-slate-200 pb-4">
-        <h1 class="text-2xl font-bold text-slate-900">저장 회상 흐름</h1>
-        <p class="mt-1 text-sm text-slate-500">저장한 판단 단서를 따라 다시 이어 읽을 로그 흐름을 모아봅니다.</p>
+        <h1 class="text-2xl font-bold text-slate-900">저장한 로그</h1>
+        <p class="mt-1 text-sm text-slate-500">저장한 로그를 한곳에 모아 다시 읽습니다.</p>
     </div>
 
     @if (!string.IsNullOrWhiteSpace(message))
@@ -26,18 +26,18 @@ else
         {
             <div class="slogs-post-list-empty grid min-h-64 place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center md:col-span-2">
                 <div class="max-w-sm">
-                    <p class="text-sm font-semibold text-slate-700">아직 저장 회상 흐름이 없습니다.</p>
-                    <p class="mt-2 text-sm leading-6 text-slate-500">공개 흐름에서 다시 이어 읽을 로그를 저장하면 이곳에 모입니다.</p>
+                    <p class="text-sm font-semibold text-slate-700">아직 저장한 로그가 없습니다.</p>
+                    <p class="mt-2 text-sm leading-6 text-slate-500">공개 로그에서 다시 이어 읽을 로그를 저장하면 이곳에 모입니다.</p>
                     <div class="mt-4 flex flex-wrap justify-center gap-2">
                         <a class="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-slate-800"
                            href="/post">
                             <SlogsIcon Name="search" Class="h-4 w-4" />
-                            공개 로그 흐름
+                            공개 로그
                         </a>
                         <a class="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
                            href="/tag">
                             <SlogsIcon Name="bookmark" Class="h-4 w-4" />
-                            단서 회상
+                            태그
                         </a>
                     </div>
                 </div>
@@ -58,15 +58,15 @@ else
                     <ActionContent>
                         <a class="slogs-post-action slogs-post-action--idle inline-flex h-9 min-w-9 items-center justify-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition"
                            href="@GetPostCommentsUrl(post)"
-                           aria-label="@($"{post.CommentCount}개 대화 흔적 보기")">
+                           aria-label="@($"{post.CommentCount}개 댓글 보기")">
                             <SlogsIcon Name="message-circle" Class="h-4 w-4" />
-                            <span>대화 흔적</span>
+                            <span>댓글</span>
                             <span class="min-w-4 text-center tabular-nums">@post.CommentCount</span>
                         </a>
                         <button class="rounded-full border border-rose-300 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
                                 disabled="@(!string.IsNullOrWhiteSpace(pendingRemoveSlug) && pendingRemoveSlug == post.Slug)"
                                 type="button" @onclick="() => ToggleBookmark(post.Slug)">
-                            @((!string.IsNullOrWhiteSpace(pendingRemoveSlug) && pendingRemoveSlug == post.Slug) ? "저장 회상 해제 중..." : "저장 회상 해제")
+                            @((!string.IsNullOrWhiteSpace(pendingRemoveSlug) && pendingRemoveSlug == post.Slug) ? "저장 해제 중..." : "저장 해제")
                         </button>
                     </ActionContent>
                 </PostLogCard>
@@ -79,7 +79,7 @@ else
                             IsLoading="@isLoadingMoreBookmarks"
                             OnLoadMore="LoadMoreBookmarksAsync"
                             ShowDoneText="@(allBookmarks.Count > PageSize)"
-                            DoneText="모든 저장 회상 흐름을 불러왔습니다." />
+                            DoneText="모든 저장한 로그를 불러왔습니다." />
 }
 
 @code {
@@ -136,7 +136,7 @@ else
 
         if (CurrentUser is null)
         {
-            message = "저장 회상 흐름을 바꾸려면 지식 로그 홈으로 돌아가야 합니다.";
+            message = "저장한 로그를 바꾸려면 지식 로그 홈으로 돌아가야 합니다.";
             Navigation.NavigateTo(GetLoginHref());
             return;
         }
@@ -157,10 +157,10 @@ else
             CapturePrerenderedState(currentStateKey);
 
             message = (wasBookmarked && !newState)
-                ? "저장 회상 흐름에서 제거되었습니다."
+                ? "저장한 로그에서 제거되었습니다."
                 : (!wasBookmarked && newState)
-                    ? "저장 회상 흐름에 추가되었습니다."
-                    : "저장 회상 흐름 변경에 실패했습니다.";
+                    ? "저장한 로그에 추가되었습니다."
+                    : "저장한 로그 변경에 실패했습니다.";
         }
         finally
         {

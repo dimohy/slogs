@@ -3,21 +3,21 @@
 @inject SlogsApiClient ApiClient
 @inject NavigationManager Navigation
 
-<PageTitle>의미 회상</PageTitle>
-<SeoHead Title="의미 회상 | slogs" Description="개인 LLM Wiki 기억을 회상하고 Slogs 게시전 기억으로 이어 씁니다." NoIndex="true" />
+<PageTitle>의미 검색</PageTitle>
+<SeoHead Title="의미 검색 | slogs" Description="개인 LLM Wiki 기억을 검색하고 Slogs 게시전 로그로 이어 씁니다." NoIndex="true" />
 
 @if (CurrentUser is null)
 {
-    <p class="rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">비공개 기억을 회상하려면 지식 로그 홈으로 돌아가야 합니다. <a class="font-semibold underline" href="@GetLoginHref()">지식 로그로 돌아가기</a></p>
+    <p class="rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">비공개 기억을 검색하려면 지식 로그 홈으로 돌아가야 합니다. <a class="font-semibold underline" href="@GetLoginHref()">지식 로그로 돌아가기</a></p>
 }
 else
 {
     <section class="space-y-5">
         <div class="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4">
             <div>
-                <p class="text-xs font-bold text-slate-500">비공개 기억 회상</p>
-                <h1 class="mt-1 text-2xl font-bold text-slate-900">의미 회상</h1>
-                <p class="mt-1 text-sm text-slate-500">@CurrentUser.DisplayName 님의 판단과 작업 맥락을 찾아 소유자 전용 게시전 기억으로 이어 씁니다.</p>
+                <p class="text-xs font-bold text-slate-500">비공개 기억 검색</p>
+                <h1 class="mt-1 text-2xl font-bold text-slate-900">의미 검색</h1>
+                <p class="mt-1 text-sm text-slate-500">@CurrentUser.DisplayName 님의 판단과 작업 맥락을 찾아 소유자 전용 게시전 로그로 이어 씁니다.</p>
             </div>
         </div>
 
@@ -25,23 +25,23 @@ else
             <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                     <p class="text-xs font-bold text-slate-500">기억에서 로그로</p>
-                    <h2 class="mt-1 text-lg font-bold text-slate-900">선택한 기억을 게시전 기억으로 이어쓰기</h2>
+                    <h2 class="mt-1 text-lg font-bold text-slate-900">선택한 기억을 게시전 로그로 이어쓰기</h2>
                 </div>
                 <p class="max-w-2xl text-sm leading-6 text-slate-600">
-                    비공개 기억을 바로 공개하지 않고 소유자 전용 게시전 기억으로 옮긴 뒤, 민감한 단서와 내부 맥락을 정리하고 리비전으로 공유 여부를 결정합니다.
+                    비공개 기억을 바로 공개하지 않고 소유자 전용 게시전 로그로 옮긴 뒤, 민감한 정보와 내부 맥락을 정리하고 리비전으로 공유 여부를 결정합니다.
                 </p>
             </div>
             <div class="llm-wiki-flow-panel__steps mt-4">
                 <span>비공개 기억</span>
-                <span>의미 회상</span>
-                <span>게시전 기억</span>
+                <span>의미 검색</span>
+                <span>게시전 로그</span>
                 <span>리비전 공유</span>
             </div>
         </section>
 
         <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <h2 class="text-lg font-bold text-slate-900">기억 회상</h2>
+                <h2 class="text-lg font-bold text-slate-900">기억 검색</h2>
                 <div class="flex min-w-0 flex-1 gap-2 md:max-w-lg">
                     <input class="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-500"
                            placeholder="의미, 판단 기준, 프로젝트 맥락"
@@ -52,7 +52,7 @@ else
                             type="button"
                             disabled="@isSearching"
                             @onclick="SearchEntriesAsync">
-                        @(isSearching ? "회상 중..." : "회상")
+                        @(isSearching ? "검색 중..." : "검색")
                     </button>
                 </div>
             </div>
@@ -61,7 +61,7 @@ else
                 <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <p class="text-sm font-bold text-slate-900">기억 범주</p>
-                        <p class="mt-1 text-xs text-slate-500">기억 범주로 좁힌 뒤 아래 기억 흐름에서 이어 쓸 기억을 선택합니다.</p>
+                        <p class="mt-1 text-xs text-slate-500">기억 범주로 좁힌 뒤 아래 기억에서 이어 쓸 기억을 선택합니다.</p>
                     </div>
                     <span class="w-fit rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-slate-500">@($"{categories.Count}개")</span>
                 </div>
@@ -112,22 +112,22 @@ else
                     <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                             <p class="text-sm font-bold text-slate-900">@GetCategoryBreadcrumb(activeCategoryPath ?? string.Empty)</p>
-                            <h3 class="mt-1 text-lg font-bold text-slate-900">이어 쓸 기억 흐름</h3>
+                            <h3 class="mt-1 text-lg font-bold text-slate-900">이어 쓸 기억</h3>
                         </div>
-                        <p class="text-xs font-semibold text-slate-500">@($"{results.Count}개 기억 회상 중")</p>
+                        <p class="text-xs font-semibold text-slate-500">@($"{results.Count}개 기억 검색 중")</p>
                     </div>
 
-                    <section class="slogs-home-flowline" aria-label="LLM Wiki 기억 회상 흐름 신호" data-llm-wiki-recall-flowline="true">
+                    <section class="slogs-home-flowline" aria-label="LLM Wiki 기억 검색 목록 정보" data-llm-wiki-recall-flowline="true">
                         <div class="min-w-0">
-                            <p class="text-xs font-bold text-slate-500">현재 기억 회상 흐름</p>
+                            <p class="text-xs font-bold text-slate-500">현재 기억 검색 목록</p>
                             <h4 class="text-base font-bold text-slate-950 sm:text-lg">@GetRecallFlowTitle()</h4>
                             <p class="mt-1 text-sm text-slate-600">@GetRecallFlowDescription()</p>
                         </div>
-                        <div class="slogs-home-flowline__signals" aria-label="기억에서 공개 공유까지 이어지는 흐름 신호">
+                        <div class="slogs-home-flowline__signals" aria-label="기억에서 공개까지 이어지는 목록 정보">
                             <span>@FormatVisibleMemoryNodeCount()</span>
                             <span>@GetRecallScopeSignal()</span>
                             <span>@GetDraftBridgeSignal()</span>
-                            <span>검토 후 공개 공유 흐름</span>
+                            <span>검토 후 공개 목록</span>
                         </div>
                     </section>
 
@@ -173,7 +173,7 @@ else
                                     }
                                     <span class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                                         <span>@FormatDateTime(result.UpdatedAt)</span>
-                                        <span>@($"{result.AccessCount}회 회상 접근")</span>
+                                        <span>@($"{result.AccessCount}회 조회")</span>
                                         <span>@(result.IsPublic ? "공개 기억" : "비공개 기억")</span>
                                     </span>
                                     @if (!string.IsNullOrWhiteSpace(result.Summary))
@@ -197,8 +197,8 @@ else
                                                 HasMore="@hasMoreResults"
                                                 IsLoading="@isLoadingMore"
                                                 OnLoadMore="LoadMoreEntriesAsync"
-                                                LoadingText="다음 기억 흐름을 불러오는 중..."
-                                                DoneText="이어 쓸 기억 흐름을 모두 불러왔습니다."
+                                                LoadingText="다음 기억을 불러오는 중..."
+                                                DoneText="이어 쓸 기억을 모두 불러왔습니다."
                                                 ShowDoneText="@(!hasMoreResults && !isLoading && !isSearching)" />
                     }
                 </section>
@@ -236,7 +236,7 @@ else
                                     data-llm-wiki-draft-action="true"
                                     disabled="@isCreatingDraftFromEntry"
                                     @onclick="CreateDraftFromSelectedEntryAsync">
-                                @(isCreatingDraftFromEntry ? "게시전 기억 여는 중..." : "게시전 기억으로 이어쓰기")
+                                @(isCreatingDraftFromEntry ? "게시전 로그 여는 중..." : "게시전 로그로 이어쓰기")
                             </button>
                             <button class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
                                     type="button"
@@ -246,16 +246,16 @@ else
                         </div>
                         <p class="max-w-xs text-right text-xs font-semibold text-slate-500"
                            data-llm-wiki-draft-action-boundary="true">
-                            비공개 기억 -> 소유자 전용 게시전 기억 -> 검토 후 공개 공유
+                            비공개 기억 -> 소유자 전용 게시전 로그 -> 검토 후 공개
                         </p>
                     </div>
                 </div>
                 <div class="space-y-4 overflow-y-auto px-5 py-4">
                     <div class="rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-sm leading-6 text-teal-900"
                          data-llm-wiki-draft-safety-note="true">
-                        <span class="font-bold">소유자 전용 게시전 기억</span>
-                        선택한 기억은 바로 공개되지 않습니다. 편집 화면에서 민감한 단서와 내부 맥락을 정리한 뒤 공개 여부를 결정합니다.
-                        공개 공유 후에는 슬로거 홈, 공개 공유 노드, 대화 흔적, 리비전 흐름으로 이어집니다.
+                        <span class="font-bold">소유자 전용 게시전 로그</span>
+                        선택한 기억은 바로 공개되지 않습니다. 편집 화면에서 민감한 정보와 내부 맥락을 정리한 뒤 공개 여부를 결정합니다.
+                        공개 후에는 슬로거 홈, 공개 로그, 대화 흔적, 리비전으로 이어집니다.
                     </div>
                     @if (!string.IsNullOrWhiteSpace(draftMessage))
                     {
@@ -273,7 +273,7 @@ else
                         </div>
                     }
                     <div>
-                        <p class="text-xs font-bold text-slate-500">기억을 만든 요청 흐름</p>
+                        <p class="text-xs font-bold text-slate-500">기억을 만든 요청</p>
                         <pre class="mt-1 whitespace-pre-wrap break-words rounded-lg bg-slate-50 p-3 text-sm leading-6 text-slate-800">@selectedEntry.SourcePrompt</pre>
                     </div>
                     @if (!string.IsNullOrWhiteSpace(selectedEntry.Content))
@@ -286,8 +286,8 @@ else
                     @if (selectedEntry.Sources.Count > 0)
                     {
                         <div>
-                            <p class="text-xs font-bold text-slate-500">기억 근거 흐름</p>
-                            <p class="mt-1 text-xs leading-5 text-slate-500">기억으로 남기거나 병합/갱신할 때 남긴 근거를 공개 공유 전 감사 흐름으로 다시 따라갑니다.</p>
+                            <p class="text-xs font-bold text-slate-500">기억 근거</p>
+                            <p class="mt-1 text-xs leading-5 text-slate-500">기억으로 남기거나 병합/갱신할 때 남긴 근거를 공개 전 감사 로그로 다시 따라갑니다.</p>
                             <div class="mt-1 grid gap-2">
                                 @foreach (var source in selectedEntry.Sources.OrderBy(x => x.CreatedAt))
                                 {
@@ -308,7 +308,7 @@ else
                                                     }
                                                     @if (!string.IsNullOrWhiteSpace(source.Tags))
                                                     {
-                                                        <p><span class="font-bold text-slate-800">근거 단서</span> @source.Tags</p>
+                                                        <p><span class="font-bold text-slate-800">근거 태그</span> @source.Tags</p>
                                                     }
                                                     @if (!string.IsNullOrWhiteSpace(source.CategoryPath))
                                                     {
@@ -317,7 +317,7 @@ else
                                                 </div>
                                             }
                                             <div>
-                                                <p class="text-xs font-bold text-slate-500">근거 요청 흐름</p>
+                                                <p class="text-xs font-bold text-slate-500">근거 요청</p>
                                                 <pre class="mt-1 whitespace-pre-wrap break-words rounded-lg bg-white p-3 text-sm leading-6 text-slate-800">@source.Prompt</pre>
                                             </div>
                                             @if (source.Content is not null)
@@ -504,7 +504,7 @@ else
             BuildDraftSummary(selectedEntry),
             BuildDraftBody(selectedEntry),
             BuildDraftTags(selectedEntry),
-            "LLM Wiki 회상",
+            "LLM Wiki 검색",
             thumbnailUrl: null,
             isDraft: true);
 
@@ -548,7 +548,7 @@ else
     {
         if (isLoading || isSearching)
         {
-            return "회상 중입니다.";
+            return "검색 중입니다.";
         }
 
         if (!string.IsNullOrWhiteSpace(activeCategoryPath) && string.IsNullOrWhiteSpace(activeSearchQuery))
@@ -558,41 +558,41 @@ else
 
         return string.IsNullOrWhiteSpace(activeSearchQuery)
             ? "아직 이어 쓸 비공개 기억이 없습니다."
-            : $"\"{activeSearchQuery}\" 의미 회상에 이어진 기억이 없습니다.";
+            : $"\"{activeSearchQuery}\" 의미 검색에 이어진 기억이 없습니다.";
     }
 
     private string GetRecallFlowTitle()
         => string.IsNullOrWhiteSpace(activeSearchQuery)
-            ? "전체 기억 회상 흐름"
-            : $"\"{activeSearchQuery}\" 기억 회상 흐름";
+            ? "전체 기억 검색 목록"
+            : $"\"{activeSearchQuery}\" 기억 검색 목록";
 
     private string GetRecallFlowDescription()
-        => "기억 후보를 소유자 전용 게시전 기억으로 잇고, 검토 후 공개 공유 흐름을 결정합니다.";
+        => "기억 후보를 소유자 전용 게시전 로그로 잇고, 검토 후 공개 내용을 결정합니다.";
 
     private string FormatVisibleMemoryNodeCount()
         => hasMoreResults
-            ? $"{results.Count:N0}개+ 회상 기억 노드"
-            : $"{results.Count:N0}개 회상 기억 노드";
+            ? $"{results.Count:N0}개+ 검색된 기억"
+            : $"{results.Count:N0}개 검색된 기억";
 
     private string GetRecallScopeSignal()
     {
         if (!string.IsNullOrWhiteSpace(activeCategoryPath) && !string.IsNullOrWhiteSpace(activeSearchQuery))
         {
-            return "범주+의미 회상";
+            return "범주+의미 검색";
         }
 
         if (!string.IsNullOrWhiteSpace(activeCategoryPath))
         {
-            return "기억 범주 흐름";
+            return "기억 범주 목록";
         }
 
         return string.IsNullOrWhiteSpace(activeSearchQuery)
-            ? "전체 기억 흐름"
-            : "의미 회상 흐름";
+            ? "전체 기억"
+            : "의미 검색 목록";
     }
 
     private string GetDraftBridgeSignal()
-        => results.Count == 0 ? "게시전 기억 연결 대기" : "게시전 기억 연결";
+        => results.Count == 0 ? "게시전 로그 연결 대기" : "게시전 로그 연결";
 
     private string GetResultButtonClass(LlmWikiSearchResult result)
     {
@@ -649,7 +649,7 @@ else
     }
 
     private static string BuildDraftTitle(LlmWikiEntryResponse entry)
-        => $"회상 로그: {entry.Title}".Trim();
+        => $"검색 로그: {entry.Title}".Trim();
 
     private static string BuildDraftSummary(LlmWikiEntryResponse entry)
     {
@@ -672,7 +672,7 @@ else
             .Take(3)
             .ToList();
 
-        foreach (var tag in new[] { "llm-wiki", "회상로그" })
+        foreach (var tag in new[] { "llm-wiki", "검색로그" })
         {
             if (tags.Count >= 5)
             {
@@ -703,25 +703,25 @@ else
         """;
 
         return $"""
-        > 이 게시전 기억은 Slogs LLM Wiki에서 이어온 소유자 전용 흐름입니다. 공개 전에 민감한 단서와 내부 맥락을 정리하세요.
+        > 이 게시전 로그는 Slogs LLM Wiki에서 이어온 소유자 전용 목록입니다. 공개 전에 민감한 정보와 내부 맥락을 정리하세요.
 
         # {entry.Title}
 
         ## 게시전 공유 경계
 
-        - 현재 단계: 비공개 기억 -> 소유자 전용 게시전 기억
-        - 다음 단계: 민감한 단서 정리 -> 검토 후 공개 공유
-        - 공개 공유 후 흐름: 슬로거 홈 -> 공개 공유 노드 -> 대화 흔적 -> 리비전 흐름
-        - 원칙: 이 게시전 기억은 공개 공유 전까지 소유자에게만 보입니다.
+        - 현재 단계: 비공개 기억 -> 소유자 전용 게시전 로그
+        - 다음 단계: 민감한 정보 정리 -> 검토 후 공개
+        - 공개 후 목록: 슬로거 홈 -> 공개 로그 -> 대화 흔적 -> 리비전
+        - 원칙: 이 게시전 로그는 공개 전까지 소유자에게만 보입니다.
 
-        ## 기억 단서
+        ## 기억 태그
 
         - 기억 범주: `{categoryPath}`
         - 기억 ID: `{entry.Id}`
         - 현재 상태: {visibility}
-        - 회상 요약: {BuildDraftSummary(entry)}
+        - 검색 요약: {BuildDraftSummary(entry)}
 
-        ## 공개 공유 노드로 정리할 흐름
+        ## 공개 로그로 정리할 목록
 
         ### 시작된 생각과 작업
 
@@ -733,7 +733,7 @@ else
 
         ### 공개 전에 덜어낼 내부 맥락
 
-        민감한 단서, 개인 정보, 내부 실행 내역을 제거하거나 일반화합니다.
+        민감한 정보, 개인 정보, 내부 실행 내역을 제거하거나 일반화합니다.
 
         ### 다음 리비전
 

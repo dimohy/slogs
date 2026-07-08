@@ -16,20 +16,20 @@
                 <img class="slogs-brand__icon" src="@Assets["favicon.svg"]" alt="" width="32" height="32" />
                 <span class="slogs-brand__text">
                     <span class="slogs-brand__wordmark">slogs</span>
-                    <span class="slogs-brand__tagline">사람과 AI가 이어 쓰는 공개 지식 로그 흐름</span>
+                    <span class="slogs-brand__tagline">사람과 AI가 이어 쓰는 지식 로그</span>
                 </span>
             </a>
 
             <div class="slogs-header-tools">
                 <div class="slogs-header-recall flex min-w-0 items-center gap-1.5 border border-slate-200 bg-white px-2 py-1.5">
                     <input class="min-w-0 flex-1 border-0 bg-transparent text-sm text-slate-700 outline-none"
-                           @bind="searchTerm" @bind:event="oninput" placeholder="의미 회상"
-                           aria-label="전역 의미 회상어 입력"
+                           @bind="searchTerm" @bind:event="oninput" placeholder="검색"
+                           aria-label="전역 검색어 입력"
                            @onkeydown="HandleSearchKeyDown" />
                     <button class="slogs-header-recall__button"
                             type="button"
-                            title="의미 회상"
-                            aria-label="의미 회상"
+                            title="검색"
+                            aria-label="검색"
                             @onclick="GoSearch">
                         <SlogsIcon Name="search" Class="h-4 w-4" />
                     </button>
@@ -141,9 +141,9 @@
 </div>
 
 <div id="blazor-error-ui" data-nosnippet>
-    지식 로그 흐름이 잠시 끊겼습니다.
-    <a href="." class="reload">흐름 다시 잇기</a>
-    <span class="dismiss" title="흐름 알림 닫기" aria-label="흐름 알림 닫기">×</span>
+    지식 로그 연결이 잠시 끊겼습니다.
+    <a href="." class="reload">다시 연결</a>
+    <span class="dismiss" title="알림 닫기" aria-label="알림 닫기">×</span>
 </div>
 
 @code {
@@ -468,7 +468,7 @@
             return "/writer";
         }
 
-        if (TryReadRecallPrefix(trimmed, ["tag:", "단서:"], out var tagValue))
+        if (TryReadRecallPrefix(trimmed, ["tag:", "태그:"], out var tagValue))
         {
             if (!string.IsNullOrWhiteSpace(tagValue))
             {

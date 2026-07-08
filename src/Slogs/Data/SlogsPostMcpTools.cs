@@ -32,12 +32,12 @@ public sealed class SlogsPostMcpTools(
     }
 
     [McpServerTool(Name = "slogs_post_save_draft")]
-    [Description("Default tool for creating or uploading Slogs knowledge-log flow from an agent. Saves a Markdown Slogs log as owner-only pre-publish memory before public sharing. Pre-publish memories are visible only to the owner and are not publicly listed. Prefer this over slogs_post_publish unless the user explicitly asks to share publicly. If slug is provided, the owned pre-publish memory is updated and kept owner-only.")]
+    [Description("Default tool for creating or uploading a Slogs knowledge log from an agent. Saves a Markdown Slogs log as an owner-only pre-publish log before public sharing. Pre-publish logs are visible only to the owner and are not publicly listed. Prefer this over slogs_post_publish unless the user explicitly asks to share publicly. If slug is provided, the owned pre-publish log is updated and kept owner-only.")]
     public async Task<string> SaveDraftAsync(
-        [Description("Optional owned owner-only pre-publish memory slug to update. Omit to create a new owner-only pre-publish memory.")] string? slug = null,
-        [Description("Optional URL slug for a new owner-only pre-publish memory. Korean is supported. If omitted, Slogs derives it from the title.")] string? customSlug = null,
-        [Description("Owner-only pre-publish memory title. Required when creating pre-publish memory unless markdown is provided.")] string? title = null,
-        [Description("Markdown body. Required when creating owner-only pre-publish memory unless title is provided. For local or generated images, call slogs_post_upload_image first and use the returned /uploads URL in Markdown. Uploaded images not included in this Markdown are deleted as unused on save.")] string? markdown = null,
+        [Description("Optional owned owner-only pre-publish log slug to update. Omit to create a new owner-only pre-publish log.")] string? slug = null,
+        [Description("Optional URL slug for a new owner-only pre-publish log. Korean is supported. If omitted, Slogs derives it from the title.")] string? customSlug = null,
+        [Description("Owner-only pre-publish log title. Required when creating a pre-publish log unless markdown is provided.")] string? title = null,
+        [Description("Markdown body. Required when creating an owner-only pre-publish log unless title is provided. For local or generated images, call slogs_post_upload_image first and use the returned /uploads URL in Markdown. Uploaded images not included in this Markdown are deleted as unused on save.")] string? markdown = null,
         [Description("Optional log summary. If omitted on create, Slogs derives a short summary from the Markdown body.")] string? summary = null,
         [Description("Optional comma-separated tags. Slogs keeps up to five tags. Leave empty for no tags.")] string? tags = null,
         [Description("Optional series name.")] string? series = null,
@@ -53,7 +53,7 @@ public sealed class SlogsPostMcpTools(
 
         if (string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(markdown))
         {
-            throw new InvalidOperationException("Slogs 게시전 기억 저장에는 제목이나 Markdown 본문 중 하나가 필요합니다.");
+            throw new InvalidOperationException("Slogs 게시전 로그 저장에는 제목이나 Markdown 본문 중 하나가 필요합니다.");
         }
 
         var draft = await blogService.CreatePostAsync(
@@ -71,10 +71,10 @@ public sealed class SlogsPostMcpTools(
     }
 
     [McpServerTool(Name = "slogs_post_update")]
-    [Description("Update an owned owner-only pre-publish Markdown Slogs log, or share a new revision when the log is already a public-sharing node.")]
+    [Description("Update an owned owner-only pre-publish Markdown Slogs log, or share a new revision when the log is already public.")]
     public async Task<string> UpdateAsync(
         [Description("Owned Slogs log slug to update.")] string slug,
-        [Description("Optional URL slug for owned owner-only pre-publish memory. Korean is supported. Ignored for public-sharing nodes so public URLs stay stable.")] string? customSlug = null,
+        [Description("Optional URL slug for an owned owner-only pre-publish log. Korean is supported. Ignored for public logs so public URLs stay stable.")] string? customSlug = null,
         [Description("Optional replacement title. Omitted fields keep their current values.")] string? title = null,
         [Description("Optional replacement Markdown body. Omitted fields keep their current values. For local or generated images, call slogs_post_upload_image first and use the returned /uploads URL in Markdown. Uploaded images removed from this Markdown are deleted as unused on update.")] string? markdown = null,
         [Description("Optional replacement summary. Omitted fields keep their current values.")] string? summary = null,
@@ -89,12 +89,12 @@ public sealed class SlogsPostMcpTools(
     }
 
     [McpServerTool(Name = "slogs_post_publish")]
-    [Description("Share a Markdown Slogs log as a public-sharing node for the authenticated user. Use this only when the user explicitly asks to share publicly; otherwise default to slogs_post_save_draft and confirm public sharing before calling this. If slug is owner-only pre-publish memory, share it as a public-sharing node. If slug is already public, create a new revision. If slug is omitted, create and publicly share a new Slogs log. This creates normal public Slogs log nodes, not LLM Wiki memories.")]
+    [Description("Share a Markdown Slogs log publicly for the authenticated user. Use this only when the user explicitly asks to share publicly; otherwise default to slogs_post_save_draft and confirm public sharing before calling this. If slug is an owner-only pre-publish log, share it publicly. If slug is already public, create a new revision. If slug is omitted, create and publicly share a new Slogs log. This creates normal public Slogs logs, not LLM Wiki memories.")]
     public async Task<string> PublishAsync(
-        [Description("Optional owner-only pre-publish memory or public-sharing node slug. Omit to create and publicly share a new log node.")] string? slug = null,
-        [Description("Optional URL slug for a new log node or owned pre-publish memory being shared publicly. Korean is supported. Ignored for existing public-sharing nodes so public URLs stay stable.")] string? customSlug = null,
-        [Description("Public-sharing node title. Required when slug is omitted. Optional replacement when slug is provided.")] string? title = null,
-        [Description("Markdown body to share as Slogs log-node content. Required when slug is omitted. Optional replacement when slug is provided. For local or generated images, call slogs_post_upload_image first and use the returned /uploads URL in Markdown. Uploaded images not included in this Markdown are deleted as unused on public sharing.")] string? markdown = null,
+        [Description("Optional owner-only pre-publish log or public log slug. Omit to create and publicly share a new log.")] string? slug = null,
+        [Description("Optional URL slug for a new log or owned pre-publish log being shared publicly. Korean is supported. Ignored for existing public logs so public URLs stay stable.")] string? customSlug = null,
+        [Description("Public log title. Required when slug is omitted. Optional replacement when slug is provided.")] string? title = null,
+        [Description("Markdown body to share as Slogs log content. Required when slug is omitted. Optional replacement when slug is provided. For local or generated images, call slogs_post_upload_image first and use the returned /uploads URL in Markdown. Uploaded images not included in this Markdown are deleted as unused on public sharing.")] string? markdown = null,
         [Description("Optional log summary. If omitted on create, Slogs derives a short summary from the Markdown body.")] string? summary = null,
         [Description("Optional comma-separated tags. Slogs keeps up to five tags. Leave empty for no tags.")] string? tags = null,
         [Description("Optional series name.")] string? series = null,
@@ -112,12 +112,12 @@ public sealed class SlogsPostMcpTools(
 
         if (string.IsNullOrWhiteSpace(title))
         {
-            throw new InvalidOperationException("Slogs 공개 공유에는 로그 제목이 필요합니다.");
+            throw new InvalidOperationException("Slogs 공개에는 로그 제목이 필요합니다.");
         }
 
         if (string.IsNullOrWhiteSpace(markdown))
         {
-            throw new InvalidOperationException("Slogs 공개 공유에는 로그 Markdown 본문이 필요합니다.");
+            throw new InvalidOperationException("Slogs 공개에는 로그 Markdown 본문이 필요합니다.");
         }
 
         var publishedPost = await blogService.CreatePostAsync(
@@ -135,7 +135,7 @@ public sealed class SlogsPostMcpTools(
     }
 
     [McpServerTool(Name = "slogs_post_read")]
-    [Description("Read an owned or public Slogs log-flow node by slug. This reads normal Slogs logs, including the authenticated user's owner-only pre-publish memories, not LLM Wiki memories.")]
+    [Description("Read an owned or public Slogs log by slug. This reads normal Slogs logs, including the authenticated user's owner-only pre-publish logs, not LLM Wiki memories.")]
     public async Task<string> ReadAsync(
         [Description("Log slug returned by Slogs log MCP tools or visible in a Slogs log URL.")] string slug)
     {
@@ -147,7 +147,7 @@ public sealed class SlogsPostMcpTools(
     }
 
     [McpServerTool(Name = "slogs_post_delete")]
-    [Description("Remove an owned Slogs log flow by slug. Removal uses the same BlogService path as the site UI, including tracked log image cleanup.")]
+    [Description("Remove an owned Slogs log by slug. Removal uses the same BlogService path as the site UI, including tracked log image cleanup.")]
     public async Task<string> DeleteAsync(
         [Description("Owned Slogs log slug to remove.")] string slug)
     {
@@ -269,18 +269,18 @@ public sealed class SlogsPostMcpTools(
     private static string FormatDraftSavedPostMarkdown(BlogPost post, string editUrl)
     {
         var builder = new StringBuilder();
-        builder.AppendLine("# Slogs Owner-Only Pre-Publish Memory Saved");
+        builder.AppendLine("# Slogs Pre-Publish Log Saved");
         builder.AppendLine();
         AppendPostMetadata(builder, post, BuildPublicPath(post), editUrl);
         builder.AppendLine();
-        builder.AppendLine("The log remains owner-only pre-publish memory and is not publicly listed until deliberate public sharing.");
+        builder.AppendLine("The log remains owner-only and is not publicly listed until deliberate public sharing.");
         return builder.ToString().TrimEnd();
     }
 
     private static string FormatUpdatedPostMarkdown(BlogPost post, string publicUrl, string editUrl)
     {
         var builder = new StringBuilder();
-        builder.AppendLine(post.IsDraft ? "# Slogs Pre-Publish Memory Updated" : "# Slogs Revision Flow Shared");
+        builder.AppendLine(post.IsDraft ? "# Slogs Pre-Publish Log Updated" : "# Slogs Revision Shared");
         builder.AppendLine();
         AppendPostMetadata(builder, post, publicUrl, editUrl);
         return builder.ToString().TrimEnd();
@@ -289,11 +289,11 @@ public sealed class SlogsPostMcpTools(
     private static string FormatPublishedPostMarkdown(BlogPost post, string postUrl)
     {
         var builder = new StringBuilder();
-        builder.AppendLine("# Slogs Public-Sharing Node Shared");
+        builder.AppendLine("# Slogs Public Log Shared");
         builder.AppendLine();
         AppendPostMetadata(builder, post, postUrl, string.Empty);
         builder.AppendLine();
-        builder.AppendLine("The log is a public-sharing Slogs node, not an LLM Wiki memory.");
+        builder.AppendLine("The log is a public Slogs log, not an LLM Wiki memory.");
         return builder.ToString().TrimEnd();
     }
 
@@ -317,10 +317,10 @@ public sealed class SlogsPostMcpTools(
     private static string FormatDeletedPostMarkdown(BlogPost post, string publicUrl)
     {
         var builder = new StringBuilder();
-        builder.AppendLine("# Slogs Log Flow Removed");
+        builder.AppendLine("# Slogs Log Removed");
         builder.AppendLine();
         builder.AppendLine($"- Removed slug: `{post.Slug}`");
-        builder.AppendLine($"- Former flow state: {GetFlowState(post)}");
+        builder.AppendLine($"- Former visibility: {GetFlowState(post)}");
         builder.AppendLine($"- Former URL: {publicUrl}");
         builder.AppendLine($"- Author: `@{post.Author}`");
         return builder.ToString().TrimEnd();
@@ -344,7 +344,7 @@ public sealed class SlogsPostMcpTools(
 
     private static void AppendPostMetadata(StringBuilder builder, BlogPost post, string publicUrl, string editUrl)
     {
-        builder.AppendLine($"- Flow state: {GetFlowState(post)}");
+        builder.AppendLine($"- Visibility: {GetFlowState(post)}");
         if (post.IsDraft)
         {
             builder.AppendLine($"- Edit URL: {editUrl}");
@@ -352,12 +352,12 @@ public sealed class SlogsPostMcpTools(
         else
         {
             builder.AppendLine($"- URL: {publicUrl}");
-            builder.AppendLine($"- Public-sharing node time: {post.PublishedAt.ToUniversalTime():O}");
+            builder.AppendLine($"- Published: {post.PublishedAt.ToUniversalTime():O}");
         }
 
         builder.AppendLine($"- Slug: `{post.Slug}`");
         builder.AppendLine($"- Author: `@{post.Author}`");
-        builder.AppendLine($"- Flow refreshed: {post.UpdatedAt.ToUniversalTime():O}");
+        builder.AppendLine($"- Updated: {post.UpdatedAt.ToUniversalTime():O}");
         builder.AppendLine($"- Read time: {post.ReadTimeMinutes} min");
 
         if (post.Tags.Count > 0)
@@ -380,5 +380,5 @@ public sealed class SlogsPostMcpTools(
         => $"/@{Uri.EscapeDataString(post.Author)}/{Uri.EscapeDataString(post.Slug)}";
 
     private static string GetFlowState(BlogPost post)
-        => post.IsDraft ? "Owner-only pre-publish memory" : "Public-sharing node";
+        => post.IsDraft ? "Owner-only pre-publish log" : "Public log";
 }

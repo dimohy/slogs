@@ -18,12 +18,12 @@ public sealed class RouteIdentitySmokeTests
             "내 지식 로그",
             "비공개 기억",
             "기억 연결 가이드",
-            "의미 회상",
-            "저장 회상",
-            "공감 신호",
+            "검색",
+            "저장",
+            "공감",
             "공개",
-            "대표 단서",
-            "전체 단서",
+            "대표 태그",
+            "태그",
             "슬로거 홈",
             "로그 시리즈"
         })
@@ -34,9 +34,9 @@ public sealed class RouteIdentitySmokeTests
         Assert.DoesNotContain("내 공개 로그", navMenu);
         Assert.DoesNotContain("저장 로그", navMenu);
         Assert.DoesNotContain("공감 로그", navMenu);
-        Assert.DoesNotContain("추천 단서", navMenu);
-        Assert.DoesNotContain("대표 단서 흐름", navMenu);
-        Assert.DoesNotContain("전체 단서 흐름", navMenu);
+        Assert.DoesNotContain("추천 태그", navMenu);
+        Assert.DoesNotContain("대표 태그 흐름", navMenu);
+        Assert.DoesNotContain("태그 흐름", navMenu);
         Assert.DoesNotContain("슬로거 홈 흐름", navMenu);
         Assert.DoesNotContain("로그 시리즈 흐름", navMenu);
 
@@ -80,14 +80,14 @@ public sealed class RouteIdentitySmokeTests
     {
         var routes = new[]
         {
-            ("Profile.razor", "/me", "내 지식 로그 흐름"),
-            ("MyBookmarks.razor", "/me/bookmarks", "저장 회상 흐름"),
-            ("MyLikes.razor", "/me/likes", "공감 신호 흐름"),
+            ("Profile.razor", "/me", "내 지식 로그"),
+            ("MyBookmarks.razor", "/me/bookmarks", "저장한 로그"),
+            ("MyLikes.razor", "/me/likes", "공감한 로그"),
             ("Settings.razor", "/me/settings", "연결"),
             ("LlmWiki.razor", "/me/llm-wiki", "LLM Wiki 기억 연결"),
-            ("LlmWikiSearch.razor", "/me/llm-wiki/search", "의미 회상"),
-            ("WritePost.razor", "/write", "게시전 기억 남기기"),
-            ("EditPost.razor", "/edit/{Slug}", "로그 흐름 정리")
+            ("LlmWikiSearch.razor", "/me/llm-wiki/search", "검색"),
+            ("WritePost.razor", "/write", "게시전 로그 남기기"),
+            ("EditPost.razor", "/edit/{Slug}", "로그 정리")
         };
 
         foreach (var (fileName, route, identityText) in routes)
@@ -108,12 +108,12 @@ public sealed class RouteIdentitySmokeTests
         var writerPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "WriterPage.razor"));
 
         Assert.Contains("공개 지식 로그 홈", writerPage);
-        Assert.Contains("지식 흐름 요약", writerPage);
+        Assert.Contains("지식 요약", writerPage);
         Assert.Contains("공개 로그 스트림", writerPage);
         Assert.Contains("<PostFlowSignals Post=\"featuredPost\"", writerPage);
         Assert.Contains("<PostLogCard @key=\"post.Id\"", writerPage);
         Assert.Contains("ShowAuthor=\"false\"", writerPage);
-        Assert.Contains("DraftActionText=\"게시전 기억 정리\"", writerPage);
+        Assert.Contains("DraftActionText=\"게시전 로그 정리\"", writerPage);
         Assert.DoesNotContain("public knowledge-log home", writerPage);
         Assert.DoesNotContain("aria-label=\"@GetPostCardAriaLabel(post)\"", writerPage);
         Assert.DoesNotContain("<PostActionBar Post=\"post\"", writerPage);

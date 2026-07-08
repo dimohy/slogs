@@ -26,7 +26,7 @@ public sealed class SeedIdentityTests
         Assert.Equal(3, posts.Count);
         Assert.Contains(posts, post => post.Slug == "blazor-markdown-knowledge-log" && post.Title.Contains("지식 로그"));
         Assert.Contains(posts, post => post.Slug == "modern-csharp-component-patterns" && post.Title.Contains("작업 판단 로그"));
-        Assert.Contains(posts, post => post.Slug == "recall-ux-in-slogs" && post.Title.Contains("회상 UX"));
+        Assert.Contains(posts, post => post.Slug == "recall-ux-in-slogs" && post.Title.Contains("검색을 더 직관적으로"));
 
         var visibleSeedText = string.Join(
             "\n",
@@ -51,7 +51,7 @@ public sealed class SeedIdentityTests
         Assert.Contains("지식 로그", visibleSeedText);
         Assert.Contains("작업 판단 로그", visibleSeedText);
         Assert.Contains("검증 흔적", visibleSeedText);
-        Assert.Contains("회상 UX", visibleSeedText);
+        Assert.Contains("검색을 더 직관적으로", visibleSeedText);
         Assert.Contains("대화 흔적", visibleSeedText);
         Assert.DoesNotContain("블로그", visibleSeedText);
         Assert.DoesNotContain("포스트", visibleSeedText);
@@ -106,7 +106,7 @@ public sealed class SeedIdentityTests
         {
             Title = "Blazor로 만드는 Markdown 블로그 구조",
             Author = "devin",
-            Summary = "Blazor 앱에서 블로그 구조와 포스트 흐름을 구성하는 방법입니다.",
+            Summary = "Blazor 앱에서 블로그 구조와 포스트 내용을 구성하는 방법입니다.",
             Body = "# Markdown 블로그 구조\n\n블로그 글 목록과 포스트 상세 페이지를 구성합니다.",
             ThumbnailUrl = string.Empty,
             PublishedAt = now.AddDays(-4),
@@ -172,7 +172,7 @@ public sealed class SeedIdentityTests
             })));
 
         Assert.Contains("Blazor로 남기는 Markdown 지식 로그 구조", repairedText);
-        Assert.Contains("공개 로그 흐름", repairedText);
+        Assert.Contains("공개 로그", repairedText);
         Assert.Contains("좋은 로그네요. 라우팅 설계가 가장 먼저라고 동의합니다.", repairedText);
         Assert.Contains("로그 제목이 잘 보이도록 헤더 고정도 좋은 패턴 같아요.", repairedText);
         Assert.DoesNotContain("블로그", repairedText);
@@ -238,7 +238,7 @@ public sealed class SeedIdentityTests
 
         Assert.Contains("작업 판단 로그", repairedText);
         Assert.Contains("검증 흔적", repairedText);
-        Assert.Contains("리비전 단서", repairedText);
+        Assert.Contains("리비전 태그", repairedText);
         Assert.DoesNotContain("컴포넌트 정리하기", repairedText);
         Assert.DoesNotContain("간결하게 유지하는 기법", repairedText);
         Assert.DoesNotContain("# 최신 C#로 정리", repairedText);

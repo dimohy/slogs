@@ -73,12 +73,12 @@ else
 
             <p class="mt-5 max-w-3xl text-base leading-7 text-slate-700">@GetSloggerBio()</p>
 
-            <div class="slogger-flowline mt-4" aria-label="슬로거 지식 흐름 요약">
+            <div class="slogger-flowline mt-4" aria-label="슬로거 지식 요약">
                 <div class="min-w-0">
-                    <p class="text-xs font-bold text-slate-500">지식 흐름 요약</p>
+                    <p class="text-xs font-bold text-slate-500">지식 요약</p>
                     <p class="mt-1 text-sm font-semibold text-slate-700">@GetSloggerFlowDescription()</p>
                 </div>
-                <div class="slogger-flowline__signals" aria-label="슬로거 흐름 신호">
+                <div class="slogger-flowline__signals" aria-label="슬로거 목록 정보">
                     <span>@GetFeaturedLogSignal()</span>
                     <span>@GetPrimaryClueSignal()</span>
                     <span>@GetPrimarySeriesSignal()</span>
@@ -87,11 +87,11 @@ else
 
             <div class="mt-5 grid grid-cols-2 gap-2 md:grid-cols-5">
                 <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
-                    <p class="text-xs font-semibold text-slate-500">공개 공유 노드</p>
+                    <p class="text-xs font-semibold text-slate-500">공개 로그</p>
                     <p class="mt-1 text-xl font-black text-slate-900">@totalCount</p>
                 </div>
                 <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
-                    <p class="text-xs font-semibold text-slate-500">공감 신호</p>
+                    <p class="text-xs font-semibold text-slate-500">공감</p>
                     <p class="mt-1 text-xl font-black text-slate-900">@totalLikeCount</p>
                 </div>
                 <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
@@ -99,7 +99,7 @@ else
                     <p class="mt-1 text-xl font-black text-slate-900">@totalCommentCount</p>
                 </div>
                 <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
-                    <p class="text-xs font-semibold text-slate-500">회상 접근</p>
+                    <p class="text-xs font-semibold text-slate-500">조회</p>
                     <p class="mt-1 text-xl font-black text-slate-900">@totalViewCount</p>
                 </div>
                 <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
@@ -114,7 +114,7 @@ else
         <article class="rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-2">
             <div class="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                    <p class="text-xs font-bold text-slate-500">대표 기억 노드</p>
+                    <p class="text-xs font-bold text-slate-500">대표 기억</p>
                     <h2 class="mt-1 text-xl font-black text-slate-900">대표 지식 로그</h2>
                 </div>
                 @if (featuredPost is not null)
@@ -127,7 +127,7 @@ else
             @if (featuredPost is null)
             {
                 <div class="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5">
-                    <p class="text-sm font-semibold text-slate-500">대표로 이어 줄 공개 로그 노드가 아직 없습니다.</p>
+                    <p class="text-sm font-semibold text-slate-500">대표로 이어 줄 공개 로그가 아직 없습니다.</p>
                 </div>
             }
             else
@@ -137,7 +137,7 @@ else
                     <PostFlowSignals Post="featuredPost" Class="post-log-card__signals post-detail-linked-card__signals" />
                     <PostRecallPath Post="featuredPost"
                                     Class="post-log-card__recall-path writer-featured-recall-path"
-                                    AriaLabel="대표 기억 노드 회상 경로" />
+                                    AriaLabel="대표 기억 정보 경로" />
                     <a class="block text-2xl font-black leading-tight text-slate-900 hover:underline"
                        href="@GetPostUrl(featuredPost)">@featuredPost.Title</a>
                     <p class="mt-2 text-sm leading-6 text-slate-700">@Shorten(featuredPost.Summary, 220)</p>
@@ -153,18 +153,18 @@ else
 
         <aside class="rounded-2xl border border-slate-200 bg-white p-5">
             <p class="text-xs font-bold text-slate-500">로그 출처</p>
-            <h2 class="mt-1 text-xl font-black text-slate-900">로그 단서</h2>
+            <h2 class="mt-1 text-xl font-black text-slate-900">로그 태그</h2>
             <dl class="mt-4 grid gap-3 text-sm">
                 <div>
                     <dt class="font-semibold text-slate-500">슬로거 홈 &#64;주소</dt>
                     <dd class="mt-1 font-bold text-slate-900">@GetSloggerAddress()</dd>
                 </div>
                 <div>
-                    <dt class="font-semibold text-slate-500">반복 단서</dt>
+                    <dt class="font-semibold text-slate-500">반복 태그</dt>
                     <dd class="mt-2 flex flex-wrap gap-2">
                         @if (tagCloud.Count == 0)
                         {
-                            <span class="text-slate-500">아직 드러난 단서가 없습니다.</span>
+                            <span class="text-slate-500">아직 드러난 태그가 없습니다.</span>
                         }
                         else
                         {
@@ -200,7 +200,7 @@ else
     <section class="mt-4 rounded-2xl border border-slate-200 bg-white p-5">
         <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
-                <p class="text-xs font-bold text-slate-500">시간순 로그 흐름</p>
+                <p class="text-xs font-bold text-slate-500">시간순 로그 목록</p>
                 <h2 class="mt-1 text-xl font-black text-slate-900">공개 로그 스트림</h2>
                 <p class="mt-1 text-sm text-slate-500">@($"{totalCount}개 로그가 시간과 의미를 따라 이어집니다.")</p>
             </div>
@@ -232,7 +232,7 @@ else
                                  Priority="@IsPriorityCardImage(index)"
                                  SummaryMaxLength="150"
                                  DraftActionUrl="@GetPostUrl(post)"
-                                 DraftActionText="게시전 기억 정리"
+                                 DraftActionText="게시전 로그 정리"
                                  IsLikeBusy="@IsPostBusy(post.Slug, pendingLikeSlugs)"
                                  IsBookmarkBusy="@IsPostBusy(post.Slug, pendingBookmarkSlugs)"
                                  OnToggleLike="ToggleLikeAsync"
@@ -627,7 +627,7 @@ else
 
     private string GetSloggerSeoDescription()
     {
-        return $"{GetSloggerDisplayName()}의 slogs 공개 지식 로그 홈입니다. {GetSloggerBio()} 공개 공유 노드 {totalCount}개, 관계 흐름 {followerCount}개.";
+        return $"{GetSloggerDisplayName()}의 slogs 공개 지식 로그 홈입니다. {GetSloggerBio()} 공개 로그 {totalCount}개, 팔로우 {followerCount}개.";
     }
 
     private string? GetSloggerHomeJsonLd()
@@ -651,20 +651,20 @@ else
     {
         if (featuredPost is null && tagCloud.Count == 0 && seriesCloud.Count == 0)
         {
-            return "생각, 작업, 판단, 검증이 공개 공유 노드로 쌓이기 전의 지식 로그 홈입니다.";
+            return "생각, 작업, 판단, 검증이 공개 로그로 쌓이기 전의 지식 로그 홈입니다.";
         }
 
-        var clue = tagCloud.Count == 0 ? "반복 단서" : $"#{tagCloud[0].Tag}";
+        var clue = tagCloud.Count == 0 ? "반복 태그" : $"#{tagCloud[0].Tag}";
         var series = seriesCloud.Count == 0 ? "로그 시리즈" : seriesCloud[0].Series;
         var featured = featuredPost is null ? "새 대표 로그" : "대표 로그";
-        return $"{featured}, {clue}, {series}를 따라 이 슬로거의 생각과 작업 판단 흐름을 회상합니다.";
+        return $"{featured}, {clue}, {series}를 따라 이 슬로거의 생각과 작업 판단을 검색합니다.";
     }
 
     private string GetFeaturedLogSignal()
         => featuredPost is null ? "대표 로그 대기" : "대표 로그 연결";
 
     private string GetPrimaryClueSignal()
-        => tagCloud.Count == 0 ? "단서 축적 전" : $"주요 단서 #{tagCloud[0].Tag}";
+        => tagCloud.Count == 0 ? "태그 축적 전" : $"주요 태그 #{tagCloud[0].Tag}";
 
     private string GetPrimarySeriesSignal()
         => seriesCloud.Count == 0 ? "시리즈 축적 전" : $"주요 시리즈 {seriesCloud[0].Series}";

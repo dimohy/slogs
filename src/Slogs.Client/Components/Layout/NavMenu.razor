@@ -15,7 +15,7 @@
                 <a class="@GetAdminMenuLinkClass(AdminUsersView)"
                    href="@GetAdminMenuHref(AdminUsersView)">슬로거 홈</a>
                 <a class="@GetAdminMenuLinkClass(AdminLlmWikiView)"
-                   href="@GetAdminMenuHref(AdminLlmWikiView)">기억 회상</a>
+                   href="@GetAdminMenuHref(AdminLlmWikiView)">LLM Wiki</a>
                 <a class="@GetAdminMenuLinkClass(AdminObsidianView)"
                    href="@GetAdminMenuHref(AdminObsidianView)">노트 Vault</a>
             </div>
@@ -37,20 +37,20 @@
                 <NavLink class="block rounded-md px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
                          ActiveClass="bg-slate-900 text-white hover:bg-slate-900 hover:text-white"
                          href="/me/llm-wiki/search"
-                         Match="NavLinkMatch.All">의미 회상</NavLink>
+                         Match="NavLinkMatch.All">검색</NavLink>
             </div>
         </div>
         <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
-                 ActiveClass="bg-slate-900 text-white" href="/me/bookmarks" Match="NavLinkMatch.All">저장 회상</NavLink>
+                 ActiveClass="bg-slate-900 text-white" href="/me/bookmarks" Match="NavLinkMatch.All">저장</NavLink>
         <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
-                 ActiveClass="bg-slate-900 text-white" href="/me/likes" Match="NavLinkMatch.All">공감 신호</NavLink>
+                 ActiveClass="bg-slate-900 text-white" href="/me/likes" Match="NavLinkMatch.All">공감</NavLink>
     }
 
     <div class="mt-4 mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">공개</div>
     <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
-             ActiveClass="bg-slate-900 text-white" href="@GetFeaturedTagPath()" Match="NavLinkMatch.All">대표 단서</NavLink>
+             ActiveClass="bg-slate-900 text-white" href="@GetFeaturedTagPath()" Match="NavLinkMatch.All">대표 태그</NavLink>
     <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
-             ActiveClass="bg-slate-900 text-white" href="/tag" Match="NavLinkMatch.All">전체 단서</NavLink>
+             ActiveClass="bg-slate-900 text-white" href="/tag" Match="NavLinkMatch.All">태그</NavLink>
     <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
              ActiveClass="bg-slate-900 text-white" href="/writer" Match="NavLinkMatch.All">슬로거 홈</NavLink>
     <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
@@ -160,11 +160,11 @@
             ? NormalizeAdminUsersView(GetQueryValue("view"))
             : string.Empty;
 
-    private string TagSectionTitle => IsPersonalSideContext ? "내 단서" : "반응 단서";
+    private string TagSectionTitle => IsPersonalSideContext ? "내 태그" : "인기 태그";
 
     private string SeriesSectionTitle => IsPersonalSideContext ? "내 로그 시리즈" : "반응 로그 시리즈";
 
-    private string TagEmptyText => IsPersonalSideContext ? "내 단서가 아직 없습니다." : "공개 단서가 준비 중입니다.";
+    private string TagEmptyText => IsPersonalSideContext ? "내 태그가 아직 없습니다." : "태그가 준비 중입니다.";
 
     private string SeriesEmptyText => IsPersonalSideContext ? "내 로그 시리즈가 아직 없습니다." : "공개 로그 시리즈가 아직 없습니다.";
 

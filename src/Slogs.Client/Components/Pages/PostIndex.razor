@@ -4,15 +4,15 @@
 @inject SlogsAuthState AuthState
 @inject NavigationManager Navigation
 
-<PageTitle>공개 로그 흐름</PageTitle>
-<SeoHead Title="공개 로그 흐름 | slogs"
-         Description="slogs의 공개 로그를 시간, 반응, 갱신 흐름으로 회상합니다."
+<PageTitle>공개 로그</PageTitle>
+<SeoHead Title="공개 로그 | slogs"
+         Description="slogs의 공개 로그를 시간, 반응, 갱신 목록으로 검색합니다."
          CanonicalPath="/post"
          NoIndex="@(!string.IsNullOrWhiteSpace(Query))"
          JsonLd="@GetJsonLd()" />
 
-<h1 class="text-2xl font-bold text-slate-900">공개 로그 흐름</h1>
-<p class="mb-3 text-sm text-slate-500">사람과 AI가 남긴 공개 로그를 시간, 반응, 갱신 흐름으로 따라갑니다.</p>
+<h1 class="text-2xl font-bold text-slate-900">공개 로그</h1>
+<p class="mb-3 text-sm text-slate-500">사람과 AI가 남긴 공개 로그를 시간, 반응, 갱신 목록으로 따라갑니다.</p>
 
 <div class="mb-4">
     <div class="flex flex-wrap gap-2">
@@ -20,17 +20,17 @@
                value="@searchText"
                @oninput="HandleSearchInputChanged"
                @onkeydown="HandleSearchKeyDown"
-               placeholder="회상어, #단서, @@@@슬로거"
-               aria-label="공개 로그 회상어 입력" />
+               placeholder="검색어, #태그, @@@@슬로거"
+               aria-label="공개 로그 검색어 입력" />
         <a class="rounded-full border border-slate-300 bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
            href="@GetSearchResultHref()">
-            회상
+            검색
         </a>
         @if (!string.IsNullOrWhiteSpace(Query))
         {
             <a class="rounded-full border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
                href="@GetPostQueryQuery(sort: Sort)">
-                회상 초기화
+                검색 초기화
             </a>
         }
     </div>
@@ -40,16 +40,16 @@
 <div class="mb-3 flex flex-wrap gap-2">
     <a class="@GetSortChipClass(null)" href="@GetSortQuery(null)">새 로그</a>
     <a class="@GetSortChipClass("popular")" href='@GetSortQuery("popular")'>반응순</a>
-    <a class="@GetSortChipClass("updated")" href='@GetSortQuery("updated")'>갱신 흐름</a>
+    <a class="@GetSortChipClass("updated")" href='@GetSortQuery("updated")'>갱신 목록</a>
 </div>
 
-<section class="slogs-home-flowline mb-4" aria-label="공개 로그 흐름 신호">
+<section class="slogs-home-flowline mb-4" aria-label="공개 로그 목록 정보">
     <div class="min-w-0">
-        <p class="text-xs font-bold text-slate-500">현재 공개 흐름</p>
+        <p class="text-xs font-bold text-slate-500">현재 공개 목록</p>
         <h2 class="text-lg font-bold text-slate-950">@GetFlowStatusTitle()</h2>
         <p class="mt-1 text-sm text-slate-600">@GetFlowStatusDescription()</p>
     </div>
-    <div class="slogs-home-flowline__signals" aria-label="공개 흐름 신호">
+    <div class="slogs-home-flowline__signals" aria-label="공개 목록 정보">
         <span>@FormatPublicLogNodeCount(allPosts.Count)</span>
         <span>@GetFlowScopeLabel()</span>
     </div>
@@ -89,7 +89,7 @@
                         IsLoading="@isLoadingMorePosts"
                         OnLoadMore="LoadMorePostsAsync"
                         ShowDoneText="@(allPosts.Count > PageSize)"
-                        DoneText="모든 공개 로그 흐름을 불러왔습니다." />
+                        DoneText="모든 공개 로그를 불러왔습니다." />
 
 @code {
     private const int PageSize = 6;
@@ -204,38 +204,38 @@
     {
         if (string.IsNullOrWhiteSpace(Query))
         {
-            return "아직 공개 로그 흐름이 없습니다.";
+            return "아직 공개 로그가 없습니다.";
         }
 
-        return $"\"{Query}\" 의미 회상으로 이어진 공개 로그 흐름이 없습니다.";
+        return $"\"{Query}\" 의미 검색으로 이어진 공개 로그가 없습니다.";
     }
 
     private string GetFlowStatusTitle()
     {
         return string.IsNullOrWhiteSpace(Query)
-            ? "공개 로그 흐름"
-            : $"\"{Query.Trim()}\" 의미 회상 흐름";
+            ? "공개 로그"
+            : $"\"{Query.Trim()}\" 의미 검색 목록";
     }
 
     private string GetFlowStatusDescription()
     {
         return string.IsNullOrWhiteSpace(Query)
-            ? "시간, 반응, 갱신 기준으로 이어진 공개 로그 노드를 따라갑니다."
-            : $"\"{Query.Trim()}\" 단서와 이어지는 공개 로그 노드를 회상합니다.";
+            ? "시간, 반응, 갱신 기준으로 이어진 공개 로그를 따라갑니다."
+            : $"\"{Query.Trim()}\" 태그와 이어지는 공개 로그를 검색합니다.";
     }
 
     private string GetFlowScopeLabel()
     {
         return normalizedSort switch
         {
-            "popular" => "반응 흐름",
-            "updated" => "갱신 흐름",
-            _ => "시간 흐름"
+            "popular" => "반응 목록",
+            "updated" => "갱신 목록",
+            _ => "시간 목록"
         };
     }
 
     private static string FormatPublicLogNodeCount(int count)
-        => $"{count:N0}개 공개 로그 노드";
+        => $"{count:N0}개 공개 로그";
 
     private void HandleSearchInputChanged(ChangeEventArgs e)
     {
@@ -275,8 +275,8 @@
             : SeoMetadata.PublicLogCollectionJsonLd(
                 Navigation.BaseUri,
                 "/post",
-                "slogs 공개 로그 흐름",
-                "slogs의 공개 로그를 시간, 반응, 갱신 흐름으로 회상합니다.",
+                "slogs 공개 로그",
+                "slogs의 공개 로그를 시간, 반응, 갱신 목록으로 검색합니다.",
                 allPosts);
 
     private async Task ToggleLikeAsync(string slug)

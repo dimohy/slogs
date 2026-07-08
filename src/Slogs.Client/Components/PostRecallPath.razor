@@ -5,10 +5,10 @@
 
     [Parameter] public string Class { get; set; } = "post-log-card__recall-path";
 
-    [Parameter] public string AriaLabel { get; set; } = "로그 회상 경로";
+    [Parameter] public string AriaLabel { get; set; } = "로그 정보 경로";
 
     private static string FormatRecallPath(BlogPost post)
-        => $"회상 경로: {FormatUserName(post.Author)} -> {GetPrimaryClue(post)} -> {GetSeriesPath(post)} -> {GetConversationSignal(post)}";
+        => $"정보 경로: {FormatUserName(post.Author)} -> {GetPrimaryClue(post)} -> {GetSeriesPath(post)} -> {GetConversationSignal(post)}";
 
     private static string FormatUserName(string author)
         => string.IsNullOrWhiteSpace(author) ? "슬로거" : $"@{author.Trim()}";
@@ -16,7 +16,7 @@
     private static string GetPrimaryClue(BlogPost post)
     {
         var tag = post.Tags.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
-        return string.IsNullOrWhiteSpace(tag) ? "단서 미지정" : $"#{tag}";
+        return string.IsNullOrWhiteSpace(tag) ? "태그 없음" : $"#{tag}";
     }
 
     private static string GetSeriesPath(BlogPost post)
@@ -26,5 +26,5 @@
     }
 
     private static string GetConversationSignal(BlogPost post)
-        => $"{post.CommentCount:N0} 대화 흔적 / {post.LikeCount:N0} 공감 신호";
+        => $"{post.CommentCount:N0} 대화 흔적 / {post.LikeCount:N0} 공감";
 }

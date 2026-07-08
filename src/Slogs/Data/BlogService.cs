@@ -834,7 +834,7 @@ public sealed class BlogService(
     {
         if (previous is null)
         {
-            return ["첫 공개 공유"];
+            return ["첫 공개"];
         }
 
         var changed = new List<string>();

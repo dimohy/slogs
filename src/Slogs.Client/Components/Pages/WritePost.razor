@@ -2,37 +2,37 @@
 @inject SlogsApiClient ApiClient
 @inject SlogsAuthState AuthState
 @inject NavigationManager Navigation
-<PageTitle>게시전 기억 남기기</PageTitle>
-<SeoHead Title="게시전 기억 남기기 | slogs" Description="생각, 작업, 판단, 검증 흐름을 게시전 기억으로 남기고 필요할 때 공개 공유합니다." NoIndex="true" />
+<PageTitle>게시전 로그 남기기</PageTitle>
+<SeoHead Title="게시전 로그 남기기 | slogs" Description="생각, 작업, 판단, 검증을 게시전 로그로 남기고 필요할 때 공개합니다." NoIndex="true" />
 
 @if (CurrentUser is null)
 {
-    <p class="rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">게시전 기억을 남기려면 내 지식 로그 흐름으로 돌아가야 합니다. <a class="font-semibold underline" href="@GetLoginHref()">지식 로그로 돌아가기</a></p>
+    <p class="rounded-2xl border border-slate-200 bg-white p-4 text-slate-500">게시전 로그를 남기려면 내 지식 로그로 돌아가야 합니다. <a class="font-semibold underline" href="@GetLoginHref()">지식 로그로 돌아가기</a></p>
 }
 else
 {
-    <h1 class="text-2xl font-bold text-slate-900">게시전 기억 남기기</h1>
+    <h1 class="text-2xl font-bold text-slate-900">게시전 로그 남기기</h1>
 
     <div class="mt-4 grid min-w-0 gap-3">
         <label class="text-sm font-semibold text-slate-700" for="write-title">로그 제목</label>
         <input id="write-title" class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" value="@title" @oninput="OnTitleInput" placeholder="로그 제목을 입력하세요" />
 
-        <label class="text-sm font-semibold text-slate-700" for="write-slug">공유 주소 단서</label>
+        <label class="text-sm font-semibold text-slate-700" for="write-slug">공유 주소</label>
         <div class="flex flex-col gap-2 sm:flex-row">
             <input id="write-slug" class="min-w-0 flex-1 rounded-2xl border border-slate-300 px-3 py-2 text-sm" value="@slug" @oninput="OnSlugInput" placeholder="@SlugGenerator.Suggest(title)" />
             <button class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
                     type="button"
                     @onclick="ResetSlugSuggestion">
-                제목 단서로 주소 잇기
+                제목으로 주소 만들기
             </button>
         </div>
         <p class="break-all text-xs text-slate-500">@($"/@{CurrentUser.UserName}/{CurrentSlug}")</p>
 
-        <label class="text-sm font-semibold text-slate-700" for="write-summary">흐름 요약</label>
-        <input id="write-summary" class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="summary" placeholder="이 로그가 이어갈 흐름을 짧게 남기세요" />
+        <label class="text-sm font-semibold text-slate-700" for="write-summary">요약</label>
+        <input id="write-summary" class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="summary" placeholder="이 로그가 이어갈 내용을 짧게 남기세요" />
 
-        <label class="text-sm font-semibold text-slate-700" for="write-tags">단서</label>
-        <TagBadgeInput Id="write-tags" @bind-Value="tags" Placeholder="단서 선택 또는 입력" />
+        <label class="text-sm font-semibold text-slate-700" for="write-tags">태그</label>
+        <TagBadgeInput Id="write-tags" @bind-Value="tags" Placeholder="태그 선택 또는 입력" />
 
         <label class="text-sm font-semibold text-slate-700" for="write-series">로그 시리즈</label>
         <input id="write-series" class="rounded-2xl border border-slate-300 px-3 py-2 text-sm" @bind="series" list="write-series-options" placeholder="이어지는 로그 시리즈(선택)" />
@@ -46,16 +46,16 @@ else
         <RepresentativeImageField InputId="write-representative-image" @bind-Value="thumbnailUrl" FallbackMarkdown="@body" />
 
         <label class="text-sm font-semibold text-slate-700">로그 본문</label>
-        <MarkdownEditor @bind-Value="body" Placeholder="생각, 작업, 판단, 검증 흐름을 Markdown으로 남기세요." />
+        <MarkdownEditor @bind-Value="body" Placeholder="생각, 작업, 판단, 검증을 Markdown으로 남기세요." />
 
         <div class="flex flex-wrap gap-2">
             <button class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
                     type="button" @onclick="SaveDraft" disabled="@isSaving">
-                @((isSaving && savingAction == "draft") ? "게시전 기억 저장 중..." : "게시전 기억 저장")
+                @((isSaving && savingAction == "draft") ? "게시전 로그 저장 중..." : "게시전 로그 저장")
             </button>
             <button class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                     type="button" @onclick="Publish" disabled="@isSaving">
-                @((isSaving && savingAction == "publish") ? "공개 공유 중..." : "공개 공유")
+                @((isSaving && savingAction == "publish") ? "공개 중..." : "공개")
             </button>
             <button class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
                     type="button" @onclick="Cancel">취소</button>
@@ -127,19 +127,19 @@ else
 
         if (CurrentUser is null)
         {
-            errorMessage = "게시전 기억을 남기려면 지식 로그 홈으로 돌아가야 합니다.";
+            errorMessage = "게시전 로그를 남기려면 지식 로그 홈으로 돌아가야 합니다.";
             return;
         }
 
         if (!isDraft && (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(body)))
         {
-            errorMessage = "공개 공유에는 로그 제목과 본문 흐름이 필요합니다.";
+            errorMessage = "공개에는 로그 제목과 본문이 필요합니다.";
             return;
         }
 
         if (isDraft && string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(body))
         {
-            errorMessage = "게시전 기억으로 남길 로그 제목이나 본문을 입력해 주세요.";
+            errorMessage = "게시전 로그로 남길 로그 제목이나 본문을 입력해 주세요.";
             return;
         }
 
@@ -159,8 +159,8 @@ else
         catch (Exception)
         {
             errorMessage = isDraft
-                ? "게시전 기억 저장에 실패했습니다. 잠시 후 다시 시도해 주세요."
-                : "공개 공유에 실패했습니다. 잠시 후 다시 시도해 주세요.";
+                ? "게시전 로그 저장에 실패했습니다. 잠시 후 다시 시도해 주세요."
+                : "공개에 실패했습니다. 잠시 후 다시 시도해 주세요.";
         }
         finally
         {

@@ -9,8 +9,8 @@ public static class SlogsDbInitializer
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private const string CsharpPatternLogSlug = "modern-csharp-component-patterns";
     private const string CsharpPatternLogTitle = "C# 14 패턴으로 작업 판단 로그 남기기";
-    private const string CsharpPatternLogSummary = "최신 C# 문법을 적용한 이유, 검증 흔적, 리비전 단서를 함께 남기는 작업 로그입니다.";
-    private const string CsharpPatternLogBody = "# C# 작업 판단 로그\n\n초기화 구문, 패턴 매칭, 컬렉션 표기법을 적용할 때는 코드량만 줄이는 것이 아니라 선택 이유와 검증 결과를 함께 남겨야 다음 리비전에서 판단을 회상할 수 있습니다.";
+    private const string CsharpPatternLogSummary = "최신 C# 문법을 적용한 이유, 검증 흔적, 리비전 태그를 함께 남기는 작업 로그입니다.";
+    private const string CsharpPatternLogBody = "# C# 작업 판단 로그\n\n초기화 구문, 패턴 매칭, 컬렉션 표기법을 적용할 때는 코드량만 줄이는 것이 아니라 선택 이유와 검증 결과를 함께 남겨야 다음 리비전에서 판단을 검색할 수 있습니다.";
 
     public static async Task InitializeAsync(IServiceProvider services)
     {
@@ -753,8 +753,8 @@ public static class SlogsDbInitializer
         {
             Title = "Blazor로 남기는 Markdown 지식 로그 구조",
             Author = "devin",
-            Summary = "서버 렌더링과 인터랙티브 기능을 결합한 Blazor 앱에서 공개 로그 흐름, 단서, 슬로거 회상을 구성하는 방법입니다.",
-            Body = "# Blazor 지식 로그 구조\n\n프로젝트를 시작하면 먼저 로그 흐름을 잡고, 데이터 모델을 설계한 뒤 기억과 검증이 이어지는 화면별 컴포넌트를 배치하면 됩니다.",
+            Summary = "서버 렌더링과 인터랙티브 기능을 결합한 Blazor 앱에서 공개 로그, 태그, 슬로거 검색을 구성하는 방법입니다.",
+            Body = "# Blazor 지식 로그 구조\n\n프로젝트를 시작하면 먼저 로그 구조를 잡고, 데이터 모델을 설계한 뒤 기억과 검증이 이어지는 화면별 컴포넌트를 배치하면 됩니다.",
             ThumbnailUrl = GetDefaultThumbnailUrl("blazor-markdown-knowledge-log"),
             PublishedAt = now.AddDays(-4),
             UpdatedAt = now,
@@ -772,10 +772,10 @@ public static class SlogsDbInitializer
             CreateComment("devin", "실시간 상호작용까지 고려하면 체감이 더 좋아집니다.", now.AddDays(-3).AddHours(-4)),
             CreateComment("alex", "로그 제목이 잘 보이도록 헤더 고정도 좋은 패턴 같아요.", now.AddDays(-3).AddHours(-2)),
             CreateComment("jane", "대화 흔적 페이지네이션이 필요한 구간이 생길 것 같아요.", now.AddDays(-2).AddHours(-10)),
-            CreateComment("kevin", "단서 라우팅 동작은 실제 서비스에서 중요합니다.", now.AddDays(-2).AddHours(-8)),
+            CreateComment("kevin", "태그 라우팅 동작은 실제 서비스에서 중요합니다.", now.AddDays(-2).AddHours(-8)),
             CreateComment("rose", "좋은 정렬 기준을 같이 고민하면 유저 피드백이 더 좋아져요.", now.AddDays(-2).AddHours(-6)),
             CreateComment("nate", "문서 정리 방식이 깔끔해서 이해가 빠르네요.", now.AddDays(-2).AddHours(-4)),
-            CreateComment("lee", "대화 흔적을 이어 남기는 흐름도 넣으면 더 풍부해질 듯합니다.", now.AddDays(-2).AddHours(-2)),
+            CreateComment("lee", "대화 흔적을 이어 남기는 내용도 넣으면 더 풍부해질 듯합니다.", now.AddDays(-2).AddHours(-2)),
             CreateComment("sora", "실전에서 캐시 전략만 보완하면 충분히 배포 가능한 수준입니다.", now.AddDays(-1).AddHours(-10)),
             CreateComment("hyun", "좋은 로그 감사합니다. 바로 따라 해보겠습니다.", now.AddDays(-1).AddHours(-8))
         ]);
@@ -799,20 +799,20 @@ public static class SlogsDbInitializer
             },
             new PostRecord
             {
-                Title = "slogs 회상 UX를 더 직관적으로 만들기",
+                Title = "slogs 검색을 더 직관적으로 만들기",
                 Author = "mina",
-                Summary = "회상 입력, 사이드바 단서, 이어지는 로그 추천을 한 번에 정리한 slogs UX 설계 노트입니다.",
-                Body = "# 회상 UX\n\n회상은 짧고 명확한 단서(슬로거, 제목, 단서)로 흐름을 좁힐 수 있어야 사용자 편의성이 높습니다.",
+                Summary = "검색 입력, 사이드바 태그, 이어지는 로그 추천을 한 번에 정리한 slogs UX 설계 노트입니다.",
+                Body = "# 검색 개선\n\n검색은 짧고 명확한 태그(슬로거, 제목, 태그)로 범위를 좁힐 수 있어야 사용자 편의성이 높습니다.",
                 ThumbnailUrl = GetDefaultThumbnailUrl("recall-ux-in-slogs"),
                 PublishedAt = now.AddDays(-1),
                 UpdatedAt = now,
                 Slug = "recall-ux-in-slogs",
                 TagsJson = ToJson(["ux", "design", "recall"]),
-                SeriesJson = ToJson(["회상 UX 실험실"]),
+                SeriesJson = ToJson(["검색 실험실"]),
                 ReadTimeMinutes = 7,
                 Comments =
                 [
-                    CreateComment("devin", "좋은 정리입니다. 단서 UX를 강조한 구조가 좋네요.", now.AddHours(-5))
+                    CreateComment("devin", "좋은 정리입니다. 태그 사용성을 강조한 구조가 좋네요.", now.AddHours(-5))
                 ]
             });
 
@@ -832,8 +832,8 @@ public static class SlogsDbInitializer
         if (seedPost is not null)
         {
             seedPost.Title = "Blazor로 남기는 Markdown 지식 로그 구조";
-            seedPost.Summary = "서버 렌더링과 인터랙티브 기능을 결합한 Blazor 앱에서 공개 로그 흐름, 단서, 슬로거 회상을 구성하는 방법입니다.";
-            seedPost.Body = "# Blazor 지식 로그 구조\n\n프로젝트를 시작하면 먼저 로그 흐름을 잡고, 데이터 모델을 설계한 뒤 기억과 검증이 이어지는 화면별 컴포넌트를 배치하면 됩니다.";
+            seedPost.Summary = "서버 렌더링과 인터랙티브 기능을 결합한 Blazor 앱에서 공개 로그, 태그, 슬로거 검색을 구성하는 방법입니다.";
+            seedPost.Body = "# Blazor 지식 로그 구조\n\n프로젝트를 시작하면 먼저 로그 구조를 잡고, 데이터 모델을 설계한 뒤 기억과 검증이 이어지는 화면별 컴포넌트를 배치하면 됩니다.";
             if (seedPost.Slug == legacySlug
                 && !await db.Posts.AnyAsync(x => x.Author == seedPost.Author && x.Slug == updatedSlug && x.Id != seedPost.Id))
             {
@@ -851,8 +851,8 @@ public static class SlogsDbInitializer
                     "좋은 포스트네요. 라우팅 설계가 가장 먼저라고 동의합니다." => "좋은 로그네요. 라우팅 설계가 가장 먼저라고 동의합니다.",
                     "글 제목이 잘 보이도록 헤더 고정도 좋은 패턴 같아요." => "로그 제목이 잘 보이도록 헤더 고정도 좋은 패턴 같아요.",
                     "댓글 페이지네이션이 필요한 구간이 생길 것 같아요." => "대화 흔적 페이지네이션이 필요한 구간이 생길 것 같아요.",
-                    "태그 라우팅 동작은 실제 서비스에서 중요합니다." => "단서 라우팅 동작은 실제 서비스에서 중요합니다.",
-                    var content when IsLegacyReplyFeatureComment(content) => "대화 흔적을 이어 남기는 흐름도 넣으면 더 풍부해질 듯합니다.",
+                    "태그 라우팅 동작은 실제 서비스에서 중요합니다." => "태그 라우팅 동작은 실제 서비스에서 중요합니다.",
+                    var content when IsLegacyReplyFeatureComment(content) => "대화 흔적을 이어 남기는 내용도 넣으면 더 풍부해질 듯합니다.",
                     "좋은 글 감사합니다. 바로 따라 해보겠습니다." => "좋은 로그 감사합니다. 바로 따라 해보겠습니다.",
                     _ => comment.Content
                 };
@@ -904,11 +904,11 @@ public static class SlogsDbInitializer
                 && (x.Slug == legacySearchSlug || x.Slug == recallUxSlug));
         if (searchPost is not null)
         {
-            searchPost.Title = "slogs 회상 UX를 더 직관적으로 만들기";
-            searchPost.Summary = "회상 입력, 사이드바 단서, 이어지는 로그 추천을 한 번에 정리한 slogs UX 설계 노트입니다.";
-            searchPost.Body = "# 회상 UX\n\n회상은 짧고 명확한 단서(슬로거, 제목, 단서)로 흐름을 좁힐 수 있어야 사용자 편의성이 높습니다.";
+            searchPost.Title = "slogs 검색을 더 직관적으로 만들기";
+            searchPost.Summary = "검색 입력, 사이드바 태그, 이어지는 로그 추천을 한 번에 정리한 slogs UX 설계 노트입니다.";
+            searchPost.Body = "# 검색 개선\n\n검색은 짧고 명확한 태그(슬로거, 제목, 태그)로 범위를 좁힐 수 있어야 사용자 편의성이 높습니다.";
             searchPost.TagsJson = ToJson(["ux", "design", "recall"]);
-            searchPost.SeriesJson = ToJson(["회상 UX 실험실"]);
+            searchPost.SeriesJson = ToJson(["검색 실험실"]);
             searchPost.ThumbnailUrl = GetDefaultThumbnailUrl(recallUxSlug);
             if (searchPost.Slug == legacySearchSlug
                 && !await db.Posts.AnyAsync(x => x.Author == searchPost.Author && x.Slug == recallUxSlug && x.Id != searchPost.Id))
@@ -922,7 +922,7 @@ public static class SlogsDbInitializer
             {
                 if (comment.Content == "좋은 정리입니다. 태그 UX를 강조한 구조가 좋네요.")
                 {
-                    comment.Content = "좋은 정리입니다. 단서 UX를 강조한 구조가 좋네요.";
+                    comment.Content = "좋은 정리입니다. 태그 사용성을 강조한 구조가 좋네요.";
                 }
             }
 
@@ -1074,9 +1074,9 @@ public static class SlogsDbInitializer
         {
             "admin" => "slogs 운영 기준과 샘플 콘텐츠 품질을 점검합니다.",
             "devin" => "Blazor와 .NET 작업 판단을 검증 가능한 지식 로그로 남깁니다.",
-            "junho" => "C# 언어 기능과 아키텍처 판단을 흐름 있는 로그로 검증합니다.",
-            "mina" => "회상 단서, 로그 흐름, 공개 공유 UX를 실험하고 남깁니다.",
-            _ => "slogs에서 학습과 작업 흐름을 지식 로그로 이어 남깁니다."
+            "junho" => "C# 언어 기능과 아키텍처 판단을 목록 있는 로그로 검증합니다.",
+            "mina" => "검색 태그, 로그 목록, 공개 UX를 실험하고 남깁니다.",
+            _ => "slogs에서 학습과 작업 내용을 지식 로그로 이어 남깁니다."
         };
     }
 
@@ -1090,8 +1090,8 @@ public static class SlogsDbInitializer
             or "slogs에서 개발 경험과 학습 기록을 공유합니다."
             or "Blazor와 .NET으로 이어지는 개발 지식 로그를 정리합니다."
             or "C# 언어 기능과 아키텍처 패턴을 기록합니다."
-            or "회상, 탐색, 로그 작성 UX를 실험하고 공유합니다."
-            or "slogs에서 개발 경험과 학습 흐름을 지식 로그로 공유합니다.";
+            or "검색, 탐색, 로그 작성 UX를 실험하고 공유합니다."
+            or "slogs에서 개발 경험과 학습 내용을 지식 로그로 공유합니다.";
 
     private static bool IsLegacyReplyFeatureComment(string content)
         => content.Contains(string.Concat("답", "글", " 기능"), StringComparison.Ordinal)

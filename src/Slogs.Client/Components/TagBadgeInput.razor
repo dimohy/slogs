@@ -9,7 +9,7 @@
                     <span>#@tag</span>
                     <button type="button"
                             class="tag-badge-input__remove"
-                            aria-label="@($"{tag} 단서 제거")"
+                            aria-label="@($"{tag} 태그 제거")"
                             @onclick="() => RemoveTagAsync(tag)">
                         ×
                     </button>
@@ -31,7 +31,7 @@
 
         @if (ShouldShowSuggestions)
         {
-            <div class="tag-badge-input__menu" role="listbox" aria-label="기존 단서 추천">
+            <div class="tag-badge-input__menu" role="listbox" aria-label="기존 태그 추천">
                 @foreach (var item in visibleSuggestions)
                 {
                     <button type="button"
@@ -51,7 +51,7 @@
         <span>@($"{selectedTags.Count}/{MaxTags}")</span>
         @if (IsFull)
         {
-            <span>단서는 최대 @(MaxTags)개까지 사용할 수 있습니다.</span>
+            <span>태그는 최대 @(MaxTags)개까지 사용할 수 있습니다.</span>
         }
         else
         {
@@ -70,7 +70,7 @@
     [Parameter] public string? Id { get; set; }
     [Parameter] public string? Value { get; set; }
     [Parameter] public EventCallback<string> ValueChanged { get; set; }
-    [Parameter] public string Placeholder { get; set; } = "단서 선택 또는 입력";
+    [Parameter] public string Placeholder { get; set; } = "태그 선택 또는 입력";
     [Parameter] public int MaxTags { get; set; } = 5;
 
     private string InputId => string.IsNullOrWhiteSpace(Id)
@@ -83,7 +83,7 @@
 
     private string InputPlaceholder => selectedTags.Count == 0
         ? Placeholder
-        : IsFull ? "단서 최대 개수" : "단서 추가";
+        : IsFull ? "태그 최대 개수" : "태그 추가";
 
     protected override async Task OnInitializedAsync()
     {

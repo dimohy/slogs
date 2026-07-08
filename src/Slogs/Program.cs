@@ -783,12 +783,12 @@ static string BuildGoogleConfirmPage(
                 {{imageHtml}}
                 <div>
                     <p class="text-xs font-bold text-slate-500">Google로 지식 로그 이어가기</p>
-                    <h1 class="mt-1 text-2xl font-black text-slate-900">슬로거 홈 주소 단서</h1>
+                    <h1 class="mt-1 text-2xl font-black text-slate-900">슬로거 홈 주소</h1>
                     <p class="mt-1 text-sm font-semibold text-slate-500">{{safeDisplayName}} · {{safeEmail}}</p>
                 </div>
             </div>
 
-            <p class="text-sm leading-6 text-slate-600">Google 계정에서 이어질 지식 로그 홈의 주소 단서를 정해 주세요. 이 <strong>@id</strong>는 공개 공유 노드, 게시전 기억, 노트 Vault 흐름이 모이는 슬로거 홈에 표시됩니다.</p>
+            <p class="text-sm leading-6 text-slate-600">Google 계정에서 이어질 지식 로그 홈의 주소를 정해 주세요. 이 <strong>@id</strong>는 공개 로그, 게시전 로그, 노트 Vault 내용이 모이는 슬로거 홈에 표시됩니다.</p>
 
             <label class="grid gap-1 text-sm font-semibold text-slate-700" for="google-user-name">
                 슬로거 홈 주소
@@ -814,7 +814,7 @@ static string BuildGoogleConfirmPage(
 static string MapGoogleConfirmError(string? error)
     => error switch
     {
-        "externalUserNameRequired" or "profileUserNameRequired" => "슬로거 홈 주소 단서를 입력해 주세요.",
+        "externalUserNameRequired" or "profileUserNameRequired" => "슬로거 홈 주소를 입력해 주세요.",
         "externalUserNameLength" or "profileUserNameLength" => "슬로거 홈 주소는 80자 이하여야 합니다.",
         "externalUserNameInvalid" or "profileUserNameInvalid" => "슬로거 홈 주소는 영문, 숫자, 점, 하이픈, 밑줄만 사용할 수 있고 첫 글자는 영문 또는 숫자여야 합니다.",
         "externalUserNameTaken" or "profileUserNameTaken" => "이미 사용 중인 슬로거 홈 주소입니다.",

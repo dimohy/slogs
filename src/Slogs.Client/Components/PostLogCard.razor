@@ -22,7 +22,7 @@
 
     @if (Post.Tags.Any())
     {
-        <div class="post-log-card__clues flex flex-wrap gap-2" aria-label="로그 단서">
+        <div class="post-log-card__clues flex flex-wrap gap-2" aria-label="로그 태그">
             @foreach (var tag in Post.Tags)
             {
                 <a class="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-900 hover:bg-sky-100"
@@ -81,7 +81,7 @@
 
     [Parameter] public string DraftActionUrl { get; set; } = string.Empty;
 
-    [Parameter] public string DraftActionText { get; set; } = "게시전 기억 정리";
+    [Parameter] public string DraftActionText { get; set; } = "게시전 로그 정리";
 
     [Parameter] public bool IsLikeBusy { get; set; }
 

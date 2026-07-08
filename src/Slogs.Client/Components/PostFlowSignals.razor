@@ -1,13 +1,13 @@
-<div class="@Class" aria-label="로그 흐름 신호">
-    <span class="post-log-card__signal post-log-card__signal--primary">@(Post.IsDraft ? "게시전 기억" : "공개 공유 노드")</span>
+<div class="@Class" aria-label="로그 목록 정보">
+    <span class="post-log-card__signal post-log-card__signal--primary">@(Post.IsDraft ? "게시전 로그" : "공개 로그")</span>
     @if (Post.Series.Count > 0)
     {
         <a class="post-log-card__signal"
            href="@($"/series/{Uri.EscapeDataString(Post.Series[0])}")">@GetSeriesSignalText()</a>
     }
-    <span class="post-log-card__signal">@($"{Post.Tags.Count} 단서")</span>
+    <span class="post-log-card__signal">@($"{Post.Tags.Count} 태그")</span>
     <span class="post-log-card__signal">@($"{Post.CommentCount} 대화 흔적")</span>
-    <span class="post-log-card__signal">@($"{Post.LikeCount} 공감 신호")</span>
+    <span class="post-log-card__signal">@($"{Post.LikeCount} 공감")</span>
 </div>
 
 @code {

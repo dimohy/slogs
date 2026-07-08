@@ -218,7 +218,7 @@ public sealed class LlmWikiService(
         var searchText = TrimToLength(query, 400);
         if (string.IsNullOrWhiteSpace(owner) || string.IsNullOrWhiteSpace(authorizationText) || string.IsNullOrWhiteSpace(searchText))
         {
-            throw new InvalidOperationException("LLM Wiki 공개 전환에는 로그인 사용자, 명시적 공개 요청, 회상어가 필요합니다.");
+            throw new InvalidOperationException("LLM Wiki 공개 전환에는 로그인 사용자, 명시적 공개 요청, 검색어가 필요합니다.");
         }
 
         var safeLimit = NormalizeLimit(limit, 5, 10);
