@@ -465,8 +465,8 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("기억을 만든 요청 흐름", llmWikiSearchPage);
         Assert.Contains("정리된 기억 내용", llmWikiSearchPage);
         Assert.Contains("기억 근거 흐름", llmWikiSearchPage);
-        Assert.Contains("저장, 병합, 갱신 때 남긴 기억 근거를 공개 공유 전 감사 흐름으로 다시 따라갑니다.", llmWikiSearchPage);
-        Assert.Contains("기억 저장 근거", llmWikiSearchPage);
+        Assert.Contains("기억으로 남기거나 병합/갱신할 때 남긴 근거를 공개 공유 전 감사 흐름으로 다시 따라갑니다.", llmWikiSearchPage);
+        Assert.Contains("기억 남김 근거", llmWikiSearchPage);
         Assert.Contains("기억 병합 근거", llmWikiSearchPage);
         Assert.Contains("기억 갱신 근거", llmWikiSearchPage);
         Assert.Contains("기억 포착 근거", llmWikiSearchPage);
@@ -482,6 +482,8 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain(">tags</span>", llmWikiSearchPage);
         Assert.DoesNotContain(">categoryPath</span>", llmWikiSearchPage);
         Assert.DoesNotContain("저장, 병합, 갱신 때 남긴 원문 근거를 공개 공유 전 감사 흐름으로 확인합니다.", llmWikiSearchPage);
+        Assert.DoesNotContain("저장, 병합, 갱신 때 남긴 기억 근거", llmWikiSearchPage);
+        Assert.DoesNotContain("기억 저장 근거", llmWikiSearchPage);
     }
 
     [Fact]

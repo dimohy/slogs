@@ -273,7 +273,7 @@ else
                     {
                         <div>
                             <p class="text-xs font-bold text-slate-500">기억 근거 흐름</p>
-                            <p class="mt-1 text-xs leading-5 text-slate-500">저장, 병합, 갱신 때 남긴 기억 근거를 공개 공유 전 감사 흐름으로 다시 따라갑니다.</p>
+                            <p class="mt-1 text-xs leading-5 text-slate-500">기억으로 남기거나 병합/갱신할 때 남긴 근거를 공개 공유 전 감사 흐름으로 다시 따라갑니다.</p>
                             <div class="mt-1 grid gap-2">
                                 @foreach (var source in selectedEntry.Sources.OrderBy(x => x.CreatedAt))
                                 {
@@ -520,7 +520,7 @@ else
         var normalized = action.Trim().ToLowerInvariant();
         return normalized switch
         {
-            "remember" => "기억 저장 근거",
+            "remember" => "기억 남김 근거",
             "merge" => "기억 병합 근거",
             "update" => "기억 갱신 근거",
             "capture" => "기억 포착 근거",
