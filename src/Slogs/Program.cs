@@ -169,9 +169,9 @@ app.Use(async (httpContext, next) =>
         httpContext.Response.OnStarting(() =>
         {
             httpContext.Response.Headers["Link"] = string.Join(", ", [
-                "</feed.xml>; rel=\"alternate\"; type=\"application/rss+xml\"; title=\"slogs RSS\"",
-                "</atom.xml>; rel=\"alternate\"; type=\"application/atom+xml\"; title=\"slogs Atom\"",
-                "</feed.json>; rel=\"alternate\"; type=\"application/feed+json\"; title=\"slogs JSON Feed\"",
+                $"</feed.xml>; rel=\"alternate\"; type=\"application/rss+xml\"; title=\"{SeoMetadata.PublicFeedTitle} RSS\"",
+                $"</atom.xml>; rel=\"alternate\"; type=\"application/atom+xml\"; title=\"{SeoMetadata.PublicFeedTitle} Atom\"",
+                $"</feed.json>; rel=\"alternate\"; type=\"application/feed+json\"; title=\"{SeoMetadata.PublicFeedTitle} JSON\"",
                 "</llms.txt>; rel=\"alternate llms-txt\"; type=\"text/markdown\"; title=\"llms.txt\"",
                 "</llms-full.txt>; rel=\"alternate llms-full-txt\"; type=\"text/markdown\"; title=\"llms-full.txt\""
             ]);

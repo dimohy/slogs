@@ -13,6 +13,8 @@ public static class SeoMetadata
     public const string SiteName = "slogs";
     public const string SiteIconPath = "/favicon.svg";
     public const string DefaultDescription = "slogs는 사람과 AI가 생각, 작업, 판단, 검증을 이어 남기는 한국어 지식 로그 플랫폼입니다.";
+    public const string PublicFeedTitle = "slogs public knowledge-log flow";
+    public const string PublicFeedDescription = "slogs에서 공개 공유된 지식 로그 노드가 시간과 의미를 따라 이어지는 흐름입니다.";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -64,9 +66,9 @@ public static class SeoMetadata
             $"Sitemap: {sitemapUrl}",
             $"# LLM guide: {llmsUrl}",
             $"# Full LLM Markdown export: {llmsFullUrl}",
-            $"# RSS feed: {rssUrl}",
-            $"# Atom feed: {atomUrl}",
-            $"# JSON feed: {jsonFeedUrl}",
+            $"# RSS knowledge-log flow: {rssUrl}",
+            $"# Atom knowledge-log flow: {atomUrl}",
+            $"# JSON knowledge-log flow: {jsonFeedUrl}",
             string.Empty
         ]);
     }
@@ -342,9 +344,9 @@ public static class SeoMetadata
         AppendMarkdownLink(builder, "Full public Markdown export", EscapedAbsoluteUrl(baseUri, "/llms-full.txt"), "Single Markdown export containing the current public knowledge-log corpus.");
         AppendMarkdownLink(builder, "Sitemap", EscapedAbsoluteUrl(baseUri, "/sitemap.xml"), "Complete public URL set for conventional crawlers.");
         AppendMarkdownLink(builder, "Robots", EscapedAbsoluteUrl(baseUri, "/robots.txt"), "Crawler access guidance.");
-        AppendMarkdownLink(builder, "RSS feed", EscapedAbsoluteUrl(baseUri, "/feed.xml"), "Latest public logs in RSS format.");
-        AppendMarkdownLink(builder, "Atom feed", EscapedAbsoluteUrl(baseUri, "/atom.xml"), "Latest public logs in Atom format.");
-        AppendMarkdownLink(builder, "JSON feed", EscapedAbsoluteUrl(baseUri, "/feed.json"), "Latest public logs in JSON Feed format.");
+        AppendMarkdownLink(builder, "RSS knowledge-log flow", EscapedAbsoluteUrl(baseUri, "/feed.xml"), "Public sharing nodes in RSS format.");
+        AppendMarkdownLink(builder, "Atom knowledge-log flow", EscapedAbsoluteUrl(baseUri, "/atom.xml"), "Public sharing nodes in Atom format.");
+        AppendMarkdownLink(builder, "JSON knowledge-log flow", EscapedAbsoluteUrl(baseUri, "/feed.json"), "Public sharing nodes in JSON Feed format.");
         AppendMarkdownLink(builder, "Slogs MCP prompt", EscapedAbsoluteUrl(baseUri, "/prompts/slogs-mcp.md"), "Korean Agent policy prompt for connecting Slogs MCP and LLM Wiki.");
         builder.AppendLine();
         builder.AppendLine("## Core pages");
@@ -428,9 +430,9 @@ public static class SeoMetadata
                 new XAttribute("version", "2.0"),
                 new XAttribute(XNamespace.Xmlns + "atom", atom.NamespaceName),
                 new XElement("channel",
-                    new XElement("title", SiteName),
+                    new XElement("title", PublicFeedTitle),
                     new XElement("link", EscapedAbsoluteUrl(baseUri, "/")),
-                    new XElement("description", DefaultDescription),
+                    new XElement("description", PublicFeedDescription),
                     new XElement("language", "ko-KR"),
                     new XElement("lastBuildDate", FormatRfc1123(channelUpdatedAt)),
                     new XElement(atom + "link",
@@ -464,8 +466,8 @@ public static class SeoMetadata
         var document = new XDocument(
             new XElement(atom + "feed",
                 new XElement(atom + "id", EscapedAbsoluteUrl(baseUri, "/")),
-                new XElement(atom + "title", SiteName),
-                new XElement(atom + "subtitle", DefaultDescription),
+                new XElement(atom + "title", PublicFeedTitle),
+                new XElement(atom + "subtitle", PublicFeedDescription),
                 new XElement(atom + "updated", FormatDateTime(feedUpdatedAt)),
                 new XElement(atom + "link",
                     new XAttribute("href", EscapedAbsoluteUrl(baseUri, "/")),
@@ -504,10 +506,10 @@ public static class SeoMetadata
         var feed = new Dictionary<string, object?>
         {
             ["version"] = "https://jsonfeed.org/version/1.1",
-            ["title"] = SiteName,
+            ["title"] = PublicFeedTitle,
             ["home_page_url"] = EscapedAbsoluteUrl(baseUri, "/"),
             ["feed_url"] = EscapedAbsoluteUrl(baseUri, "/feed.json"),
-            ["description"] = DefaultDescription,
+            ["description"] = PublicFeedDescription,
             ["language"] = "ko-KR",
             ["items"] = publicPosts.Select(post =>
             {

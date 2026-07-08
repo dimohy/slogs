@@ -12,8 +12,10 @@ public sealed class SeoMetadataTests
         var lines = robots.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
         Assert.DoesNotContain("Disallow: /feed", lines);
-        Assert.Contains("# RSS feed: https://slogs.dev/feed.xml", lines);
-        Assert.Contains("# JSON feed: https://slogs.dev/feed.json", lines);
+        Assert.Contains("# RSS knowledge-log flow: https://slogs.dev/feed.xml", lines);
+        Assert.Contains("# JSON knowledge-log flow: https://slogs.dev/feed.json", lines);
+        Assert.DoesNotContain("# RSS feed: https://slogs.dev/feed.xml", lines);
+        Assert.DoesNotContain("# JSON feed: https://slogs.dev/feed.json", lines);
     }
 
     [Fact]
@@ -54,6 +56,8 @@ public sealed class SeoMetadataTests
         Assert.Contains("Clue recall paths", llmsText);
         Assert.Contains("Log-series recall paths", llmsText);
         Assert.Contains("Slogger home recall paths", llmsText);
+        Assert.Contains("RSS knowledge-log flow", llmsText);
+        Assert.Contains("Public sharing nodes in RSS format.", llmsText);
         Assert.Contains("public knowledge-log Markdown export", llmsFullText);
         Assert.Contains("\"@type\":\"CreativeWork\"", jsonLd);
         Assert.Contains("\"name\":\"검증 흐름을 남기는 로그\"", jsonLd);
@@ -67,8 +71,39 @@ public sealed class SeoMetadataTests
         Assert.DoesNotContain("Public posts", llmsText);
         Assert.DoesNotContain("Public Slogger directory", llmsText);
         Assert.DoesNotContain("public logs.", llmsText);
+        Assert.DoesNotContain("RSS feed", llmsText);
+        Assert.DoesNotContain("Latest public logs", llmsText);
         Assert.DoesNotContain("\"@type\":\"Article\"", jsonLd);
         Assert.DoesNotContain("BlogPosting", jsonLd);
+    }
+
+    [Fact]
+    public void PublicFeedsUseKnowledgeLogFlowMetadata()
+    {
+        var post = new BlogPost
+        {
+            Title = "공개 공유 흐름 로그",
+            Slug = "public-sharing-flow-log",
+            Author = "devin",
+            Summary = "공개 공유된 지식 로그 노드가 이어집니다.",
+            Body = "작업과 검증 흐름입니다.",
+            Tags = ["flow"],
+            PublishedAt = new DateTime(2026, 7, 8, 0, 0, 0, DateTimeKind.Utc),
+            UpdatedAt = new DateTime(2026, 7, 8, 1, 0, 0, DateTimeKind.Utc),
+            ReadTimeMinutes = 1
+        };
+
+        var rss = SeoMetadata.BuildRssFeedXml("https://slogs.dev/", [post]);
+        var atom = SeoMetadata.BuildAtomFeedXml("https://slogs.dev/", [post]);
+        var jsonFeed = SeoMetadata.BuildJsonFeed("https://slogs.dev/", [post]);
+
+        foreach (var feedText in new[] { rss, atom, jsonFeed })
+        {
+            Assert.Contains(SeoMetadata.PublicFeedTitle, feedText);
+            Assert.Contains(SeoMetadata.PublicFeedDescription, feedText);
+            Assert.DoesNotContain("<title>slogs</title>", feedText);
+            Assert.DoesNotContain("\"title\":\"slogs\"", feedText);
+        }
     }
 
     [Fact]

@@ -24,6 +24,19 @@ public sealed class StaticAssetIdentityTests
     }
 
     [Fact]
+    public void PublicFeedDiscoveryHeadersUseKnowledgeLogFlowTitles()
+    {
+        var program = File.ReadAllText(FindRepoFile("src", "Slogs", "Program.cs"));
+
+        Assert.Contains("title=\\\"{SeoMetadata.PublicFeedTitle} RSS\\\"", program);
+        Assert.Contains("title=\\\"{SeoMetadata.PublicFeedTitle} Atom\\\"", program);
+        Assert.Contains("title=\\\"{SeoMetadata.PublicFeedTitle} JSON\\\"", program);
+        Assert.DoesNotContain("title=\\\"slogs RSS\\\"", program);
+        Assert.DoesNotContain("title=\\\"slogs Atom\\\"", program);
+        Assert.DoesNotContain("title=\\\"slogs JSON Feed\\\"", program);
+    }
+
+    [Fact]
     public void FirstScreenHeaderUsesMeaningRecallAndFlowToolLabels()
     {
         var mainLayout = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Layout", "MainLayout.razor"));
