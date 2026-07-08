@@ -1,7 +1,7 @@
 @implements IDisposable
 @inject NavigationManager Navigation
 
-<nav class="rounded-xl border border-slate-200 bg-slate-50 p-3" aria-label="main menu" @onclick="NotifyNavigateAsync">
+<nav class="rounded-xl border border-slate-200 bg-slate-50 p-3" aria-label="지식 로그 흐름 메뉴" @onclick="NotifyNavigateAsync">
     <div class="mb-3 text-xs font-bold text-slate-500">로그 흐름</div>
     <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
              ActiveClass="bg-slate-900 text-white" href="@GetHomePath()" Match="NavLinkMatch.All">지식 로그 홈</NavLink>

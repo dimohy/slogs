@@ -24,6 +24,30 @@ public sealed class StaticAssetIdentityTests
     }
 
     [Fact]
+    public void FirstScreenHeaderUsesMeaningRecallAndFlowToolLabels()
+    {
+        var mainLayout = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Layout", "MainLayout.razor"));
+        var navMenu = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Layout", "NavMenu.razor"));
+
+        Assert.Contains("aria-label=\"slogs 지식 로그 홈\"", mainLayout);
+        Assert.Contains("placeholder=\"의미 회상\"", mainLayout);
+        Assert.Contains("aria-label=\"전역 의미 회상어 입력\"", mainLayout);
+        Assert.Contains("title=\"의미 회상\"", mainLayout);
+        Assert.Contains("aria-label=\"지식 로그 도구\"", mainLayout);
+        Assert.Contains("aria-label=\"지식 로그 흐름 메뉴 열기\"", mainLayout);
+        Assert.Contains("aria-label=\"지식 로그 흐름 메뉴 닫기\"", mainLayout);
+        Assert.Contains(">흐름 메뉴</span>", mainLayout);
+        Assert.Contains("aria-label=\"지식 로그 흐름 메뉴\"", navMenu);
+        Assert.DoesNotContain("placeholder=\"회상어\"", mainLayout);
+        Assert.DoesNotContain("aria-label=\"전역 회상어 입력\"", mainLayout);
+        Assert.DoesNotContain("aria-label=\"header actions\"", mainLayout);
+        Assert.DoesNotContain("title=\"메뉴\"", mainLayout);
+        Assert.DoesNotContain("aria-label=\"메뉴 열기\"", mainLayout);
+        Assert.DoesNotContain("aria-label=\"모바일 메뉴\"", mainLayout);
+        Assert.DoesNotContain("aria-label=\"main menu\"", navMenu);
+    }
+
+    [Fact]
     public void SeedDefaultBiosUseKnowledgeLogWording()
     {
         var getDefaultBio = typeof(SlogsDbInitializer).GetMethod(
