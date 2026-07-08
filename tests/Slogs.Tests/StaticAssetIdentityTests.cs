@@ -1113,12 +1113,12 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("저장 회상 해제", postActionBar);
 
         Assert.Contains("공감 신호를 남기려면 지식 로그 홈으로 돌아가야 합니다.", postDetailsPage);
-        Assert.Contains("게시전 로그는 공개 후 공감 신호를 남길 수 있습니다.", postDetailsPage);
+        Assert.Contains("게시전 기억은 공개 공유 후 공감 신호를 남길 수 있습니다.", postDetailsPage);
         Assert.Contains("공감 신호가 처리 중입니다.", postDetailsPage);
         Assert.Contains("공감 신호 흐름에서 해제되었습니다.", postDetailsPage);
         Assert.Contains("공감 신호 흐름에 추가되었습니다.", postDetailsPage);
         Assert.Contains("저장 회상 흐름을 바꾸려면 지식 로그 홈으로 돌아가야 합니다.", postDetailsPage);
-        Assert.Contains("게시전 로그는 공개 후 저장 회상에 추가할 수 있습니다.", postDetailsPage);
+        Assert.Contains("게시전 기억은 공개 공유 후 저장 회상에 추가할 수 있습니다.", postDetailsPage);
         Assert.Contains("저장 회상이 처리 중입니다.", postDetailsPage);
         Assert.Contains("저장 회상 흐름에서 해제되었습니다.", postDetailsPage);
         Assert.Contains("저장 회상 흐름에 추가되었습니다.", postDetailsPage);
@@ -1135,6 +1135,8 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("공감이 추가되었습니다.", postDetailsPage);
         Assert.DoesNotContain("저장 회상은 로그인 후 사용할 수 있습니다.", postDetailsPage);
         Assert.DoesNotContain("저장은 로그인 후 이용 가능합니다.", postDetailsPage);
+        Assert.DoesNotContain("게시전 로그는 공개 후 공감 신호를 남길 수 있습니다.", postDetailsPage);
+        Assert.DoesNotContain("게시전 로그는 공개 후 저장 회상에 추가할 수 있습니다.", postDetailsPage);
         Assert.DoesNotContain("저장이 해제되었습니다.", postDetailsPage);
         Assert.DoesNotContain("저장되었습니다.", postDetailsPage);
     }
@@ -1385,6 +1387,8 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("Title=\"@GetPostSeoTitle(post)\"", postDetailsPage);
         Assert.Contains("Description=\"@GetPostSeoDescription(post)\"", postDetailsPage);
         Assert.Contains("게시전 지식 로그 노드", postDetailsPage);
+        Assert.Contains(">게시전 기억</span>", postDetailsPage);
+        Assert.Contains(">공개 공유 노드</span>", postDetailsPage);
         Assert.Contains("return $\"{targetPost.Title} {nodeState} | slogs\";", postDetailsPage);
         Assert.Contains("소유자 전용 게시전 기억", postDetailsPage);
         Assert.Contains("return $\"{nodeState}: {summary}", postDetailsPage);
@@ -1430,6 +1434,8 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("Type=\"article\"", postDetailsPage);
         Assert.DoesNotContain("Title=\"@($\"{post.Title} | slogs\")\"", postDetailsPage);
         Assert.DoesNotContain("Description=\"@post.Summary\"", postDetailsPage);
+        Assert.DoesNotContain(">게시전 로그</span>", postDetailsPage);
+        Assert.DoesNotContain(">공개 로그</span>", postDetailsPage);
         Assert.DoesNotContain("관련 글", postDetailsPage);
         Assert.DoesNotContain(">연결된 로그</h3>", postDetailsPage);
         Assert.DoesNotContain("연결된 로그가 없습니다.", postDetailsPage);
