@@ -142,7 +142,7 @@
                         @onclick="CopyObsidianApiEndpointAsync">노트 연결 주소 복사</button>
                 <button class="inline-flex min-w-max shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
                         type="button"
-                        @onclick="CopyObsidianPluginIdAsync">플러그인 ID 복사</button>
+                        @onclick="CopyObsidianPluginIdAsync">노트 Vault 플러그인 ID 복사</button>
                 <button class="inline-flex min-w-max shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
                         type="button"
                         @onclick="CopyDriveInstallCommandAsync">Slogs Drive 설치 흐름</button>
@@ -563,7 +563,7 @@
     private async Task CopyObsidianPluginIdAsync()
     {
         await JS.InvokeVoidAsync("navigator.clipboard.writeText", ObsidianPluginId);
-        copyObsidianMessage = "플러그인 ID가 복사되었습니다.";
+        copyObsidianMessage = "노트 Vault 플러그인 ID가 복사되었습니다.";
     }
 
     private async Task CopyDriveCommandAsync()

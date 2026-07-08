@@ -623,6 +623,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("Agent 회상 연결 키 입력과 전역/프로젝트/현재 세션 범위 선택을 안내하고", llmWikiGuidePage);
         Assert.Contains("처음 설치할 때만 Agent가 회상 연결 키를 요청하고", llmWikiGuidePage);
         Assert.Contains("최초 설치 시 Agent 회상 연결 키와 적용 범위를 묻도록 안내합니다.", llmWikiGuidePage);
+        Assert.Contains("Agent recall connection key and scope only during initial installation.", llmWikiGuidePage);
         Assert.Contains("도구 노출 점검으로 먼저 지연 로딩 여부를 살핍니다.", llmWikiGuidePage);
         Assert.Contains("Agent의 도구 노출 점검으로 먼저 지연 로딩을 살피도록 안내합니다.", llmWikiGuidePage);
         Assert.Contains("search</code>로 작은 회상 후보 흐름을 잡습니다.", llmWikiGuidePage);
@@ -653,6 +654,7 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("Slogs MCP 키 입력과 전역/프로젝트/현재 세션 범위 선택을 안내하고", llmWikiGuidePage);
         Assert.DoesNotContain("처음 설치할 때만 Agent가 Slogs MCP 키를 요청하고", llmWikiGuidePage);
         Assert.DoesNotContain("최초 설치 시 MCP 키와 적용 범위를 묻도록 안내합니다.", llmWikiGuidePage);
+        Assert.DoesNotContain("It asks for the MCP key and scope only during initial installation.", llmWikiGuidePage);
         Assert.DoesNotContain("도구 노출 확인으로 먼저 사용 가능 여부를 확인합니다.", llmWikiGuidePage);
         Assert.DoesNotContain("도구 노출 확인 기능으로 먼저 지연 로딩을 시도", llmWikiGuidePage);
         Assert.DoesNotContain("다시 조회합니다.", llmWikiGuidePage);
@@ -698,6 +700,8 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("Agent 연결 설정 예시", settingsComponent);
         Assert.Contains("Agent는 Agent 회상 권한으로 이 슬로거의 비공개 기억을 회상하고", settingsComponent);
         Assert.Contains("노트 Vault 플러그인 ID", settingsComponent);
+        Assert.Contains("노트 Vault 플러그인 ID 복사", settingsComponent);
+        Assert.Contains("노트 Vault 플러그인 ID가 복사되었습니다.", settingsComponent);
         Assert.Contains("Slogs Drive 설치 흐름", settingsComponent);
         Assert.Contains("Slogs Drive 실행 흐름", settingsComponent);
         Assert.Contains("Slogs Drive 설치 흐름이 복사되었습니다.", settingsComponent);
@@ -753,6 +757,8 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain(">Authorization Header</p>", settingsComponent);
         Assert.DoesNotContain(">Client Config Example</p>", settingsComponent);
         Assert.DoesNotContain(">Plugin ID</p>", settingsComponent);
+        Assert.DoesNotContain(">플러그인 ID 복사</button>", settingsComponent);
+        Assert.DoesNotContain("copyObsidianMessage = \"플러그인 ID가 복사되었습니다.\";", settingsComponent);
         Assert.DoesNotContain(">Drive install</p>", settingsComponent);
         Assert.DoesNotContain(">Drive run</p>", settingsComponent);
         Assert.DoesNotContain("Drive 설치 명령", settingsComponent);
