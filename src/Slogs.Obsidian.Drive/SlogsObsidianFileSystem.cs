@@ -22,7 +22,7 @@ internal sealed class SlogsObsidianFileSystem : FileSystemBase
 
     public override int ExceptionHandler(Exception ex)
     {
-        Console.Error.WriteLine($"WinFsp operation failed: {ex.Message}");
+        Console.Error.WriteLine($"Slogs note-flow drive operation failed: {ex.Message}");
         return MapException(ex);
     }
 

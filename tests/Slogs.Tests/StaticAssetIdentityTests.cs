@@ -932,6 +932,8 @@ public sealed class StaticAssetIdentityTests
         var driveOptions = File.ReadAllText(FindRepoFile("src", "Slogs.Obsidian.Drive", "DriveOptions.cs"));
         var driveApplication = File.ReadAllText(FindRepoFile("src", "Slogs.Obsidian.Drive", "SlogsObsidianDriveApplication.cs"));
         var winFspInstallation = File.ReadAllText(FindRepoFile("src", "Slogs.Obsidian.Drive", "WinFspInstallation.cs"));
+        var driveInstaller = File.ReadAllText(FindRepoFile("src", "Slogs.Obsidian.Drive", "SlogsObsidianDriveInstaller.cs"));
+        var driveFileSystem = File.ReadAllText(FindRepoFile("src", "Slogs.Obsidian.Drive", "SlogsObsidianFileSystem.cs"));
         var driveReadme = File.ReadAllText(FindRepoFile("src", "Slogs.Obsidian.Drive", "README.md"));
 
         Assert.Contains("Mount a Slogs remote note Vault as a WinFsp-backed local note-flow drive.", driveOptions);
@@ -946,6 +948,14 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("Closed Slogs note-flow drive.", driveApplication);
         Assert.Contains("Slogs note-flow Drive requires Windows and WinFsp.", winFspInstallation);
         Assert.Contains("mounting a Slogs note-flow drive", winFspInstallation);
+        Assert.Contains("note-flow bridge installed", driveInstaller);
+        Assert.Contains("mount a Slogs note Vault", driveInstaller);
+        Assert.Contains("WinFsp is required for the Slogs note-flow bridge.", driveInstaller);
+        Assert.Contains("WinFsp note-flow bridge installer failed", driveInstaller);
+        Assert.Contains("Slogs note-flow bridge still cannot detect WinFsp.", driveInstaller);
+        Assert.Contains("note-flow bridge has been uninstalled.", driveInstaller);
+        Assert.Contains("note-flow bridge can only be installed on Windows.", driveInstaller);
+        Assert.Contains("Slogs note-flow drive operation failed", driveFileSystem);
         Assert.Contains("local Markdown notes continue into Slogs note Vault flow", driveReadme);
         Assert.Contains("## Mount Note Flow", driveReadme);
         Assert.Contains("## Note-Flow Semantics", driveReadme);
@@ -960,6 +970,14 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("Unmounted Slogs Obsidian drive.", driveApplication);
         Assert.DoesNotContain("Slogs Obsidian Drive requires Windows and WinFsp.", winFspInstallation);
         Assert.DoesNotContain("mounting a Slogs Obsidian drive", winFspInstallation);
+        Assert.DoesNotContain("$\"{ProductName} {ProductVersion} installed to {installDir}.", driveInstaller);
+        Assert.DoesNotContain("Open a new terminal and run SlogsObsidianDrive --help.", driveInstaller);
+        Assert.DoesNotContain("WinFsp is not installed. Downloading WinFsp", driveInstaller);
+        Assert.DoesNotContain("WinFsp installer failed with exit code", driveInstaller);
+        Assert.DoesNotContain("WinFsp installation completed, but WinFsp was not detected.", driveInstaller);
+        Assert.DoesNotContain("$\"{ProductName} has been uninstalled.", driveInstaller);
+        Assert.DoesNotContain("$\"{ProductName} can only be installed on Windows.", driveInstaller);
+        Assert.DoesNotContain("WinFsp operation failed", driveFileSystem);
         Assert.DoesNotContain("as a local filesystem", driveReadme);
         Assert.DoesNotContain("## Sync Semantics", driveReadme);
         Assert.DoesNotContain("Remote conflicts return", driveReadme);

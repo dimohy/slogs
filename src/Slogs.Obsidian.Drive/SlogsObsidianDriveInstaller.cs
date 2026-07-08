@@ -68,8 +68,8 @@ internal static class SlogsObsidianDriveInstaller
 
         if (!options.Silent)
         {
-            Console.WriteLine($"{ProductName} {ProductVersion} installed to {installDir}.");
-            Console.WriteLine("Open a new terminal and run SlogsObsidianDrive --help.");
+            Console.WriteLine($"{ProductName} {ProductVersion} note-flow bridge installed to {installDir}.");
+            Console.WriteLine("Open a new terminal and run SlogsObsidianDrive --help to mount a Slogs note Vault.");
         }
     }
 
@@ -80,7 +80,7 @@ internal static class SlogsObsidianDriveInstaller
             return;
         }
 
-        Console.WriteLine("WinFsp is not installed. Downloading WinFsp 2.2.26112.");
+        Console.WriteLine("WinFsp is required for the Slogs note-flow bridge. Downloading WinFsp 2.2.26112.");
         var downloadDir = Path.Combine(Path.GetTempPath(), "SlogsObsidianDrive");
         Directory.CreateDirectory(downloadDir);
         var msiPath = Path.Combine(downloadDir, "winfsp-2.2.26112.msi");
@@ -101,12 +101,12 @@ internal static class SlogsObsidianDriveInstaller
             cancellationToken);
         if (exitCode is not 0 and not 3010)
         {
-            throw new InvalidOperationException($"WinFsp installer failed with exit code {exitCode}.");
+            throw new InvalidOperationException($"WinFsp note-flow bridge installer failed with exit code {exitCode}.");
         }
 
         if (!WinFspInstallation.IsInstalled())
         {
-            throw new InvalidOperationException("WinFsp installation completed, but WinFsp was not detected.");
+            throw new InvalidOperationException("WinFsp installation completed, but the Slogs note-flow bridge still cannot detect WinFsp.");
         }
     }
 
@@ -124,7 +124,7 @@ internal static class SlogsObsidianDriveInstaller
 
         if (!options.Silent)
         {
-            Console.WriteLine($"{ProductName} has been uninstalled.");
+            Console.WriteLine($"{ProductName} note-flow bridge has been uninstalled.");
         }
 
         await Task.CompletedTask;
@@ -282,7 +282,7 @@ internal static class SlogsObsidianDriveInstaller
     {
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            throw new InvalidOperationException($"{ProductName} can only be installed on Windows.");
+            throw new InvalidOperationException($"{ProductName} note-flow bridge can only be installed on Windows.");
         }
     }
 
