@@ -620,25 +620,25 @@ public static class SeoMetadata
         var builder = new StringBuilder();
         builder.AppendLine($"# {NormalizePlainText(post.Title, 160)}");
         builder.AppendLine();
-        builder.AppendLine($"- Canonical URL: {EscapedAbsoluteUrl(baseUri, PostPath(post))}");
-        builder.AppendLine($"- Markdown URL: {EscapedAbsoluteUrl(baseUri, PostMarkdownPath(post))}");
-        builder.AppendLine($"- Slogger: @{post.Author}");
-        builder.AppendLine($"- Shared: {FormatDate(post.PublishedAt)}");
-        builder.AppendLine($"- Updated: {FormatDate(post.UpdatedAt)}");
-        builder.AppendLine($"- Read time: {post.ReadTimeMinutes} minutes");
+        builder.AppendLine($"- Public sharing node: {EscapedAbsoluteUrl(baseUri, PostPath(post))}");
+        builder.AppendLine($"- Markdown recall node: {EscapedAbsoluteUrl(baseUri, PostMarkdownPath(post))}");
+        builder.AppendLine($"- Slogger home: @{post.Author}");
+        builder.AppendLine($"- Public sharing point: {FormatDate(post.PublishedAt)}");
+        builder.AppendLine($"- Flow refresh: {FormatDate(post.UpdatedAt)}");
+        builder.AppendLine($"- Reading span: {post.ReadTimeMinutes} minutes");
         if (post.Tags.Count > 0)
         {
-            builder.AppendLine($"- Clues: {string.Join(", ", post.Tags.Select(tag => $"#{tag}"))}");
+            builder.AppendLine($"- Recall clues: {string.Join(", ", post.Tags.Select(tag => $"#{tag}"))}");
         }
 
         if (post.Series.Count > 0)
         {
-            builder.AppendLine($"- Log series: {string.Join(", ", post.Series)}");
+            builder.AppendLine($"- Log-series flow: {string.Join(", ", post.Series)}");
         }
 
         if (!string.IsNullOrWhiteSpace(post.ThumbnailUrl))
         {
-            builder.AppendLine($"- Cover image: {EscapedAbsoluteUrl(baseUri, post.ThumbnailUrl)}");
+            builder.AppendLine($"- Representative image: {EscapedAbsoluteUrl(baseUri, post.ThumbnailUrl)}");
         }
 
         builder.AppendLine();
@@ -646,7 +646,7 @@ public static class SeoMetadata
         builder.AppendLine();
         builder.AppendLine(NormalizePlainText(post.Summary, 500));
         builder.AppendLine();
-        builder.AppendLine("## Log Body");
+        builder.AppendLine("## Knowledge-Log Body");
         builder.AppendLine();
         builder.AppendLine(string.IsNullOrWhiteSpace(post.Body) ? "내용이 없습니다." : post.Body.Trim());
         builder.AppendLine();

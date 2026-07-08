@@ -42,6 +42,7 @@ public sealed class SeoMetadataTests
             [("identity flow", 1)],
             [("devin", 1)]);
         var llmsFullText = SeoMetadata.BuildLlmsFullTxt("https://slogs.dev/", [post]);
+        var postMarkdown = SeoMetadata.BuildPostMarkdown("https://slogs.dev/", post);
         post.ViewCount = 5;
         post.LikedBy.Add("mina");
         post.AddComment(new BlogComment { Author = "junho", Content = "검증 단서가 이어집니다." });
@@ -59,6 +60,15 @@ public sealed class SeoMetadataTests
         Assert.Contains("RSS knowledge-log flow", llmsText);
         Assert.Contains("Public sharing nodes in RSS format.", llmsText);
         Assert.Contains("public knowledge-log Markdown export", llmsFullText);
+        Assert.Contains("- Public sharing node: https://slogs.dev/@devin/verified-flow-log", postMarkdown);
+        Assert.Contains("- Markdown recall node: https://slogs.dev/@devin/verified-flow-log.md", postMarkdown);
+        Assert.Contains("- Slogger home: @devin", postMarkdown);
+        Assert.Contains("- Public sharing point: 2026-07-07", postMarkdown);
+        Assert.Contains("- Flow refresh: 2026-07-07", postMarkdown);
+        Assert.Contains("- Reading span: 2 minutes", postMarkdown);
+        Assert.Contains("- Recall clues: #verification, #agent", postMarkdown);
+        Assert.Contains("- Log-series flow: identity flow", postMarkdown);
+        Assert.Contains("## Knowledge-Log Body", postMarkdown);
         Assert.Contains("\"@type\":\"CreativeWork\"", jsonLd);
         Assert.Contains("\"name\":\"검증 흐름을 남기는 로그\"", jsonLd);
         Assert.Contains("\"genre\":\"knowledge log\"", jsonLd);
@@ -73,6 +83,14 @@ public sealed class SeoMetadataTests
         Assert.DoesNotContain("public logs.", llmsText);
         Assert.DoesNotContain("RSS feed", llmsText);
         Assert.DoesNotContain("Latest public logs", llmsText);
+        Assert.DoesNotContain("- Canonical URL:", postMarkdown);
+        Assert.DoesNotContain("- Markdown URL:", postMarkdown);
+        Assert.DoesNotContain("- Shared:", postMarkdown);
+        Assert.DoesNotContain("- Updated:", postMarkdown);
+        Assert.DoesNotContain("- Read time:", postMarkdown);
+        Assert.DoesNotContain("- Clues:", postMarkdown);
+        Assert.DoesNotContain("- Log series:", postMarkdown);
+        Assert.DoesNotContain("## Log Body", postMarkdown);
         Assert.DoesNotContain("\"@type\":\"Article\"", jsonLd);
         Assert.DoesNotContain("BlogPosting", jsonLd);
     }
