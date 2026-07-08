@@ -63,7 +63,7 @@ else
                 </div>
                 <div>
                     <h3 class="text-sm font-bold text-slate-900">3. 의미 회상</h3>
-                    <p class="mt-2 text-sm leading-6 text-slate-600">회상어 embedding과 graph node를 함께 비교해 이어 쓸 기억의 순위를 만들고, 낮은 관련도 결과는 제외합니다. 퍼센트는 통계적 확률이 아니라 GraphRAG 관련도 점수입니다.</p>
+                    <p class="mt-2 text-sm leading-6 text-slate-600">회상어 embedding과 graph node를 함께 비교해 이어 쓸 기억의 순위를 만들고, 낮은 관련도 회상 후보는 제외합니다. 퍼센트는 통계적 확률이 아니라 GraphRAG 관련도 점수입니다.</p>
                 </div>
             </div>
 
@@ -73,7 +73,7 @@ else
                     <ul class="mt-2 list-disc space-y-1.5 pl-5 text-sm leading-6 text-slate-600">
                         <li>이전 결정, 선호, 판단 기준, 프로젝트 맥락이 관련되면 Slogs LLM Wiki에서 먼저 관련 기억을 회상합니다.</li>
                         <li><code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">search</code> 도구는 회상 후보 흐름을 압축해 보여 주고, <code class="rounded bg-slate-100 px-1 py-0.5 text-xs text-slate-800">recall</code> 도구는 답변/구현에 바로 적용할 기억 맥락으로 이어 줍니다.</li>
-                        <li>MCP 회상 응답의 Retrieval Diagnostics로 결과 수, limit, categoryPath, minRelevancePercent, elapsedMs를 살펴 회상 품질을 조율합니다.</li>
+                        <li>MCP 회상 응답의 Retrieval Diagnostics로 회상 후보 수, limit, categoryPath, minRelevancePercent, elapsedMs를 살펴 회상 품질을 조율합니다.</li>
                         <li>작업을 마치기 전, 장기적으로 문서화나 자동화에 도움이 될 암묵지 기억 후보를 조용히 점검합니다.</li>
                         <li>사용자가 원치 않는 전개를 정정하거나 조정하면 원치 않았던 흐름, 원한 방향, 다음에 피할 패턴, 적용 범위를 구조화해 기억하도록 안내합니다.</li>
                         <li>기억으로 남기기 전에는 관련 기억을 먼저 회상하고, 중복이면 새 항목이 아니라 기존 항목을 merge/update합니다.</li>
