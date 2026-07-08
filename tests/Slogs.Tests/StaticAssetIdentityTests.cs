@@ -663,7 +663,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("지식 로그 연결", settingsPage);
         Assert.Contains("슬로거 홈 정체성, Agent 회상, LLM Wiki 기억, Obsidian 노트 Vault, 공개 공유 흐름을 한 연결 계층으로 이어 둡니다.", settingsPage);
         Assert.Contains("슬로거 홈 정체성, Agent 회상, 기억, 로컬 노트, 공개 공유 흐름을 한 연결 계층으로 이어 둡니다.", settingsPage);
-        Assert.Contains("기억과 노트가 로그로 이어지는 경로", settingsPage);
+        Assert.Contains("기억과 노트가 공개 공유로 이어지는 경로", settingsPage);
         Assert.Contains("Agent는 비공개 기억을 회상하고, Obsidian은 로컬 노트를 원격 노트 Vault에 남기며", settingsPage);
         Assert.Contains("data-settings-connection-status", settingsPage);
         Assert.Contains("노트 Vault 단서", settingsPage);
@@ -671,7 +671,8 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("비공개 기억을 회상해 소유자 전용 게시전 기억으로 이어 둡니다.", settingsPage);
         Assert.Contains("판단 기준과 작업 맥락을 찾아 게시전 기억으로 이어 씁니다.", settingsPage);
         Assert.Contains("frontmatter 단서를 게시전 기억과 LLM Wiki 기억으로 이어 둡니다.", settingsPage);
-        Assert.Contains("검토된 기억과 노트를 리비전으로 공개 공유합니다.", settingsPage);
+        Assert.Contains("게시전 기억 정리", settingsPage);
+        Assert.Contains("검토된 기억과 노트를 게시전 기억으로 정리하고 필요할 때 공개 공유합니다.", settingsPage);
         Assert.Contains("이 슬로거의 비공개 기억을 회상하고", settingsComponent);
         Assert.Contains("검토 가능한 소유자 전용 게시전 기억을 만들고", settingsComponent);
         Assert.Contains("data-agent-mcp-flow-status", settingsComponent);
@@ -712,6 +713,9 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("슬로거 홈 정체성, Agent 회상, 기억, 로컬 노트, 공개 로그 흐름을 한 연결 계층으로 이어 둡니다.", settingsPage);
         Assert.DoesNotContain("Slogs 계정", settingsPage);
         Assert.DoesNotContain("프로필, Agent", settingsPage);
+        Assert.DoesNotContain("기억과 노트가 로그로 이어지는 경로", settingsPage);
+        Assert.DoesNotContain(">Slogs 로그</span>", settingsPage);
+        Assert.DoesNotContain("검토된 기억과 노트를 리비전으로 공개 공유합니다.", settingsPage);
         Assert.DoesNotContain("판단 기준과 작업 맥락을 찾습니다.", settingsPage);
         Assert.DoesNotContain("로컬 Markdown을 원격 노트 Vault에 남깁니다.", settingsPage);
         Assert.DoesNotContain("게시전 검토 후 리비전으로 공유합니다.", settingsPage);
