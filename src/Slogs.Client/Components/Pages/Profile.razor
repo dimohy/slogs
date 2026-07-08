@@ -3,8 +3,8 @@
 @inject SlogsApiClient ApiClient
 @inject NavigationManager Navigation
 
-<PageTitle>내 공개 로그</PageTitle>
-<SeoHead Title="내 공개 로그 | slogs" Description="내가 남긴 slogs 공개 로그와 소유자 전용 게시전 로그 흐름을 이어 봅니다." NoIndex="true" />
+<PageTitle>내 지식 로그 흐름</PageTitle>
+<SeoHead Title="내 지식 로그 흐름 | slogs" Description="내가 남긴 공개 공유 로그와 소유자 전용 게시전 기억 흐름을 이어 봅니다." NoIndex="true" />
 
 @if (CurrentUser is null)
 {
@@ -15,13 +15,13 @@ else
     <section class="space-y-4">
         <div class="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4">
             <div>
-                <h1 class="text-2xl font-bold text-slate-900">내 공개 로그</h1>
-                <p class="mt-1 text-sm text-slate-500">@CurrentUser.DisplayName 님이 남긴 공개 로그와 소유자 전용 게시전 로그 흐름을 이어 봅니다.</p>
+                <h1 class="text-2xl font-bold text-slate-900">내 지식 로그 흐름</h1>
+                <p class="mt-1 text-sm text-slate-500">@CurrentUser.DisplayName 님이 남긴 공개 공유 로그와 소유자 전용 게시전 기억 흐름을 이어 봅니다.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 @if (totalCount > 0)
                 {
-                    <span class="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600">@($"{totalCount}개 로그")</span>
+                    <span class="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600">@($"{totalCount}개 로그 노드")</span>
                 }
             </div>
         </div>
@@ -36,8 +36,8 @@ else
             {
                 <div class="slogs-post-list-empty grid min-h-64 place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center md:col-span-2">
                     <div class="max-w-sm">
-                        <p class="text-sm font-semibold text-slate-700">아직 공개/게시전 로그 흐름이 없습니다.</p>
-                        <p class="mt-2 text-sm leading-6 text-slate-500">생각, 작업, 판단, 검증을 먼저 게시전 로그로 남긴 뒤 필요할 때 공개 공유하세요.</p>
+                        <p class="text-sm font-semibold text-slate-700">아직 이어진 지식 로그 흐름이 없습니다.</p>
+                        <p class="mt-2 text-sm leading-6 text-slate-500">생각, 작업, 판단, 검증을 먼저 게시전 기억으로 남긴 뒤 필요할 때 공개 공유하세요.</p>
                         <div class="mt-4 flex flex-wrap justify-center gap-2">
                             <a class="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-slate-800"
                                href="/write">
@@ -69,12 +69,12 @@ else
                         <div class="flex flex-wrap items-center gap-2 text-sm text-slate-500">
                             @if (post.IsDraft)
                             {
-                                <span class="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">게시전</span>
-                                <span>수정 @FormatDate(post.UpdatedAt)</span>
+                                <span class="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">게시전 기억</span>
+                                <span>흐름 갱신 @FormatDate(post.UpdatedAt)</span>
                             }
                             else
                             {
-                                <span class="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-800">게시후</span>
+                                <span class="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-800">공개 공유</span>
                             }
                             @if (!post.IsDraft)
                             {
@@ -131,7 +131,7 @@ else
                                 IsLoading="@isLoadingMorePosts"
                                 OnLoadMore="LoadMorePostsAsync"
                                 ShowDoneText="@(allPosts.Count > PageSize)"
-                                DoneText="내 공개/게시전 로그 흐름을 모두 불러왔습니다." />
+                                DoneText="내 지식 로그 흐름을 모두 불러왔습니다." />
     </section>
 }
 
@@ -329,7 +329,7 @@ else
         => PostNavigationUrlBuilder.BuildPostUrl(post, PostNavigationUrlBuilder.PersonalMenuContext);
 
     private static string GetPostCardAriaLabel(BlogPost post)
-        => post.IsDraft ? $"{post.Title} 게시전 로그 수정" : $"{post.Title} 로그 열기";
+        => post.IsDraft ? $"{post.Title} 게시전 기억 흐름 열기" : $"{post.Title} 공개 공유 로그 노드 열기";
 
     private static bool IsPriorityCardImage(int index) => index < 2;
 

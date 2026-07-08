@@ -750,6 +750,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("isDraft: isDraft", writePost);
 
         Assert.Contains("게시전 로그 수정", editPost);
+        Assert.Contains(">게시전 기억</span>", editPost);
         Assert.Contains("게시전 저장", editPost);
         Assert.Contains("공개 공유", editPost);
         Assert.Contains("리비전 공유", editPost);
@@ -762,6 +763,8 @@ public sealed class StaticAssetIdentityTests
         {
             Assert.DoesNotContain("임시저장", authoringPage);
             Assert.DoesNotContain("게시하기", authoringPage);
+            Assert.DoesNotContain(">게시전</span>", authoringPage);
+            Assert.DoesNotContain(">게시후</span>", authoringPage);
             Assert.DoesNotContain("포스트", authoringPage);
         }
     }
@@ -850,7 +853,15 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("공개 로그, 게시전 기억, 노트 Vault 흐름이 모이는 슬로거 홈", program);
         Assert.DoesNotContain("글과 프로필", program);
 
-        Assert.Contains("소유자 전용 게시전 로그 흐름을 이어 봅니다.", profilePage);
+        Assert.Contains("내 지식 로그 흐름", profilePage);
+        Assert.Contains("공개 공유 로그와 소유자 전용 게시전 기억 흐름을 이어 봅니다.", profilePage);
+        Assert.Contains("생각, 작업, 판단, 검증을 먼저 게시전 기억으로 남긴 뒤 필요할 때 공개 공유하세요.", profilePage);
+        Assert.Contains("@($\"{totalCount}개 로그 노드\")", profilePage);
+        Assert.Contains(">게시전 기억</span>", profilePage);
+        Assert.Contains("흐름 갱신 @FormatDate(post.UpdatedAt)", profilePage);
+        Assert.Contains(">공개 공유</span>", profilePage);
+        Assert.Contains("게시전 기억 흐름 열기", profilePage);
+        Assert.Contains("공개 공유 로그 노드 열기", profilePage);
         Assert.Contains("<PostFlowSignals Post=\"post\" />", profilePage);
         Assert.Contains("게시전 로그 수정", profilePage);
         Assert.Contains("새 리비전 남기기", profilePage);
@@ -877,6 +888,11 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("삭제에 실패했습니다.", profilePage);
         Assert.DoesNotContain("로그가 삭제되었습니다.", profilePage);
         Assert.DoesNotContain("삭제 요청 중 오류가 발생했습니다", profilePage);
+        Assert.DoesNotContain("내 공개 로그", profilePage);
+        Assert.DoesNotContain(">게시전</span>", profilePage);
+        Assert.DoesNotContain(">게시후</span>", profilePage);
+        Assert.DoesNotContain("수정 @FormatDate(post.UpdatedAt)", profilePage);
+        Assert.DoesNotContain("게시전 로그로 남긴 뒤", profilePage);
         Assert.DoesNotContain("\"삭제 중...\" : \"삭제\"", postDetailsPage);
         Assert.DoesNotContain("이 로그를 정말 삭제하시겠습니까?", postDetailsPage);
         Assert.DoesNotContain("삭제 진행", postDetailsPage);
@@ -1047,7 +1063,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("GetFlowScopeLabel()", postIndexPage);
         Assert.Contains("개 공개 로그 노드", postIndexPage);
         Assert.Contains("의미 회상으로 이어진 공개 로그 흐름이 없습니다.", postIndexPage);
-        Assert.Contains("내 공개/게시전 로그 흐름을 모두 불러왔습니다.", profilePage);
+        Assert.Contains("내 지식 로그 흐름을 모두 불러왔습니다.", profilePage);
         Assert.Contains("대표로 이어 줄 공개 로그 노드가 아직 없습니다.", writerPage);
         Assert.Contains("이 슬로거의 공개 로그 스트림이 아직 비어 있습니다.", writerPage);
         Assert.Contains("이 슬로거의 공개 로그 스트림을 모두 불러왔습니다.", writerPage);
@@ -1263,7 +1279,7 @@ public sealed class StaticAssetIdentityTests
 
         Assert.Contains("case \"plus\":", icon);
 
-        Assert.Contains("아직 공개/게시전 로그 흐름이 없습니다.", profilePage);
+        Assert.Contains("아직 이어진 지식 로그 흐름이 없습니다.", profilePage);
         Assert.Contains("href=\"/write\"", profilePage);
         Assert.Contains("새 로그 남기기", profilePage);
         Assert.Contains("href=\"/me/llm-wiki/search\"", profilePage);
@@ -1509,10 +1525,12 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("기억, 로그, 단서 흐름", errorPage);
         Assert.Contains("href=\"/write\">새 로그 남기기", errorPage);
         Assert.Contains("href=\"/me/llm-wiki/search\">의미 회상", errorPage);
+        Assert.Contains("href=\"/me\">내 지식 로그", errorPage);
         Assert.Contains("흐름 추적 ID", errorPage);
         Assert.DoesNotContain("<PageTitle>오류</PageTitle>", errorPage);
         Assert.DoesNotContain("요청 처리 중 오류가 발생했습니다.", errorPage);
         Assert.DoesNotContain("href=\"/\">새 로그", errorPage);
+        Assert.DoesNotContain("내 공개 로그", errorPage);
     }
 
     private static string FindRepoFile(params string[] relativeSegments)

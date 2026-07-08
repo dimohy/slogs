@@ -14,8 +14,8 @@ public sealed class RouteIdentitySmokeTests
         {
             "로그 흐름",
             "지식 로그 홈",
-            "내 로그",
-            "내 공개 로그",
+            "내 지식 흐름",
+            "내 지식 로그",
             "비공개 기억",
             "기억 연결 가이드",
             "의미 회상",
@@ -30,6 +30,8 @@ public sealed class RouteIdentitySmokeTests
         {
             Assert.Contains(text, navMenu);
         }
+
+        Assert.DoesNotContain("내 공개 로그", navMenu);
 
         foreach (var href in new[]
         {
@@ -71,7 +73,7 @@ public sealed class RouteIdentitySmokeTests
     {
         var routes = new[]
         {
-            ("Profile.razor", "/me", "내 공개 로그"),
+            ("Profile.razor", "/me", "내 지식 로그 흐름"),
             ("MyBookmarks.razor", "/me/bookmarks", "저장 로그"),
             ("MyLikes.razor", "/me/likes", "공감 로그"),
             ("Settings.razor", "/me/settings", "연결"),
