@@ -1119,6 +1119,8 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains(">로그 흐름순</a>", writerIndexPage);
         Assert.Contains(">@@주소순</a>", writerIndexPage);
         Assert.Contains("@($\"{item.Count}개 로그\")", writerIndexPage);
+        Assert.Contains("GetSloggerHomeRecallPath(item)", writerIndexPage);
+        Assert.Contains("슬로거 홈 회상 경로: @{item.Author} -> 공개 로그 흐름", writerIndexPage);
         Assert.Contains("모든 슬로거 홈 흐름을 불러왔습니다.", writerIndexPage);
         Assert.Contains("공개 로그 흐름을 남긴 슬로거가 아직 없습니다.", writerIndexPage);
         Assert.Contains("와 이어지는 슬로거 회상 흐름이 없습니다.", writerIndexPage);
@@ -1157,6 +1159,8 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("와 이어지는 단서 회상 흐름이 없습니다.", tagIndexPage);
         Assert.Contains("FormatClueCount(allTags.Count)", tagIndexPage);
         Assert.Contains("개 단서", tagIndexPage);
+        Assert.Contains("GetClueRecallPath(item)", tagIndexPage);
+        Assert.Contains("단서 회상 경로: #{item.Tag} -> 공개 로그 흐름", tagIndexPage);
         Assert.Contains(">로그 시리즈</h1>", seriesIndexPage);
         Assert.Contains("slogs의 로그 시리즈를 회상하며 시간과 의미로 이어진 흐름을 다시 따라갑니다.", seriesIndexPage);
         Assert.Contains(">시리즈명순</a>", seriesIndexPage);
@@ -1166,6 +1170,8 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("와 이어지는 로그 시리즈 회상 흐름이 없습니다.", seriesIndexPage);
         Assert.Contains("FormatSeriesCount(allSeries.Count)", seriesIndexPage);
         Assert.Contains("개 로그 시리즈", seriesIndexPage);
+        Assert.Contains("GetSeriesRecallPath(item)", seriesIndexPage);
+        Assert.Contains("로그 시리즈 회상 경로: {item.Series} -> 공개 로그 흐름", seriesIndexPage);
         Assert.Contains("aria-label=\"단서 상세 흐름 신호\"", tagPage);
         Assert.Contains("#@Tag 단서 회상 흐름", tagPage);
         Assert.Contains("GetFlowStatusDescription()", tagPage);
