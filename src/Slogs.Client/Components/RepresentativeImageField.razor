@@ -47,7 +47,7 @@
                        @oninput="OnUrlChanged" />
             </div>
 
-            <p class="mt-2 text-xs text-slate-500">업로드한 이미지는 로그 본문 Markdown에도 포함되어야 저장됩니다. 비워두면 본문 첫 이미지가 대문 이미지가 됩니다.</p>
+            <p class="mt-2 text-xs text-slate-500">업로드한 이미지는 로그 본문 Markdown에도 포함되어야 로그 흐름에 남습니다. 비워두면 본문 첫 이미지가 대문 이미지가 됩니다.</p>
             @if (!string.IsNullOrWhiteSpace(statusMessage))
             {
                 <p class="@StatusClass">@statusMessage</p>
@@ -131,7 +131,7 @@
             }
 
             await ValueChanged.InvokeAsync(result.Url);
-            statusMessage = "대문 이미지가 업로드되었습니다. 저장하려면 로그 본문 Markdown에도 이 경로를 넣어 주세요.";
+            statusMessage = "대문 이미지가 업로드되었습니다. 로그 흐름에 남기려면 본문 Markdown에도 이 경로를 넣어 주세요.";
         }
         catch (Exception ex)
         {

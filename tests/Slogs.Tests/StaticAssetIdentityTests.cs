@@ -773,6 +773,7 @@ public sealed class StaticAssetIdentityTests
     {
         var writePost = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "WritePost.razor"));
         var editPost = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "EditPost.razor"));
+        var representativeImageField = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "RepresentativeImageField.razor"));
 
         Assert.Contains("게시전 기억 저장", writePost);
         Assert.Contains("게시전 기억으로 남길 로그 제목이나 본문을 입력해 주세요.", writePost);
@@ -793,6 +794,11 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("SaveAsync(isDraft: false)", editPost);
         Assert.Contains("post.IsDraft ? CurrentSlug : null", editPost);
         Assert.Contains("post.IsDraft ? $\"/edit/{Uri.EscapeDataString(post.Slug)}\" : GetPostUrl(post)", editPost);
+
+        Assert.Contains("업로드한 이미지는 로그 본문 Markdown에도 포함되어야 로그 흐름에 남습니다.", representativeImageField);
+        Assert.Contains("로그 흐름에 남기려면 본문 Markdown에도 이 경로를 넣어 주세요.", representativeImageField);
+        Assert.DoesNotContain("업로드한 이미지는 로그 본문 Markdown에도 포함되어야 저장됩니다.", representativeImageField);
+        Assert.DoesNotContain("저장하려면 로그 본문 Markdown에도 이 경로를 넣어 주세요.", representativeImageField);
 
         foreach (var authoringPage in new[] { writePost, editPost })
         {
