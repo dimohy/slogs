@@ -1097,12 +1097,22 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("리비전 흐름 v", postDetailsPage);
         Assert.Contains("개 연결 로그", postDetailsPage);
         Assert.Contains("흐름 갱신 @FormatDateTime(post.UpdatedAt)", postDetailsPage);
+        Assert.Contains("연결 로그 흐름 보기", postDetailsPage);
+        Assert.Contains("앞선 흐름 이동", postDetailsPage);
+        Assert.Contains("다음 흐름 이동", postDetailsPage);
+        Assert.Contains(">연결 로그 흐름</h3>", postDetailsPage);
+        Assert.Contains("연결 로그 흐름 열기", postDetailsPage);
+        Assert.Contains("아직 이어진 연결 로그 흐름이 없습니다.", postDetailsPage);
         Assert.Contains("PostRecallPath Post=\"item\"", postDetailsPage);
         Assert.Contains("연결 로그 회상 경로", postDetailsPage);
         Assert.Contains("PostRecallPath Post=\"previousPost\"", postDetailsPage);
-        Assert.Contains("이전 로그 회상 경로", postDetailsPage);
+        Assert.Contains("앞선 흐름 회상 경로", postDetailsPage);
+        Assert.Contains(">앞선 흐름</p>", postDetailsPage);
+        Assert.Contains("앞선 흐름이 없습니다.", postDetailsPage);
         Assert.Contains("PostRecallPath Post=\"nextPost\"", postDetailsPage);
-        Assert.Contains("다음 로그 회상 경로", postDetailsPage);
+        Assert.Contains("다음 흐름 회상 경로", postDetailsPage);
+        Assert.Contains(">다음 흐름</p>", postDetailsPage);
+        Assert.Contains("다음 흐름이 없습니다.", postDetailsPage);
         Assert.Contains("post-detail-linked-card__recall-path", postDetailsPage);
 
         Assert.Contains(".post-detail-flowline", appCss);
@@ -1116,6 +1126,14 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("SeoMetadata.ArticleJsonLd", postDetailsPage);
         Assert.DoesNotContain("Type=\"article\"", postDetailsPage);
         Assert.DoesNotContain("관련 글", postDetailsPage);
+        Assert.DoesNotContain(">연결된 로그</h3>", postDetailsPage);
+        Assert.DoesNotContain("연결된 로그가 없습니다.", postDetailsPage);
+        Assert.DoesNotContain("이전 로그 이동", postDetailsPage);
+        Assert.DoesNotContain("다음 로그 이동", postDetailsPage);
+        Assert.DoesNotContain(">이전 로그</p>", postDetailsPage);
+        Assert.DoesNotContain(">다음 로그</p>", postDetailsPage);
+        Assert.DoesNotContain("이전 로그가 없습니다.", postDetailsPage);
+        Assert.DoesNotContain("다음 로그가 없습니다.", postDetailsPage);
         Assert.DoesNotContain("수정 @FormatDateTime(post.UpdatedAt)", postDetailsPage);
     }
 
