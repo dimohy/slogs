@@ -13,8 +13,8 @@
 }
 else
 {
-    <SeoHead Title="@($"{post.Title} | slogs")"
-             Description="@post.Summary"
+    <SeoHead Title="@GetPostSeoTitle(post)"
+             Description="@GetPostSeoDescription(post)"
              CanonicalPath="@GetPostUrl(post)"
              ImageUrl="@GetPostSeoImageUrl(post)"
              Author="@post.Author"
@@ -1396,6 +1396,25 @@ else
 
         return MarkdownRenderer.FindFirstImage(targetPost.Body)?.Url;
     }
+
+    private static string GetPostSeoTitle(BlogPost targetPost)
+    {
+        var nodeState = targetPost.IsDraft ? "게시전 지식 로그 노드" : "공개 지식 로그 노드";
+        return $"{targetPost.Title} {nodeState} | slogs";
+    }
+
+    private string GetPostSeoDescription(BlogPost targetPost)
+    {
+        var nodeState = targetPost.IsDraft ? "소유자 전용 게시전 기억" : "공개 지식 로그 노드";
+        var summary = string.IsNullOrWhiteSpace(targetPost.Summary)
+            ? "생각, 작업, 판단, 검증 흐름을 이어 둡니다."
+            : targetPost.Summary.Trim();
+        var latestRevisionNumber = GetLatestRevisionNumber();
+
+        return $"{nodeState}: {summary} {FormatUserName(targetPost.Author)}의 {GetPrimaryClueSignal(targetPost)}, {GetPrimarySeriesSignal(targetPost)}, {GetRevisionFlowSignal(targetPost, latestRevisionNumber)}로 이어집니다.";
+    }
+
+    private int GetLatestRevisionNumber() => revisions.Count > 0 ? revisions.Max(x => x.RevisionNumber) : 1;
 
     private string GetCurrentCanonicalPath() => new Uri(Navigation.Uri).AbsolutePath;
 

@@ -1382,6 +1382,12 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("GetLinkedLogFlowSignal()", postDetailsPage);
         Assert.Contains("GetAdjacentFlowSignal()", postDetailsPage);
         Assert.Contains("FormatConversationTraceSignal(post.CommentCount)", postDetailsPage);
+        Assert.Contains("Title=\"@GetPostSeoTitle(post)\"", postDetailsPage);
+        Assert.Contains("Description=\"@GetPostSeoDescription(post)\"", postDetailsPage);
+        Assert.Contains("게시전 지식 로그 노드", postDetailsPage);
+        Assert.Contains("return $\"{targetPost.Title} {nodeState} | slogs\";", postDetailsPage);
+        Assert.Contains("소유자 전용 게시전 기억", postDetailsPage);
+        Assert.Contains("return $\"{nodeState}: {summary}", postDetailsPage);
         Assert.Contains("SeoMetadata.PublicLogNodeJsonLd", postDetailsPage);
         Assert.Contains("본문과 대화 흔적은", postDetailsPage);
         Assert.Contains("이어진 지식 로그 노드입니다.", postDetailsPage);
@@ -1422,6 +1428,8 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("post-detail-article-summary-card", postDetailsPage);
         Assert.DoesNotContain("SeoMetadata.ArticleJsonLd", postDetailsPage);
         Assert.DoesNotContain("Type=\"article\"", postDetailsPage);
+        Assert.DoesNotContain("Title=\"@($\"{post.Title} | slogs\")\"", postDetailsPage);
+        Assert.DoesNotContain("Description=\"@post.Summary\"", postDetailsPage);
         Assert.DoesNotContain("관련 글", postDetailsPage);
         Assert.DoesNotContain(">연결된 로그</h3>", postDetailsPage);
         Assert.DoesNotContain("연결된 로그가 없습니다.", postDetailsPage);
