@@ -1695,12 +1695,14 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("관계 흐름을 보려면 지식 로그 홈으로 돌아가야 합니다.", homePage);
         Assert.Contains("아직 관계로 이어진 슬로거 홈이 없습니다.", homePage);
         Assert.Contains("아직 관계로 이어진 슬로거 홈의 공개 흐름이 없습니다.", homePage);
+        Assert.Contains("슬로거 홈 흐름 회상", homePage);
         Assert.Contains("관계 흐름에서", homePage);
         Assert.Contains("관계로 이어진 로그 흐름", homePage);
         Assert.Contains("관계로 이어진 슬로거 홈의 공개 로그 흐름", homePage);
         Assert.DoesNotContain("이어 둔 로그 흐름은 로그인 후 이용 가능합니다.", homePage);
         Assert.DoesNotContain(">이어 둔 로그</a>", homePage);
         Assert.DoesNotContain("이어 둔 로그 흐름에서", homePage);
+        Assert.DoesNotContain("슬로거 찾아보기", homePage);
         Assert.DoesNotContain(">팔로우 로그</a>", homePage);
         Assert.DoesNotContain("팔로우 로그 스트림", homePage);
         Assert.DoesNotContain("팔로우한 슬로거", homePage);
