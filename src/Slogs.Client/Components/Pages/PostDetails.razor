@@ -921,7 +921,7 @@ else
         message = string.Empty;
         if (CurrentUser is null)
         {
-            message = "공감은 로그인 후 이용 가능합니다.";
+            message = "공감 신호는 로그인 후 남길 수 있습니다.";
             NavigateToLogin();
             return;
         }
@@ -934,13 +934,13 @@ else
 
         if (post.IsDraft)
         {
-            message = "게시전 로그는 공개 후 공감을 사용할 수 있습니다.";
+            message = "게시전 로그는 공개 후 공감 신호를 남길 수 있습니다.";
             return;
         }
 
         if (isLikeBusy)
         {
-            message = "공감이 처리 중입니다. 잠시 후 다시 시도해 주세요.";
+            message = "공감 신호가 처리 중입니다. 잠시 후 다시 시도해 주세요.";
             return;
         }
 
@@ -951,13 +951,13 @@ else
             var newLiked = await ApiClient.ToggleLikeAsync(Slug, CurrentUserName);
             if (wasLiked == newLiked)
             {
-                message = "공감을 반영할 수 없습니다. 잠시 후 다시 시도해 주세요.";
+                message = "공감 신호를 반영할 수 없습니다. 잠시 후 다시 시도해 주세요.";
                 return;
             }
 
             message = wasLiked
-                ? "공감이 취소되었습니다."
-                : "공감이 추가되었습니다.";
+                ? "공감 신호 흐름에서 해제되었습니다."
+                : "공감 신호 흐름에 추가되었습니다.";
             await RefreshPostAsync();
         }
         finally
@@ -974,7 +974,7 @@ else
         message = string.Empty;
         if (CurrentUser is null)
         {
-            message = "저장은 로그인 후 이용 가능합니다.";
+            message = "저장 회상은 로그인 후 사용할 수 있습니다.";
             NavigateToLogin();
             return;
         }
@@ -987,13 +987,13 @@ else
 
         if (post.IsDraft)
         {
-            message = "게시전 로그는 공개 후 저장할 수 있습니다.";
+            message = "게시전 로그는 공개 후 저장 회상에 추가할 수 있습니다.";
             return;
         }
 
         if (isBookmarkBusy)
         {
-            message = "저장이 처리 중입니다. 잠시 후 다시 시도해 주세요.";
+            message = "저장 회상이 처리 중입니다. 잠시 후 다시 시도해 주세요.";
             return;
         }
 
@@ -1004,13 +1004,13 @@ else
             var newBookmarkState = await ApiClient.ToggleBookmarkAsync(Slug, CurrentUserName);
             if (wasBookmarked == newBookmarkState)
             {
-                message = "저장을 반영할 수 없습니다. 잠시 후 다시 시도해 주세요.";
+                message = "저장 회상을 반영할 수 없습니다. 잠시 후 다시 시도해 주세요.";
                 return;
             }
 
             message = wasBookmarked
-                ? "저장이 해제되었습니다."
-                : "저장되었습니다.";
+                ? "저장 회상 흐름에서 해제되었습니다."
+                : "저장 회상 흐름에 추가되었습니다.";
             await RefreshPostAsync();
         }
         finally

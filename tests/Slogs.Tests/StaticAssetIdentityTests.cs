@@ -918,7 +918,7 @@ public sealed class StaticAssetIdentityTests
 
         Assert.Contains("FormatRecallAccessCount(Post.ViewCount)", postMetaLine);
         Assert.Contains("title=\"회상 접근\"", postMetaLine);
-        Assert.Contains("회상 접근, 대화 흔적, 공감으로 다시 이어지는 공개 로그", homePage);
+        Assert.Contains("회상 접근, 대화 흔적, 공감 신호로 다시 이어지는 공개 로그", homePage);
         Assert.Contains("FormatRecallAccessCount(post.ViewCount)", postDetailsPage);
         Assert.Contains("FormatRecallAccessCount(post.ViewCount)", profilePage);
         Assert.Contains("회상 접근", writerPage);
@@ -927,7 +927,48 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("<span>@post.ViewCount</span>", postDetailsPage);
         Assert.DoesNotContain("<span>@post.ViewCount</span>", profilePage);
         Assert.DoesNotContain("조회, 대화 흔적, 공감", homePage);
+        Assert.DoesNotContain("회상 접근, 대화 흔적, 공감으로", homePage);
         Assert.DoesNotContain("회상 진입", writerPage);
+    }
+
+    [Fact]
+    public void PublicLogActionsUseResonanceAndSavedRecallLanguage()
+    {
+        var postActionBar = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "PostActionBar.razor"));
+        var postDetailsPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "PostDetails.razor"));
+
+        Assert.Contains("title=\"공감 신호\"", postActionBar);
+        Assert.Contains("<span class=\"sr-only\">공감 신호</span>", postActionBar);
+        Assert.Contains("공감 신호 남기기, 현재 {Post.LikeCount}개", postActionBar);
+        Assert.Contains("공감 신호 해제, 현재 {Post.LikeCount}개", postActionBar);
+        Assert.Contains("title=\"저장 회상\"", postActionBar);
+        Assert.Contains("<span class=\"sr-only\">저장 회상</span>", postActionBar);
+        Assert.Contains("저장 회상에 추가", postActionBar);
+        Assert.Contains("저장 회상 해제", postActionBar);
+
+        Assert.Contains("공감 신호는 로그인 후 남길 수 있습니다.", postDetailsPage);
+        Assert.Contains("게시전 로그는 공개 후 공감 신호를 남길 수 있습니다.", postDetailsPage);
+        Assert.Contains("공감 신호가 처리 중입니다.", postDetailsPage);
+        Assert.Contains("공감 신호 흐름에서 해제되었습니다.", postDetailsPage);
+        Assert.Contains("공감 신호 흐름에 추가되었습니다.", postDetailsPage);
+        Assert.Contains("저장 회상은 로그인 후 사용할 수 있습니다.", postDetailsPage);
+        Assert.Contains("게시전 로그는 공개 후 저장 회상에 추가할 수 있습니다.", postDetailsPage);
+        Assert.Contains("저장 회상이 처리 중입니다.", postDetailsPage);
+        Assert.Contains("저장 회상 흐름에서 해제되었습니다.", postDetailsPage);
+        Assert.Contains("저장 회상 흐름에 추가되었습니다.", postDetailsPage);
+
+        Assert.DoesNotContain("title=\"공감\"", postActionBar);
+        Assert.DoesNotContain("<span class=\"sr-only\">공감</span>", postActionBar);
+        Assert.DoesNotContain("공감 취소", postActionBar);
+        Assert.DoesNotContain("=> IsBookmarked ? \"저장 해제\" : \"저장\"", postActionBar);
+        Assert.DoesNotContain("title=\"저장\"", postActionBar);
+        Assert.DoesNotContain("<span class=\"sr-only\">저장</span>", postActionBar);
+        Assert.DoesNotContain("공감은 로그인 후 이용 가능합니다.", postDetailsPage);
+        Assert.DoesNotContain("공감이 취소되었습니다.", postDetailsPage);
+        Assert.DoesNotContain("공감이 추가되었습니다.", postDetailsPage);
+        Assert.DoesNotContain("저장은 로그인 후 이용 가능합니다.", postDetailsPage);
+        Assert.DoesNotContain("저장이 해제되었습니다.", postDetailsPage);
+        Assert.DoesNotContain("저장되었습니다.", postDetailsPage);
     }
 
     [Fact]

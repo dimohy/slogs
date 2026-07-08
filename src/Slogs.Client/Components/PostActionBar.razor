@@ -1,22 +1,22 @@
 <div class="@Class">
     <button class="@GetActionClass(IsLiked)"
-            title="공감"
+            title="공감 신호"
             aria-label="@GetLikeLabel()"
             disabled="@IsLikeBusy"
             type="button"
             @onclick="ToggleLikeAsync">
         <SlogsIcon Name="heart" Filled="@IsLiked" Class="h-4 w-4" />
         <span class="min-w-4 text-center tabular-nums">@Post.LikeCount</span>
-        <span class="sr-only">공감</span>
+        <span class="sr-only">공감 신호</span>
     </button>
     <button class="@GetActionClass(IsBookmarked)"
-            title="저장"
+            title="저장 회상"
             aria-label="@GetBookmarkLabel()"
             disabled="@IsBookmarkBusy"
             type="button"
             @onclick="ToggleBookmarkAsync">
         <SlogsIcon Name="bookmark" Filled="@IsBookmarked" Class="h-4 w-4" />
-        <span class="sr-only">저장</span>
+        <span class="sr-only">저장 회상</span>
     </button>
     <a class="@GetLinkClass()"
        title="대화 흔적"
@@ -54,10 +54,10 @@
     private Task ToggleBookmarkAsync() => OnToggleBookmark.InvokeAsync(Post.Slug);
 
     private string GetLikeLabel()
-        => IsLiked ? $"공감 취소, 현재 {Post.LikeCount}개" : $"공감, 현재 {Post.LikeCount}개";
+        => IsLiked ? $"공감 신호 해제, 현재 {Post.LikeCount}개" : $"공감 신호 남기기, 현재 {Post.LikeCount}개";
 
     private string GetBookmarkLabel()
-        => IsBookmarked ? "저장 해제" : "저장";
+        => IsBookmarked ? "저장 회상 해제" : "저장 회상에 추가";
 
     private static string GetActionClass(bool active)
     {
