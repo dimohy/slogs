@@ -210,7 +210,12 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("수정할 수 있는 Slogs 로그를 찾지 못했습니다.", postMcpTools);
         Assert.Contains("Saves a Markdown Slogs log as owner-only pre-publish memory before public sharing", postMcpTools);
         Assert.Contains("Pre-publish memories are visible only to the owner", postMcpTools);
+        Assert.Contains("Optional owned owner-only pre-publish memory slug to update", postMcpTools);
+        Assert.Contains("Owner-only pre-publish memory title", postMcpTools);
         Assert.Contains("Share a Markdown Slogs log as a public-sharing node", postMcpTools);
+        Assert.Contains("Optional owner-only pre-publish memory or public-sharing node slug", postMcpTools);
+        Assert.Contains("Public-sharing node title", postMcpTools);
+        Assert.Contains("Slogs log-node content", postMcpTools);
         Assert.Contains("Remove an owned Slogs log flow by slug.", postMcpTools);
         Assert.Contains("Owned Slogs log slug to remove.", postMcpTools);
         Assert.Contains("confirm public sharing before calling this", postMcpTools);
@@ -238,6 +243,12 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("publish publicly", postMcpTools);
         Assert.DoesNotContain("publicly publish", postMcpTools);
         Assert.DoesNotContain("Slogs post MCP call", postMcpTools);
+        Assert.DoesNotContain("Optional owned pre-publish log slug", postMcpTools);
+        Assert.DoesNotContain("create a new pre-publish log", postMcpTools);
+        Assert.DoesNotContain("Pre-publish log title", postMcpTools);
+        Assert.DoesNotContain("Optional owned pre-publish or public log slug", postMcpTools);
+        Assert.DoesNotContain("Public log title", postMcpTools);
+        Assert.DoesNotContain("Slogs log content", postMcpTools);
         Assert.DoesNotContain("Slogs 게시에는 제목", postMcpTools);
         Assert.DoesNotContain("Slogs 게시에는 Markdown", postMcpTools);
         Assert.DoesNotContain("Slogs 로그 삭제에 실패했습니다.", postMcpTools);

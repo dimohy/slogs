@@ -34,10 +34,10 @@ public sealed class SlogsPostMcpTools(
     [McpServerTool(Name = "slogs_post_save_draft")]
     [Description("Default tool for creating or uploading Slogs knowledge-log flow from an agent. Saves a Markdown Slogs log as owner-only pre-publish memory before public sharing. Pre-publish memories are visible only to the owner and are not publicly listed. Prefer this over slogs_post_publish unless the user explicitly asks to share publicly. If slug is provided, the owned pre-publish memory is updated and kept owner-only.")]
     public async Task<string> SaveDraftAsync(
-        [Description("Optional owned pre-publish log slug to update. Omit to create a new pre-publish log.")] string? slug = null,
-        [Description("Optional URL slug for a new or pre-publish log. Korean is supported. If omitted, Slogs derives it from the title.")] string? customSlug = null,
-        [Description("Pre-publish log title. Required when creating a pre-publish log unless markdown is provided.")] string? title = null,
-        [Description("Markdown body. Required when creating a pre-publish log unless title is provided. For local or generated images, call slogs_post_upload_image first and use the returned /uploads URL in Markdown. Uploaded images not included in this Markdown are deleted as unused on save.")] string? markdown = null,
+        [Description("Optional owned owner-only pre-publish memory slug to update. Omit to create a new owner-only pre-publish memory.")] string? slug = null,
+        [Description("Optional URL slug for a new owner-only pre-publish memory. Korean is supported. If omitted, Slogs derives it from the title.")] string? customSlug = null,
+        [Description("Owner-only pre-publish memory title. Required when creating pre-publish memory unless markdown is provided.")] string? title = null,
+        [Description("Markdown body. Required when creating owner-only pre-publish memory unless title is provided. For local or generated images, call slogs_post_upload_image first and use the returned /uploads URL in Markdown. Uploaded images not included in this Markdown are deleted as unused on save.")] string? markdown = null,
         [Description("Optional log summary. If omitted on create, Slogs derives a short summary from the Markdown body.")] string? summary = null,
         [Description("Optional comma-separated tags. Slogs keeps up to five tags. Leave empty for no tags.")] string? tags = null,
         [Description("Optional series name.")] string? series = null,
@@ -74,7 +74,7 @@ public sealed class SlogsPostMcpTools(
     [Description("Update an owned owner-only pre-publish Markdown Slogs log, or share a new revision when the log is already a public-sharing node.")]
     public async Task<string> UpdateAsync(
         [Description("Owned Slogs log slug to update.")] string slug,
-        [Description("Optional URL slug for an owned pre-publish log. Korean is supported. Ignored for already public logs so public URLs stay stable.")] string? customSlug = null,
+        [Description("Optional URL slug for owned owner-only pre-publish memory. Korean is supported. Ignored for public-sharing nodes so public URLs stay stable.")] string? customSlug = null,
         [Description("Optional replacement title. Omitted fields keep their current values.")] string? title = null,
         [Description("Optional replacement Markdown body. Omitted fields keep their current values. For local or generated images, call slogs_post_upload_image first and use the returned /uploads URL in Markdown. Uploaded images removed from this Markdown are deleted as unused on update.")] string? markdown = null,
         [Description("Optional replacement summary. Omitted fields keep their current values.")] string? summary = null,
@@ -91,10 +91,10 @@ public sealed class SlogsPostMcpTools(
     [McpServerTool(Name = "slogs_post_publish")]
     [Description("Share a Markdown Slogs log as a public-sharing node for the authenticated user. Use this only when the user explicitly asks to share publicly; otherwise default to slogs_post_save_draft and confirm public sharing before calling this. If slug is owner-only pre-publish memory, share it as a public-sharing node. If slug is already public, create a new revision. If slug is omitted, create and publicly share a new Slogs log. This creates normal public Slogs log nodes, not LLM Wiki memories.")]
     public async Task<string> PublishAsync(
-        [Description("Optional owned pre-publish or public log slug. Omit to create and publicly share a new log.")] string? slug = null,
-        [Description("Optional URL slug for a new log or an owned pre-publish log being shared publicly. Korean is supported. Ignored for already public logs so public URLs stay stable.")] string? customSlug = null,
-        [Description("Public log title. Required when slug is omitted. Optional replacement when slug is provided.")] string? title = null,
-        [Description("Markdown body to share as Slogs log content. Required when slug is omitted. Optional replacement when slug is provided. For local or generated images, call slogs_post_upload_image first and use the returned /uploads URL in Markdown. Uploaded images not included in this Markdown are deleted as unused on public sharing.")] string? markdown = null,
+        [Description("Optional owner-only pre-publish memory or public-sharing node slug. Omit to create and publicly share a new log node.")] string? slug = null,
+        [Description("Optional URL slug for a new log node or owned pre-publish memory being shared publicly. Korean is supported. Ignored for existing public-sharing nodes so public URLs stay stable.")] string? customSlug = null,
+        [Description("Public-sharing node title. Required when slug is omitted. Optional replacement when slug is provided.")] string? title = null,
+        [Description("Markdown body to share as Slogs log-node content. Required when slug is omitted. Optional replacement when slug is provided. For local or generated images, call slogs_post_upload_image first and use the returned /uploads URL in Markdown. Uploaded images not included in this Markdown are deleted as unused on public sharing.")] string? markdown = null,
         [Description("Optional log summary. If omitted on create, Slogs derives a short summary from the Markdown body.")] string? summary = null,
         [Description("Optional comma-separated tags. Slogs keeps up to five tags. Leave empty for no tags.")] string? tags = null,
         [Description("Optional series name.")] string? series = null,
