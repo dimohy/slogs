@@ -875,6 +875,8 @@ public sealed class StaticAssetIdentityTests
 
         Assert.Contains("게시전 기억 저장", writePost);
         Assert.Contains("게시전 기억으로 남길 로그 제목이나 본문을 입력해 주세요.", writePost);
+        Assert.Contains("공개 공유에는 로그 제목과 본문 흐름이 필요합니다.", writePost);
+        Assert.Contains("공개 공유 중...", writePost);
         Assert.Contains("공개 공유", writePost);
         Assert.Contains("SaveDraft", writePost);
         Assert.Contains("SaveAsync(isDraft: true)", writePost);
@@ -887,6 +889,11 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("게시전 기억 저장", editPost);
         Assert.Contains("정리할 수 있는 로그 흐름 노드를 찾지 못했습니다.", editPost);
         Assert.Contains("이 로그 흐름을 정리할 수 있는 연결 권한이 없습니다.", editPost);
+        Assert.Contains("공개 공유에는 로그 제목과 본문 흐름이 필요합니다.", editPost);
+        Assert.Contains("리비전 공유에는 로그 제목과 본문 흐름이 필요합니다.", editPost);
+        Assert.Contains("게시전 기억을 정리할 연결 권한이 없거나 로그 흐름이 존재하지 않습니다.", editPost);
+        Assert.Contains("리비전을 공유할 연결 권한이 없거나 로그 흐름이 존재하지 않습니다.", editPost);
+        Assert.Contains("공개 공유 중...", editPost);
         Assert.Contains("공개 공유", editPost);
         Assert.Contains("리비전 공유", editPost);
         Assert.Contains("SaveAsync(isDraft: true)", editPost);
@@ -912,6 +919,10 @@ public sealed class StaticAssetIdentityTests
             Assert.DoesNotContain("정리할 로그 흐름을 찾지 못했습니다.", authoringPage);
             Assert.DoesNotContain(">권한이 없습니다.</p>", authoringPage);
             Assert.DoesNotContain("게시전 로그 저장에 실패", authoringPage);
+            Assert.DoesNotContain("? \"공유 중...\" : \"공개 공유\"", authoringPage);
+            Assert.DoesNotContain("로그 제목과 본문은 필수입니다.", authoringPage);
+            Assert.DoesNotContain("수정 권한이 없거나 로그가 존재하지 않습니다.", authoringPage);
+            Assert.DoesNotContain("리비전을 공유할 권한이 없거나 로그가 존재하지 않습니다.", authoringPage);
             Assert.DoesNotContain("포스트", authoringPage);
         }
     }
