@@ -73,6 +73,7 @@ public sealed class StaticAssetIdentityTests
     {
         var apiClient = File.ReadAllText(FindRepoFile("src", "Slogs.Shared", "Data", "SlogsApiClient.cs"));
         var postMcpTools = File.ReadAllText(FindRepoFile("src", "Slogs", "Data", "SlogsPostMcpTools.cs"));
+        var llmWikiMcpTools = File.ReadAllText(FindRepoFile("src", "Slogs", "Data", "LlmWikiMcpTools.cs"));
         var llmWikiService = File.ReadAllText(FindRepoFile("src", "Slogs", "Data", "LlmWikiService.cs"));
 
         Assert.DoesNotContain("게시글 생성", apiClient);
@@ -119,6 +120,9 @@ public sealed class StaticAssetIdentityTests
 
         Assert.DoesNotContain("검색어가 필요", llmWikiService);
         Assert.Contains("회상어가 필요합니다.", llmWikiService);
+
+        Assert.Contains("공개 기억 회상에는 @dimohy 같은 대상 슬로거 @name이 필요합니다.", llmWikiMcpTools);
+        Assert.DoesNotContain("Public LLM Wiki 조회에는", llmWikiMcpTools);
     }
 
     [Fact]

@@ -2,7 +2,7 @@ namespace Slogs.Data;
 
 public static class SlogsMcpPolicyPrompt
 {
-    public const string Version = "2026.07.08.1";
+    public const string Version = "2026.07.08.2";
     public const string McpPath = "/mcp";
     public const string PublicPath = "/prompts/slogs-mcp.md";
     public const string KoreanPublicPath = "/prompts/slogs-mcp.ko.md";
@@ -16,15 +16,15 @@ public static class SlogsMcpPolicyPrompt
     public const string DefaultVersionUrl = $"{DefaultPublicBaseUrl}{VersionPath}";
 
     public const string KoreanAgentsPolicyBlock = """
-        - 이전 결정, 선호, 판단 기준, 프로젝트 맥락, 작업 기억이 관련될 수 있으면 Slogs LLM Wiki를 먼저 조회한다. 단순 현재 시각, 간단 번역, 일회성 명령은 예외로 둘 수 있다.
+        - 이전 결정, 선호, 판단 기준, 프로젝트 맥락, 작업 기억이 관련될 수 있으면 Slogs LLM Wiki를 먼저 회상한다. 단순 현재 시각, 간단 번역, 일회성 명령은 예외로 둘 수 있다.
         - 후보 선별, 넓은 주제, 카테고리 필터링에는 `llm_wiki_search`를 작게 사용한다. 답변이나 구현에 바로 적용할 문맥은 `llm_wiki_recall`을 작은 limit으로 사용한다. 전체 원문이나 Raw Provenance가 필요할 때만 결과 id를 골라 `llm_wiki_read`를 호출한다.
-        - `recall`, `search`, `find_related`, `capture`의 Retrieval Diagnostics에서 결과 수, effectiveLimit, categoryPath, minRelevancePercent, elapsedMs를 확인한다. 결과가 엉뚱하거나 누락, 과다, 지연이면 query/categoryPath/limit/minRelevancePercent를 좁혀 다시 조회하고, 판단에 영향이 있으면 최종 답변에 짧게 밝힌다.
+        - `recall`, `search`, `find_related`, `capture`의 Retrieval Diagnostics에서 결과 수, effectiveLimit, categoryPath, minRelevancePercent, elapsedMs를 확인한다. 결과가 엉뚱하거나 누락, 과다, 지연이면 query/categoryPath/limit/minRelevancePercent를 좁혀 다시 회상하고, 판단에 영향이 있으면 최종 답변에 짧게 밝힌다.
         - 저장 전에는 `llm_wiki_instructions`를 확인하고 `llm_wiki_capture` 또는 `llm_wiki_find_related`로 관련 항목을 찾는다. 관련 항목이 있으면 `llm_wiki_read` 후 최종 문구를 작성해 `llm_wiki_merge` 또는 `llm_wiki_update`를 사용하고, 관련 항목이 없을 때만 `llm_wiki_remember`를 사용한다.
         - 사용자가 매번 기억 여부를 말하지 않아도 장기적으로 문서화, 자동화, 재현, 의사결정에 다시 쓸 수 있는 암묵지는 저장 후보로 조용히 점검한다. 사용자 정정 용어, 판단 기준, 반복 워크플로, 운영 규칙, 검증된 원인/결정, 재시작 지점, 코드만 보고 알기 어려운 전제조건이 대표 예다.
         - 대화가 사용자가 원치 않는 방향으로 전개되어 사용자가 정정/조정 프롬프트를 입력하면 이를 의도 보정 신호로 본다. 저장할 때는 정정 원문만 남기지 말고, 원치 않았던 전개, 사용자가 원한 방향, 다음 Agent가 피해야 할 패턴, 선제적으로 따를 판단 기준, 적용 범위를 구조화한다.
         - 기억을 병합하거나 갱신하더라도 기존 Raw Provenance를 임의로 삭제하거나 요약본만 남기지 않는다. 현재 Content/Source Prompt는 읽기 좋은 통합 기억이고, 원래 저장/merge/update 요청의 raw prompt/content/title/tags/categoryPath는 감사 가능한 근거로 보존되어야 한다.
         - 민감 정보, API 키, 비밀번호, 토큰, 일회성 로그, 임시 실행 내역, 검증되지 않은 추측, 현재 파일에서 쉽게 다시 알 수 있는 단순 사실, 이번 턴에만 의미 있는 중간 상태는 저장하지 않는다.
-        - LLM Wiki 기억은 기본 비공개다. 사용자가 본인의 특정 주제를 명시적으로 공개하라고 요청한 경우에만 `llm_wiki_make_public`으로 관련 기억을 공개한다. 공개 기억 조회는 `llm_wiki_public_list/search/read/recall` 결과에 한정해 답하고, public 도구가 반환하지 않은 민감 정보는 추측하거나 private 조회로 대체하지 않는다.
+        - LLM Wiki 기억은 기본 비공개다. 사용자가 본인의 특정 주제를 명시적으로 공개하라고 요청한 경우에만 `llm_wiki_make_public`으로 관련 기억을 공개한다. 공개 기억 회상은 `llm_wiki_public_list/search/read/recall` 결과에 한정해 답하고, public 도구가 반환하지 않은 민감 정보는 추측하거나 private 회상으로 대체하지 않는다.
         - 질문에 `@username`이 나오고 공개 LLM Wiki 기억이 맥락이면 이를 Slogs 사용자 핸들로 해석해 public 도구의 `ownerUserName`에 전달하고, 나머지 주제어를 query로 사용한다. 결과가 없으면 공개된 기억이 없다고 답한다.
         - 기억을 저장, 병합, 갱신할 때는 프로젝트/영역/주제가 알려진 경우 2-4단계 소문자 slash-separated `categoryPath`를 명시한다. 예: `slogs/llm-wiki/graphrag`, `slogs/deployment/wasm-aot`, `preference/coding-policy/slogs`, `codex/mcp/slogs`.
         - Slogs 슬로그(공개 지식 로그) 작성이나 업로드 요청은 기본적으로 `slogs_post_save_draft`로 게시전(소유자 전용, 공개 미노출) 상태로 저장한다. 사용자가 공개 공유를 명시적으로 요청한 경우에만 `slogs_post_publish`를 사용하고, 호출 전에 공개 공유 여부를 확인한다. `slogs_post_*`는 LLM Wiki 기억이 아니라 일반 Slogs 로그를 다룬다.
@@ -39,7 +39,7 @@ public static class SlogsMcpPolicyPrompt
         - When a conversation develops in a direction the user did not want and the user enters a correction or adjustment prompt, treat it as an intent-correction signal. Do not store only the raw correction text; structure the memory around the unwanted development, the direction the user wanted, patterns the next Agent should avoid, judgment criteria to apply proactively, and the scope where it applies.
         - When refining, merging, or updating memory, do not delete prior Raw Provenance or leave only a summary. The current Content/Source Prompt is the readable consolidated memory; raw prompt/content/title/tags/categoryPath from remember/merge/update requests must remain auditable.
         - Do not store secrets, API keys, passwords, tokens, one-time logs, temporary execution traces, unverified speculation, simple facts easily recovered from current files, or intermediate state that only matters during the current turn.
-        - LLM Wiki memories are private by default. Only when the user explicitly asks to share a specific topic from their own LLM Wiki memory may `llm_wiki_make_public` be used. Answer public-memory questions only from `llm_wiki_public_list/search/read/recall`; do not infer sensitive information missing from public results and do not substitute private lookup results.
+        - LLM Wiki memories are private by default. Only when the user explicitly asks to share a specific topic from their own LLM Wiki memory may `llm_wiki_make_public` be used. Answer public-memory recall questions only from `llm_wiki_public_list/search/read/recall`; do not infer sensitive information missing from public results and do not substitute private recall results.
         - If a question contains `@username` and asks about public LLM Wiki context, treat it as a Slogs handle, pass it as `ownerUserName`, and use the remaining topic words as the query. If public tools return no results, say no public information was found.
         - When creating, merging, or updating memory, provide a 2-4 segment lowercase slash-separated `categoryPath` whenever the project/domain/topic is known. Examples: `slogs/llm-wiki/graphrag`, `slogs/deployment/wasm-aot`, `preference/coding-policy/slogs`, `codex/mcp/slogs`.
         - Treat Slogs public knowledge-log authoring or upload requests as draft-first: save with `slogs_post_save_draft` as a pre-publish, owner-only log that is not publicly listed. Use `slogs_post_publish` only when the user explicitly asks to share publicly, and confirm public sharing before calling it. `slogs_post_*` tools manage normal Slogs logs, not LLM Wiki memories.
@@ -58,7 +58,7 @@ public static class SlogsMcpPolicyPrompt
         Version URL: {{DefaultVersionUrl}}
         Prompt Version: {{Version}}
 
-        이 문서는 Agent 지속 지침에 설치하는 Slogs MCP/LLM Wiki compact 정책이다. 기능을 줄이지 않기 위해 설치, 동기화, 도구 노출, 조회, 저장, 공개 기억, categoryPath 규칙을 모두 유지하되 런타임에 필요한 문장만 둔다.
+        이 문서는 Agent 지속 지침에 설치하는 Slogs MCP/LLM Wiki compact 정책이다. 기능을 줄이지 않기 위해 설치, 동기화, 도구 노출, 회상, 저장, 공개 기억, categoryPath 규칙을 모두 유지하되 런타임에 필요한 문장만 둔다.
 
         ## 설치와 범위
 
@@ -92,7 +92,7 @@ public static class SlogsMcpPolicyPrompt
         Version URL: {{DefaultVersionUrl}}
         Prompt Version: {{Version}}
 
-        This is a compact persistent Agent policy for Slogs MCP and Slogs LLM Wiki. It preserves setup, sync, tool exposure, lookup, storage, public memory, and categoryPath behavior while keeping only runtime-essential wording.
+        This is a compact persistent Agent policy for Slogs MCP and Slogs LLM Wiki. It preserves setup, sync, tool exposure, recall, storage, public memory, and categoryPath behavior while keeping only runtime-essential wording.
 
         ## Installation And Scope
 
