@@ -262,7 +262,7 @@ else
 
         if (string.IsNullOrWhiteSpace(Query) && IsFollowingFeed && CurrentUser is null)
         {
-            displayedSearchMessage = "이어 둔 로그 흐름은 로그인 후 이용 가능합니다.";
+            displayedSearchMessage = "이어 둔 로그 흐름을 보려면 지식 로그 홈으로 돌아가야 합니다.";
         }
         else if (string.IsNullOrWhiteSpace(Query) && IsFollowingFeed && !allPosts.Any())
         {

@@ -1080,12 +1080,12 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("저장 회상에 추가", postActionBar);
         Assert.Contains("저장 회상 해제", postActionBar);
 
-        Assert.Contains("공감 신호는 로그인 후 남길 수 있습니다.", postDetailsPage);
+        Assert.Contains("공감 신호를 남기려면 지식 로그 홈으로 돌아가야 합니다.", postDetailsPage);
         Assert.Contains("게시전 로그는 공개 후 공감 신호를 남길 수 있습니다.", postDetailsPage);
         Assert.Contains("공감 신호가 처리 중입니다.", postDetailsPage);
         Assert.Contains("공감 신호 흐름에서 해제되었습니다.", postDetailsPage);
         Assert.Contains("공감 신호 흐름에 추가되었습니다.", postDetailsPage);
-        Assert.Contains("저장 회상은 로그인 후 사용할 수 있습니다.", postDetailsPage);
+        Assert.Contains("저장 회상 흐름을 바꾸려면 지식 로그 홈으로 돌아가야 합니다.", postDetailsPage);
         Assert.Contains("게시전 로그는 공개 후 저장 회상에 추가할 수 있습니다.", postDetailsPage);
         Assert.Contains("저장 회상이 처리 중입니다.", postDetailsPage);
         Assert.Contains("저장 회상 흐름에서 해제되었습니다.", postDetailsPage);
@@ -1097,9 +1097,11 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("=> IsBookmarked ? \"저장 해제\" : \"저장\"", postActionBar);
         Assert.DoesNotContain("title=\"저장\"", postActionBar);
         Assert.DoesNotContain("<span class=\"sr-only\">저장</span>", postActionBar);
+        Assert.DoesNotContain("공감 신호는 로그인 후 남길 수 있습니다.", postDetailsPage);
         Assert.DoesNotContain("공감은 로그인 후 이용 가능합니다.", postDetailsPage);
         Assert.DoesNotContain("공감이 취소되었습니다.", postDetailsPage);
         Assert.DoesNotContain("공감이 추가되었습니다.", postDetailsPage);
+        Assert.DoesNotContain("저장 회상은 로그인 후 사용할 수 있습니다.", postDetailsPage);
         Assert.DoesNotContain("저장은 로그인 후 이용 가능합니다.", postDetailsPage);
         Assert.DoesNotContain("저장이 해제되었습니다.", postDetailsPage);
         Assert.DoesNotContain("저장되었습니다.", postDetailsPage);
@@ -1563,10 +1565,11 @@ public sealed class StaticAssetIdentityTests
         var postDetailsPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "PostDetails.razor"));
 
         Assert.Contains(">이어 둔 로그</a>", homePage);
-        Assert.Contains("이어 둔 로그 흐름은 로그인 후 이용 가능합니다.", homePage);
+        Assert.Contains("이어 둔 로그 흐름을 보려면 지식 로그 홈으로 돌아가야 합니다.", homePage);
         Assert.Contains("아직 이어 둔 로그 홈이 없습니다.", homePage);
         Assert.Contains("이어 둔 로그 흐름에서", homePage);
         Assert.Contains("관계로 이어 둔 슬로거의 공개 로그 흐름", homePage);
+        Assert.DoesNotContain("이어 둔 로그 흐름은 로그인 후 이용 가능합니다.", homePage);
         Assert.DoesNotContain(">팔로우 로그</a>", homePage);
         Assert.DoesNotContain("팔로우 로그 스트림", homePage);
         Assert.DoesNotContain("팔로우한 슬로거", homePage);
@@ -1611,6 +1614,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("대화 흔적이 지워졌습니다.", postDetailsPage);
         Assert.Contains("placeholder=\"대화 흔적에 이어 남겨주세요\"", postDetailsPage);
         Assert.Contains("이어갈 대화 흔적을 찾을 수 없습니다.", postDetailsPage);
+        Assert.Contains("대화 흔적에 이어 남기려면 지식 로그 홈으로 돌아가야 합니다.", postDetailsPage);
         Assert.Contains("이어 남길 대화 흔적을 입력해 주세요.", postDetailsPage);
         Assert.Contains("이어진 대화 흔적을 남기지 못했습니다.", postDetailsPage);
         Assert.Contains("대화 흔적이 이어졌습니다.", postDetailsPage);
@@ -1636,6 +1640,7 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("답글", postDetailsPage);
         Assert.DoesNotContain("대화 흔적에 대한", postDetailsPage);
         Assert.DoesNotContain("대화 흔적에 답글", postDetailsPage);
+        Assert.DoesNotContain("대화 흔적은 로그인 후 이용 가능합니다.", postDetailsPage);
         Assert.DoesNotContain("답글 대상을", postDetailsPage);
         Assert.DoesNotContain("답글 내용을", postDetailsPage);
         Assert.DoesNotContain("답글 등록", postDetailsPage);
@@ -1730,6 +1735,8 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("비공개 기억을 회상하려면 지식 로그 홈으로 돌아가야 합니다.", llmWikiSearchPage);
         Assert.Contains("슬로거 홈 정체성과 연결 권한을 보려면 지식 로그 홈으로 돌아가야 합니다.", settingsPage);
         Assert.Contains("운영 흐름을 따라가려면 지식 로그 홈으로 돌아가야 합니다.", adminUsersPage);
+        Assert.Contains("공감 신호를 남기려면 지식 로그 홈으로 돌아가야 합니다.", postDetailsPage);
+        Assert.Contains("저장 회상 흐름을 바꾸려면 지식 로그 홈으로 돌아가야 합니다.", postDetailsPage);
         Assert.Contains("이 로그 노드에 대화 흔적을 남기려면 지식 로그 홈으로 돌아가야 합니다.", postDetailsPage);
         Assert.Contains("슬로거 홈 정체성을 바꾸려면 지식 로그 홈으로 돌아가야 합니다.", profileSettingsForm);
 
