@@ -15,13 +15,13 @@ internal static class WinFspInstallation
     {
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            throw new InvalidOperationException("Slogs Obsidian Drive requires Windows and WinFsp.");
+            throw new InvalidOperationException("Slogs note-flow Drive requires Windows and WinFsp.");
         }
 
         if (!IsInstalled())
         {
             throw new InvalidOperationException(
-                "WinFsp is required before mounting a Slogs Obsidian drive. Run 'SlogsObsidianDrive --install' or install WinFsp from https://github.com/winfsp/winfsp/releases/download/v2.2B1/winfsp-2.2.26112.msi.");
+                "WinFsp is required before mounting a Slogs note-flow drive. Run 'SlogsObsidianDrive --install' or install WinFsp from https://github.com/winfsp/winfsp/releases/download/v2.2B1/winfsp-2.2.26112.msi.");
         }
     }
 

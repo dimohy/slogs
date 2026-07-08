@@ -16,7 +16,7 @@ internal sealed record DriveOptions(
 
     public static string HelpText =>
         """
-        Mount a Slogs Obsidian remote vault as a WinFsp-backed Windows drive.
+        Mount a Slogs remote note Vault as a WinFsp-backed local note-flow drive.
 
         Install:
           Before the community winget source entry is merged:
@@ -25,19 +25,19 @@ internal sealed record DriveOptions(
             winget install --id Dimohy.SlogsObsidianDrive --exact
 
         Required:
-          --vault <name>       Slogs remote vault name.
-          --mount <X:|path>    Drive letter or NTFS directory mount point.
-          --token <token>      Slogs Bearer token with obsidian.sync scope.
+          --vault <name>       Slogs remote note Vault name.
+          --mount <X:|path>    Drive letter or NTFS directory mount point for the local note flow.
+          --token <token>      Slogs note-Vault connection token with obsidian.sync scope.
                                May be provided by SLOGS_OBSIDIAN_TOKEN.
 
         Optional:
           --server <url>       Slogs server URL. Default: https://slogs.dev
-          --cache <path>       Local cache root. Default: %LOCALAPPDATA%\Slogs\ObsidianDrive\<vault>
-          --poll-seconds <n>   Remote change polling interval. Default: 30. Use 0 to disable.
+          --cache <path>       Local note-flow cache root. Default: %LOCALAPPDATA%\Slogs\ObsidianDrive\<vault>
+          --poll-seconds <n>   Remote note-flow polling interval. Default: 30. Use 0 to disable.
           --sync-attachments <true|false>
-                               Sync non-Markdown files through the attachments scope. Default: false.
+                               Sync non-Markdown note attachments through the attachments scope. Default: false.
           --sync-settings <true|false>
-                               Sync .obsidian settings through the settings scope. Default: false.
+                               Sync .obsidian note-workspace settings through the settings scope. Default: false.
 
         Example:
           SlogsObsidianDrive --vault "My Vault" --mount S:

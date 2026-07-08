@@ -1,12 +1,12 @@
 # Slogs Obsidian Drive
 
-Windows-only WinFsp integration that mounts a Slogs Obsidian remote vault as a local filesystem. Obsidian can open the mounted drive or mount directory directly without the Obsidian plugin.
+Windows-only WinFsp integration that mounts a Slogs remote note Vault as a local note-flow drive. Obsidian can open the mounted drive or mount directory directly, so local Markdown notes continue into Slogs note Vault flow without the Obsidian plugin.
 
 ## Requirements
 
 - Windows.
 - `winget`.
-- A Slogs Bearer token with the `obsidian.sync` scope.
+- A Slogs note-Vault connection token with the `obsidian.sync` scope.
 
 The installer checks WinFsp and downloads the official WinFsp `2.2.26112` MSI from GitHub if it is missing.
 
@@ -37,7 +37,7 @@ The GitHub Release asset can also install itself:
 .\SlogsObsidianDrive-0.1.0-win-x64.exe --install
 ```
 
-## Mount
+## Mount Note Flow
 
 ```powershell
 $env:SLOGS_OBSIDIAN_TOKEN = "<obsidian.sync token>"
@@ -52,15 +52,15 @@ Optional arguments:
 - `--sync-attachments true`
 - `--sync-settings true`
 
-The token is read from `--token` or `SLOGS_OBSIDIAN_TOKEN` and is not written to logs or state files.
+The note-Vault token is read from `--token` or `SLOGS_OBSIDIAN_TOKEN` and is not written to logs or note-flow state files.
 
-## Sync Semantics
+## Note-Flow Semantics
 
-- Markdown files outside `.obsidian/` are synced through `/api/obsidian/*` by default.
-- Non-Markdown files sync only when `--sync-attachments true` is set.
-- `.obsidian/` settings sync only when `--sync-settings true` is set.
-- Remote deletes are tombstones on Slogs, so restore/version inspection remains available through the server API.
-- Remote conflicts return an IO error to the calling filesystem operation and are logged without overwriting the remote file.
-- The local cache state is stored in `state.json` beside the cache `files/` directory, not inside the mounted vault root.
-- The drive checks Windows/WinFsp installation and runs WinFsp mount preflight before mounting.
-- Windows drive capacity reports the account storage limit as total capacity and the active vault file size as used space.
+- Markdown notes outside `.obsidian/` are synced through `/api/obsidian/*` by default.
+- Non-Markdown note attachments sync only when `--sync-attachments true` is set.
+- `.obsidian/` note-workspace settings sync only when `--sync-settings true` is set.
+- Remote note removals are tombstones on Slogs, so restore/version inspection remains available through the server API.
+- Remote note-flow conflicts return an IO error to the calling filesystem operation and are logged without overwriting the remote note.
+- The local note-flow cache state is stored in `state.json` beside the cache `files/` directory, not inside the mounted note Vault root.
+- The drive checks Windows/WinFsp installation and runs WinFsp note-flow mount preflight before mounting.
+- Windows drive capacity reports the account note-Vault limit as total capacity and the active note-flow usage as used space.

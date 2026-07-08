@@ -927,6 +927,46 @@ public sealed class StaticAssetIdentityTests
     }
 
     [Fact]
+    public void ObsidianDriveFramesWinFspMountAsNoteFlowBridge()
+    {
+        var driveOptions = File.ReadAllText(FindRepoFile("src", "Slogs.Obsidian.Drive", "DriveOptions.cs"));
+        var driveApplication = File.ReadAllText(FindRepoFile("src", "Slogs.Obsidian.Drive", "SlogsObsidianDriveApplication.cs"));
+        var winFspInstallation = File.ReadAllText(FindRepoFile("src", "Slogs.Obsidian.Drive", "WinFspInstallation.cs"));
+        var driveReadme = File.ReadAllText(FindRepoFile("src", "Slogs.Obsidian.Drive", "README.md"));
+
+        Assert.Contains("Mount a Slogs remote note Vault as a WinFsp-backed local note-flow drive.", driveOptions);
+        Assert.Contains("--vault <name>       Slogs remote note Vault name.", driveOptions);
+        Assert.Contains("Drive letter or NTFS directory mount point for the local note flow.", driveOptions);
+        Assert.Contains("Slogs note-Vault connection token with obsidian.sync scope.", driveOptions);
+        Assert.Contains("Local note-flow cache root.", driveOptions);
+        Assert.Contains("Remote note-flow polling interval.", driveOptions);
+        Assert.Contains("Preparing Slogs note Vault", driveApplication);
+        Assert.Contains("Mounted Slogs note Vault", driveApplication);
+        Assert.Contains("local note-flow drive", driveApplication);
+        Assert.Contains("Closed Slogs note-flow drive.", driveApplication);
+        Assert.Contains("Slogs note-flow Drive requires Windows and WinFsp.", winFspInstallation);
+        Assert.Contains("mounting a Slogs note-flow drive", winFspInstallation);
+        Assert.Contains("local Markdown notes continue into Slogs note Vault flow", driveReadme);
+        Assert.Contains("## Mount Note Flow", driveReadme);
+        Assert.Contains("## Note-Flow Semantics", driveReadme);
+        Assert.Contains("Remote note-flow conflicts", driveReadme);
+        Assert.Contains("active note-flow usage", driveReadme);
+
+        Assert.DoesNotContain("Mount a Slogs Obsidian remote vault as a WinFsp-backed Windows drive.", driveOptions);
+        Assert.DoesNotContain("--vault <name>       Slogs remote vault name.", driveOptions);
+        Assert.DoesNotContain("Remote change polling interval.", driveOptions);
+        Assert.DoesNotContain("Preparing Slogs Obsidian vault", driveApplication);
+        Assert.DoesNotContain("Mounted Slogs Obsidian vault", driveApplication);
+        Assert.DoesNotContain("Unmounted Slogs Obsidian drive.", driveApplication);
+        Assert.DoesNotContain("Slogs Obsidian Drive requires Windows and WinFsp.", winFspInstallation);
+        Assert.DoesNotContain("mounting a Slogs Obsidian drive", winFspInstallation);
+        Assert.DoesNotContain("as a local filesystem", driveReadme);
+        Assert.DoesNotContain("## Sync Semantics", driveReadme);
+        Assert.DoesNotContain("Remote conflicts return", driveReadme);
+        Assert.DoesNotContain("active vault file size", driveReadme);
+    }
+
+    [Fact]
     public void AdminObsidianMetricsUseNoteVaultAndConnectionTraceWording()
     {
         var adminUsersPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "AdminUsers.razor"));

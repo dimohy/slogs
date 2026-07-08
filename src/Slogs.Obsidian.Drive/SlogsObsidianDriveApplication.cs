@@ -23,7 +23,7 @@ internal static class SlogsObsidianDriveApplication
             options.SyncAttachments,
             options.SyncSettings);
 
-        Console.WriteLine($"Preparing Slogs Obsidian vault '{options.VaultName}' from {options.ServerUrl}.");
+        Console.WriteLine($"Preparing Slogs note Vault '{options.VaultName}' from {options.ServerUrl}.");
         await syncService.InitializeAsync();
 
         using var cancellation = new CancellationTokenSource();
@@ -41,17 +41,17 @@ internal static class SlogsObsidianDriveApplication
         var preflightStatus = host.Preflight(options.MountPoint);
         if (preflightStatus < 0)
         {
-            throw new InvalidOperationException($"WinFsp preflight failed for '{options.MountPoint}'. NTSTATUS: 0x{preflightStatus:x8}");
+            throw new InvalidOperationException($"WinFsp note-flow preflight failed for '{options.MountPoint}'. NTSTATUS: 0x{preflightStatus:x8}");
         }
 
         var mountStatus = host.Mount(options.MountPoint);
         if (mountStatus < 0)
         {
-            throw new InvalidOperationException($"WinFsp could not mount '{options.MountPoint}'. NTSTATUS: 0x{mountStatus:x8}");
+            throw new InvalidOperationException($"WinFsp could not mount Slogs note-flow drive '{options.MountPoint}'. NTSTATUS: 0x{mountStatus:x8}");
         }
 
-        Console.WriteLine($"Mounted Slogs Obsidian vault '{options.VaultName}' at {host.MountPoint()}.");
-        Console.WriteLine("Open this drive or mount directory in Obsidian. Press Ctrl+C to unmount.");
+        Console.WriteLine($"Mounted Slogs note Vault '{options.VaultName}' as local note-flow drive at {host.MountPoint()}.");
+        Console.WriteLine("Open this note-flow drive or mount directory in Obsidian. Press Ctrl+C to close the flow.");
 
         try
         {
@@ -66,7 +66,7 @@ internal static class SlogsObsidianDriveApplication
             cancellation.Cancel();
             await pollTask.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
             await syncService.PushLocalChangesAsync();
-            Console.WriteLine("Unmounted Slogs Obsidian drive.");
+            Console.WriteLine("Closed Slogs note-flow drive.");
         }
     }
 
