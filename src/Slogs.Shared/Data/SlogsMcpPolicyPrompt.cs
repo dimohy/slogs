@@ -2,7 +2,7 @@ namespace Slogs.Data;
 
 public static class SlogsMcpPolicyPrompt
 {
-    public const string Version = "2026.07.08.2";
+    public const string Version = "2026.07.08.3";
     public const string McpPath = "/mcp";
     public const string PublicPath = "/prompts/slogs-mcp.md";
     public const string KoreanPublicPath = "/prompts/slogs-mcp.ko.md";
@@ -70,13 +70,13 @@ public static class SlogsMcpPolicyPrompt
 
         ## 버전 동기화
 
-        - 새 Agent/Codex 세션이 시작되면 먼저 `{{DefaultVersionUrl}}`의 한 줄 버전만 읽어 설치된 `SLOGS_MCP_PROMPT` 관리 블록의 `version` 또는 본문 `Prompt Version`과 비교한다.
+        - 새 Agent/Codex 세션이 시작되면 먼저 `{{DefaultVersionUrl}}`의 한 줄 버전만 읽어 설치된 `SLOGS_MCP_PROMPT` 지침 블록의 `version` 또는 본문 `Prompt Version`과 비교한다.
         - 버전이 같으면 전체 프롬프트를 다시 읽지 않고, 파일을 다시 쓰지 않고, 키 요청이나 범위 선택도 반복하지 않는다.
-        - 버전이 다르거나 로컬 버전이 없으면 이것을 갱신 작업으로 판단한다. Agent가 선택된 지침 위치를 직접 편집할 수 있으면 `{{DefaultKoreanPublicUrl}}` 또는 호환 URL `{{DefaultPublicUrl}}`의 전체 Markdown을 한 번 읽고, 같은 지침 위치의 기존 `SLOGS_MCP_PROMPT` 관리 블록을 즉시 교체한다. 보고만 하고 멈추지 않는다.
-        - 이미 설치된 관리 블록을 갱신할 때는 기존 적용 범위를 유지하며 키 요청이나 범위 선택을 반복하지 않는다. 두 한국어 URL 차이만으로는 같은 버전에서 갱신하지 않는다.
+        - 버전이 다르거나 로컬 버전이 없으면 이것을 갱신 작업으로 판단한다. Agent가 선택된 지침 위치를 직접 편집할 수 있으면 `{{DefaultKoreanPublicUrl}}` 또는 호환 URL `{{DefaultPublicUrl}}`의 전체 Markdown을 한 번 읽고, 같은 지침 위치의 기존 `SLOGS_MCP_PROMPT` 지침 블록을 즉시 교체한다. 보고만 하고 멈추지 않는다.
+        - 이미 설치된 지침 블록을 갱신할 때는 기존 적용 범위를 유지하며 키 요청이나 범위 선택을 반복하지 않는다. 두 한국어 URL 차이만으로는 같은 버전에서 갱신하지 않는다.
         - Agent가 선택된 지침 위치를 직접 편집할 수 없을 때만 아직 영구 반영되지 않았다고 말하고, 사용자가 붙여넣을 정확한 위치와 최신 프롬프트 URL을 안내한다.
         - 이 동기화는 세션 시작 시 버전 차이를 발견했을 때 Agent가 수행하는 1회 작업이다. 별도 동기화 스크립트, 주기 실행, 백그라운드 반복 실행, Windows Scheduled Task로 구현하지 않는다.
-        - 중복 정책을 누적하지 말고 이전 `SLOGS_MCP_PROMPT` 관리 블록을 새 블록으로 교체한다. Codex는 전역/프로젝트 `AGENTS.md`, Claude는 Project instructions 또는 `CLAUDE.md`, GitHub Copilot은 repository instructions, 그 밖의 Agent는 가장 높은 우선순위의 지속 지침 위치를 사용한다.
+        - 중복 정책을 누적하지 말고 이전 `SLOGS_MCP_PROMPT` 지침 블록을 새 지침 블록으로 교체한다. Codex는 전역/프로젝트 `AGENTS.md`, Claude는 Project instructions 또는 `CLAUDE.md`, GitHub Copilot은 repository instructions, 그 밖의 Agent는 가장 높은 우선순위의 지속 지침 위치를 사용한다.
 
         ## 런타임 규칙
 
@@ -104,10 +104,10 @@ public static class SlogsMcpPolicyPrompt
 
         ## Version Sync
 
-        - When a new Agent/Codex session starts, first read only the one-line version from `{{DefaultVersionUrl}}` and compare it with the installed `SLOGS_MCP_PROMPT` managed block `version` or body `Prompt Version`.
+        - When a new Agent/Codex session starts, first read only the one-line version from `{{DefaultVersionUrl}}` and compare it with the installed `SLOGS_MCP_PROMPT` instruction block `version` or body `Prompt Version`.
         - If versions match, do not fetch the full prompt, rewrite files, ask for the key again, or repeat scope selection.
-        - If versions differ or no local version exists, treat this as an update task. When the Agent can directly edit the selected instruction location, fetch the full Markdown from `{{DefaultEnglishPublicUrl}}` once and immediately replace the previous `SLOGS_MCP_PROMPT` managed block in the same instruction location. Do not stop after merely reporting that the server prompt is newer.
-        - When updating an already installed managed block, keep the existing scope and do not ask for the key or repeat scope selection.
+        - If versions differ or no local version exists, treat this as an update task. When the Agent can directly edit the selected instruction location, fetch the full Markdown from `{{DefaultEnglishPublicUrl}}` once and immediately replace the previous `SLOGS_MCP_PROMPT` instruction block in the same instruction location. Do not stop after merely reporting that the server prompt is newer.
+        - When updating an already installed instruction block, keep the existing scope and do not ask for the key or repeat scope selection.
         - Only when the Agent cannot directly edit the selected instruction location should it say the update has not been permanently applied yet and provide the exact manual placement location plus latest prompt URL.
         - This is a one-time session-start sync performed by the Agent when a version difference is detected. Do not implement it through a separate sync script, periodic/background job, or Windows Scheduled Task.
         - Do not accumulate duplicate policy blocks. Codex uses global/project `AGENTS.md`; Claude uses Project instructions or `CLAUDE.md`; GitHub Copilot uses repository instructions; other Agents should use their highest-priority durable instruction surface.
