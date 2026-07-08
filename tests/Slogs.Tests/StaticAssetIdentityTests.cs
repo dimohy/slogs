@@ -859,9 +859,10 @@ public sealed class StaticAssetIdentityTests
         foreach (var authoringPage in new[] { writePost, editPost })
         {
             Assert.Contains("공유 주소 단서", authoringPage);
-            Assert.Contains("제목으로 단서 추천", authoringPage);
+            Assert.Contains("제목 단서로 주소 잇기", authoringPage);
             Assert.DoesNotContain("공유 주소 slug", authoringPage);
             Assert.DoesNotContain("제목으로 주소 추천", authoringPage);
+            Assert.DoesNotContain("제목으로 단서 추천", authoringPage);
         }
     }
 
