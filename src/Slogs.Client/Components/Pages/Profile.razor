@@ -329,7 +329,7 @@ else
         => PostNavigationUrlBuilder.BuildPostUrl(post, PostNavigationUrlBuilder.PersonalMenuContext);
 
     private static string GetPostCardAriaLabel(BlogPost post)
-        => post.IsDraft ? $"{post.Title} 게시전 기억 흐름 열기" : $"{post.Title} 공개 공유 로그 노드 열기";
+        => post.IsDraft ? $"{post.Title} 게시전 기억 흐름 회상" : $"{post.Title} 공개 공유 로그 노드 회상";
 
     private static bool IsPriorityCardImage(int index) => index < 2;
 

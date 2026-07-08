@@ -1071,8 +1071,10 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains(">게시전 기억</span>", profilePage);
         Assert.Contains("흐름 갱신 @FormatDate(post.UpdatedAt)", profilePage);
         Assert.Contains(">공개 공유</span>", profilePage);
-        Assert.Contains("게시전 기억 흐름 열기", profilePage);
-        Assert.Contains("공개 공유 로그 노드 열기", profilePage);
+        Assert.Contains("게시전 기억 흐름 회상", profilePage);
+        Assert.Contains("공개 공유 로그 노드 회상", profilePage);
+        Assert.DoesNotContain("게시전 기억 흐름 열기", profilePage);
+        Assert.DoesNotContain("공개 공유 로그 노드 열기", profilePage);
         Assert.Contains("<PostFlowSignals Post=\"post\" />", profilePage);
         Assert.Contains("게시전 기억 정리", profilePage);
         Assert.Contains("새 리비전 남기기", profilePage);
