@@ -2,29 +2,29 @@
 @inject NavigationManager Navigation
 
 <nav class="rounded-xl border border-slate-200 bg-slate-50 p-3" aria-label="지식 로그 흐름 메뉴" @onclick="NotifyNavigateAsync">
-    <div class="mb-3 text-xs font-bold text-slate-500">로그 흐름</div>
+    <div class="mb-3 text-xs font-bold text-slate-500">로그</div>
     <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
              ActiveClass="bg-slate-900 text-white" href="@GetHomePath()" Match="NavLinkMatch.All">지식 로그 홈</NavLink>
 
     @if (ShowAdminMenu)
     {
-        <div class="mt-4 mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">운영 흐름</div>
+        <div class="mt-4 mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">운영</div>
         <div class="mb-1 px-3 py-2">
             <div class="text-sm font-bold text-slate-900">슬로거</div>
             <div class="mt-2 grid gap-1">
                 <a class="@GetAdminMenuLinkClass(AdminUsersView)"
-                   href="@GetAdminMenuHref(AdminUsersView)">슬로거 홈 흐름</a>
+                   href="@GetAdminMenuHref(AdminUsersView)">슬로거 홈</a>
                 <a class="@GetAdminMenuLinkClass(AdminLlmWikiView)"
                    href="@GetAdminMenuHref(AdminLlmWikiView)">기억 회상</a>
                 <a class="@GetAdminMenuLinkClass(AdminObsidianView)"
-                   href="@GetAdminMenuHref(AdminObsidianView)">노트 Vault 흐름</a>
+                   href="@GetAdminMenuHref(AdminObsidianView)">노트 Vault</a>
             </div>
         </div>
     }
 
     @if (ShowMyMenu)
     {
-        <div class="mt-4 mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">내 지식 흐름</div>
+        <div class="mt-4 mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">내 지식</div>
         <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
                  ActiveClass="bg-slate-900 text-white" href="/me" Match="NavLinkMatch.All">내 지식 로그</NavLink>
         <div class="mb-1 px-3 py-2">
@@ -46,15 +46,15 @@
                  ActiveClass="bg-slate-900 text-white" href="/me/likes" Match="NavLinkMatch.All">공감 신호</NavLink>
     }
 
-    <div class="mt-4 mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">공개 흐름</div>
+    <div class="mt-4 mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">공개</div>
     <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
-             ActiveClass="bg-slate-900 text-white" href="@GetFeaturedTagPath()" Match="NavLinkMatch.All">대표 단서 흐름</NavLink>
+             ActiveClass="bg-slate-900 text-white" href="@GetFeaturedTagPath()" Match="NavLinkMatch.All">대표 단서</NavLink>
     <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
-             ActiveClass="bg-slate-900 text-white" href="/tag" Match="NavLinkMatch.All">전체 단서 흐름</NavLink>
+             ActiveClass="bg-slate-900 text-white" href="/tag" Match="NavLinkMatch.All">전체 단서</NavLink>
     <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
-             ActiveClass="bg-slate-900 text-white" href="/writer" Match="NavLinkMatch.All">슬로거 홈 흐름</NavLink>
+             ActiveClass="bg-slate-900 text-white" href="/writer" Match="NavLinkMatch.All">슬로거 홈</NavLink>
     <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
-             ActiveClass="bg-slate-900 text-white" href="/series" Match="NavLinkMatch.All">로그 시리즈 흐름</NavLink>
+             ActiveClass="bg-slate-900 text-white" href="/series" Match="NavLinkMatch.All">로그 시리즈</NavLink>
 
     <div class="mt-4 mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">@TagSectionTitle</div>
 
@@ -160,13 +160,13 @@
             ? NormalizeAdminUsersView(GetQueryValue("view"))
             : string.Empty;
 
-    private string TagSectionTitle => IsPersonalSideContext ? "내 단서 흐름" : "반응 단서 흐름";
+    private string TagSectionTitle => IsPersonalSideContext ? "내 단서" : "반응 단서";
 
-    private string SeriesSectionTitle => IsPersonalSideContext ? "내 로그 시리즈 흐름" : "반응 로그 시리즈 흐름";
+    private string SeriesSectionTitle => IsPersonalSideContext ? "내 로그 시리즈" : "반응 로그 시리즈";
 
-    private string TagEmptyText => IsPersonalSideContext ? "내 단서 흐름이 아직 없습니다." : "공개 단서 흐름이 준비 중입니다.";
+    private string TagEmptyText => IsPersonalSideContext ? "내 단서가 아직 없습니다." : "공개 단서가 준비 중입니다.";
 
-    private string SeriesEmptyText => IsPersonalSideContext ? "내 로그 시리즈 흐름이 아직 없습니다." : "공개 로그 시리즈 흐름이 아직 없습니다.";
+    private string SeriesEmptyText => IsPersonalSideContext ? "내 로그 시리즈가 아직 없습니다." : "공개 로그 시리즈가 아직 없습니다.";
 
     private string CurrentPath
     {
