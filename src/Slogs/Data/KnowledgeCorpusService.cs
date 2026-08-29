@@ -288,7 +288,7 @@ public sealed class KnowledgeCorpusService(
                 relations,
                 seed.License,
                 seed.CollectionSourceUri,
-                seed.DocumentSourceUri));
+                seed.DocumentSourceLocator));
         }
 
         return results;
@@ -1039,7 +1039,7 @@ public sealed class KnowledgeCorpusService(
             WITH visible AS NOT MATERIALIZED (
                 SELECT k.*, c."Domain", c."License" AS collection_license,
                     c."SourceUri" AS collection_source_uri, d."Title" AS document_title,
-                    d."SourceUri" AS document_source_uri
+                    d."SourceLocator" AS document_source_locator
                 FROM "LlmWikiKnowledgeChunks" k
                 INNER JOIN "LlmWikiKnowledgeCollections" c ON c."CollectionId"=k."CollectionId" AND c."Version"=k."Version" AND c."OwnerUserName"=k."OwnerUserName"
                 INNER JOIN "LlmWikiKnowledgeDocuments" d ON d."CollectionId"=k."CollectionId" AND d."Version"=k."Version" AND d."OwnerUserName"=k."OwnerUserName" AND d."DocumentId"=k."DocumentId"
@@ -1132,7 +1132,7 @@ public sealed class KnowledgeCorpusService(
                 GROUP BY r."CollectionId", r."Version", r."OwnerUserName", r."ChunkId"
             )
             SELECT v."CollectionId", v."Version", v."OwnerUserName", v."Domain", v."DocumentId", v.document_title, v."ChunkId", v."StructureNodeId", v."Text", v."StartLocator", v."EndLocator",
-                v.collection_license, v.collection_source_uri, v.document_source_uri,
+                v.collection_license, v.collection_source_uri, v.document_source_locator,
                 f.exact_rank IS NOT NULL,
                 ROUND(LEAST(GREATEST(COALESCE(f.vector_score,0)*0.8 + LEAST(COALESCE(f.lexical_score,0)*2,0.2),0),1)*100)::integer
             FROM fused f
@@ -1194,7 +1194,7 @@ public sealed class KnowledgeCorpusService(
         await using var command = CreateCommand(db,
             """
             SELECT k."CollectionId", k."Version", k."OwnerUserName", c."Domain", k."DocumentId", d."Title", k."ChunkId", k."StructureNodeId", k."Text", k."StartLocator", k."EndLocator",
-                c."License", c."SourceUri", d."SourceUri"
+                c."License", c."SourceUri", d."SourceLocator"
             FROM "LlmWikiKnowledgeChunks" k
             INNER JOIN "LlmWikiKnowledgeCollections" c
               ON c."CollectionId"=k."CollectionId" AND c."Version"=k."Version" AND c."OwnerUserName"=k."OwnerUserName"
@@ -1531,7 +1531,7 @@ public sealed class KnowledgeCorpusService(
         string EndLocator,
         string License,
         string CollectionSourceUri,
-        string DocumentSourceUri,
+        string DocumentSourceLocator,
         bool ExactLocatorMatch,
         int RelevancePercent);
 }

@@ -149,7 +149,7 @@ public sealed record KnowledgeChunkRecall(
     IReadOnlyList<KnowledgeRelationRecall> Relations,
     string License = "",
     string CollectionSourceUri = "",
-    string DocumentSourceUri = "");
+    string DocumentSourceLocator = "");
 
 public sealed record KnowledgeTextUnit(
     string UnitId,

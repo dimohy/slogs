@@ -110,7 +110,7 @@ public sealed class KnowledgeCorpusMcpTools(
             builder.AppendLine($"- domain: {result.Domain}");
             builder.AppendLine($"- license: {result.License}");
             builder.AppendLine($"- collectionSource: {result.CollectionSourceUri}");
-            builder.AppendLine($"- documentSource: {result.DocumentSourceUri}");
+            builder.AppendLine($"- documentSource: {result.DocumentSourceLocator}");
             builder.AppendLine($"- documentId: {result.DocumentId}");
             builder.AppendLine($"- chunkId: {result.ChunkId}");
             if (result.Relations.Count > 0)

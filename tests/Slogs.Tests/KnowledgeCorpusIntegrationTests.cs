@@ -413,6 +413,9 @@ public sealed class KnowledgeCorpusIntegrationTests
             var recalled = await corpus.RecallAsync(owner, "사울은 바울과 같은 사람인가?", limit: 3, maxGraphHops: 2);
             var result = Assert.Single(recalled, item => item.CollectionId == collectionId);
             Assert.Equal("Acts.13.9", result.StartLocator);
+            Assert.Equal("restricted", result.License);
+            Assert.Equal("urn:test:bible:acts", result.CollectionSourceUri);
+            Assert.Equal("urn:test:bible:acts#Acts", result.DocumentSourceLocator);
             var identity = Assert.Single(result.Relations, relation => relation.RelationType == "mentions");
             Assert.Equal("entity:paul", identity.ToNodeId);
             Assert.Equal("바울", identity.ToLabel);
@@ -487,6 +490,9 @@ public sealed class KnowledgeCorpusIntegrationTests
             var result = Assert.Single(recalled, value => value.CollectionId == collectionId);
             Assert.Contains("morphology=N-NSM-P", result.Text);
             Assert.DoesNotContain(coordinate.Text, result.Text);
+            Assert.Equal("CC BY 4.0", result.License);
+            Assert.Equal("urn:test:step", result.CollectionSourceUri);
+            Assert.Equal("urn:test:step#Acts", result.DocumentSourceLocator);
             var mention = Assert.Single(result.Relations, value => value.RelationType == "mentions");
             Assert.Equal("Paul", mention.ToLabel);
             Assert.Contains("Saul", mention.ToAliases!);
