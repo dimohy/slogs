@@ -795,6 +795,20 @@ if (hasBibleReviewedRelationsImport && bibleReviewedRelationsImport.VerifyOnly)
     WriteBibleReviewedRelationsImportResult(result);
     return;
 }
+if (hasBibleCorpusEvaluation)
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var runner = scope.ServiceProvider.GetRequiredService<BibleCorpusEvaluationRunner>();
+    var results = await runner.RunAsync(bibleCorpusEvaluation);
+    var passed = results.Count(value => value.Passed);
+    Console.WriteLine(
+        $"BIBLE_CORPUS_EVALUATION={(passed == results.Count ? "PASS" : "FAIL")} passed={passed} total={results.Count} output={bibleCorpusEvaluation.OutputPath}");
+    if (passed != results.Count)
+    {
+        Environment.ExitCode = 2;
+    }
+    return;
+}
 
 if (!app.Configuration.GetValue("Slogs:SkipDbInitializer", false))
 {
@@ -818,21 +832,6 @@ if (hasBibleReviewedRelationsImport)
     WriteBibleReviewedRelationsImportResult(result);
     return;
 }
-if (hasBibleCorpusEvaluation)
-{
-    await using var scope = app.Services.CreateAsyncScope();
-    var runner = scope.ServiceProvider.GetRequiredService<BibleCorpusEvaluationRunner>();
-    var results = await runner.RunAsync(bibleCorpusEvaluation);
-    var passed = results.Count(value => value.Passed);
-    Console.WriteLine(
-        $"BIBLE_CORPUS_EVALUATION={(passed == results.Count ? "PASS" : "FAIL")} passed={passed} total={results.Count} output={bibleCorpusEvaluation.OutputPath}");
-    if (passed != results.Count)
-    {
-        Environment.ExitCode = 2;
-    }
-    return;
-}
-
 if (TryReadSemanticImportArguments(args, out var semanticImport))
 {
     var result = await LlmWikiSemanticGraphImporter.ImportAsync(
