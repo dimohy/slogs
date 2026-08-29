@@ -62,10 +62,18 @@ $releaseId = Get-Date -Format "yyyyMMddHHmmss"
 $publishRoot = Join-Path $repoRoot "artifacts\publish"
 $publishDir = Join-Path $publishRoot "slogs-$RuntimeIdentifier"
 $archivePath = Join-Path $publishRoot "slogs-$releaseId-$RuntimeIdentifier.tar.gz"
+$continuityBaselinePath = Join-Path $repoRoot "artifacts\server-continuity-baseline-$releaseId.json"
+$continuityResultPath = Join-Path $repoRoot "artifacts\server-continuity-after-$releaseId.json"
+$continuityScript = Join-Path $PSScriptRoot "Test-SlogsServerContinuity.ps1"
 $remote = "$RemoteUser@$RemoteHost"
 $enableWasmAot = $WasmAot.IsPresent
 
 New-Item -ItemType Directory -Force -Path $publishRoot | Out-Null
+
+& $continuityScript -RemoteHost $RemoteHost -RemoteUser $RemoteUser -Mode Capture -BaselinePath $continuityBaselinePath | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    throw "Could not capture the pre-deployment server continuity baseline."
+}
 
 # Production is gated by the complete local organization-memory regression suite.
 # This gate intentionally runs even when a previously published artifact is reused.
@@ -559,6 +567,12 @@ fi
     Invoke-Remote "bash '$remoteCaddyScript'"
 }
 
+& $continuityScript -RemoteHost $RemoteHost -RemoteUser $RemoteUser -Mode Verify -BaselinePath $continuityBaselinePath -OutputPath $continuityResultPath | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    throw "Post-deployment server continuity verification failed."
+}
+
 Write-Host "Deployment complete: $Domain -> 127.0.0.1:$AppPort, release $releaseId"
 Write-Host "Remote root: $RemoteRoot"
 Write-Host "Caddy snippet: $RemoteRoot/Caddyfile.slogs.dev"
+Write-Host "Server continuity evidence: $continuityResultPath"
