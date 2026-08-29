@@ -1,5 +1,14 @@
 namespace Slogs.Data;
 
+public static class KnowledgeCorpusBatchLimits
+{
+    public const int Documents = 100;
+    public const int StructureNodes = 500;
+    public const int Chunks = 20;
+    public const int Entities = 500;
+    public const int Relations = 500;
+}
+
 public sealed record KnowledgeCollectionInput(
     string CollectionId,
     string Version,
@@ -119,7 +128,11 @@ public sealed record KnowledgeRelationRecall(
     string ToNodeId,
     string ClaimClass,
     double Confidence,
-    IReadOnlyList<KnowledgeEvidenceInput> Evidence);
+    IReadOnlyList<KnowledgeEvidenceInput> Evidence,
+    string? FromLabel = null,
+    IReadOnlyList<string>? FromAliases = null,
+    string? ToLabel = null,
+    IReadOnlyList<string>? ToAliases = null);
 
 public sealed record KnowledgeChunkRecall(
     string CollectionId,

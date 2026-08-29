@@ -335,6 +335,72 @@ public sealed class KnowledgeCorpusIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task BibleAdapterIngestsPassageGraphAndRecallsSaulAsPaulWithVerseEvidence()
+    {
+        if (!string.Equals(Environment.GetEnvironmentVariable("SLOGS_KNOWLEDGE_INTEGRATION"), "1", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var suffix = Guid.NewGuid().ToString("N");
+        var owner = $"bible-owner-{suffix}";
+        var collectionId = $"bible-fixture-{suffix}";
+        var adapter = new BibleKnowledgeCorpusAdapter(new KnowledgeChunkingService());
+        var verse = BibleKnowledgeCorpusAdapterTests.Verse(
+            "Acts.13.9", 13, 9, "바울이라고 하는 사울이 성령이 충만하여 그를 주목하고");
+        var plan = adapter.CreatePlan(
+            new BibleCorpusOptions(
+                collectionId, "1.0.0", "개역개정 사도행전 fixture", "restricted", "urn:test:bible:acts",
+                "user", owner, "private", null, false,
+                Chunking: new KnowledgeChunkingOptions(TargetTokens: 80, MaxTokens: 120, MinTokens: 1, OverlapUnits: 0)),
+            [verse],
+            [
+                new BibleEntityCorpusInput(
+                    "entity:paul", "person", "바울", ["Paul", "Saul", "사울"], null, ["G3972", "G4569"], "fixture")
+            ],
+            [
+                new BibleRelationCorpusInput(
+                    "edge:acts-13-9:mentions-paul", "passage:Acts.13.9", "mentions", "entity:paul",
+                    "source_explicit", "approved", 1.0,
+                    [new BibleRelationEvidenceInput("fixture", "Acts.13.9", "source_verse", "Acts.13.9")],
+                    "fixture")
+            ]);
+
+        var services = new ServiceCollection();
+        services.AddDbContextFactory<SlogsDbContext>(options => options.UseNpgsql(
+            "Host=localhost;Port=54329;Database=slogs;Username=slogs;Password=slogs_dev_password"));
+        await using var provider = services.BuildServiceProvider();
+        var factory = provider.GetRequiredService<IDbContextFactory<SlogsDbContext>>();
+        await using var db = await factory.CreateDbContextAsync();
+        await InvokeEnsureSchemaAsync(db);
+        var corpus = new KnowledgeCorpusService(factory, CreateEmbeddingService());
+
+        try
+        {
+            foreach (var batch in plan.Batches)
+            {
+                await corpus.IngestAsync(owner, isAdmin: false, batch);
+            }
+
+            var recalled = await corpus.RecallAsync(owner, "사울은 바울과 같은 사람인가?", limit: 3, maxGraphHops: 2);
+            var result = Assert.Single(recalled, item => item.CollectionId == collectionId);
+            Assert.Equal("Acts.13.9", result.StartLocator);
+            var identity = Assert.Single(result.Relations, relation => relation.RelationType == "mentions");
+            Assert.Equal("entity:paul", identity.ToNodeId);
+            Assert.Equal("바울", identity.ToLabel);
+            Assert.Contains("사울", identity.ToAliases!);
+            Assert.Contains("Saul", identity.ToAliases!);
+            Assert.Contains(identity.Evidence, evidence =>
+                evidence.Locator == "Acts.13.9" && evidence.ChunkIds!.Contains(result.ChunkId, StringComparer.Ordinal));
+        }
+        finally
+        {
+            await db.Database.ExecuteSqlAsync(
+                $"DELETE FROM \"LlmWikiKnowledgeCollections\" WHERE \"CollectionId\" = {collectionId};");
+        }
+    }
+
     private static async Task InvokeEnsureSchemaAsync(SlogsDbContext db)
     {
         var method = typeof(SlogsDbInitializer).GetMethod("EnsureSchemaAsync", BindingFlags.Static | BindingFlags.NonPublic)

@@ -12,11 +12,11 @@ public sealed class KnowledgeCorpusService(
     IDbContextFactory<SlogsDbContext> dbFactory,
     EmbeddingGemmaService embeddingService)
 {
-    private const int MaxBatchDocuments = 100;
-    private const int MaxBatchStructureNodes = 500;
-    private const int MaxBatchChunks = 20;
-    private const int MaxBatchEntities = 500;
-    private const int MaxBatchRelations = 500;
+    private const int MaxBatchDocuments = KnowledgeCorpusBatchLimits.Documents;
+    private const int MaxBatchStructureNodes = KnowledgeCorpusBatchLimits.StructureNodes;
+    private const int MaxBatchChunks = KnowledgeCorpusBatchLimits.Chunks;
+    private const int MaxBatchEntities = KnowledgeCorpusBatchLimits.Entities;
+    private const int MaxBatchRelations = KnowledgeCorpusBatchLimits.Relations;
     private const int MaxChunkTextLength = 50_000;
     private const string IndexVersion = "knowledge-corpus-v1";
     private static readonly HashSet<string> AllowedVisibility = new(StringComparer.Ordinal)
@@ -1021,7 +1021,25 @@ public sealed class KnowledgeCorpusService(
                 FROM graph g INNER JOIN visible_relations r ON r."FromNodeId"=g."ToNodeId" OR r."ToNodeId"=g."ToNodeId"
                 WHERE g.depth<@maxGraphHops AND NOT (r."FromNodeId"=ANY(g.path) AND r."ToNodeId"=ANY(g.path))
             )
-            SELECT DISTINCT "CollectionId", "Version", "RelationType", "FromNodeId", "ToNodeId", "ClaimClass", "Confidence", "EvidenceJson"::text FROM graph LIMIT 30;
+            SELECT DISTINCT g."CollectionId", g."Version", g."RelationType", g."FromNodeId", g."ToNodeId", g."ClaimClass", g."Confidence", g."EvidenceJson"::text,
+                COALESCE(from_entity."CanonicalLabel", from_structure."Label", g."FromNodeId"),
+                COALESCE(from_entity."AliasesJson"::text, '[]'),
+                COALESCE(to_entity."CanonicalLabel", to_structure."Label", g."ToNodeId"),
+                COALESCE(to_entity."AliasesJson"::text, '[]')
+            FROM graph g
+            LEFT JOIN "LlmWikiKnowledgeEntities" from_entity
+              ON from_entity."CollectionId"=g."CollectionId" AND from_entity."Version"=g."Version"
+             AND from_entity."OwnerUserName"=g."OwnerUserName" AND from_entity."EntityId"=g."FromNodeId"
+            LEFT JOIN "LlmWikiKnowledgeStructureNodes" from_structure
+              ON from_structure."CollectionId"=g."CollectionId" AND from_structure."Version"=g."Version"
+             AND from_structure."OwnerUserName"=g."OwnerUserName" AND from_structure."NodeId"=g."FromNodeId"
+            LEFT JOIN "LlmWikiKnowledgeEntities" to_entity
+              ON to_entity."CollectionId"=g."CollectionId" AND to_entity."Version"=g."Version"
+             AND to_entity."OwnerUserName"=g."OwnerUserName" AND to_entity."EntityId"=g."ToNodeId"
+            LEFT JOIN "LlmWikiKnowledgeStructureNodes" to_structure
+              ON to_structure."CollectionId"=g."CollectionId" AND to_structure."Version"=g."Version"
+             AND to_structure."OwnerUserName"=g."OwnerUserName" AND to_structure."NodeId"=g."ToNodeId"
+            LIMIT 30;
             """);
         command.Parameters.Add(new NpgsqlParameter("owner", owner));
         command.Parameters.Add(new NpgsqlParameter("isAdmin", isAdmin));
@@ -1034,7 +1052,11 @@ public sealed class KnowledgeCorpusService(
         {
             results.Add(new KnowledgeRelationRecall(
                 reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetString(5), reader.GetDouble(6),
-                JsonSerializer.Deserialize<KnowledgeEvidenceInput[]>(reader.GetString(7)) ?? []));
+                JsonSerializer.Deserialize<KnowledgeEvidenceInput[]>(reader.GetString(7)) ?? [],
+                reader.GetString(8),
+                JsonSerializer.Deserialize<string[]>(reader.GetString(9)) ?? [],
+                reader.GetString(10),
+                JsonSerializer.Deserialize<string[]>(reader.GetString(11)) ?? []));
         }
 
         return results;

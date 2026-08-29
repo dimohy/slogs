@@ -131,6 +131,7 @@ builder.Services.AddScoped<LlmWikiService>();
 builder.Services.AddScoped<SlogsMcpPolicyPromptService>();
 builder.Services.AddScoped<KnowledgeCorpusService>();
 builder.Services.AddSingleton<KnowledgeChunkingService>();
+builder.Services.AddSingleton<BibleKnowledgeCorpusAdapter>();
 builder.Services.AddScoped<KnowledgeCorpusPrincipalResolver>();
 builder.Services.AddScoped<ObsidianVaultService>();
 builder.Services.AddScoped<ObsidianStorageQuotaService>();
