@@ -442,6 +442,69 @@ public sealed class KnowledgeCorpusIntegrationTests
     }
 
     [Fact]
+    public async Task ResetStagingRemovesRowsFromAnAbandonedPlanAndRefusesActiveVersions()
+    {
+        if (!string.Equals(Environment.GetEnvironmentVariable("SLOGS_KNOWLEDGE_INTEGRATION"), "1", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var suffix = Guid.NewGuid().ToString("N");
+        var owner = $"staging-reset-owner-{suffix}";
+        var collectionId = $"staging-reset-{suffix}";
+        var collection = new KnowledgeCollectionInput(
+            collectionId, "1.0.0", "staging reset fixture", "test", "ko", "internal",
+            "urn:test:staging-reset", "user", owner, "private", null, false, 1);
+        var document = new KnowledgeDocumentInput(
+            "doc:reset", "reset fixture", "manual", 0, "urn:test:staging-reset#doc");
+        var chunk = new KnowledgeChunkInput(
+            "chunk:reset", "doc:reset", null, 0, "교체할 staging 지식입니다.", "reset/1", "reset/1",
+            null, null, 0, 4, "unicode-word-estimate-v1");
+        var staleRelation = new KnowledgeRelationInput(
+            "relation:stale", chunk.ChunkId, "stale_link", chunk.ChunkId,
+            "source_explicit", "approved", 1,
+            [new KnowledgeEvidenceInput("fixture", "reset/1", "source_chunk", [chunk.ChunkId])],
+            "fixture");
+
+        var services = new ServiceCollection();
+        services.AddDbContextFactory<SlogsDbContext>(options => options.UseNpgsql(
+            "Host=localhost;Port=54329;Database=slogs;Username=slogs;Password=slogs_dev_password"));
+        await using var provider = services.BuildServiceProvider();
+        var factory = provider.GetRequiredService<IDbContextFactory<SlogsDbContext>>();
+        await using var db = await factory.CreateDbContextAsync();
+        await InvokeEnsureSchemaAsync(db);
+        var corpus = new KnowledgeCorpusService(factory, CreateEmbeddingService());
+        var actor = KnowledgeCorpusActor.User(owner);
+
+        try
+        {
+            var staging = await corpus.IngestAsync(actor, new KnowledgeCorpusIngestRequest(
+                collection, [document], [], [chunk], [], [staleRelation]));
+            Assert.Equal("staging", staging.Status);
+            Assert.Equal(1, staging.RelationCount);
+
+            Assert.True(await corpus.ResetStagingAsync(actor, collection));
+            Assert.False(await corpus.ResetStagingAsync(actor, collection));
+
+            var active = await corpus.IngestAsync(actor, new KnowledgeCorpusIngestRequest(
+                collection, [document], [], [chunk], [], [], Activate: true));
+            Assert.Equal("active", active.Status);
+            Assert.Equal(0, active.RelationCount);
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                corpus.ResetStagingAsync(actor, collection));
+        }
+        finally
+        {
+            await db.Database.ExecuteSqlAsync(
+                $"DELETE FROM \"LlmWikiKnowledgeRelations\" WHERE \"CollectionId\" = {collectionId};");
+            await db.Database.ExecuteSqlAsync(
+                $"DELETE FROM \"LlmWikiKnowledgeEntities\" WHERE \"CollectionId\" = {collectionId};");
+            await db.Database.ExecuteSqlAsync(
+                $"DELETE FROM \"LlmWikiKnowledgeCollections\" WHERE \"CollectionId\" = {collectionId};");
+        }
+    }
+
+    [Fact]
     public async Task OriginalBibleAdapterRecallsMorphologyAndPaulSaulAliasFromPublicScholarlyLayer()
     {
         if (!string.Equals(Environment.GetEnvironmentVariable("SLOGS_KNOWLEDGE_INTEGRATION"), "1", StringComparison.Ordinal))

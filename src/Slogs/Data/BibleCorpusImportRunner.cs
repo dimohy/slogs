@@ -48,6 +48,11 @@ public sealed class BibleCorpusImportRunner(KnowledgeCorpusService corpus)
             return checkpoint;
         }
 
+        if (checkpoint.NextBatchIndex == 0)
+        {
+            await corpus.ResetStagingAsync(actor, plan.Collection, cancellationToken);
+        }
+
         for (var index = checkpoint.NextBatchIndex; index < plan.Batches.Count; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();

@@ -142,6 +142,71 @@ public sealed class KnowledgeCorpusService(
             contentHash);
     }
 
+    public async Task<bool> ResetStagingAsync(
+        KnowledgeCorpusActor actorContext,
+        KnowledgeCollectionInput collectionInput,
+        CancellationToken cancellationToken = default)
+    {
+        var actor = ValidateActor(actorContext);
+        var collection = ValidateCollection(actor, collectionInput);
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        await EnsureConnectionOpenAsync(db, cancellationToken);
+        var access = await ResolveStorageOwnerAsync(db, actor, collection, cancellationToken);
+        if (!access.Exists)
+        {
+            return false;
+        }
+        await EnsureCanWriteAsync(db, actor, access, collection, cancellationToken);
+
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await using (var statusCommand = CreateCommand(db,
+            """
+            SELECT "Status"
+            FROM "LlmWikiKnowledgeCollections"
+            WHERE "CollectionId"=@collectionId AND "Version"=@version AND "OwnerUserName"=@owner
+            FOR UPDATE;
+            """))
+        {
+            AddIdentityParameters(
+                statusCommand,
+                access.StorageOwnerUserName,
+                collection.CollectionId,
+                collection.Version);
+            var status = await statusCommand.ExecuteScalarAsync(cancellationToken) as string;
+            if (status is null)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return false;
+            }
+            if (!status.Equals("staging", StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"활성 또는 보존된 컬렉션 버전은 초기화할 수 없습니다: status={status}");
+            }
+        }
+
+        await using (var deleteCommand = CreateCommand(db,
+            """
+            DELETE FROM "LlmWikiKnowledgeRelations"
+            WHERE "CollectionId"=@collectionId AND "Version"=@version AND "OwnerUserName"=@owner;
+            DELETE FROM "LlmWikiKnowledgeEntities"
+            WHERE "CollectionId"=@collectionId AND "Version"=@version AND "OwnerUserName"=@owner;
+            DELETE FROM "LlmWikiKnowledgeCollections"
+            WHERE "CollectionId"=@collectionId AND "Version"=@version AND "OwnerUserName"=@owner AND "Status"='staging';
+            """))
+        {
+            AddIdentityParameters(
+                deleteCommand,
+                access.StorageOwnerUserName,
+                collection.CollectionId,
+                collection.Version);
+            await deleteCommand.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return true;
+    }
+
     public Task<IReadOnlyList<KnowledgeChunkRecall>> RecallAsync(
         string ownerUserName,
         string query,
