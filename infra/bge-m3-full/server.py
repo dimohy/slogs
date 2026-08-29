@@ -1,6 +1,6 @@
 import os
 import threading
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
 
 import numpy as np
 import torch
@@ -19,7 +19,9 @@ if ENCODE_BATCH_SIZE < 1 or ENCODE_BATCH_SIZE > 32:
 if SCORE_BATCH_SIZE < 1 or SCORE_BATCH_SIZE > 32:
     raise RuntimeError("BGE_M3_SCORE_BATCH_SIZE must be between 1 and 32.")
 model: BGEM3FlagModel | None = None
-model_lock = threading.Lock()
+gpu_condition = threading.Condition()
+gpu_busy = False
+waiting_latency_sensitive = 0
 
 
 class EncodeRequest(BaseModel):
@@ -28,6 +30,7 @@ class EncodeRequest(BaseModel):
     return_sparse: bool = True
     return_multi_vector: bool = False
     max_length: int = Field(default=8192, ge=1, le=8192)
+    latency_sensitive: bool = False
 
 
 class ScoreRequest(BaseModel):
@@ -48,6 +51,25 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+
+@contextmanager
+def gpu_slot(latency_sensitive: bool):
+    global gpu_busy, waiting_latency_sensitive
+    with gpu_condition:
+        if latency_sensitive:
+            waiting_latency_sensitive += 1
+        while gpu_busy or (not latency_sensitive and waiting_latency_sensitive > 0):
+            gpu_condition.wait()
+        if latency_sensitive:
+            waiting_latency_sensitive -= 1
+        gpu_busy = True
+    try:
+        yield
+    finally:
+        with gpu_condition:
+            gpu_busy = False
+            gpu_condition.notify_all()
 
 
 def to_json_value(value):
@@ -81,6 +103,7 @@ def info():
         "encodeBatchSize": ENCODE_BATCH_SIZE,
         "scoreBatchSize": SCORE_BATCH_SIZE,
         "concurrentGpuRequests": 1,
+        "priorityScheduling": True,
         "functions": ["dense", "sparse", "multi-vector", "pair-score"],
         "cudaDevice": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
     }
@@ -92,22 +115,33 @@ def encode(request: EncodeRequest):
         raise HTTPException(status_code=503, detail="model is not ready")
     if not request.return_dense and not request.return_sparse and not request.return_multi_vector:
         raise HTTPException(status_code=400, detail="at least one output function is required")
-    with model_lock:
-        output = model.encode(
-            request.inputs,
-            batch_size=min(ENCODE_BATCH_SIZE, len(request.inputs)),
-            max_length=request.max_length,
-            return_dense=request.return_dense,
-            return_sparse=request.return_sparse,
-            return_colbert_vecs=request.return_multi_vector,
-        )
+    dense_values = []
+    sparse_values = []
+    multi_vector_values = []
+    for start in range(0, len(request.inputs), ENCODE_BATCH_SIZE):
+        inputs = request.inputs[start : start + ENCODE_BATCH_SIZE]
+        with gpu_slot(request.latency_sensitive):
+            output = model.encode(
+                inputs,
+                batch_size=len(inputs),
+                max_length=request.max_length,
+                return_dense=request.return_dense,
+                return_sparse=request.return_sparse,
+                return_colbert_vecs=request.return_multi_vector,
+            )
+        if request.return_dense:
+            dense_values.extend(output["dense_vecs"].tolist())
+        if request.return_sparse:
+            sparse_values.extend(to_json_value(output["lexical_weights"]))
+        if request.return_multi_vector:
+            multi_vector_values.extend(value.tolist() for value in output["colbert_vecs"])
     response = {}
     if request.return_dense:
-        response["dense"] = output["dense_vecs"].tolist()
+        response["dense"] = dense_values
     if request.return_sparse:
-        response["sparse"] = to_json_value(output["lexical_weights"])
+        response["sparse"] = sparse_values
     if request.return_multi_vector:
-        response["multiVector"] = [value.tolist() for value in output["colbert_vecs"]]
+        response["multiVector"] = multi_vector_values
     return response
 
 
@@ -117,7 +151,7 @@ def score(request: ScoreRequest):
         raise HTTPException(status_code=503, detail="model is not ready")
     if any(value < 0 for value in request.weights) or sum(request.weights) <= 0:
         raise HTTPException(status_code=400, detail="weights must be non-negative with a positive sum")
-    with model_lock:
+    with gpu_slot(latency_sensitive=True):
         result = model.compute_score(
             request.pairs,
             batch_size=min(SCORE_BATCH_SIZE, len(request.pairs)),

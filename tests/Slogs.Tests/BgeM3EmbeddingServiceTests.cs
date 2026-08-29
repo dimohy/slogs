@@ -45,6 +45,7 @@ public sealed class BgeM3EmbeddingServiceTests
             }).Build());
 
         await service.VerifyRuntimeAsync(CancellationToken.None);
+        var queryEmbedding = await service.EmbedQueryAsync("query", CancellationToken.None);
         var embedding = await service.EmbedDocumentAsync("document", CancellationToken.None);
         var embeddings = await service.EmbedDocumentsAsync(["first", "second"], CancellationToken.None);
         var scores = await service.ScorePairsAsync("query", ["relevant", "irrelevant"], CancellationToken.None);
@@ -52,6 +53,7 @@ public sealed class BgeM3EmbeddingServiceTests
         Assert.True(service.SupportsFullFunctionReranking);
         Assert.Equal("bge-m3", service.Model);
         Assert.Equal(1024, embedding.Count);
+        Assert.Equal(1024, queryEmbedding.Count);
         Assert.Equal(2, embeddings.Count);
         Assert.All(embeddings, value => Assert.Equal(1024, value.Count));
         Assert.Equal(2, scores.Count);
@@ -59,6 +61,8 @@ public sealed class BgeM3EmbeddingServiceTests
         Assert.Equal(0.22f, scores[1].Combined);
         Assert.All(scores, score => Assert.True(score.Dense >= 0 && score.Sparse >= 0 && score.MultiVector >= 0));
         Assert.Contains("\"max_passage_length\":640", handler.LastScoreRequest, StringComparison.Ordinal);
+        Assert.Contains(handler.EncodeRequests, value => value.Contains("\"latency_sensitive\":true", StringComparison.Ordinal));
+        Assert.Contains(handler.EncodeRequests, value => value.Contains("\"latency_sensitive\":false", StringComparison.Ordinal));
     }
 
     [Theory]
@@ -84,6 +88,7 @@ public sealed class BgeM3EmbeddingServiceTests
     private sealed class ContractHandler : HttpMessageHandler
     {
         public string LastScoreRequest { get; private set; } = string.Empty;
+        public List<string> EncodeRequests { get; } = [];
 
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
@@ -96,6 +101,7 @@ public sealed class BgeM3EmbeddingServiceTests
                     ?? throw new InvalidOperationException("BGE-M3 encode request body is missing.");
                 using var document = JsonDocument.Parse(body);
                 encodeCount = document.RootElement.GetProperty("inputs").GetArrayLength();
+                EncodeRequests.Add(body);
             }
             if (request.RequestUri?.AbsolutePath == "/score")
             {
@@ -106,7 +112,7 @@ public sealed class BgeM3EmbeddingServiceTests
             {
                 "/info" =>
                     """
-                    {"modelId":"BAAI/bge-m3","modelRevision":"5617a9f61b028005a4858fdac845db406aefb181","dimensions":1024,"encodeBatchSize":1,"scoreBatchSize":8,"concurrentGpuRequests":1,"functions":["dense","sparse","multi-vector","pair-score"]}
+                    {"modelId":"BAAI/bge-m3","modelRevision":"5617a9f61b028005a4858fdac845db406aefb181","dimensions":1024,"encodeBatchSize":1,"scoreBatchSize":8,"concurrentGpuRequests":1,"priorityScheduling":true,"functions":["dense","sparse","multi-vector","pair-score"]}
                     """,
                 "/encode" => $"{{\"dense\":[{string.Join(',', Enumerable.Repeat($"[{string.Join(',', Enumerable.Repeat("0.25", 1024))}]", encodeCount))}]}}",
                 "/score" =>

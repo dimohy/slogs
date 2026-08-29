@@ -29,13 +29,19 @@ public sealed class BgeM3EmbeddingService(HttpClient httpClient, IConfiguration 
     }
 
     public Task<IReadOnlyList<float>> EmbedQueryAsync(string query, CancellationToken cancellationToken)
-        => EmbedAsync(query, cancellationToken);
+        => EmbedAsync(query, latencySensitive: true, cancellationToken);
 
     public Task<IReadOnlyList<float>> EmbedDocumentAsync(string document, CancellationToken cancellationToken)
-        => EmbedAsync(document, cancellationToken);
+        => EmbedAsync(document, latencySensitive: false, cancellationToken);
 
     public async Task<IReadOnlyList<IReadOnlyList<float>>> EmbedDocumentsAsync(
         IReadOnlyList<string> documents,
+        CancellationToken cancellationToken)
+        => await EmbedDocumentsCoreAsync(documents, latencySensitive: false, cancellationToken);
+
+    private async Task<IReadOnlyList<IReadOnlyList<float>>> EmbedDocumentsCoreAsync(
+        IReadOnlyList<string> documents,
+        bool latencySensitive,
         CancellationToken cancellationToken)
     {
         if (documents.Count is < 1 or > 256)
@@ -44,7 +50,7 @@ public sealed class BgeM3EmbeddingService(HttpClient httpClient, IConfiguration 
         }
         var result = await PostAsync(
             "encode",
-            new BgeM3EncodeRequest(documents, true, false, false, 8192),
+            new BgeM3EncodeRequest(documents, true, false, false, 8192, latencySensitive),
             BgeM3JsonSerializerContext.Default.BgeM3EncodeRequest,
             BgeM3JsonSerializerContext.Default.BgeM3EncodeResponse,
             cancellationToken);
@@ -67,7 +73,8 @@ public sealed class BgeM3EmbeddingService(HttpClient httpClient, IConfiguration 
         var info = JsonSerializer.Deserialize(json, BgeM3JsonSerializerContext.Default.BgeM3InfoResponse);
         var requiredFunctions = new[] { "dense", "sparse", "multi-vector", "pair-score" };
         if (info is null || info.ModelId != RequiredModel || info.ModelRevision != RequiredRevision ||
-            info.Dimensions != Dimensions || info.EncodeBatchSize != 1 || info.ScoreBatchSize != 8 || info.ConcurrentGpuRequests != 1 ||
+            info.Dimensions != Dimensions || info.EncodeBatchSize != 1 || info.ScoreBatchSize != 8
+            || info.ConcurrentGpuRequests != 1 || !info.PriorityScheduling ||
             requiredFunctions.Except(info.Functions).Any())
         {
             throw new InvalidOperationException($"BGE-M3 runtime contract drift: {json}");
@@ -105,9 +112,12 @@ public sealed class BgeM3EmbeddingService(HttpClient httpClient, IConfiguration 
             .ToArray();
     }
 
-    private async Task<IReadOnlyList<float>> EmbedAsync(string text, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<float>> EmbedAsync(
+        string text,
+        bool latencySensitive,
+        CancellationToken cancellationToken)
     {
-        var result = await EmbedDocumentsAsync([text], cancellationToken);
+        var result = await EmbedDocumentsCoreAsync([text], latencySensitive, cancellationToken);
         return result[0];
     }
 
@@ -155,7 +165,8 @@ internal sealed record BgeM3EncodeRequest(
     [property: JsonPropertyName("return_dense")] bool ReturnDense,
     [property: JsonPropertyName("return_sparse")] bool ReturnSparse,
     [property: JsonPropertyName("return_multi_vector")] bool ReturnMultiVector,
-    [property: JsonPropertyName("max_length")] int MaxLength);
+    [property: JsonPropertyName("max_length")] int MaxLength,
+    [property: JsonPropertyName("latency_sensitive")] bool LatencySensitive);
 
 internal sealed record BgeM3EncodeResponse(IReadOnlyList<IReadOnlyList<float>> Dense);
 internal sealed record BgeM3ScoreRequest(
@@ -175,6 +186,7 @@ internal sealed record BgeM3InfoResponse(
     int EncodeBatchSize,
     int ScoreBatchSize,
     int ConcurrentGpuRequests,
+    bool PriorityScheduling,
     IReadOnlyList<string> Functions);
 
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
