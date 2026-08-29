@@ -1414,14 +1414,16 @@ public sealed class KnowledgeCorpusService(
                 INNER JOIN LATERAL (
                     SELECT candidate.*
                     FROM (
-                        (SELECT r.* FROM "LlmWikiKnowledgeRelations" r
-                         WHERE r."CollectionId"=g."CollectionId" AND r."Version"=g."Version" AND r."OwnerUserName"=g."OwnerUserName"
-                           AND r."ReviewStatus" IN ('approved','published') AND r."FromNodeId"=g.frontier
+                        (SELECT r.* FROM visible_collections vc
+                         INNER JOIN "LlmWikiKnowledgeRelations" r
+                           ON r."CollectionId"=vc."CollectionId" AND r."Version"=vc."Version" AND r."OwnerUserName"=vc."OwnerUserName"
+                         WHERE r."ReviewStatus" IN ('approved','published') AND r."FromNodeId"=g.frontier
                          ORDER BY r."Confidence" DESC, r."RelationId" LIMIT 64)
                         UNION ALL
-                        (SELECT r.* FROM "LlmWikiKnowledgeRelations" r
-                         WHERE r."CollectionId"=g."CollectionId" AND r."Version"=g."Version" AND r."OwnerUserName"=g."OwnerUserName"
-                           AND r."ReviewStatus" IN ('approved','published') AND r."ToNodeId"=g.frontier
+                        (SELECT r.* FROM visible_collections vc
+                         INNER JOIN "LlmWikiKnowledgeRelations" r
+                           ON r."CollectionId"=vc."CollectionId" AND r."Version"=vc."Version" AND r."OwnerUserName"=vc."OwnerUserName"
+                         WHERE r."ReviewStatus" IN ('approved','published') AND r."ToNodeId"=g.frontier
                            AND r."FromNodeId"<>g.frontier
                          ORDER BY r."Confidence" DESC, r."RelationId" LIMIT 64)
                     ) candidate
