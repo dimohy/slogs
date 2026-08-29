@@ -66,9 +66,6 @@
                     <span>#@item.Tag</span>
                     <span class="text-xs text-slate-500 transition group-hover:text-slate-200">@($"{item.Count}개 로그")</span>
                 </span>
-                <span class="mt-2 block text-xs font-medium text-slate-500 transition group-hover:text-slate-200">
-                    @GetClueRecallPath(item)
-                </span>
             </a>
         }
     }
@@ -192,9 +189,6 @@
 
     private static string FormatClueCount(int count)
         => $"{count:N0}개 태그";
-
-    private static string GetClueRecallPath(TagSummary item)
-        => $"태그 정보 경로: #{item.Tag} -> 공개 로그";
 
     private string GetListQuery(string? sort)
     {

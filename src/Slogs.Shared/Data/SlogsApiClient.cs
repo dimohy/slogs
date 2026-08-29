@@ -464,6 +464,17 @@ public sealed class SlogsApiClient
         return await response.Content.ReadAsStringAsync();
     }
 
+    public async Task<SlogsMcpPolicyPromptResponse> GetMcpPolicyPromptAsync()
+    {
+        if (backend is not null)
+        {
+            return await backend.GetMcpPolicyPromptAsync();
+        }
+
+        return await GetJsonAsync<SlogsMcpPolicyPromptResponse>("api/mcp-policy-prompt")
+            ?? throw new InvalidOperationException("Slogs MCP 정책 프롬프트를 불러오지 못했습니다.");
+    }
+
     public async Task<IReadOnlyList<LlmWikiTokenResponse>> GetLlmWikiTokensAsync(string userName)
     {
         if (backend is not null)

@@ -337,6 +337,8 @@ public static class ObsidianVaultContentEncodings
     public const string Base64 = "base64";
 }
 
+public sealed record SlogsMcpPolicyPromptResponse(string Version, string KoreanMarkdown, string EnglishMarkdown);
+
 public sealed record LlmWikiRememberRequest(string Prompt, string? Content, string? Title, string? Tags, string? CategoryPath = null);
 
 public sealed record LlmWikiUpdateRequest(string Prompt, string? Content, string? Title, string? Tags, string? CategoryPath = null);
@@ -381,7 +383,10 @@ public sealed record LlmWikiSearchResult(
     int AccessCount,
     bool IsPublic,
     DateTime? PublishedAt,
-    int? RelevancePercent = null);
+    int? RelevancePercent = null,
+    int GraphDepth = 0,
+    double GraphScore = 0,
+    string SemanticPath = "");
 
 public sealed record LlmWikiCategorySummary(string CategoryPath, int CategoryDepth, int Count, DateTime UpdatedAt);
 

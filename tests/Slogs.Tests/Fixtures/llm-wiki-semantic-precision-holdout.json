@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 1,
+  "owner": "dimohy",
+  "cases": [
+    {
+      "name": "agentic-shaping-implementation",
+      "sourceEntryId": "b3b3ab7b-b6f6-457e-bd1d-14ada4b1943c",
+      "targetEntryId": "eb5da50c-d061-4dc1-8a4d-19cfa6fdbef4",
+      "maxGraphHops": 2,
+      "expectedGraphDepth": 1,
+      "expectedSemanticPath": "implements"
+    },
+    {
+      "name": "agent-guide-documents-flow-first-design",
+      "sourceEntryId": "12e466d6-2d3e-4b52-ba3c-19fb21e4c97b",
+      "targetEntryId": "86ad74bd-bdc7-498a-9813-f8d2db23efdb",
+      "maxGraphHops": 2,
+      "expectedGraphDepth": 1,
+      "expectedSemanticPath": "documents"
+    },
+    {
+      "name": "runtime-implements-flow-first-design",
+      "sourceEntryId": "78443008-8215-4764-b633-9e348ef6b52d",
+      "targetEntryId": "86ad74bd-bdc7-498a-9813-f8d2db23efdb",
+      "maxGraphHops": 2,
+      "expectedGraphDepth": 1,
+      "expectedSemanticPath": "implements"
+    },
+    {
+      "name": "safety-supports-typed-ir",
+      "sourceEntryId": "9ccb6bd4-24d9-4a28-9072-325adb68b982",
+      "targetEntryId": "e4dde108-ae5e-493e-b0af-e3c9fe633dfe",
+      "maxGraphHops": 2,
+      "expectedGraphDepth": 1,
+      "expectedSemanticPath": "supports"
+    },
+    {
+      "name": "browser-runtime-refines-typed-ir",
+      "sourceEntryId": "59dc6c91-bedd-46d8-8096-1c94c15e54a0",
+      "targetEntryId": "e4dde108-ae5e-493e-b0af-e3c9fe633dfe",
+      "maxGraphHops": 2,
+      "expectedGraphDepth": 1,
+      "expectedSemanticPath": "refines"
+    },
+    {
+      "name": "postfix-scheduling-example-of-typed-ir",
+      "sourceEntryId": "a61cf5fb-93d6-4e47-885a-99e6340e7a8c",
+      "targetEntryId": "e4dde108-ae5e-493e-b0af-e3c9fe633dfe",
+      "maxGraphHops": 2,
+      "expectedGraphDepth": 1,
+      "expectedSemanticPath": "example-of"
+    },
+    {
+      "name": "release-depends-on-typed-ir",
+      "sourceEntryId": "3997a382-ca45-4c58-b858-314440ce5433",
+      "targetEntryId": "e4dde108-ae5e-493e-b0af-e3c9fe633dfe",
+      "maxGraphHops": 2,
+      "expectedGraphDepth": 1,
+      "expectedSemanticPath": "depends-on"
+    },
+    {
+      "name": "reviewed-sequence-one-hop",
+      "sourceEntryId": "4807a38c-9a1b-4c25-8172-c36a0b25c9fc",
+      "targetEntryId": "64985674-abec-4aff-aac4-c2419a4acb53",
+      "maxGraphHops": 2,
+      "expectedGraphDepth": 1,
+      "expectedSemanticPath": "precedes"
+    },
+    {
+      "name": "reviewed-sequence-two-hop",
+      "sourceEntryId": "4807a38c-9a1b-4c25-8172-c36a0b25c9fc",
+      "targetEntryId": "cc1f9034-8398-45af-a31b-e1f53dd4a8eb",
+      "maxGraphHops": 2,
+      "expectedGraphDepth": 2,
+      "expectedSemanticPath": "precedes > precedes"
+    },
+    {
+      "name": "reviewed-sequence-three-hop",
+      "sourceEntryId": "4807a38c-9a1b-4c25-8172-c36a0b25c9fc",
+      "targetEntryId": "efac2bd9-5c57-431f-91b3-782ed933687d",
+      "maxGraphHops": 3,
+      "expectedGraphDepth": 3,
+      "expectedSemanticPath": "precedes > precedes > precedes"
+    },
+    {
+      "name": "policy-documents-agentic-shaping",
+      "sourceEntryId": "09146683-4598-4c22-946c-47fd798104d5",
+      "targetEntryId": "eb5da50c-d061-4dc1-8a4d-19cfa6fdbef4",
+      "maxGraphHops": 2,
+      "expectedGraphDepth": 1,
+      "expectedSemanticPath": "documents"
+    },
+    {
+      "name": "structured-verification-implements-agentic-shaping",
+      "sourceEntryId": "2f8017f0-af0f-4be6-90d2-fb345993f183",
+      "targetEntryId": "eb5da50c-d061-4dc1-8a4d-19cfa6fdbef4",
+      "maxGraphHops": 2,
+      "expectedGraphDepth": 1,
+      "expectedSemanticPath": "implements"
+    },
+    {
+      "name": "retrieval-diagnostics-supports-graphrag",
+      "sourceEntryId": "181a9aa0-09da-481d-92e7-242797e4a104",
+      "targetEntryId": "8a15b485-8f08-4a7c-91be-7d21cbdc62ee",
+      "maxGraphHops": 2,
+      "expectedGraphDepth": 1,
+      "expectedSemanticPath": "supports"
+    },
+    {
+      "name": "gpu-runtime-implements-graphrag",
+      "sourceEntryId": "ed11a15a-3e94-4d8d-962b-bd827ba4bba8",
+      "targetEntryId": "8a15b485-8f08-4a7c-91be-7d21cbdc62ee",
+      "maxGraphHops": 2,
+      "expectedGraphDepth": 1,
+      "expectedSemanticPath": "implements"
+    },
+    {
+      "name": "database-source-implements-policy",
+      "sourceEntryId": "73807c9e-7e46-40b9-8bf7-a35ee3b28348",
+      "targetEntryId": "09146683-4598-4c22-946c-47fd798104d5",
+      "maxGraphHops": 2,
+      "expectedGraphDepth": 1,
+      "expectedSemanticPath": "implements"
+    },
+    {
+      "name": "version-sync-refines-policy",
+      "sourceEntryId": "8a4c24db-1c1f-434b-8cf9-712f91b401ae",
+      "targetEntryId": "09146683-4598-4c22-946c-47fd798104d5",
+      "maxGraphHops": 2,
+      "expectedGraphDepth": 1,
+      "expectedSemanticPath": "refines"
+    },
+    {
+      "name": "recall-wording-refines-policy",
+      "sourceEntryId": "916ddc84-b0c4-4b75-972d-f03ee0806676",
+      "targetEntryId": "09146683-4598-4c22-946c-47fd798104d5",
+      "maxGraphHops": 2,
+      "expectedGraphDepth": 1,
+      "expectedSemanticPath": "refines"
+    },
+    {
+      "name": "decision-tracking-supports-policy",
+      "sourceEntryId": "df036292-5f2d-4ddb-ad03-23b9c1d308b7",
+      "targetEntryId": "09146683-4598-4c22-946c-47fd798104d5",
+      "maxGraphHops": 2,
+      "expectedGraphDepth": 1,
+      "expectedSemanticPath": "supports"
+    }
+  ]
+}

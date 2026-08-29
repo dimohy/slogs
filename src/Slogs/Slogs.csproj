@@ -12,6 +12,10 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.9" />
     <PackageReference Include="ModelContextProtocol.AspNetCore" Version="1.4.0" />
+    <PackageReference Include="OpenIddict.EntityFrameworkCore" Version="7.6.0" />
+    <PackageReference Include="OpenIddict.Server.AspNetCore" Version="7.6.0" />
+    <PackageReference Include="OpenIddict.Validation.AspNetCore" Version="7.6.0" />
+    <PackageReference Include="OpenIddict.Validation.ServerIntegration" Version="7.6.0" />
     <ProjectReference Include="..\Slogs.Shared\Slogs.Shared.csproj" />
     <ProjectReference Include="..\Slogs.Client\Slogs.Client.csproj" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="11.0.0-preview.5.26302.115" />

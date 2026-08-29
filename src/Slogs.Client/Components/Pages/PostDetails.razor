@@ -45,14 +45,6 @@ else
                      fetchpriority="high" />
             </figure>
         }
-        <div class="post-detail-node-strip mb-4">
-            <span class="post-detail-node-strip__label">@(post.IsDraft ? "게시전 지식 로그" : "공개 지식 로그")</span>
-            <span>출처 @FormatUserName(post.Author)</span>
-            <span>@(post.IsDraft ? "게시전 로그" : $"리비전 v{latestRevisionNumberForNode}")</span>
-            <span>@GetLinkedLogFlowSignal()</span>
-            <span>@GetAdjacentFlowSignal()</span>
-            <span>@FormatConversationTraceSignal(post.CommentCount)</span>
-        </div>
         <div class="flex flex-wrap items-center gap-2">
             <h1 class="text-2xl font-bold text-slate-900">@post.Title</h1>
             @if (post.IsDraft)
@@ -109,27 +101,9 @@ else
                 </div>
             }
         </div>
-        <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-            <a class="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 hover:bg-slate-100" href="/">지식 로그 홈</a>
-            <a class="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 hover:bg-slate-100" href="@GetPostAuthorUrl()">슬로거 홈</a>
-            <a class="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 hover:bg-slate-100" href="#comments">댓글</a>
-            <a class="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 hover:bg-slate-100" href="#related-posts">관련 로그</a>
-            @if (previousPost is not null)
-            {
-                <a class="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 hover:bg-slate-100"
-                   href="@GetPostNavigationUrl(previousPost)">이전 로그</a>
-            }
-            @if (nextPost is not null)
-            {
-                <a class="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 hover:bg-slate-100"
-                   href="@GetPostNavigationUrl(nextPost)">다음 로그</a>
-            }
-        </div>
-
         <div class="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-500">
             <a class="font-semibold text-slate-800 hover:underline"
                href="@($"/@{Uri.EscapeDataString(post.Author)}")">@FormatUserName(post.Author)</a>
-            <span>@($"팔로우 {authorFollowerCount}개")</span>
             @if (post.IsDraft)
             {
                 <span>게시전 로그</span>
@@ -142,10 +116,10 @@ else
                     <span>@FormatDate(post.PublishedAt)</span>
                 </span>
             }
-            <span class="inline-flex items-center gap-1">
-                <SlogsIcon Name="clock" Class="h-3.5 w-3.5" />
-                <span>@post.ReadTimeMinutes 분</span>
-            </span>
+                <span class="inline-flex items-center gap-1">
+                    <SlogsIcon Name="clock" Class="h-3.5 w-3.5" />
+                    <span>@($"{post.ReadTimeMinutes}분")</span>
+                </span>
             <span class="inline-flex items-center gap-1" title="조회">
                 <SlogsIcon Name="eye" Class="h-3.5 w-3.5" />
                 <span>@FormatRecallAccessCount(post.ViewCount)</span>
@@ -155,13 +129,13 @@ else
                 <button class="ml-2 rounded-full border border-slate-300 px-3 py-1 text-sm font-semibold transition hover:bg-slate-100 @(isWriterFollowBusy ? "cursor-wait opacity-60" : "")"
                         disabled="@isWriterFollowBusy"
                         @onclick="ToggleFollowAuthor">
-                    @(isFollowingAuthor ? "관계 해제" : "관계 잇기")
+                    @(isFollowingAuthor ? "팔로우 취소" : "팔로우")
                 </button>
             }
             else if (CurrentUser is null)
             {
                 <a class="ml-2 rounded-full border border-slate-300 px-3 py-1 text-sm font-semibold transition hover:bg-slate-100"
-                   href="@GetLoginReturnUrl()">관계 잇기</a>
+                   href="@GetLoginReturnUrl()">팔로우</a>
             }
             @if (post.UpdatedAt > post.PublishedAt.AddMinutes(1))
             {
@@ -169,21 +143,10 @@ else
             }
         </div>
 
-        <div class="post-detail-flowline mt-4" aria-label="로그 요약">
-            <div class="min-w-0">
-                <p class="text-xs font-bold text-slate-500">로그 요약</p>
-                <p class="mt-1 text-sm font-semibold text-slate-700">@GetPostNodeFlowDescription(post, latestRevisionNumberForNode)</p>
-            </div>
-            <div class="post-detail-flowline__signals" aria-label="로그 정보">
-                <span>@GetPrimaryClueSignal(post)</span>
-                <span>@GetPrimarySeriesSignal(post)</span>
-                <span>@GetRevisionFlowSignal(post, latestRevisionNumberForNode)</span>
-                <span>@GetLinkedLogFlowSignal()</span>
-                <span>@GetAdjacentFlowSignal()</span>
-            </div>
-        </div>
-
-        <p class="mt-3 text-slate-700">@post.Summary</p>
+        @if (!string.IsNullOrWhiteSpace(post.Summary))
+        {
+            <p class="mt-4 text-slate-700">@post.Summary</p>
+        }
 
         <div class="mt-3 flex flex-wrap gap-2">
             @foreach (var tag in post.Tags)
@@ -205,11 +168,11 @@ else
                 <div class="post-detail-revision-flow">
                     <div class="min-w-0">
                         <p class="text-xs font-bold text-slate-500">변경 내용</p>
-                        <p class="mt-1 text-sm font-semibold text-slate-700">선택한 리비전이 이 로그의 기억 활동을 어떻게 갱신했는지 다시 따라갑니다.</p>
+                        <p class="mt-1 text-sm font-semibold text-slate-700">선택한 리비전에서 바뀐 내용을 확인합니다.</p>
                     </div>
                     <div class="post-detail-revision-flow__signals" aria-label="리비전 정보">
                         <span>@($"리비전 v{diffNumber}")</span>
-                        <span>@($"기록 {FormatDateTime(revisionFlowCreatedAt)}")</span>
+                        <span>@FormatDateTime(revisionFlowCreatedAt)</span>
                         <span>@FormatRevisionFlowChangeCount(revisionFlowChangeCount)</span>
                     </div>
                 </div>
@@ -331,9 +294,6 @@ else
                      aria-label="@($"{item.Title} 관련 로그")">
                 <PostCardImage Post="item" PostUrl="@GetPostNavigationUrl(item)" Priority="@IsPriorityCardImage(index)" />
                 <PostFlowSignals Post="item" Class="post-log-card__signals post-detail-linked-card__signals" />
-                <PostRecallPath Post="item"
-                                Class="post-log-card__recall-path post-detail-linked-card__recall-path"
-                                AriaLabel="관련 로그 경로" />
                 <a class="mb-2 block text-base font-bold text-slate-800 hover:underline" href="@GetPostNavigationUrl(item)">@item.Title</a>
                 @if (!string.IsNullOrWhiteSpace(item.Summary))
                 {
@@ -366,9 +326,6 @@ else
                 else
                 {
                     <PostFlowSignals Post="previousPost" Class="post-log-card__signals post-detail-linked-card__signals" />
-                    <PostRecallPath Post="previousPost"
-                                    Class="post-log-card__recall-path post-detail-linked-card__recall-path"
-                                    AriaLabel="이전 로그 경로" />
                     <a class="mt-2 block text-lg font-bold text-slate-900 transition hover:underline" href="@GetPostNavigationUrl(previousPost)">
                         @previousPost.Title
                     </a>
@@ -393,9 +350,6 @@ else
                 else
                 {
                     <PostFlowSignals Post="nextPost" Class="post-log-card__signals post-detail-linked-card__signals" />
-                    <PostRecallPath Post="nextPost"
-                                    Class="post-log-card__recall-path post-detail-linked-card__recall-path"
-                                    AriaLabel="다음 로그 경로" />
                     <a class="mt-2 block text-lg font-bold text-slate-900 transition hover:underline" href="@GetPostNavigationUrl(nextPost)">
                         @nextPost.Title
                     </a>
@@ -410,11 +364,11 @@ else
     }
 
     <section id="comments" class="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-        <h3 class="mb-3 text-lg font-bold text-slate-900">대화 흔적 (@post.CommentCount)</h3>
+        <h3 class="mb-3 text-lg font-bold text-slate-900">댓글 @($"{post.CommentCount}개")</h3>
 
         @if (CurrentUser is null)
         {
-            <p class="text-sm text-slate-500">이 로그에 댓글을 남기려면 지식 로그 홈으로 돌아가야 합니다. <a class="font-semibold underline" href="@GetLoginReturnUrl()">지식 로그로 돌아가기</a></p>
+            <p class="text-sm text-slate-500">댓글을 남기려면 <a class="font-semibold underline" href="@GetLoginReturnUrl()">로그인</a>해 주세요.</p>
         }
         else
         {
@@ -460,7 +414,7 @@ else
                             {
                                 <span>·</span>
                                 <button class="text-slate-700 transition hover:text-slate-900" type="button" disabled="@isCommentSaving" @onclick="() => StartReply(comment.Id)">
-                                    대화 잇기
+                                    답글
                                 </button>
                             }
                             @if (CanEditComment(comment))
@@ -520,24 +474,24 @@ else
                             <p class="mt-1 text-slate-700">@comment.Content</p>
                             @if (comment.IsEdited)
                             {
-                                <p class="text-xs text-slate-400">댓글 저장됨</p>
+                                <p class="text-xs text-slate-400">수정됨</p>
                             }
                         }
                     </article>
                     @if (replyingToCommentId == comment.Id)
                     {
                         <div class="mt-2 rounded-2xl border border-slate-300 bg-slate-50 p-3">
-                            <p class="mb-1 text-xs text-slate-500">[@FormatUserName(comment.Author)] 댓글에 이어 남기기</p>
+                            <p class="mb-1 text-xs text-slate-500">@FormatUserName(comment.Author)에게 답글</p>
                             <div class="text-right text-xs text-slate-500">@($"{replyComment?.Length ?? 0}/1000")</div>
                             <textarea class="min-h-20 w-full rounded-xl border border-slate-300 p-3 text-sm"
                                       disabled="@isCommentSaving"
                                       rows="3" maxlength="1000" @bind="replyComment" @bind:event="oninput"
-                                      placeholder="댓글에 이어 남겨주세요"
+                                      placeholder="답글을 입력해 주세요"
                                       @onkeydown="(e) => HandleReplyKeyDown(e, comment.Id)"></textarea>
                             <div class="mt-2 flex flex-wrap gap-2">
                                 <button class="rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                                         type="button" @onclick="() => SubmitReply(comment.Id)" disabled="@(string.IsNullOrWhiteSpace(replyComment) || isCommentSaving)">
-                                    대화 잇기
+                                    답글 남기기
                                 </button>
                                 <button class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
                                         type="button" @onclick="CancelReply">
@@ -573,7 +527,7 @@ else
                             @if (pendingDeleteCommentId == reply.Id)
                             {
                                 <div class="mt-2 rounded-lg border border-rose-200 bg-rose-50 p-2 text-sm text-rose-800">
-                                    <p class="mb-2">이 이어진 댓글을 지울까요?</p>
+                                    <p class="mb-2">이 답글을 삭제할까요?</p>
                                     <div class="flex flex-wrap gap-2">
                                         <button class="rounded-full border border-rose-300 bg-rose-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-rose-700"
                                                 type="button" @onclick="ConfirmDeleteComment">
@@ -611,7 +565,7 @@ else
                                 <p class="mt-1 text-slate-700">@reply.Content</p>
                                 @if (reply.IsEdited)
                                 {
-                                    <p class="text-xs text-slate-400">댓글 저장됨</p>
+                                    <p class="text-xs text-slate-400">수정됨</p>
                                 }
                             }
                         </article>
@@ -920,7 +874,7 @@ else
         message = string.Empty;
         if (CurrentUser is null)
         {
-            message = "공감을 남기려면 지식 로그 홈으로 돌아가야 합니다.";
+            message = "공감을 남기려면 로그인해 주세요.";
             NavigateToLogin();
             return;
         }
@@ -939,7 +893,7 @@ else
 
         if (isLikeBusy)
         {
-            message = "공감가 처리 중입니다. 잠시 후 다시 시도해 주세요.";
+            message = "공감 처리 중입니다. 잠시 후 다시 시도해 주세요.";
             return;
         }
 
@@ -973,7 +927,7 @@ else
         message = string.Empty;
         if (CurrentUser is null)
         {
-            message = "저장한 로그를 바꾸려면 지식 로그 홈으로 돌아가야 합니다.";
+            message = "로그를 저장하려면 로그인해 주세요.";
             NavigateToLogin();
             return;
         }
@@ -1032,7 +986,7 @@ else
         {
             if (CurrentUser is null)
             {
-                message = "이 로그에 댓글을 남기려면 지식 로그 홈으로 돌아가야 합니다.";
+                message = "댓글을 남기려면 로그인해 주세요.";
                 NavigateToLogin();
                 return;
             }
@@ -1098,7 +1052,7 @@ else
         {
             if (CurrentUser is null)
             {
-                message = "댓글에 이어 남기려면 지식 로그 홈으로 돌아가야 합니다.";
+                message = "답글을 남기려면 로그인해 주세요.";
                 NavigateToLogin();
                 return;
             }
@@ -1109,7 +1063,7 @@ else
                 return;
             }
 
-            message = "이어 남길 댓글을 입력해 주세요.";
+            message = "답글을 입력해 주세요.";
             return;
         }
 
@@ -1136,14 +1090,14 @@ else
             var comment = await ApiClient.AddCommentAsync(Slug, CurrentUser.UserName, CurrentUserDisplayName, trimmedReply, parentCommentId);
             if (comment is null)
             {
-                message = "이어진 댓글을 남기지 못했습니다.";
+                message = "답글을 남기지 못했습니다.";
                 return;
             }
 
             replyComment = string.Empty;
             replyingToCommentId = null;
             await RefreshPostAsync();
-            message = "댓글이 이어졌습니다.";
+            message = "답글이 등록되었습니다.";
         }
         finally
         {
@@ -1396,26 +1350,22 @@ else
 
     private static string GetPostSeoTitle(BlogPost targetPost)
     {
-        var nodeState = targetPost.IsDraft ? "게시전 지식 로그" : "공개 지식 로그";
-        return $"{targetPost.Title} {nodeState} | slogs";
+        var draftLabel = targetPost.IsDraft ? " (게시전)" : string.Empty;
+        return $"{targetPost.Title}{draftLabel} | slogs";
     }
 
     private string GetPostSeoDescription(BlogPost targetPost)
     {
-        var nodeState = targetPost.IsDraft ? "소유자 전용 게시전 로그" : "공개 지식 로그";
         var summary = string.IsNullOrWhiteSpace(targetPost.Summary)
             ? "생각, 작업, 판단, 검증을 기록합니다."
             : targetPost.Summary.Trim();
-        var latestRevisionNumber = GetLatestRevisionNumber();
 
-        return $"{nodeState}: {summary} {FormatUserName(targetPost.Author)}의 {GetPrimaryClueSignal(targetPost)}, {GetPrimarySeriesSignal(targetPost)}, {GetRevisionFlowSignal(targetPost, latestRevisionNumber)}로 이어집니다.";
+        return $"{summary} — {FormatUserName(targetPost.Author)}";
     }
 
     private int GetLatestRevisionNumber() => revisions.Count > 0 ? revisions.Max(x => x.RevisionNumber) : 1;
 
     private string GetCurrentCanonicalPath() => new Uri(Navigation.Uri).AbsolutePath;
-
-    private string GetPostAuthorUrl() => $"/@{Uri.EscapeDataString(post?.Author ?? string.Empty)}";
 
     private static string GetWriterUrl(string author)
         => $"/@{Uri.EscapeDataString(author)}";
@@ -1545,41 +1495,10 @@ else
 
     private static string FormatDateTime(DateTime dateTime) => ToKoreaTime(dateTime).ToString("yyyy.MM.dd HH:mm");
 
-    private static string FormatRecallAccessCount(int viewCount) => $"{viewCount:N0} 조회";
+    private static string FormatRecallAccessCount(int viewCount) => $"{viewCount:N0}";
 
     private static string FormatRevisionFlowChangeCount(int changedFieldCount)
         => changedFieldCount == 0 ? "변경 내용 없음" : $"{changedFieldCount:N0}개 변경 내용";
-
-    private string GetPostNodeFlowDescription(BlogPost currentPost, int latestRevisionNumber)
-    {
-        var clue = currentPost.Tags.Count == 0 ? "태그 축적 전" : $"#{currentPost.Tags[0]} 태그";
-        var series = currentPost.Series.Count == 0 ? "시리즈 없음" : $"{currentPost.Series[0]} 시리즈";
-        var revision = GetRevisionFlowSignal(currentPost, latestRevisionNumber);
-        return $"본문과 댓글은 {FormatUserName(currentPost.Author)}의 {clue}, {series}, {revision}, {GetAdjacentFlowSignal()}에 이어진 지식 로그입니다.";
-    }
-
-    private static string GetPrimaryClueSignal(BlogPost currentPost)
-        => currentPost.Tags.Count == 0 ? "태그 축적 전" : $"주요 태그 #{currentPost.Tags[0]}";
-
-    private static string GetPrimarySeriesSignal(BlogPost currentPost)
-        => currentPost.Series.Count == 0 ? "시리즈 없음" : $"로그 시리즈 {currentPost.Series[0]}";
-
-    private static string GetRevisionFlowSignal(BlogPost currentPost, int latestRevisionNumber)
-        => currentPost.IsDraft ? "게시전 로그" : $"리비전 v{latestRevisionNumber}";
-
-    private string GetLinkedLogFlowSignal()
-        => relatedPosts.Count == 0
-            ? "관련 로그 대기"
-            : $"{relatedPosts.Count:N0}개 관련 로그";
-
-    private string GetAdjacentFlowSignal()
-    {
-        var count = (previousPost is null ? 0 : 1) + (nextPost is null ? 0 : 1);
-        return count == 0 ? "이전/다음 로그 없음" : $"{count:N0}개 이전/다음 로그";
-    }
-
-    private static string FormatConversationTraceSignal(int commentCount)
-        => $"{commentCount:N0}개 댓글";
 
     private static string Shorten(string value, int maxLength)
     {

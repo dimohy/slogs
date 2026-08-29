@@ -44,7 +44,18 @@ public sealed class LlmWikiService(
     private static readonly string[] AllowedTokenScopes =
     [
         SlogsTokenScopes.Mcp,
-        SlogsTokenScopes.ObsidianSync
+        SlogsTokenScopes.ObsidianSync,
+        OrganizationTokenScopes.Read,
+        OrganizationTokenScopes.Propose,
+        OrganizationTokenScopes.Approve,
+        OrganizationTokenScopes.Reject,
+        OrganizationTokenScopes.MembersManage,
+        OrganizationTokenScopes.SourcesManage,
+        OrganizationTokenScopes.McpManage,
+        OrganizationTokenScopes.OidcManage,
+        OrganizationTokenScopes.MetricsRead,
+        OrganizationTokenScopes.MetricsWrite,
+        OrganizationTokenScopes.GuidedSession
     ];
     private static readonly string[] KoreanParticleSuffixes =
     [
@@ -289,8 +300,9 @@ public sealed class LlmWikiService(
         int offset = 0,
         int minRelevancePercent = 50,
         string? categoryPath = null,
-        CancellationToken cancellationToken = default)
-        => SearchCoreAsync(ownerUserName, query, limit, offset, minRelevancePercent, categoryPath, publicOnly: false, cancellationToken);
+        CancellationToken cancellationToken = default,
+        int maxGraphHops = 1)
+        => SearchCoreAsync(ownerUserName, query, limit, offset, minRelevancePercent, categoryPath, publicOnly: false, maxGraphHops, cancellationToken);
 
     public Task<IReadOnlyList<LlmWikiSearchResult>> SearchPublicAsync(
         string ownerUserName,
@@ -299,8 +311,9 @@ public sealed class LlmWikiService(
         int offset = 0,
         int minRelevancePercent = 50,
         string? categoryPath = null,
-        CancellationToken cancellationToken = default)
-        => SearchCoreAsync(ownerUserName, query, limit, offset, minRelevancePercent, categoryPath, publicOnly: true, cancellationToken);
+        CancellationToken cancellationToken = default,
+        int maxGraphHops = 1)
+        => SearchCoreAsync(ownerUserName, query, limit, offset, minRelevancePercent, categoryPath, publicOnly: true, maxGraphHops, cancellationToken);
 
     private async Task<IReadOnlyList<LlmWikiSearchResult>> SearchCoreAsync(
         string ownerUserName,
@@ -310,12 +323,14 @@ public sealed class LlmWikiService(
         int minRelevancePercent,
         string? categoryPath,
         bool publicOnly,
+        int maxGraphHops,
         CancellationToken cancellationToken)
     {
         var owner = NormalizeUser(ownerUserName);
         var safeLimit = NormalizeLimit(limit, 20, 100);
         var safeOffset = Math.Clamp(offset, 0, 10_000);
         var safeMinRelevancePercent = Math.Clamp(minRelevancePercent, 0, 100);
+        var safeMaxGraphHops = Math.Clamp(maxGraphHops, 1, 3);
         var normalizedCategoryPath = NormalizeCategoryFilter(categoryPath);
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
         var ownerEntries = db.LlmWikiEntries
@@ -365,6 +380,7 @@ public sealed class LlmWikiService(
             safeMinRelevancePercent,
             normalizedCategoryPath,
             publicOnly,
+            safeMaxGraphHops,
             cancellationToken);
         if (rankedEntries.Count == 0)
         {
@@ -395,11 +411,15 @@ public sealed class LlmWikiService(
                 x.PublishedAt))
             .ToListAsync(cancellationToken);
         var entryById = entries.ToDictionary(x => x.Id);
-        var relevanceById = rankedEntries.ToDictionary(x => x.Id, x => x.RelevancePercent);
+        var rankById = rankedEntries.ToDictionary(x => x.Id);
 
         return rankedIds
             .Where(entryById.ContainsKey)
-            .Select(id => ToSearchResult(entryById[id], relevanceById[id]))
+            .Select(id =>
+            {
+                var rank = rankById[id];
+                return ToSearchResult(entryById[id], rank.RelevancePercent, rank.GraphDepth, rank.GraphScore, rank.SemanticPath);
+            })
             .ToList();
     }
 
@@ -870,7 +890,7 @@ public sealed class LlmWikiService(
             Bio = user.Bio,
             RegisteredAt = user.RegisteredAt
         };
-        return SlogsBearerTokenAuthenticationResult.Success(authUser);
+        return SlogsBearerTokenAuthenticationResult.Success(authUser, scopes, tokenRecord.Id);
     }
 
     public static string FormatEntryMarkdown(LlmWikiEntryResponse entry)
@@ -1012,8 +1032,14 @@ public sealed class LlmWikiService(
         {
             var tags = result.Tags.Count == 0 ? string.Empty : $" Memory clues: {string.Join(", ", result.Tags)}.";
             var relevance = result.RelevancePercent is null ? string.Empty : $" ({result.RelevancePercent}% recall relevance)";
+            var graph = result.GraphDepth == 0
+                ? string.Empty
+                : $" graphDepth={result.GraphDepth} graphScore={result.GraphScore:F4}.";
+            var semanticPath = string.IsNullOrWhiteSpace(result.SemanticPath)
+                ? string.Empty
+                : $" semanticPath={result.SemanticPath}.";
             var visibility = result.IsPublic ? " public memory" : string.Empty;
-            builder.AppendLine($"- Recall candidate `{result.Id}` [{result.CategoryPath}]{visibility} {result.Title}{relevance}: {result.Summary}{tags}");
+            builder.AppendLine($"- Recall candidate `{result.Id}` [{result.CategoryPath}]{visibility} {result.Title}{relevance}: {result.Summary}{tags}{graph}{semanticPath}");
         }
 
         return builder.ToString();
@@ -1054,7 +1080,12 @@ public sealed class LlmWikiService(
             source.CategoryPath,
             source.CreatedAt);
 
-    private static LlmWikiSearchResult ToSearchResult(LlmWikiEntryRecord entry, int? relevancePercent = null)
+    private static LlmWikiSearchResult ToSearchResult(
+        LlmWikiEntryRecord entry,
+        int? relevancePercent = null,
+        int graphDepth = 0,
+        double graphScore = 0,
+        string semanticPath = "")
         => new(
             entry.Id,
             entry.Slug,
@@ -1067,9 +1098,17 @@ public sealed class LlmWikiService(
             entry.AccessCount,
             entry.IsPublic,
             entry.PublishedAt,
-            relevancePercent);
+            relevancePercent,
+            graphDepth,
+            graphScore,
+            semanticPath);
 
-    private static LlmWikiSearchResult ToSearchResult(LlmWikiSearchProjection entry, int? relevancePercent = null)
+    private static LlmWikiSearchResult ToSearchResult(
+        LlmWikiSearchProjection entry,
+        int? relevancePercent = null,
+        int graphDepth = 0,
+        double graphScore = 0,
+        string semanticPath = "")
         => new(
             entry.Id,
             entry.Slug,
@@ -1082,7 +1121,10 @@ public sealed class LlmWikiService(
             entry.AccessCount,
             entry.IsPublic,
             entry.PublishedAt,
-            relevancePercent);
+            relevancePercent,
+            graphDepth,
+            graphScore,
+            semanticPath);
 
     private async Task EnsureOwnerSearchIndexAsync(
         SlogsDbContext db,
@@ -1226,6 +1268,7 @@ public sealed class LlmWikiService(
 
         if (graphNodes.Count == 0)
         {
+            await RefreshGraphNodeStatisticsAsync(db, owner, cancellationToken);
             return;
         }
 
@@ -1262,6 +1305,115 @@ public sealed class LlmWikiService(
             await EnsureConnectionOpenAsync(db, cancellationToken);
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
+
+        await RefreshGraphNodeStatisticsAsync(db, owner, cancellationToken);
+    }
+
+    private static async Task RefreshGraphNodeStatisticsAsync(
+        SlogsDbContext db,
+        string owner,
+        CancellationToken cancellationToken)
+    {
+        await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.CommandText =
+            """
+            DELETE FROM "LlmWikiGraphEdges"
+            WHERE "OwnerUserName" = @owner;
+
+            DELETE FROM "LlmWikiGraphNodeStatistics"
+            WHERE "OwnerUserName" = @owner;
+
+            INSERT INTO "LlmWikiGraphNodeStatistics"
+                ("OwnerUserName", "NodeKey", "EntryCount", "IndexVersion", "UpdatedAt")
+            SELECT
+                "OwnerUserName",
+                "NodeKey",
+                COUNT(DISTINCT "EntryId")::integer,
+                @graphIndexVersion,
+                @updatedAt
+            FROM "LlmWikiEntryGraphNodes"
+            WHERE "OwnerUserName" = @owner
+            GROUP BY "OwnerUserName", "NodeKey";
+
+            WITH scored_edges AS (
+                SELECT
+                    source_nodes."EntryId" AS "FromEntryId",
+                    neighbor_nodes."EntryId" AS "ToEntryId",
+                    LEAST(
+                        SUM(
+                            LEAST(source_nodes."Weight", neighbor_nodes."Weight")
+                            / LN(2.0 + frequency."EntryCount")
+                        ),
+                        1.0
+                    ) AS "EdgeScore"
+                FROM "LlmWikiEntryGraphNodes" AS source_nodes
+                INNER JOIN "LlmWikiEntryGraphNodes" AS neighbor_nodes
+                    ON neighbor_nodes."OwnerUserName" = source_nodes."OwnerUserName"
+                   AND neighbor_nodes."NodeKey" = source_nodes."NodeKey"
+                   AND neighbor_nodes."EntryId" <> source_nodes."EntryId"
+                INNER JOIN "LlmWikiGraphNodeStatistics" AS frequency
+                    ON frequency."OwnerUserName" = source_nodes."OwnerUserName"
+                   AND frequency."NodeKey" = source_nodes."NodeKey"
+                WHERE source_nodes."OwnerUserName" = @owner
+                GROUP BY source_nodes."EntryId", neighbor_nodes."EntryId"
+            ),
+            ranked_edges AS (
+                SELECT *, ROW_NUMBER() OVER (
+                    PARTITION BY "FromEntryId"
+                    ORDER BY "EdgeScore" DESC, "ToEntryId"
+                ) AS edge_rank
+                FROM scored_edges
+            )
+            INSERT INTO "LlmWikiGraphEdges"
+                ("OwnerUserName", "FromEntryId", "ToEntryId", "EdgeScore", "IndexVersion", "UpdatedAt")
+            SELECT
+                @owner, "FromEntryId", "ToEntryId", "EdgeScore", @graphIndexVersion, @updatedAt
+            FROM ranked_edges
+            WHERE edge_rank <= 4;
+
+            INSERT INTO "LlmWikiGraphIndexStates"
+                ("OwnerUserName", "IndexVersion", "SourceNodeCount", "BuiltAt")
+            SELECT @owner, @graphIndexVersion, COUNT(*)::bigint, @updatedAt
+            FROM "LlmWikiEntryGraphNodes"
+            WHERE "OwnerUserName" = @owner
+            ON CONFLICT ("OwnerUserName") DO UPDATE SET
+                "IndexVersion" = EXCLUDED."IndexVersion",
+                "SourceNodeCount" = EXCLUDED."SourceNodeCount",
+                "BuiltAt" = EXCLUDED."BuiltAt";
+            """;
+        command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
+        command.Parameters.Add(new NpgsqlParameter("owner", owner));
+        command.Parameters.Add(new NpgsqlParameter("graphIndexVersion", LlmWikiGraphSearchCommand.GraphIndexVersion));
+        command.Parameters.Add(new NpgsqlParameter("updatedAt", DateTime.UtcNow));
+        await EnsureConnectionOpenAsync(db, cancellationToken);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task EnsureGraphIndexReadyAsync(
+        SlogsDbContext db,
+        string owner,
+        CancellationToken cancellationToken)
+    {
+        await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.CommandText =
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM "LlmWikiGraphIndexStates"
+                WHERE "OwnerUserName" = @owner
+                  AND "IndexVersion" = @graphIndexVersion
+            );
+            """;
+        command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
+        command.Parameters.Add(new NpgsqlParameter("owner", owner));
+        command.Parameters.Add(new NpgsqlParameter("graphIndexVersion", LlmWikiGraphSearchCommand.GraphIndexVersion));
+        await EnsureConnectionOpenAsync(db, cancellationToken);
+        var ready = (bool)(await command.ExecuteScalarAsync(cancellationToken) ?? false);
+        if (!ready)
+        {
+            throw new InvalidOperationException(
+                "LLM Wiki multi-hop graph index is missing or stale. Rebuild the derived graph index before requesting more than one hop.");
+        }
     }
 
     private async Task<IReadOnlyList<LlmWikiRankedEntry>> SearchGraphAsync(
@@ -1273,164 +1425,27 @@ public sealed class LlmWikiService(
         int minRelevancePercent,
         string categoryPath,
         bool publicOnly,
+        int maxGraphHops,
         CancellationToken cancellationToken)
     {
+        if (maxGraphHops > 1)
+        {
+            await EnsureGraphIndexReadyAsync(db, owner, cancellationToken);
+        }
+
         var queryEmbedding = await embeddingService.EmbedQueryAsync(searchText, cancellationToken);
         var queryNodeKeys = BuildQueryGraphNodeKeys(searchText, categoryPath);
         var queryVector = ToVectorLiteral(queryEmbedding);
         var categoryPrefix = string.IsNullOrWhiteSpace(categoryPath) ? string.Empty : $"{categoryPath}/%";
         var seedLimit = Math.Max((offset + limit) * 10, 100);
+        var graphSeedLimit = maxGraphHops == 1
+            ? seedLimit
+            : Math.Min(Math.Max(offset + limit, 4), 8);
+        const int graphFanout = 4;
+        const int semanticFanout = 8;
 
         await using var command = db.Database.GetDbConnection().CreateCommand();
-        command.CommandText =
-            """
-            WITH filtered_entries AS (
-                SELECT "Id", "UpdatedAt"
-                FROM "LlmWikiEntries"
-                WHERE "OwnerUserName" = @owner
-                  AND (@publicOnly = FALSE OR "IsPublic" = TRUE)
-                  AND (
-                      @categoryPath = ''
-                      OR "CategoryPath" = @categoryPath
-                      OR "CategoryPath" LIKE @categoryPrefix
-                  )
-            ),
-            vector_seed AS (
-                SELECT
-                    e."Id",
-                    1 - (idx."Embedding" <=> CAST(@queryVector AS vector)) AS vector_score
-                FROM filtered_entries AS e
-                INNER JOIN "LlmWikiEntryEmbeddings" AS idx
-                    ON idx."EntryId" = e."Id"
-                WHERE idx."OwnerUserName" = @owner
-                  AND idx."Model" = @model
-                  AND idx."Dimensions" = @dimensions
-                ORDER BY idx."Embedding" <=> CAST(@queryVector AS vector)
-                LIMIT @seedLimit
-            ),
-            query_graph AS (
-                SELECT
-                    nodes."EntryId" AS "Id",
-                    SUM(nodes."Weight") AS graph_score
-                FROM "LlmWikiEntryGraphNodes" AS nodes
-                INNER JOIN filtered_entries AS e
-                    ON e."Id" = nodes."EntryId"
-                WHERE nodes."OwnerUserName" = @owner
-                  AND nodes."NodeKey" = ANY(@queryNodeKeys)
-                GROUP BY nodes."EntryId"
-            ),
-            lexical_match AS (
-                SELECT
-                    nodes."EntryId" AS "Id",
-                    LEAST(
-                        SUM(
-                            CASE nodes."NodeType"
-                                WHEN 'title-phrase' THEN 0.85
-                                WHEN 'title-term' THEN 0.55
-                                WHEN 'tag' THEN 0.45
-                                WHEN 'category-path' THEN 0.36
-                                WHEN 'category-term' THEN 0.30
-                                WHEN 'prompt-phrase' THEN 0.28
-                                WHEN 'prompt-term' THEN 0.22
-                                WHEN 'content-phrase' THEN 0.18
-                                WHEN 'content-term' THEN 0.14
-                                ELSE 0.0
-                            END
-                        ),
-                        1.15
-                    ) AS lexical_score
-                FROM "LlmWikiEntryGraphNodes" AS nodes
-                INNER JOIN filtered_entries AS e
-                    ON e."Id" = nodes."EntryId"
-                WHERE nodes."OwnerUserName" = @owner
-                  AND nodes."NodeKey" = ANY(@queryNodeKeys)
-                GROUP BY nodes."EntryId"
-            ),
-            seed_graph_nodes AS (
-                SELECT nodes."NodeKey"
-                FROM "LlmWikiEntryGraphNodes" AS nodes
-                INNER JOIN vector_seed AS seed
-                    ON seed."Id" = nodes."EntryId"
-                WHERE nodes."OwnerUserName" = @owner
-                GROUP BY nodes."NodeKey"
-                ORDER BY MAX(seed.vector_score) DESC, SUM(nodes."Weight") DESC, nodes."NodeKey"
-                LIMIT 200
-            ),
-            expanded_graph AS (
-                SELECT
-                    nodes."EntryId" AS "Id",
-                    SUM(nodes."Weight") * 0.25 AS graph_score
-                FROM "LlmWikiEntryGraphNodes" AS nodes
-                INNER JOIN seed_graph_nodes AS seed_nodes
-                    ON seed_nodes."NodeKey" = nodes."NodeKey"
-                INNER JOIN filtered_entries AS e
-                    ON e."Id" = nodes."EntryId"
-                WHERE nodes."OwnerUserName" = @owner
-                GROUP BY nodes."EntryId"
-            ),
-            combined AS (
-                SELECT
-                    "Id",
-                    vector_score,
-                    0::double precision AS query_graph_score,
-                    0::double precision AS expanded_graph_score,
-                    0::double precision AS lexical_score
-                FROM vector_seed
-                UNION ALL
-                SELECT
-                    "Id",
-                    0::double precision AS vector_score,
-                    graph_score AS query_graph_score,
-                    0::double precision AS expanded_graph_score,
-                    0::double precision AS lexical_score
-                FROM query_graph
-                UNION ALL
-                SELECT
-                    "Id",
-                    0::double precision AS vector_score,
-                    0::double precision AS query_graph_score,
-                    0::double precision AS expanded_graph_score,
-                    lexical_score
-                FROM lexical_match
-                UNION ALL
-                SELECT
-                    "Id",
-                    0::double precision AS vector_score,
-                    0::double precision AS query_graph_score,
-                    graph_score AS expanded_graph_score,
-                    0::double precision AS lexical_score
-                FROM expanded_graph
-            ),
-            ranked AS (
-                SELECT
-                    "Id",
-                    MAX(vector_score) AS vector_score,
-                    SUM(query_graph_score) AS query_graph_score,
-                    SUM(expanded_graph_score) AS expanded_graph_score,
-                    SUM(lexical_score) AS lexical_score,
-                    MAX(vector_score) * 0.90
-                        + LEAST(SUM(query_graph_score), 16) / 18.0
-                        + LEAST(SUM(expanded_graph_score), 10) / 90.0
-                        + SUM(lexical_score) AS rank_score
-                FROM combined
-                GROUP BY "Id"
-            ),
-            scored AS (
-                SELECT
-                    ranked."Id",
-                    ranked.rank_score,
-                    ROUND(LEAST(GREATEST(ranked.rank_score / 1.60, 0), 1) * 100)::integer AS relevance_percent
-                FROM ranked
-            )
-            SELECT scored."Id", scored.relevance_percent
-            FROM scored
-            INNER JOIN filtered_entries AS e
-                ON e."Id" = scored."Id"
-            WHERE scored.relevance_percent >= @minRelevancePercent
-            ORDER BY scored.rank_score DESC, e."UpdatedAt" DESC
-            OFFSET @offset
-            LIMIT @limit;
-            """;
+        command.CommandText = LlmWikiGraphSearchCommand.CommandText;
         command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
         command.Parameters.Add(new NpgsqlParameter("owner", owner));
         command.Parameters.Add(new NpgsqlParameter("publicOnly", publicOnly));
@@ -1444,6 +1459,11 @@ public sealed class LlmWikiService(
             Value = queryNodeKeys
         });
         command.Parameters.Add(new NpgsqlParameter("seedLimit", seedLimit));
+        command.Parameters.Add(new NpgsqlParameter("graphSeedLimit", graphSeedLimit));
+        command.Parameters.Add(new NpgsqlParameter("graphFanout", graphFanout));
+        command.Parameters.Add(new NpgsqlParameter("semanticFanout", semanticFanout));
+        command.Parameters.Add(new NpgsqlParameter("maxGraphHops", maxGraphHops));
+        command.Parameters.Add(new NpgsqlParameter("graphIndexVersion", LlmWikiGraphSearchCommand.GraphIndexVersion));
         command.Parameters.Add(new NpgsqlParameter("offset", offset));
         command.Parameters.Add(new NpgsqlParameter("limit", limit));
         command.Parameters.Add(new NpgsqlParameter("minRelevancePercent", minRelevancePercent));
@@ -1453,7 +1473,12 @@ public sealed class LlmWikiService(
         var entries = new List<LlmWikiRankedEntry>();
         while (await reader.ReadAsync(cancellationToken))
         {
-            entries.Add(new LlmWikiRankedEntry(reader.GetGuid(0), reader.GetInt32(1)));
+            entries.Add(new LlmWikiRankedEntry(
+                reader.GetGuid(0),
+                reader.GetInt32(1),
+                reader.GetInt32(2),
+                reader.GetDouble(3),
+                reader.GetString(4)));
         }
 
         return entries;
@@ -2055,7 +2080,12 @@ public sealed class LlmWikiService(
 
     private sealed record LlmWikiGraphNode(string Key, string Text, string Type, double Weight);
 
-    private sealed record LlmWikiRankedEntry(Guid Id, int RelevancePercent);
+    private sealed record LlmWikiRankedEntry(
+        Guid Id,
+        int RelevancePercent,
+        int GraphDepth,
+        double GraphScore,
+        string SemanticPath);
 
     private sealed class LlmWikiCategoryAccumulator(string path, int depth)
     {
@@ -2069,11 +2099,19 @@ public sealed class LlmWikiService(
     }
 }
 
-public sealed record SlogsBearerTokenAuthenticationResult(AuthUser? User, bool IsScopeAllowed)
+public sealed record SlogsBearerTokenAuthenticationResult(
+    AuthUser? User,
+    bool IsScopeAllowed,
+    IReadOnlyList<string> Scopes,
+    Guid? TokenId)
 {
-    public static SlogsBearerTokenAuthenticationResult Invalid { get; } = new(null, true);
+    public static SlogsBearerTokenAuthenticationResult Invalid { get; } = new(null, true, [], null);
 
-    public static SlogsBearerTokenAuthenticationResult Forbidden { get; } = new(null, false);
+    public static SlogsBearerTokenAuthenticationResult Forbidden { get; } = new(null, false, [], null);
 
-    public static SlogsBearerTokenAuthenticationResult Success(AuthUser user) => new(user, true);
+    public static SlogsBearerTokenAuthenticationResult Success(
+        AuthUser user,
+        IReadOnlyList<string> scopes,
+        Guid tokenId)
+        => new(user, true, scopes, tokenId);
 }

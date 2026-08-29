@@ -34,6 +34,29 @@ public static class SlogsDbInitializer
     {
         await db.Database.ExecuteSqlRawAsync("CREATE EXTENSION IF NOT EXISTS vector;");
         await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "SlogsMcpPolicyPrompt" (
+                "Id" integer PRIMARY KEY,
+                "Version" character varying(32) NOT NULL,
+                "KoreanMarkdown" text NOT NULL,
+                "EnglishMarkdown" text NOT NULL,
+                "UpdatedAt" timestamp with time zone NOT NULL,
+                "UpdatedBy" character varying(80) NOT NULL
+            );
+            INSERT INTO "SlogsMcpPolicyPrompt" ("Id", "Version", "KoreanMarkdown", "EnglishMarkdown", "UpdatedAt", "UpdatedBy")
+            VALUES (1, {0}, {1}, {2}, {3}, 'system')
+            ON CONFLICT ("Id") DO UPDATE SET
+                "Version" = EXCLUDED."Version",
+                "KoreanMarkdown" = EXCLUDED."KoreanMarkdown",
+                "EnglishMarkdown" = EXCLUDED."EnglishMarkdown",
+                "UpdatedAt" = EXCLUDED."UpdatedAt"
+            WHERE "SlogsMcpPolicyPrompt"."UpdatedBy" = 'system';
+            """,
+            SlogsMcpPolicyPrompt.Version,
+            SlogsMcpPolicyPrompt.BuildKoreanMarkdown(),
+            SlogsMcpPolicyPrompt.BuildEnglishMarkdown(),
+            DateTimeOffset.UtcNow);
+        await db.Database.ExecuteSqlRawAsync(
             "ALTER TABLE \"Posts\" ADD COLUMN IF NOT EXISTS \"ThumbnailUrl\" character varying(500) NOT NULL DEFAULT '';");
         await db.Database.ExecuteSqlRawAsync(
             "ALTER TABLE \"Posts\" ADD COLUMN IF NOT EXISTS \"IsDraft\" boolean NOT NULL DEFAULT FALSE;");
@@ -469,6 +492,213 @@ public static class SlogsDbInitializer
             """);
         await db.Database.ExecuteSqlRawAsync(
             """
+            CREATE TABLE IF NOT EXISTS "LlmWikiGraphNodeStatistics" (
+                "OwnerUserName" character varying(80) NOT NULL,
+                "NodeKey" character varying(180) NOT NULL,
+                "EntryCount" integer NOT NULL,
+                "IndexVersion" character varying(80) NOT NULL,
+                "UpdatedAt" timestamp with time zone NOT NULL,
+                CONSTRAINT "PK_LlmWikiGraphNodeStatistics" PRIMARY KEY ("OwnerUserName", "NodeKey")
+            );
+            CREATE TABLE IF NOT EXISTS "LlmWikiGraphIndexStates" (
+                "OwnerUserName" character varying(80) NOT NULL,
+                "IndexVersion" character varying(80) NOT NULL,
+                "SourceNodeCount" bigint NOT NULL,
+                "BuiltAt" timestamp with time zone NOT NULL,
+                CONSTRAINT "PK_LlmWikiGraphIndexStates" PRIMARY KEY ("OwnerUserName")
+            );
+            CREATE TABLE IF NOT EXISTS "LlmWikiGraphEdges" (
+                "OwnerUserName" character varying(80) NOT NULL,
+                "FromEntryId" uuid NOT NULL,
+                "ToEntryId" uuid NOT NULL,
+                "EdgeScore" double precision NOT NULL,
+                "IndexVersion" character varying(80) NOT NULL,
+                "UpdatedAt" timestamp with time zone NOT NULL,
+                CONSTRAINT "PK_LlmWikiGraphEdges" PRIMARY KEY ("OwnerUserName", "FromEntryId", "ToEntryId"),
+                CONSTRAINT "FK_LlmWikiGraphEdges_FromEntry"
+                    FOREIGN KEY ("FromEntryId") REFERENCES "LlmWikiEntries" ("Id") ON DELETE CASCADE,
+                CONSTRAINT "FK_LlmWikiGraphEdges_ToEntry"
+                    FOREIGN KEY ("ToEntryId") REFERENCES "LlmWikiEntries" ("Id") ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS "LlmWikiSemanticGraphVersions" (
+                "OwnerUserName" character varying(80) NOT NULL,
+                "Version" character varying(80) NOT NULL,
+                "SchemaVersion" integer NOT NULL,
+                "CorpusSha256" character varying(64) NOT NULL,
+                "Generator" character varying(120) NOT NULL,
+                "GeneratorVersion" character varying(120) NOT NULL,
+                "State" character varying(24) NOT NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "ActivatedAt" timestamp with time zone NULL,
+                CONSTRAINT "PK_LlmWikiSemanticGraphVersions"
+                    PRIMARY KEY ("OwnerUserName", "Version"),
+                CONSTRAINT "CK_LlmWikiSemanticGraphVersions_State"
+                    CHECK ("State" IN ('candidate', 'validated', 'active', 'retired'))
+            );
+
+            CREATE TABLE IF NOT EXISTS "LlmWikiSemanticEntities" (
+                "OwnerUserName" character varying(80) NOT NULL,
+                "Version" character varying(80) NOT NULL,
+                "EntityKey" character varying(180) NOT NULL,
+                "CanonicalName" character varying(240) NOT NULL,
+                "EntityType" character varying(40) NOT NULL,
+                "Description" text NOT NULL,
+                CONSTRAINT "PK_LlmWikiSemanticEntities"
+                    PRIMARY KEY ("OwnerUserName", "Version", "EntityKey"),
+                CONSTRAINT "FK_LlmWikiSemanticEntities_Version"
+                    FOREIGN KEY ("OwnerUserName", "Version")
+                    REFERENCES "LlmWikiSemanticGraphVersions" ("OwnerUserName", "Version") ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS "LlmWikiSemanticMentions" (
+                "Id" uuid NOT NULL,
+                "OwnerUserName" character varying(80) NOT NULL,
+                "Version" character varying(80) NOT NULL,
+                "EntityKey" character varying(180) NOT NULL,
+                "EntryId" uuid NOT NULL,
+                "SourceId" uuid NULL,
+                "EvidenceField" character varying(24) NOT NULL,
+                "EvidenceQuote" text NOT NULL,
+                "Confidence" double precision NOT NULL,
+                CONSTRAINT "PK_LlmWikiSemanticMentions" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_LlmWikiSemanticMentions_Entity"
+                    FOREIGN KEY ("OwnerUserName", "Version", "EntityKey")
+                    REFERENCES "LlmWikiSemanticEntities" ("OwnerUserName", "Version", "EntityKey") ON DELETE CASCADE,
+                CONSTRAINT "FK_LlmWikiSemanticMentions_Entry"
+                    FOREIGN KEY ("EntryId") REFERENCES "LlmWikiEntries" ("Id") ON DELETE CASCADE,
+                CONSTRAINT "FK_LlmWikiSemanticMentions_Source"
+                    FOREIGN KEY ("SourceId") REFERENCES "LlmWikiEntrySources" ("Id") ON DELETE CASCADE,
+                CONSTRAINT "CK_LlmWikiSemanticMentions_Confidence" CHECK ("Confidence" >= 0.0 AND "Confidence" <= 1.0)
+            );
+
+            CREATE TABLE IF NOT EXISTS "LlmWikiSemanticRelations" (
+                "Id" uuid NOT NULL,
+                "OwnerUserName" character varying(80) NOT NULL,
+                "Version" character varying(80) NOT NULL,
+                "FromEntityKey" character varying(180) NOT NULL,
+                "ToEntityKey" character varying(180) NOT NULL,
+                "RelationType" character varying(40) NOT NULL,
+                "Confidence" double precision NOT NULL,
+                "State" character varying(24) NOT NULL,
+                CONSTRAINT "PK_LlmWikiSemanticRelations" PRIMARY KEY ("Id"),
+                CONSTRAINT "UQ_LlmWikiSemanticRelations_TypedEdge"
+                    UNIQUE ("OwnerUserName", "Version", "FromEntityKey", "RelationType", "ToEntityKey"),
+                CONSTRAINT "FK_LlmWikiSemanticRelations_FromEntity"
+                    FOREIGN KEY ("OwnerUserName", "Version", "FromEntityKey")
+                    REFERENCES "LlmWikiSemanticEntities" ("OwnerUserName", "Version", "EntityKey") ON DELETE CASCADE,
+                CONSTRAINT "FK_LlmWikiSemanticRelations_ToEntity"
+                    FOREIGN KEY ("OwnerUserName", "Version", "ToEntityKey")
+                    REFERENCES "LlmWikiSemanticEntities" ("OwnerUserName", "Version", "EntityKey") ON DELETE CASCADE,
+                CONSTRAINT "CK_LlmWikiSemanticRelations_Confidence" CHECK ("Confidence" >= 0.0 AND "Confidence" <= 1.0),
+                CONSTRAINT "CK_LlmWikiSemanticRelations_State" CHECK ("State" IN ('candidate', 'validated', 'active', 'rejected')),
+                CONSTRAINT "CK_LlmWikiSemanticRelations_Endpoints" CHECK ("FromEntityKey" <> "ToEntityKey")
+            );
+
+            CREATE TABLE IF NOT EXISTS "LlmWikiSemanticRelationEvidence" (
+                "Id" uuid NOT NULL,
+                "RelationId" uuid NOT NULL,
+                "EntryId" uuid NOT NULL,
+                "SourceId" uuid NULL,
+                "EvidenceField" character varying(24) NOT NULL,
+                "EvidenceQuote" text NOT NULL,
+                CONSTRAINT "PK_LlmWikiSemanticRelationEvidence" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_LlmWikiSemanticRelationEvidence_Relation"
+                    FOREIGN KEY ("RelationId") REFERENCES "LlmWikiSemanticRelations" ("Id") ON DELETE CASCADE,
+                CONSTRAINT "FK_LlmWikiSemanticRelationEvidence_Entry"
+                    FOREIGN KEY ("EntryId") REFERENCES "LlmWikiEntries" ("Id") ON DELETE CASCADE,
+                CONSTRAINT "FK_LlmWikiSemanticRelationEvidence_Source"
+                    FOREIGN KEY ("SourceId") REFERENCES "LlmWikiEntrySources" ("Id") ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS "LlmWikiMemorySplitProposals" (
+                "Id" uuid NOT NULL,
+                "OwnerUserName" character varying(80) NOT NULL,
+                "Version" character varying(80) NOT NULL,
+                "SourceEntryId" uuid NOT NULL,
+                "CreatedEntryId" uuid NULL,
+                "ProposedTitle" character varying(240) NOT NULL,
+                "ProposedCategoryPath" character varying(320) NOT NULL,
+                "ProposedPrompt" text NOT NULL,
+                "ProposedContent" text NOT NULL,
+                "Reason" text NOT NULL,
+                "EvidenceJson" jsonb NOT NULL,
+                "State" character varying(24) NOT NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "ActivatedAt" timestamp with time zone NULL,
+                CONSTRAINT "PK_LlmWikiMemorySplitProposals" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_LlmWikiMemorySplitProposals_Version"
+                    FOREIGN KEY ("OwnerUserName", "Version")
+                    REFERENCES "LlmWikiSemanticGraphVersions" ("OwnerUserName", "Version") ON DELETE CASCADE,
+                CONSTRAINT "FK_LlmWikiMemorySplitProposals_SourceEntry"
+                    FOREIGN KEY ("SourceEntryId") REFERENCES "LlmWikiEntries" ("Id") ON DELETE CASCADE,
+                CONSTRAINT "FK_LlmWikiMemorySplitProposals_CreatedEntry"
+                    FOREIGN KEY ("CreatedEntryId") REFERENCES "LlmWikiEntries" ("Id") ON DELETE SET NULL,
+                CONSTRAINT "CK_LlmWikiMemorySplitProposals_State"
+                    CHECK ("State" IN ('candidate', 'validated', 'active', 'rejected', 'rolled-back'))
+            );
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            $"""
+            TRUNCATE TABLE "LlmWikiGraphEdges", "LlmWikiGraphNodeStatistics", "LlmWikiGraphIndexStates";
+            INSERT INTO "LlmWikiGraphNodeStatistics"
+                ("OwnerUserName", "NodeKey", "EntryCount", "IndexVersion", "UpdatedAt")
+            SELECT
+                "OwnerUserName",
+                "NodeKey",
+                COUNT(DISTINCT "EntryId")::integer,
+                '{LlmWikiGraphSearchCommand.GraphIndexVersion}',
+                NOW()
+            FROM "LlmWikiEntryGraphNodes"
+            GROUP BY "OwnerUserName", "NodeKey";
+            WITH scored_edges AS (
+                SELECT
+                    source_nodes."OwnerUserName",
+                    source_nodes."EntryId" AS "FromEntryId",
+                    neighbor_nodes."EntryId" AS "ToEntryId",
+                    LEAST(
+                        SUM(
+                            LEAST(source_nodes."Weight", neighbor_nodes."Weight")
+                            / LN(2.0 + frequency."EntryCount")
+                        ),
+                        1.0
+                    ) AS "EdgeScore"
+                FROM "LlmWikiEntryGraphNodes" AS source_nodes
+                INNER JOIN "LlmWikiEntryGraphNodes" AS neighbor_nodes
+                    ON neighbor_nodes."OwnerUserName" = source_nodes."OwnerUserName"
+                   AND neighbor_nodes."NodeKey" = source_nodes."NodeKey"
+                   AND neighbor_nodes."EntryId" <> source_nodes."EntryId"
+                INNER JOIN "LlmWikiGraphNodeStatistics" AS frequency
+                    ON frequency."OwnerUserName" = source_nodes."OwnerUserName"
+                   AND frequency."NodeKey" = source_nodes."NodeKey"
+                GROUP BY source_nodes."OwnerUserName", source_nodes."EntryId", neighbor_nodes."EntryId"
+            ),
+            ranked_edges AS (
+                SELECT *, ROW_NUMBER() OVER (
+                    PARTITION BY "OwnerUserName", "FromEntryId"
+                    ORDER BY "EdgeScore" DESC, "ToEntryId"
+                ) AS edge_rank
+                FROM scored_edges
+            )
+            INSERT INTO "LlmWikiGraphEdges"
+                ("OwnerUserName", "FromEntryId", "ToEntryId", "EdgeScore", "IndexVersion", "UpdatedAt")
+            SELECT
+                "OwnerUserName", "FromEntryId", "ToEntryId", "EdgeScore",
+                '{LlmWikiGraphSearchCommand.GraphIndexVersion}', NOW()
+            FROM ranked_edges
+            WHERE edge_rank <= 4;
+            INSERT INTO "LlmWikiGraphIndexStates"
+                ("OwnerUserName", "IndexVersion", "SourceNodeCount", "BuiltAt")
+            SELECT
+                "OwnerUserName",
+                '{LlmWikiGraphSearchCommand.GraphIndexVersion}',
+                COUNT(*)::bigint,
+                NOW()
+            FROM "LlmWikiEntryGraphNodes"
+            GROUP BY "OwnerUserName";
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
             CREATE UNIQUE INDEX IF NOT EXISTS "IX_LlmWikiEntries_OwnerUserName_Slug"
             ON "LlmWikiEntries" ("OwnerUserName", "Slug");
             """);
@@ -559,6 +789,36 @@ public static class SlogsDbInitializer
             """
             CREATE INDEX IF NOT EXISTS "IX_LlmWikiEntryGraphNodes_EntryId"
             ON "LlmWikiEntryGraphNodes" ("EntryId");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiEntryGraphNodes_Owner_NodeKey_EntryId_Covering"
+            ON "LlmWikiEntryGraphNodes" ("OwnerUserName", "NodeKey", "EntryId")
+            INCLUDE ("Weight");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiEntryGraphNodes_EntryId_Owner_NodeKey_Covering"
+            ON "LlmWikiEntryGraphNodes" ("EntryId", "OwnerUserName", "NodeKey")
+            INCLUDE ("Weight");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiGraphEdges_Owner_From_Score_To"
+            ON "LlmWikiGraphEdges" ("OwnerUserName", "FromEntryId", "EdgeScore" DESC, "ToEntryId");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiSemanticMentions_Owner_Version_Entry"
+            ON "LlmWikiSemanticMentions" ("OwnerUserName", "Version", "EntryId", "EntityKey");
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiSemanticRelations_Owner_Version_From"
+            ON "LlmWikiSemanticRelations" ("OwnerUserName", "Version", "FromEntityKey", "Confidence" DESC)
+            WHERE "State" = 'active';
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiSemanticRelations_Owner_Version_To"
+            ON "LlmWikiSemanticRelations" ("OwnerUserName", "Version", "ToEntityKey", "Confidence" DESC)
+            WHERE "State" = 'active';
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiMemorySplitProposals_Owner_Source_State"
+            ON "LlmWikiMemorySplitProposals" ("OwnerUserName", "SourceEntryId", "State");
             """);
         await db.Database.ExecuteSqlRawAsync(
             """
@@ -771,11 +1031,11 @@ public static class SlogsDbInitializer
             CreateComment("junho", "컴포넌트 분리는 서비스 레이어 먼저 뽑는 게 맞아요.", now.AddDays(-3).AddHours(-6)),
             CreateComment("devin", "실시간 상호작용까지 고려하면 체감이 더 좋아집니다.", now.AddDays(-3).AddHours(-4)),
             CreateComment("alex", "로그 제목이 잘 보이도록 헤더 고정도 좋은 패턴 같아요.", now.AddDays(-3).AddHours(-2)),
-            CreateComment("jane", "대화 흔적 페이지네이션이 필요한 구간이 생길 것 같아요.", now.AddDays(-2).AddHours(-10)),
+            CreateComment("jane", "댓글이 많아지면 페이지네이션이 필요할 것 같아요.", now.AddDays(-2).AddHours(-10)),
             CreateComment("kevin", "태그 라우팅 동작은 실제 서비스에서 중요합니다.", now.AddDays(-2).AddHours(-8)),
             CreateComment("rose", "좋은 정렬 기준을 같이 고민하면 유저 피드백이 더 좋아져요.", now.AddDays(-2).AddHours(-6)),
             CreateComment("nate", "문서 정리 방식이 깔끔해서 이해가 빠르네요.", now.AddDays(-2).AddHours(-4)),
-            CreateComment("lee", "대화 흔적을 이어 남기는 내용도 넣으면 더 풍부해질 듯합니다.", now.AddDays(-2).AddHours(-2)),
+            CreateComment("lee", "댓글에 답글을 남길 수 있으면 대화를 이어가기 좋겠습니다.", now.AddDays(-2).AddHours(-2)),
             CreateComment("sora", "실전에서 캐시 전략만 보완하면 충분히 배포 가능한 수준입니다.", now.AddDays(-1).AddHours(-10)),
             CreateComment("hyun", "좋은 로그 감사합니다. 바로 따라 해보겠습니다.", now.AddDays(-1).AddHours(-8))
         ]);
@@ -850,9 +1110,9 @@ public static class SlogsDbInitializer
                 {
                     "좋은 포스트네요. 라우팅 설계가 가장 먼저라고 동의합니다." => "좋은 로그네요. 라우팅 설계가 가장 먼저라고 동의합니다.",
                     "글 제목이 잘 보이도록 헤더 고정도 좋은 패턴 같아요." => "로그 제목이 잘 보이도록 헤더 고정도 좋은 패턴 같아요.",
-                    "댓글 페이지네이션이 필요한 구간이 생길 것 같아요." => "대화 흔적 페이지네이션이 필요한 구간이 생길 것 같아요.",
+                    "대화 흔적 페이지네이션이 필요한 구간이 생길 것 같아요." => "댓글이 많아지면 페이지네이션이 필요할 것 같아요.",
                     "태그 라우팅 동작은 실제 서비스에서 중요합니다." => "태그 라우팅 동작은 실제 서비스에서 중요합니다.",
-                    var content when IsLegacyReplyFeatureComment(content) => "대화 흔적을 이어 남기는 내용도 넣으면 더 풍부해질 듯합니다.",
+                    var content when IsLegacyReplyFeatureComment(content) => "댓글에 답글을 남길 수 있으면 대화를 이어가기 좋겠습니다.",
                     "좋은 글 감사합니다. 바로 따라 해보겠습니다." => "좋은 로그 감사합니다. 바로 따라 해보겠습니다.",
                     _ => comment.Content
                 };
@@ -900,6 +1160,7 @@ public static class SlogsDbInitializer
         var searchPost = await db.Posts
             .Include(x => x.Comments)
             .Include(x => x.Revisions)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(x => x.Author == "mina"
                 && (x.Slug == legacySearchSlug || x.Slug == recallUxSlug));
         if (searchPost is not null)

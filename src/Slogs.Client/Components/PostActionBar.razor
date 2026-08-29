@@ -19,12 +19,12 @@
         <span class="sr-only">저장</span>
     </button>
     <a class="@GetLinkClass()"
-       title="대화 흔적"
-       aria-label="@($"{Post.CommentCount}개 대화 흔적 보기")"
+       title="댓글"
+       aria-label="@($"댓글 {Post.CommentCount}개 보기")"
        href="@CommentsUrl">
         <SlogsIcon Name="message-circle" Class="h-4 w-4" />
         <span class="min-w-4 text-center tabular-nums">@Post.CommentCount</span>
-        <span class="sr-only">대화 흔적</span>
+        <span class="sr-only">댓글</span>
     </a>
 </div>
 

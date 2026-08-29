@@ -188,15 +188,14 @@ public sealed class StaticAssetIdentityTests
     }
 
     [Fact]
-    public void SeedDefaultConversationCopyUsesTraceFlowWording()
+    public void SeedDefaultConversationCopyUsesNaturalCommentWording()
     {
         var initializer = File.ReadAllText(FindRepoFile("src", "Slogs", "Data", "SlogsDbInitializer.cs"));
 
-        Assert.Contains("대화 흔적을 이어 남기는 내용도 넣으면 더 풍부해질 듯합니다.", initializer);
+        Assert.Contains("댓글에 답글을 남길 수 있으면 대화를 이어가기 좋겠습니다.", initializer);
         Assert.Contains("IsLegacyReplyFeatureComment", initializer);
-        Assert.DoesNotContain("대화 흔적의 답글", initializer);
-        Assert.DoesNotContain("답글 기능", initializer);
-        Assert.DoesNotContain("대화 흔적의 답글", initializer);
+        Assert.Contains("대화 흔적 페이지네이션이 필요한 구간이 생길 것 같아요.", initializer);
+        Assert.DoesNotContain("CreateComment(\"jane\", \"대화 흔적", initializer);
     }
 
     [Fact(Skip = "Static copy snapshot needs rebaseline after natural product language update.")]
@@ -593,12 +592,12 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("data-llm-wiki-draft-action-boundary=\"true\"", llmWikiSearchPage);
         Assert.Contains("비공개 기억 -> 소유자 전용 게시전 로그 -> 검토 후 공개", llmWikiSearchPage);
         Assert.Contains("소유자 전용 게시전 로그", llmWikiSearchPage);
-        Assert.Contains("공개 후에는 슬로거 홈, 공개 로그, 대화 흔적, 리비전으로 이어집니다.", llmWikiSearchPage);
+        Assert.Contains("공개 후에는 슬로거 홈, 공개 로그, 댓글, 리비전으로 이어집니다.", llmWikiSearchPage);
         Assert.Contains("이 게시전 로그는 Slogs LLM Wiki에서 이어온 소유자 전용 목록입니다.", llmWikiSearchPage);
         Assert.Contains("## 게시전 공유 경계", llmWikiSearchPage);
         Assert.Contains("현재 단계: 비공개 기억 -> 소유자 전용 게시전 로그", llmWikiSearchPage);
         Assert.Contains("다음 단계: 민감한 정보 정리 -> 검토 후 공개", llmWikiSearchPage);
-        Assert.Contains("공개 후 목록: 슬로거 홈 -> 공개 로그 -> 대화 흔적 -> 리비전", llmWikiSearchPage);
+        Assert.Contains("공개 후 목록: 슬로거 홈 -> 공개 로그 -> 댓글 -> 리비전", llmWikiSearchPage);
         Assert.Contains("## 공개 로그로 정리할 목록", llmWikiSearchPage);
         Assert.Contains("이 게시전 로그는 공개 전까지 소유자에게만 보입니다.", llmWikiSearchPage);
         Assert.Contains("공개해도 되는 근거, 검증 흔적, 확인 방법을 분리합니다.", llmWikiSearchPage);
@@ -1554,6 +1553,42 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("새 로그 스트림", homePage);
     }
 
+    [Fact]
+    public void PublicLogDetailAndCardsUseConciseNaturalMetadata()
+    {
+        var postDetailsPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "PostDetails.razor"));
+        var postLogCard = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "PostLogCard.razor"));
+        var postFlowSignals = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "PostFlowSignals.razor"));
+        var postActionBar = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "PostActionBar.razor"));
+        var writerIndexPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "WriterIndex.razor"));
+        var tagIndexPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "TagIndex.razor"));
+        var seriesIndexPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "SeriesIndex.razor"));
+        var appCss = File.ReadAllText(FindRepoFile("src", "Slogs", "wwwroot", "app.css"));
+
+        Assert.Contains("댓글 @($\"{post.CommentCount}개\")", postDetailsPage);
+        Assert.Contains("@(isFollowingAuthor ? \"팔로우 취소\" : \"팔로우\")", postDetailsPage);
+        Assert.Contains("선택한 리비전에서 바뀐 내용을 확인합니다.", postDetailsPage);
+        Assert.Contains("title=\"댓글\"", postActionBar);
+        Assert.Contains("<span class=\"sr-only\">댓글</span>", postActionBar);
+
+        Assert.DoesNotContain("<PostRecallPath", postLogCard);
+        Assert.DoesNotContain("대화 흔적", postDetailsPage);
+        Assert.DoesNotContain("대화 흔적", postFlowSignals);
+        Assert.DoesNotContain("대화 흔적", postActionBar);
+        Assert.DoesNotContain("정보 경로", postDetailsPage);
+        Assert.DoesNotContain("정보 경로", writerIndexPage);
+        Assert.DoesNotContain("정보 경로", tagIndexPage);
+        Assert.DoesNotContain("정보 경로", seriesIndexPage);
+        Assert.DoesNotContain("post-detail-node-strip", postDetailsPage);
+        Assert.DoesNotContain("post-detail-flowline", postDetailsPage);
+        Assert.DoesNotContain("로그 요약", postDetailsPage);
+        Assert.DoesNotContain("관계 잇기", postDetailsPage);
+        Assert.DoesNotContain("공감가", postDetailsPage);
+        Assert.DoesNotContain("post-log-card__recall-path", appCss);
+        Assert.DoesNotContain("post-detail-node-strip", appCss);
+        Assert.DoesNotContain("post-detail-flowline", appCss);
+    }
+
     [Fact(Skip = "Static copy snapshot needs rebaseline after natural product language update.")]
     public void PublicLogNodeCardsExposeRecallPathSignals()
     {
@@ -1927,15 +1962,14 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("이어 둔 로그 홈", writerConnectionsPage);
         Assert.Contains("개 팔로우", writerConnectionsPage);
         Assert.Contains("관계 로그 홈", writerConnectionsPage);
-        Assert.Contains("관계 잇기", writerConnectionsPage);
-        Assert.Contains("관계 해제", writerConnectionsPage);
+        Assert.Contains("@(IsFollowingUser(user) ? \"팔로우 취소\" : \"팔로우\")", writerConnectionsPage);
         Assert.Contains("슬로거 검색", writerConnectionsPage);
         Assert.Contains("공개 로그", writerConnectionsPage);
         Assert.Contains("요청한 슬로거 팔로우를 찾지 못했습니다.", writerConnectionsPage);
         Assert.DoesNotContain(">팔로워 (", writerConnectionsPage);
         Assert.DoesNotContain(">팔로잉 (", writerConnectionsPage);
-        Assert.DoesNotContain(">팔로우<", writerConnectionsPage);
-        Assert.DoesNotContain(">팔로우 해제<", writerConnectionsPage);
+        Assert.DoesNotContain("관계 잇기", writerConnectionsPage);
+        Assert.DoesNotContain("관계 해제", writerConnectionsPage);
         Assert.DoesNotContain("명 연결", writerConnectionsPage);
         Assert.DoesNotContain("아직 이어진 팔로우이 없습니다.", writerConnectionsPage);
         Assert.DoesNotContain("해당 슬로거를 찾을 수 없습니다.", writerConnectionsPage);
@@ -1944,10 +1978,11 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("이 로그 홈을 잇는 슬로거 @followerCount", writerPage);
         Assert.Contains("이어 둔 로그 홈 @followingCount", writerPage);
         Assert.Contains("팔로우 {followerCount}개", writerPage);
+        Assert.Contains("@(isFollowing ? \"팔로우 취소\" : \"팔로우\")", writerPage);
         Assert.DoesNotContain(">팔로워 @followerCount", writerPage);
         Assert.DoesNotContain(">팔로잉 @followingCount", writerPage);
-        Assert.DoesNotContain(">팔로우<", writerPage);
-        Assert.DoesNotContain(">팔로우 해제<", writerPage);
+        Assert.DoesNotContain("관계 잇기", writerPage);
+        Assert.DoesNotContain("관계 해제", writerPage);
         Assert.DoesNotContain("팔로워 {followerCount}명", writerPage);
     }
 
@@ -2134,9 +2169,9 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("비공개 기억을 검색하려면 지식 로그 홈으로 돌아가야 합니다.", llmWikiSearchPage);
         Assert.Contains("슬로거 홈 정체성과 연결 권한을 보려면 지식 로그 홈으로 돌아가야 합니다.", settingsPage);
         Assert.Contains("관리자 화면으로 가려면 지식 로그 홈으로 돌아가야 합니다.", adminUsersPage);
-        Assert.Contains("공감을 남기려면 지식 로그 홈으로 돌아가야 합니다.", postDetailsPage);
-        Assert.Contains("저장한 로그를 바꾸려면 지식 로그 홈으로 돌아가야 합니다.", postDetailsPage);
-        Assert.Contains("이 로그에 댓글을 남기려면 지식 로그 홈으로 돌아가야 합니다.", postDetailsPage);
+        Assert.Contains("공감을 남기려면 로그인해 주세요.", postDetailsPage);
+        Assert.Contains("로그를 저장하려면 로그인해 주세요.", postDetailsPage);
+        Assert.Contains("댓글을 남기려면 로그인해 주세요.", postDetailsPage);
         Assert.Contains("슬로거 홈 정체성을 바꾸려면 지식 로그 홈으로 돌아가야 합니다.", profileSettingsForm);
 
         foreach (var privateSurface in new[]
@@ -2155,7 +2190,6 @@ public sealed class StaticAssetIdentityTests
         })
         {
             Assert.DoesNotContain("로그인이 필요합니다.", privateSurface);
-            Assert.DoesNotContain("로그인</a>해 주세요", privateSurface);
         }
     }
 
@@ -2212,6 +2246,19 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("요청 처리 중 오류가 발생했습니다.", errorPage);
         Assert.DoesNotContain("href=\"/\">새 로그", errorPage);
         Assert.DoesNotContain("내 공개 로그", errorPage);
+    }
+
+    [Fact]
+    public void LlmWikiAgentPromptSurfaceServesStoredPolicyPromptInsteadOfCompiledBaseline()
+    {
+        var llmWikiPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "LlmWiki.razor"));
+
+        Assert.Contains("policyPrompt = await ApiClient.GetMcpPolicyPromptAsync();", llmWikiPage);
+        Assert.Contains("policyPrompt!.KoreanMarkdown", llmWikiPage);
+        Assert.Contains("policyPrompt!.EnglishMarkdown", llmWikiPage);
+        Assert.Contains("Prompt Version: @policyPrompt.Version", llmWikiPage);
+        Assert.DoesNotContain("SlogsMcpPolicyPrompt.BuildKoreanMarkdown()", llmWikiPage);
+        Assert.DoesNotContain("SlogsMcpPolicyPrompt.BuildEnglishMarkdown()", llmWikiPage);
     }
 
     private static string FindRepoFile(params string[] relativeSegments)

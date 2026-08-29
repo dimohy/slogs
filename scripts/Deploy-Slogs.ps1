@@ -66,6 +66,10 @@ $enableWasmAot = $WasmAot.IsPresent
 
 New-Item -ItemType Directory -Force -Path $publishRoot | Out-Null
 
+# Production is gated by the complete local organization-memory regression suite.
+# This gate intentionally runs even when a previously published artifact is reused.
+Invoke-Native $dotnet "test" (Join-Path $repoRoot "Slogs.slnx") "-warnaserror"
+
 if (-not $SkipPublish) {
     if (Test-Path $publishDir) {
         Remove-Item -Recurse -Force $publishDir
@@ -84,6 +88,7 @@ if (-not $SkipPublish) {
         $RuntimeIdentifier
         "--self-contained"
         "true"
+        "-warnaserror"
         "-p:PublishSingleFile=false"
         "-o"
         $publishDir
@@ -133,7 +138,7 @@ if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($remoteGid)) {
 $remoteInitTemplate = @'
 set -eu
 REMOTE_ROOT="__REMOTE_ROOT__"
-mkdir -p "$REMOTE_ROOT/releases" "$REMOTE_ROOT/uploads" "$REMOTE_ROOT/postgres-data" "$REMOTE_ROOT/embeddinggemma-data"
+mkdir -p "$REMOTE_ROOT/releases" "$REMOTE_ROOT/uploads" "$REMOTE_ROOT/postgres-data" "$REMOTE_ROOT/embeddinggemma-data" "$REMOTE_ROOT/certificates" "$REMOTE_ROOT/data-protection" "$REMOTE_ROOT/backups"
 if [ ! -f "$REMOTE_ROOT/.env" ]; then
     umask 077
     if command -v openssl >/dev/null 2>&1; then
@@ -147,15 +152,49 @@ if [ ! -f "$REMOTE_ROOT/.env" ]; then
         echo "GOOGLE_CLIENT_SECRET="
     } > "$REMOTE_ROOT/.env"
 fi
+if ! grep -q '^OIDC_CERT_PASSWORD=' "$REMOTE_ROOT/.env"; then
+    umask 077
+    printf 'OIDC_CERT_PASSWORD=%s\n' "$(openssl rand -hex 32)" >> "$REMOTE_ROOT/.env"
+fi
+. "$REMOTE_ROOT/.env"
+for purpose in encryption signing; do
+    target="$REMOTE_ROOT/certificates/openiddict-$purpose.pfx"
+    if [ ! -f "$target" ]; then
+        key="$REMOTE_ROOT/certificates/$purpose.key"
+        crt="$REMOTE_ROOT/certificates/$purpose.crt"
+        openssl req -x509 -newkey rsa:3072 -sha256 -days 825 -nodes \
+            -subj "/CN=slogs-openiddict-$purpose" -keyout "$key" -out "$crt" >/dev/null 2>&1
+        openssl pkcs12 -export -out "$target" -inkey "$key" -in "$crt" \
+            -passout "pass:$OIDC_CERT_PASSWORD" >/dev/null 2>&1
+        rm -f "$key" "$crt"
+        chmod 600 "$target"
+    fi
+done
+target="$REMOTE_ROOT/certificates/data-protection.pfx"
+if [ ! -f "$target" ]; then
+    key="$REMOTE_ROOT/certificates/data-protection.key"
+    crt="$REMOTE_ROOT/certificates/data-protection.crt"
+    openssl req -x509 -newkey rsa:3072 -sha256 -days 825 -nodes \
+        -subj "/CN=slogs-data-protection" -keyout "$key" -out "$crt" >/dev/null 2>&1
+    openssl pkcs12 -export -out "$target" -inkey "$key" -in "$crt" \
+        -passout "pass:$OIDC_CERT_PASSWORD" >/dev/null 2>&1
+    rm -f "$key" "$crt"
+    chmod 600 "$target"
+fi
 '@
 $remoteInit = $remoteInitTemplate.Replace("__REMOTE_ROOT__", $RemoteRoot)
 Invoke-Remote $remoteInit
 
 $remoteGpuCheck = @'
 set -eu
+if [ "$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' slogs-embeddinggemma 2>/dev/null || true)" = "healthy" ]; then
+    echo "embeddinggemma=existing-healthy"
+    exit 0
+fi
 command -v nvidia-smi >/dev/null 2>&1
 nvidia-smi >/dev/null
 docker run --rm --gpus=all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi >/dev/null
+echo "embeddinggemma=gpu-ready"
 '@
 Invoke-Remote $remoteGpuCheck
 
@@ -224,10 +263,17 @@ services:
     command: ["/app/Slogs"]
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ASPNETCORE_URLS: http://0.0.0.0:8080
+      ASPNETCORE_HTTP_PORTS: 8080
       ConnectionStrings__SlogsDatabase: Host=postgres;Port=5432;Database=slogs;Username=slogs;Password=${SLOGS_DB_PASSWORD}
       Authentication__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
       Authentication__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
+      Authentication__OpenIddict__EncryptionCertificatePath: /certificates/openiddict-encryption.pfx
+      Authentication__OpenIddict__EncryptionCertificatePassword: ${OIDC_CERT_PASSWORD}
+      Authentication__OpenIddict__SigningCertificatePath: /certificates/openiddict-signing.pfx
+      Authentication__OpenIddict__SigningCertificatePassword: ${OIDC_CERT_PASSWORD}
+      DataProtection__KeysPath: /data-protection
+      DataProtection__CertificatePath: /certificates/data-protection.pfx
+      DataProtection__CertificatePassword: ${OIDC_CERT_PASSWORD}
       EmbeddingGemma__Endpoint: http://embeddinggemma:11434/api/embed
       Slogs__PublicBaseUrl: https://__DOMAIN__
     ports:
@@ -235,6 +281,8 @@ services:
     volumes:
       - ./current:/app:ro
       - ./uploads:/app/wwwroot/uploads
+      - ./certificates:/certificates:ro
+      - ./data-protection:/data-protection
 '@
 $compose = $composeTemplate.
     Replace("__REMOTE_UID__", $remoteUid).
@@ -264,6 +312,9 @@ RELEASE_DIR="$REMOTE_ROOT/releases/$RELEASE_ID"
 mkdir -p "$RELEASE_DIR" "$REMOTE_ROOT/uploads"
 tar -xzf "$REMOTE_ROOT/releases/$RELEASE_ID.tar.gz" -C "$RELEASE_DIR"
 chmod +x "$RELEASE_DIR/Slogs"
+if docker inspect slogs-postgres >/dev/null 2>&1; then
+    docker exec slogs-postgres sh -lc 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > "$REMOTE_ROOT/backups/pre-$RELEASE_ID.dump"
+fi
 ln -sfn "$RELEASE_DIR" "$REMOTE_ROOT/current"
 cd "$REMOTE_ROOT"
 docker compose --env-file "$REMOTE_ROOT/.env" up -d postgres

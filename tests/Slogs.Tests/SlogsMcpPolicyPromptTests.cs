@@ -8,9 +8,17 @@ public sealed class SlogsMcpPolicyPromptTests
     [Fact]
     public void VersionTextMatchesPromptVersion()
     {
-        Assert.Equal("2026.07.08.3\n", SlogsMcpPolicyPrompt.BuildVersionText());
-        Assert.Contains("Prompt Version: 2026.07.08.3", SlogsMcpPolicyPrompt.BuildKoreanMarkdown());
-        Assert.Contains("Prompt Version: 2026.07.08.3", SlogsMcpPolicyPrompt.BuildEnglishMarkdown());
+        Assert.Equal("2026.07.13.1\n", SlogsMcpPolicyPrompt.BuildVersionText());
+        Assert.Contains("Prompt Version: 2026.07.13.1", SlogsMcpPolicyPrompt.BuildKoreanMarkdown());
+        Assert.Contains("Prompt Version: 2026.07.13.1", SlogsMcpPolicyPrompt.BuildEnglishMarkdown());
+    }
+
+    [Fact]
+    public void AgentPromptsRequireExplicitDimohyPolicyPromptUpdate()
+    {
+        Assert.Contains("`dimohy`", SlogsMcpPolicyPrompt.BuildKoreanMarkdown());
+        Assert.Contains("명시적으로 요청한 경우에만 `llm_wiki_update_policy_prompt`", SlogsMcpPolicyPrompt.BuildKoreanMarkdown());
+        Assert.Contains("Never infer prompt-editing intent", SlogsMcpPolicyPrompt.BuildEnglishMarkdown());
     }
 
     [Fact]

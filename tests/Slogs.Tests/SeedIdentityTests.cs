@@ -52,10 +52,10 @@ public sealed class SeedIdentityTests
         Assert.Contains("작업 판단 로그", visibleSeedText);
         Assert.Contains("검증 흔적", visibleSeedText);
         Assert.Contains("검색을 더 직관적으로", visibleSeedText);
-        Assert.Contains("대화 흔적", visibleSeedText);
+        Assert.Contains("댓글", visibleSeedText);
         Assert.DoesNotContain("블로그", visibleSeedText);
         Assert.DoesNotContain("포스트", visibleSeedText);
-        Assert.DoesNotContain("댓글", visibleSeedText);
+        Assert.DoesNotContain("대화 흔적", visibleSeedText);
         Assert.DoesNotContain("검색 UX", visibleSeedText);
     }
 

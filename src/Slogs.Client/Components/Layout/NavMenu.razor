@@ -18,6 +18,10 @@
                    href="@GetAdminMenuHref(AdminLlmWikiView)">LLM Wiki</a>
                 <a class="@GetAdminMenuLinkClass(AdminObsidianView)"
                    href="@GetAdminMenuHref(AdminObsidianView)">노트 Vault</a>
+                <NavLink class="block rounded-md px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+                         ActiveClass="bg-slate-900 text-white hover:bg-slate-900 hover:text-white"
+                         href="/admin/organizations"
+                         Match="NavLinkMatch.All">조직 LLM Wiki</NavLink>
             </div>
         </div>
     }
@@ -44,6 +48,8 @@
                  ActiveClass="bg-slate-900 text-white" href="/me/bookmarks" Match="NavLinkMatch.All">저장</NavLink>
         <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
                  ActiveClass="bg-slate-900 text-white" href="/me/likes" Match="NavLinkMatch.All">공감</NavLink>
+        <NavLink class="mb-1 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-900 hover:text-white"
+                 ActiveClass="bg-slate-900 text-white" href="/me/organizations" Match="NavLinkMatch.All">조직 LLM Wiki</NavLink>
     }
 
     <div class="mt-4 mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">공개</div>

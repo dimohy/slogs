@@ -52,6 +52,7 @@ public interface ISlogsApiBackend
     Task<LlmWikiEntryResponse> RememberLlmWikiAsync(string userName, LlmWikiRememberRequest request);
     Task<LlmWikiEntryResponse?> UpdateLlmWikiAsync(string userName, string idOrSlug, LlmWikiUpdateRequest request);
     Task<string> GetLlmWikiLlmsTextAsync(string userName, int limit);
+    Task<SlogsMcpPolicyPromptResponse> GetMcpPolicyPromptAsync();
     Task<IReadOnlyList<LlmWikiTokenResponse>> GetLlmWikiTokensAsync(string userName);
     Task<LlmWikiTokenCreatedResponse> CreateLlmWikiTokenAsync(string userName, string? name, IReadOnlyList<string>? scopes = null);
     Task<bool> RevokeLlmWikiTokenAsync(string userName, Guid tokenId);

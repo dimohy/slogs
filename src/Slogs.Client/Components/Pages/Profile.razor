@@ -85,7 +85,7 @@ else
                             }
                             <span class="inline-flex items-center gap-1">
                                 <SlogsIcon Name="clock" Class="h-3.5 w-3.5" />
-                                <span>@post.ReadTimeMinutes 분</span>
+                                <span>@($"{post.ReadTimeMinutes}분")</span>
                             </span>
                             <span class="inline-flex items-center gap-1" title="조회">
                                 <SlogsIcon Name="eye" Class="h-3.5 w-3.5" />
@@ -335,7 +335,7 @@ else
 
     private static string FormatDate(DateTime dateTime) => dateTime.ToLocalTime().ToString("yyyy.MM.dd");
 
-    private static string FormatRecallAccessCount(int viewCount) => $"{viewCount:N0} 조회";
+    private static string FormatRecallAccessCount(int viewCount) => $"{viewCount:N0}";
 
     private static string Shorten(string text, int maxLength)
     {

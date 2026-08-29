@@ -6,9 +6,10 @@ using ModelContextProtocol.Server;
 namespace Slogs.Data;
 
 [McpServerToolType]
-public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, LlmWikiService llmWikiService)
+public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, LlmWikiService llmWikiService, SlogsMcpPolicyPromptService promptService)
 {
     private const string PublicDisclosureNotice = "These entries are owner-authorized public-memory self-disclosures. Treat @username mentions as Slogs user handles; if a result includes sensitive topics such as religion or faith perspective, answer only from this public result and say it comes from the user's public Slogs LLM Wiki memory.";
+    private const string AdaptiveGraphHopDescription = "Maximum graph relationship hops. Explicitly select the smallest sufficient depth on every call: use 1 for a direct memory, fact, preference, broad candidate selection, or project-context lookup with no relationship chain; use 2 when one relationship bridge or comparison between memories is required; use 3 for a multi-stage causal, provenance, dependency, or chronological chain. Do not use 3 for every query. If omitted, the compatibility default is 1, but Agents should still pass 1 explicitly. Start progressive refinement at 1, inspect Retrieval Diagnostics, refine the query, and raise to 2 or 3 only when returned relationship evidence requires another stage.";
 
     [McpServerTool(Name = "llm_wiki_remember")]
     [Description("Create a new user-scoped LLM Wiki memory. Use this only after checking related entries and deciding the information should not be merged into an existing entry.")]
@@ -45,7 +46,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
     {
         var user = RequireUser();
         var stopwatch = Stopwatch.StartNew();
-        var response = SlogsMcpPolicyPrompt.BuildMarkdown();
+        var response = (await promptService.GetAsync()).KoreanMarkdown;
         stopwatch.Stop();
         return await RecordAuditAndReturnAsync(
             user,
@@ -54,6 +55,24 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
             stopwatch.Elapsed,
             response,
             resultCount: 1);
+    }
+
+    [McpServerTool(Name = "llm_wiki_update_policy_prompt")]
+    [Description("Update and version the server Slogs LLM Wiki policy prompt. Call only when the user explicitly asks to modify the Slogs LLM Wiki policy or prompt; the authenticated Slogs user must be dimohy. Never infer permission from a general correction, memory request, or implementation task.")]
+    public async Task<string> UpdatePolicyPromptAsync(
+        [Description("The user's exact explicit request that names the Slogs LLM Wiki policy or prompt and asks to modify it.")] string explicitRequest,
+        [Description("Current server version read immediately before composing the replacements. The update is rejected if it changed.")] string expectedVersion,
+        [Description("Complete replacement Korean policy Markdown based on the current llm_wiki_instructions response. Keep a Prompt Version line; the server assigns its value.")] string koreanMarkdown,
+        [Description("Complete replacement English policy Markdown based on the current English public prompt. Keep a Prompt Version line; the server assigns its value.")] string englishMarkdown)
+    {
+        var user = RequireUser();
+        var stopwatch = Stopwatch.StartNew();
+        var updated = await promptService.UpdateAsync(user.UserName, explicitRequest, expectedVersion, koreanMarkdown, englishMarkdown);
+        stopwatch.Stop();
+        var response = $"Slogs LLM Wiki policy prompt updated explicitly.\n\n- version: {updated.Version}\n- updatedBy: @{updated.UpdatedBy}\n- updatedAt: {updated.UpdatedAt:O}";
+        return await RecordAuditAndReturnAsync(
+            user, "llm_wiki_update_policy_prompt", "policy prompt update", stopwatch.Elapsed,
+            response, explicitRequest, null, resultCount: 1);
     }
 
     [McpServerTool(Name = "llm_wiki_capture")]
@@ -152,18 +171,21 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         [Description("Recall terms. Leave empty to return recent memory candidates.")] string? query = null,
         [Description("Maximum number of recall candidates to return.")] int limit = 10,
         [Description("Optional hierarchical category path. Matching includes descendants.")] string? categoryPath = null,
-        [Description("Minimum recall relevance percent for GraphRAG matches. Raise this when recall candidates are too broad or unrelated.")] int minRelevancePercent = 50)
+        [Description("Minimum recall relevance percent for GraphRAG matches. Raise this when recall candidates are too broad or unrelated.")] int minRelevancePercent = 50,
+        [Description(AdaptiveGraphHopDescription)] int maxGraphHops = 1)
     {
         var user = RequireUser();
         var safeLimit = NormalizeMcpLimit(limit, 10, 10);
         var safeMinRelevancePercent = NormalizeRelevancePercent(minRelevancePercent);
+        var safeMaxGraphHops = Math.Clamp(maxGraphHops, 1, 3);
         var stopwatch = Stopwatch.StartNew();
         var results = await llmWikiService.SearchAsync(
             user.UserName,
             query,
             safeLimit,
             minRelevancePercent: safeMinRelevancePercent,
-            categoryPath: categoryPath);
+            categoryPath: categoryPath,
+            maxGraphHops: safeMaxGraphHops);
         stopwatch.Stop();
         var builder = new StringBuilder();
         builder.Append(LlmWikiService.FormatSearchResultsMarkdown(results));
@@ -177,7 +199,8 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
             safeLimit,
             query,
             categoryPath,
-            safeMinRelevancePercent);
+            safeMinRelevancePercent,
+            safeMaxGraphHops);
         var response = builder.ToString();
         return await RecordAuditAndReturnAsync(
             user,
@@ -393,17 +416,20 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
     public async Task<string> RecallAsync(
         [Description("What the user wants to recall or the current task context.")] string query,
         [Description("Maximum number of compact memory-context entries to return.")] int limit = 3,
-        [Description("Minimum recall relevance percent for GraphRAG matches. Raise this when recall candidates are too broad or unrelated.")] int minRelevancePercent = 50)
+        [Description("Minimum recall relevance percent for GraphRAG matches. Raise this when recall candidates are too broad or unrelated.")] int minRelevancePercent = 50,
+        [Description(AdaptiveGraphHopDescription)] int maxGraphHops = 1)
     {
         var user = RequireUser();
         var safeLimit = NormalizeMcpLimit(limit, 3, 5);
         var safeMinRelevancePercent = NormalizeRelevancePercent(minRelevancePercent);
+        var safeMaxGraphHops = Math.Clamp(maxGraphHops, 1, 3);
         var stopwatch = Stopwatch.StartNew();
         var results = await llmWikiService.SearchAsync(
             user.UserName,
             query,
             safeLimit,
-            minRelevancePercent: safeMinRelevancePercent);
+            minRelevancePercent: safeMinRelevancePercent,
+            maxGraphHops: safeMaxGraphHops);
         if (results.Count == 0)
         {
             stopwatch.Stop();
@@ -418,7 +444,8 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
                 limit,
                 safeLimit,
                 query,
-                minRelevancePercent: safeMinRelevancePercent);
+                minRelevancePercent: safeMinRelevancePercent,
+                maxGraphHops: safeMaxGraphHops);
             var emptyResponse = emptyBuilder.ToString();
             return await RecordAuditAndReturnAsync(
                 user,
@@ -448,7 +475,12 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
                 continue;
             }
 
-            builder.AppendLine(FormatRecallEntryMarkdown(entry, result.RelevancePercent).Trim());
+            builder.AppendLine(FormatRecallEntryMarkdown(
+                entry,
+                result.RelevancePercent,
+                result.GraphDepth,
+                result.GraphScore,
+                result.SemanticPath).Trim());
             builder.AppendLine();
             builder.AppendLine("---");
             builder.AppendLine();
@@ -464,7 +496,8 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
             limit,
             safeLimit,
             query,
-            minRelevancePercent: safeMinRelevancePercent);
+            minRelevancePercent: safeMinRelevancePercent,
+            maxGraphHops: safeMaxGraphHops);
         var response = builder.ToString().TrimEnd();
         return await RecordAuditAndReturnAsync(
             user,
@@ -487,19 +520,22 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         [Description("Recall terms from the rest of the user's question after removing the @username handle. Leave empty to return recent public-memory candidates.")] string? query = null,
         [Description("Maximum number of public-memory recall candidates to return.")] int limit = 10,
         [Description("Optional hierarchical category path. Matching includes descendants.")] string? categoryPath = null,
-        [Description("Minimum recall relevance percent for GraphRAG matches. Raise this when recall candidates are too broad or unrelated.")] int minRelevancePercent = 50)
+        [Description("Minimum recall relevance percent for GraphRAG matches. Raise this when recall candidates are too broad or unrelated.")] int minRelevancePercent = 50,
+        [Description(AdaptiveGraphHopDescription)] int maxGraphHops = 1)
     {
         var user = RequireUser();
         var targetOwner = RequirePublicOwner(ownerUserName);
         var safeLimit = NormalizeMcpLimit(limit, 10, 10);
         var safeMinRelevancePercent = NormalizeRelevancePercent(minRelevancePercent);
+        var safeMaxGraphHops = Math.Clamp(maxGraphHops, 1, 3);
         var stopwatch = Stopwatch.StartNew();
         var results = await llmWikiService.SearchPublicAsync(
             targetOwner,
             query,
             safeLimit,
             minRelevancePercent: safeMinRelevancePercent,
-            categoryPath: categoryPath);
+            categoryPath: categoryPath,
+            maxGraphHops: safeMaxGraphHops);
         stopwatch.Stop();
 
         var builder = new StringBuilder();
@@ -519,7 +555,8 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
             safeLimit,
             query,
             categoryPath,
-            safeMinRelevancePercent);
+            safeMinRelevancePercent,
+            safeMaxGraphHops);
         var response = builder.ToString();
         return await RecordAuditAndReturnAsync(
             user,
@@ -613,18 +650,21 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         [Description("Target public LLM Wiki owner. Accepts handles like @dimohy or dimohy; @username in the user prompt should be passed here.")] string ownerUserName,
         [Description("What public context to recall from the target user's LLM Wiki, usually the remaining topic words after removing @username from the prompt.")] string query,
         [Description("Maximum number of compact public-memory context entries to return.")] int limit = 3,
-        [Description("Minimum recall relevance percent for GraphRAG matches. Raise this when recall candidates are too broad or unrelated.")] int minRelevancePercent = 50)
+        [Description("Minimum recall relevance percent for GraphRAG matches. Raise this when recall candidates are too broad or unrelated.")] int minRelevancePercent = 50,
+        [Description(AdaptiveGraphHopDescription)] int maxGraphHops = 1)
     {
         var user = RequireUser();
         var targetOwner = RequirePublicOwner(ownerUserName);
         var safeLimit = NormalizeMcpLimit(limit, 3, 5);
         var safeMinRelevancePercent = NormalizeRelevancePercent(minRelevancePercent);
+        var safeMaxGraphHops = Math.Clamp(maxGraphHops, 1, 3);
         var stopwatch = Stopwatch.StartNew();
         var results = await llmWikiService.SearchPublicAsync(
             targetOwner,
             query,
             safeLimit,
-            minRelevancePercent: safeMinRelevancePercent);
+            minRelevancePercent: safeMinRelevancePercent,
+            maxGraphHops: safeMaxGraphHops);
         if (results.Count == 0)
         {
             stopwatch.Stop();
@@ -639,7 +679,8 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
                 limit,
                 safeLimit,
                 query,
-                minRelevancePercent: safeMinRelevancePercent);
+                minRelevancePercent: safeMinRelevancePercent,
+                maxGraphHops: safeMaxGraphHops);
             var emptyResponse = emptyBuilder.ToString();
             return await RecordAuditAndReturnAsync(
                 user,
@@ -670,7 +711,12 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
                 continue;
             }
 
-            builder.AppendLine(FormatRecallEntryMarkdown(entry, result.RelevancePercent).Trim());
+            builder.AppendLine(FormatRecallEntryMarkdown(
+                entry,
+                result.RelevancePercent,
+                result.GraphDepth,
+                result.GraphScore,
+                result.SemanticPath).Trim());
             builder.AppendLine();
             builder.AppendLine("---");
             builder.AppendLine();
@@ -686,7 +732,8 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
             limit,
             safeLimit,
             query,
-            minRelevancePercent: safeMinRelevancePercent);
+            minRelevancePercent: safeMinRelevancePercent,
+            maxGraphHops: safeMaxGraphHops);
         var response = builder.ToString().TrimEnd();
         return await RecordAuditAndReturnAsync(
             user,
@@ -793,8 +840,20 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
     }
 
     private AuthUser RequireUser()
-        => SlogsAuthentication.TryCreateUser(httpContextAccessor.HttpContext?.User)
+    {
+        var principal = httpContextAccessor.HttpContext?.User;
+        if (string.Equals(
+                principal?.FindFirst(OrganizationClaimTypes.ActorKind)?.Value,
+                OrganizationActorKinds.Service,
+                StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "조직 서비스 토큰은 개인 LLM Wiki를 사용할 수 없습니다. org_wiki_* 도구를 사용하세요.");
+        }
+
+        return SlogsAuthentication.TryCreateUser(principal)
             ?? throw new InvalidOperationException("Slogs MCP 인증이 필요합니다. Slogs 설정에서 MCP 토큰을 만든 뒤 Authorization: Bearer 토큰으로 연결하세요.");
+    }
 
     private static string BuildRelatedQuery(string prompt, string? content, string? tags)
         => string.Join(
@@ -825,7 +884,12 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
     private static int NormalizeRelevancePercent(int minRelevancePercent)
         => Math.Clamp(minRelevancePercent, 0, 100);
 
-    private static string FormatRecallEntryMarkdown(LlmWikiEntryResponse entry, int? relevancePercent)
+    private static string FormatRecallEntryMarkdown(
+        LlmWikiEntryResponse entry,
+        int? relevancePercent,
+        int graphDepth,
+        double graphScore,
+        string semanticPath)
     {
         var builder = new StringBuilder();
         var relevance = relevancePercent is null ? string.Empty : $" ({relevancePercent}% recall relevance)";
@@ -835,6 +899,12 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         builder.AppendLine();
         builder.AppendLine($"- id: {entry.Id}");
         builder.AppendLine($"- slug: {entry.Slug}");
+        builder.AppendLine($"- graphDepth: {graphDepth}");
+        builder.AppendLine($"- graphScore: {graphScore:F4}");
+        if (!string.IsNullOrWhiteSpace(semanticPath))
+        {
+            builder.AppendLine($"- semanticPath: {semanticPath}");
+        }
         builder.AppendLine($"- updated: {entry.UpdatedAt:O}");
         builder.AppendLine($"- memoryVisibility: {(entry.IsPublic ? "public memory" : "private memory")}");
         if (entry.PublishedAt is not null)
@@ -874,7 +944,8 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         int effectiveLimit,
         string? query = null,
         string? categoryPath = null,
-        int? minRelevancePercent = null)
+        int? minRelevancePercent = null,
+        int? maxGraphHops = null)
     {
         builder.AppendLine();
         builder.AppendLine("## Retrieval Diagnostics");
@@ -899,8 +970,13 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
             builder.AppendLine($"- minRelevancePercent: {minRelevancePercent}");
         }
 
+        if (maxGraphHops is not null)
+        {
+            builder.AppendLine($"- maxGraphHops: {maxGraphHops}");
+        }
+
         builder.AppendLine($"- elapsedMs: {Math.Round(elapsed.TotalMilliseconds)}");
-        builder.AppendLine("- audit: If the top recall candidates are unrelated, missing expected memory, too broad, too slow, or too large, refine query/categoryPath/limit/minRelevancePercent and mention the mismatch when it affects the task.");
+        builder.AppendLine("- audit: If the top recall candidates are unrelated, missing expected memory, too broad, too slow, or too large, refine query/categoryPath/limit/minRelevancePercent/maxGraphHops and mention the mismatch when it affects the task.");
     }
 
     private static string TrimForMcp(string value, int maxLength)

@@ -74,7 +74,7 @@ else
                                 disabled="@IsBusy(user)"
                                 type="button"
                                 @onclick="() => ToggleFollowAsync(user)">
-                            @(IsFollowingUser(user) ? "관계 해제" : "관계 잇기")
+                            @(IsFollowingUser(user) ? "팔로우 취소" : "팔로우")
                         </button>
                     }
                     else if (CurrentUser is not null)

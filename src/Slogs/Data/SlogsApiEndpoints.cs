@@ -1024,6 +1024,17 @@ public static class SlogsApiEndpoints
                     "text/markdown; charset=utf-8");
         });
 
+        api.MapGet("/mcp-policy-prompt", async (
+            SlogsMcpPolicyPromptService promptService,
+            CancellationToken cancellationToken) =>
+        {
+            var snapshot = await promptService.GetAsync(cancellationToken);
+            return Results.Ok(new SlogsMcpPolicyPromptResponse(
+                snapshot.Version,
+                snapshot.KoreanMarkdown,
+                snapshot.EnglishMarkdown));
+        });
+
         api.MapGet("/llm-wiki/tokens", async (
             HttpContext httpContext,
             LlmWikiService llmWikiService,

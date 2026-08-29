@@ -14,7 +14,10 @@ public static class SlogsAuthentication
     private const string AdminModeSourceUserNameClaim = "slogs:admin-source-user";
     public static TimeSpan PersistentSessionLifetime { get; } = TimeSpan.FromDays(30);
 
-    public static ClaimsPrincipal CreatePrincipal(AuthUser user)
+    public static ClaimsPrincipal CreatePrincipal(
+        AuthUser user,
+        IReadOnlyList<string>? tokenScopes = null,
+        Guid? tokenId = null)
     {
         var claims = new List<Claim>
         {
@@ -30,6 +33,16 @@ public static class SlogsAuthentication
         {
             claims.Add(new Claim(AdminModeClaim, bool.TrueString));
             claims.Add(new Claim(AdminModeSourceUserNameClaim, user.AdminModeSourceUserName));
+        }
+
+        if (tokenScopes is not null)
+        {
+            claims.AddRange(tokenScopes.Select(scope => new Claim(OrganizationClaimTypes.TokenScope, scope)));
+        }
+
+        if (tokenId is not null)
+        {
+            claims.Add(new Claim(OrganizationClaimTypes.TokenId, tokenId.Value.ToString()));
         }
 
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);

@@ -1,0 +1,527 @@
+@page "/me/organizations"
+@page "/admin/organizations"
+@inject SlogsAuthState AuthState
+@inject OrganizationApiClient OrganizationApi
+@inject NavigationManager Navigation
+
+<PageTitle>조직 LLM Wiki | slogs</PageTitle>
+<SeoHead Title="조직 LLM Wiki | slogs" Description="조직 기억, 역할, 연결 앱을 관리합니다." NoIndex="true" />
+
+@if (CurrentUser is null)
+{
+    <p class="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">
+        조직 LLM Wiki(엘엘엠 위키)는 로그인 후 사용할 수 있습니다.
+        <a class="font-bold underline" href="@GetLoginHref()">로그인</a>
+    </p>
+}
+else
+{
+    <section class="space-y-6">
+        <header class="border-b border-slate-200 pb-5">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-[0.18em] text-indigo-600">Organization memory</p>
+                    <h1 class="mt-1 text-2xl font-black text-slate-950">조직 LLM Wiki(엘엘엠 위키)</h1>
+                    <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                        개인 기억과 분리된 조직 워크스페이스에서 직원 제안, 승인, 범위, 출처, 감사 흐름을 관리합니다.
+                        직원 대화는 자동으로 조직에 공개되지 않습니다.
+                    </p>
+                </div>
+                <span class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800">정식 조직 기능</span>
+            </div>
+        </header>
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-800">@errorMessage</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">@successMessage</div>
+        }
+
+        @if (CurrentUser.IsAdmin)
+        {
+            <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 class="text-lg font-black text-slate-900">조직 생성과 소유자 지정</h2>
+                <p class="mt-1 text-sm text-slate-500">Slogs 관리자는 조직만 만들고, 이후 멤버와 연결 앱 관리는 지정된 조직 소유자가 수행합니다.</p>
+                <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                    <input class="rounded-xl border border-slate-300 px-3 py-2 text-sm" @bind="newOrganizationSlug" @bind:event="oninput" placeholder="organization-slug" />
+                    <input class="rounded-xl border border-slate-300 px-3 py-2 text-sm" @bind="newOrganizationName" @bind:event="oninput" placeholder="조직 표시 이름" />
+                    <input class="rounded-xl border border-slate-300 px-3 py-2 text-sm" @bind="newOrganizationOwner" @bind:event="oninput" placeholder="소유자 @@name" />
+                    <input class="rounded-xl border border-slate-300 px-3 py-2 text-sm" @bind="newOrganizationEnvironment" @bind:event="oninput" placeholder="환경 배지" />
+                    <button class="rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300"
+                            disabled="@isBusy" @onclick="CreateOrganizationAsync">조직 만들기</button>
+                </div>
+            </section>
+        }
+
+        <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                    <h2 class="text-lg font-black text-slate-900">조직 선택</h2>
+                    <p class="mt-1 text-sm text-slate-500">현재 로그인 계정의 실제 멤버십과 권한으로 관리합니다.</p>
+                </div>
+                <select class="min-w-64 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-800"
+                        value="@selectedOrganizationId" @onchange="SelectOrganizationAsync">
+                    <option value="">조직을 선택하세요</option>
+                    @foreach (var organization in organizations)
+                    {
+                        <option value="@organization.Id">@organization.DisplayName · @organization.EnvironmentLabel</option>
+                    }
+                </select>
+            </div>
+        </section>
+
+        @if (SelectedOrganization is not null)
+        {
+            <section class="grid gap-5 xl:grid-cols-[1fr_1.25fr]">
+                <div class="space-y-5">
+                    <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h2 class="text-lg font-black text-slate-900">@SelectedOrganization.DisplayName</h2>
+                            <span class="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800">@SelectedOrganization.EnvironmentLabel</span>
+                        </div>
+                        <dl class="mt-4 grid grid-cols-2 gap-3 text-sm">
+                            <div class="rounded-xl bg-slate-50 p-3"><dt class="text-xs font-bold text-slate-500">주소</dt><dd class="mt-1 font-bold text-slate-900">@SelectedOrganization.Slug</dd></div>
+                            <div class="rounded-xl bg-slate-50 p-3"><dt class="text-xs font-bold text-slate-500">최소 집계 인원</dt><dd class="mt-1 font-bold text-slate-900">@SelectedOrganization.MinimumAggregateCohort 명</dd></div>
+                        </dl>
+                    </article>
+
+                    <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <h3 class="font-black text-slate-900">멤버와 역할</h3>
+                        <p class="mt-1 text-xs leading-5 text-slate-500">소유자·관리자·승인자·멤버의 실제 권한이 API와 MCP(Model Context Protocol, 모델 콘텍스트 프로토콜)에 함께 적용됩니다.</p>
+                        @if (members.Count == 0)
+                        {
+                            <p class="mt-4 text-sm text-slate-500">멤버 목록을 볼 권한이 없거나 아직 멤버가 없습니다.</p>
+                        }
+                        else
+                        {
+                            <div class="mt-4 space-y-2">
+                                @foreach (var member in members)
+                                {
+                                    <div class="flex items-center justify-between gap-3 rounded-xl border border-slate-100 px-3 py-2 text-sm">
+                                        <div><span class="font-bold text-slate-900">@($"@{member.UserName}")</span><span class="ml-2 text-slate-500">@member.DisplayRole</span></div>
+                                        <span class="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-700">@member.Role</span>
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                        @if (CanManageMembers)
+                        {
+                            <div class="mt-4 grid gap-2 border-t border-slate-100 pt-4">
+                                <div class="text-xs font-black uppercase tracking-wide text-slate-500">멤버 추가 또는 역할 변경</div>
+                                <input class="rounded-xl border border-slate-300 px-3 py-2 text-sm" @bind="memberUserName" @bind:event="oninput" placeholder="사용자 @@name" />
+                                <div class="grid gap-2 sm:grid-cols-2">
+                                    <select class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm" @bind="memberRole">
+                                        <option value="member">멤버</option>
+                                        <option value="approver">승인자</option>
+                                        <option value="admin">관리자</option>
+                                        @if (SelectedMembership?.Role == OrganizationRoles.Owner)
+                                        {
+                                            <option value="owner">소유자</option>
+                                        }
+                                    </select>
+                                    <input class="rounded-xl border border-slate-300 px-3 py-2 text-sm" @bind="memberDisplayRole" @bind:event="oninput" placeholder="표시 역할" />
+                                </div>
+                                <label class="flex items-center gap-2 text-xs text-slate-600">
+                                    <input type="checkbox" @bind="memberIsSynthetic" />
+                                    안내 세션 전용 가상 역할 계정
+                                </label>
+                                <button class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300"
+                                        disabled="@isBusy" @onclick="UpsertMemberAsync">멤버 저장</button>
+                            </div>
+                        }
+                    </article>
+                </div>
+
+                <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <h2 class="text-lg font-black text-slate-900">연결 앱 · OIDC(OpenID Connect, 오픈아이디 커넥트)</h2>
+                    <p class="mt-1 text-sm leading-6 text-slate-500">
+                        기밀 웹 앱은 Authorization Code(오소라이제이션 코드) + PKCE(피케이씨이)로 연결합니다.
+                        비밀은 생성·회전 직후 한 번만 표시되고 서버에 평문으로 다시 노출되지 않습니다.
+                    </p>
+
+                    @if (!string.IsNullOrWhiteSpace(oneTimeClientSecret))
+                    {
+                        <div class="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4">
+                            <div class="text-xs font-black uppercase tracking-wide text-amber-800">한 번만 표시되는 클라이언트 비밀</div>
+                            <code class="mt-2 block break-all rounded-lg bg-white px-3 py-2 text-xs text-slate-900">@oneTimeClientSecret</code>
+                            <button class="mt-2 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-bold text-amber-900" @onclick="ClearOneTimeSecret">확인 후 지우기</button>
+                        </div>
+                    }
+
+                    <div class="mt-5 grid gap-3">
+                        <input class="rounded-xl border border-slate-300 px-3 py-2 text-sm" @bind="newClientId" @bind:event="oninput" placeholder="client-id" />
+                        <input class="rounded-xl border border-slate-300 px-3 py-2 text-sm" @bind="newClientDisplayName" @bind:event="oninput" placeholder="연결 앱 이름" />
+                        <input class="rounded-xl border border-slate-300 px-3 py-2 text-sm" @bind="newClientRedirectUri" @bind:event="oninput" placeholder="https://app.example.com/signin-oidc" />
+                        <input class="rounded-xl border border-slate-300 px-3 py-2 text-sm" @bind="newClientScopes" @bind:event="oninput" placeholder="org_wiki.read, org_wiki.propose" />
+                        <button class="rounded-xl bg-indigo-700 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300"
+                                disabled="@isBusy" @onclick="CreateOidcClientAsync">연결 앱 등록</button>
+                    </div>
+
+                    <div class="mt-6 space-y-3">
+                        @if (oidcClients.Count == 0)
+                        {
+                            <p class="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">등록된 연결 앱이 없거나 현재 계정에 관리 권한이 없습니다.</p>
+                        }
+                        @foreach (var client in oidcClients)
+                        {
+                            <div class="rounded-xl border border-slate-200 p-4">
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <div class="font-black text-slate-900">@client.DisplayName</div>
+                                        <code class="text-xs text-slate-500">@client.ClientId</code>
+                                    </div>
+                                    <span class="rounded-full px-2 py-1 text-xs font-bold @(client.IsRevoked ? "bg-rose-100 text-rose-800" : "bg-emerald-100 text-emerald-800")">@(client.IsRevoked ? "폐기됨" : "활성")</span>
+                                </div>
+                                <div class="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
+                                    @foreach (var scope in client.Scopes)
+                                    {
+                                        <span class="rounded-full bg-slate-100 px-2 py-1">@scope</span>
+                                    }
+                                </div>
+                                @if (!client.IsRevoked)
+                                {
+                                    <div class="mt-3 flex gap-2">
+                                        <button class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700" @onclick="() => RotateSecretAsync(client)">비밀 회전</button>
+                                        <button class="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-bold text-rose-700" @onclick="() => RevokeClientAsync(client)">앱 폐기</button>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <section class="mt-8 border-t border-slate-200 pt-6">
+                        <h2 class="text-lg font-black text-slate-900">조직 서비스 토큰</h2>
+                        <p class="mt-1 text-sm leading-6 text-slate-500">
+                            서버 앱과 MCP(Model Context Protocol, 모델 콘텍스트 프로토콜)는 필요한 최소 권한의 조직 토큰만 사용합니다.
+                            전체 토큰은 생성 직후 한 번만 표시되며 저장된 비밀은 다시 읽을 수 없습니다.
+                        </p>
+
+                        @if (!string.IsNullOrWhiteSpace(oneTimeServiceToken))
+                        {
+                            <div class="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4">
+                                <div class="text-xs font-black uppercase tracking-wide text-amber-800">한 번만 표시되는 조직 서비스 토큰</div>
+                                <code class="mt-2 block break-all rounded-lg bg-white px-3 py-2 text-xs text-slate-900">@oneTimeServiceToken</code>
+                                <button class="mt-2 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-bold text-amber-900" @onclick="ClearOneTimeServiceToken">확인 후 지우기</button>
+                            </div>
+                        }
+
+                        <div class="mt-5 grid gap-3">
+                            <input class="rounded-xl border border-slate-300 px-3 py-2 text-sm" @bind="newServiceTokenName" @bind:event="oninput" placeholder="서비스 토큰 이름" />
+                            <input class="rounded-xl border border-slate-300 px-3 py-2 text-sm" @bind="newServiceTokenScopes" @bind:event="oninput" placeholder="org_wiki.read, org_wiki.propose" />
+                            <button class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300"
+                                    disabled="@isBusy" @onclick="CreateServiceTokenAsync">서비스 토큰 생성</button>
+                        </div>
+
+                        <div class="mt-6 space-y-3">
+                            @if (serviceTokens.Count == 0)
+                            {
+                                <p class="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">생성된 조직 서비스 토큰이 없습니다.</p>
+                            }
+                            @foreach (var token in serviceTokens)
+                            {
+                                <div class="rounded-xl border border-slate-200 p-4">
+                                    <div class="flex flex-wrap items-start justify-between gap-3">
+                                        <div>
+                                            <div class="font-black text-slate-900">@token.Name</div>
+                                            <code class="text-xs text-slate-500">@token.TokenPrefix...</code>
+                                        </div>
+                                        <span class="rounded-full px-2 py-1 text-xs font-bold @(token.IsRevoked ? "bg-rose-100 text-rose-800" : "bg-emerald-100 text-emerald-800")">@(token.IsRevoked ? "폐기됨" : "활성")</span>
+                                    </div>
+                                    <div class="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
+                                        @foreach (var scope in token.Scopes)
+                                        {
+                                            <span class="rounded-full bg-slate-100 px-2 py-1">@scope</span>
+                                        }
+                                    </div>
+                                    @if (!token.IsRevoked)
+                                    {
+                                        <button class="mt-3 rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-bold text-rose-700" @onclick="() => RevokeServiceTokenAsync(token)">토큰 폐기</button>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </section>
+                </article>
+            </section>
+        }
+    </section>
+}
+
+@code {
+    private IReadOnlyList<OrganizationResponse> organizations = [];
+    private IReadOnlyList<OrganizationMembershipResponse> members = [];
+    private IReadOnlyList<OrganizationOidcClientResponse> oidcClients = [];
+    private IReadOnlyList<OrganizationServiceTokenResponse> serviceTokens = [];
+    private Guid? selectedOrganizationId;
+    private bool isBusy;
+    private string? errorMessage;
+    private string? successMessage;
+    private string? oneTimeClientSecret;
+    private string? oneTimeServiceToken;
+    private string newOrganizationSlug = string.Empty;
+    private string newOrganizationName = string.Empty;
+    private string newOrganizationOwner = string.Empty;
+    private string newOrganizationEnvironment = "검증 환경";
+    private string newClientId = string.Empty;
+    private string newClientDisplayName = string.Empty;
+    private string newClientRedirectUri = "https://localhost:7240/signin-oidc";
+    private string newClientScopes = "org_wiki.read, org_wiki.propose";
+    private string newServiceTokenName = string.Empty;
+    private string newServiceTokenScopes = "org_wiki.read, org_wiki.propose";
+    private string memberUserName = string.Empty;
+    private string memberRole = OrganizationRoles.Member;
+    private string memberDisplayRole = "직원";
+    private bool memberIsSynthetic;
+
+    private AuthUser? CurrentUser => AuthState.CurrentUser;
+    private OrganizationResponse? SelectedOrganization => organizations.FirstOrDefault(x => x.Id == selectedOrganizationId);
+    private OrganizationMembershipResponse? SelectedMembership => members.FirstOrDefault(x => x.UserName == CurrentUser?.UserName);
+    private bool CanManageMembers => SelectedMembership?.Role is OrganizationRoles.Owner or OrganizationRoles.Admin;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthState.EnsureInitializedAsync();
+        await LoadOrganizationsAsync();
+    }
+
+    private async Task LoadOrganizationsAsync()
+    {
+        if (CurrentUser is null)
+        {
+            return;
+        }
+
+        await RunAsync(async () =>
+        {
+            organizations = CurrentUser.IsAdmin
+                ? await OrganizationApi.GetAllOrganizationsAsync()
+                : await OrganizationApi.GetMyOrganizationsAsync();
+            if (selectedOrganizationId is not null && organizations.All(x => x.Id != selectedOrganizationId))
+            {
+                selectedOrganizationId = null;
+            }
+        }, clearSuccess: false);
+    }
+
+    private async Task CreateOrganizationAsync()
+    {
+        await RunAsync(async () =>
+        {
+            var created = await OrganizationApi.CreateOrganizationAsync(new(
+                newOrganizationSlug,
+                newOrganizationName,
+                newOrganizationOwner.TrimStart('@'),
+                newOrganizationEnvironment,
+                5));
+            successMessage = $"{created.DisplayName} 조직을 만들고 소유자를 지정했습니다.";
+            await LoadOrganizationsAsync();
+            selectedOrganizationId = created.Id;
+            await LoadSelectedOrganizationAsync();
+        });
+    }
+
+    private async Task SelectOrganizationAsync(ChangeEventArgs args)
+    {
+        selectedOrganizationId = Guid.TryParse(args.Value?.ToString(), out var parsed) ? parsed : null;
+        await LoadSelectedOrganizationAsync();
+    }
+
+    private async Task LoadSelectedOrganizationAsync()
+    {
+        members = [];
+        oidcClients = [];
+        serviceTokens = [];
+        oneTimeClientSecret = null;
+        oneTimeServiceToken = null;
+        if (selectedOrganizationId is not { } organizationId)
+        {
+            return;
+        }
+
+        await RunAsync(async () =>
+        {
+            try
+            {
+                members = await OrganizationApi.GetMembersAsync(organizationId);
+            }
+            catch (InvalidOperationException)
+            {
+                members = [];
+            }
+
+            try
+            {
+                oidcClients = await OrganizationApi.GetOidcClientsAsync(organizationId);
+            }
+            catch (InvalidOperationException)
+            {
+                oidcClients = [];
+            }
+
+            try
+            {
+                serviceTokens = await OrganizationApi.GetServiceTokensAsync(organizationId);
+            }
+            catch (InvalidOperationException)
+            {
+                serviceTokens = [];
+            }
+        }, clearSuccess: false);
+    }
+
+    private async Task UpsertMemberAsync()
+    {
+        if (selectedOrganizationId is not { } organizationId)
+        {
+            return;
+        }
+
+        await RunAsync(async () =>
+        {
+            var saved = await OrganizationApi.UpsertMemberAsync(
+                organizationId,
+                new(
+                    memberUserName.TrimStart('@'),
+                    memberRole,
+                    memberDisplayRole,
+                    memberIsSynthetic));
+            successMessage = $"@{saved.UserName} 멤버의 역할을 {saved.DisplayRole}(으)로 저장했습니다.";
+            members = await OrganizationApi.GetMembersAsync(organizationId);
+            memberUserName = string.Empty;
+            memberRole = OrganizationRoles.Member;
+            memberDisplayRole = "직원";
+            memberIsSynthetic = false;
+        });
+    }
+
+    private async Task CreateOidcClientAsync()
+    {
+        if (selectedOrganizationId is not { } organizationId)
+        {
+            return;
+        }
+
+        await RunAsync(async () =>
+        {
+            var created = await OrganizationApi.CreateOidcClientAsync(
+                organizationId,
+                new(
+                    newClientId,
+                    newClientDisplayName,
+                    [newClientRedirectUri],
+                    newClientScopes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)));
+            oneTimeClientSecret = created.ClientSecret;
+            successMessage = "연결 앱을 등록했습니다. 클라이언트 비밀은 지금 안전한 서버 설정으로 옮기세요.";
+            oidcClients = await OrganizationApi.GetOidcClientsAsync(organizationId);
+        });
+    }
+
+    private async Task RotateSecretAsync(OrganizationOidcClientResponse client)
+    {
+        if (selectedOrganizationId is not { } organizationId)
+        {
+            return;
+        }
+
+        await RunAsync(async () =>
+        {
+            var rotated = await OrganizationApi.RotateOidcSecretAsync(organizationId, client.Id);
+            oneTimeClientSecret = rotated.ClientSecret;
+            successMessage = "클라이언트 비밀을 회전했습니다. 이전 비밀은 더 이상 사용할 수 없습니다.";
+            oidcClients = await OrganizationApi.GetOidcClientsAsync(organizationId);
+        });
+    }
+
+    private async Task RevokeClientAsync(OrganizationOidcClientResponse client)
+    {
+        if (selectedOrganizationId is not { } organizationId)
+        {
+            return;
+        }
+
+        await RunAsync(async () =>
+        {
+            await OrganizationApi.RevokeOidcClientAsync(organizationId, client.Id);
+            oneTimeClientSecret = null;
+            successMessage = "연결 앱을 폐기했습니다.";
+            oidcClients = await OrganizationApi.GetOidcClientsAsync(organizationId);
+        });
+    }
+
+    private void ClearOneTimeSecret() => oneTimeClientSecret = null;
+
+    private async Task CreateServiceTokenAsync()
+    {
+        if (selectedOrganizationId is not { } organizationId)
+        {
+            return;
+        }
+
+        await RunAsync(async () =>
+        {
+            var created = await OrganizationApi.CreateServiceTokenAsync(
+                organizationId,
+                new(
+                    newServiceTokenName,
+                    newServiceTokenScopes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+                    ExpiresAt: null));
+            oneTimeServiceToken = created.Token;
+            successMessage = "조직 서비스 토큰을 생성했습니다. 전체 토큰은 지금 안전한 서버 설정으로 옮기세요.";
+            serviceTokens = await OrganizationApi.GetServiceTokensAsync(organizationId);
+            newServiceTokenName = string.Empty;
+        });
+    }
+
+    private async Task RevokeServiceTokenAsync(OrganizationServiceTokenResponse token)
+    {
+        if (selectedOrganizationId is not { } organizationId)
+        {
+            return;
+        }
+
+        await RunAsync(async () =>
+        {
+            await OrganizationApi.RevokeServiceTokenAsync(organizationId, token.Id);
+            oneTimeServiceToken = null;
+            successMessage = $"{token.Name} 조직 서비스 토큰을 폐기했습니다.";
+            serviceTokens = await OrganizationApi.GetServiceTokensAsync(organizationId);
+        });
+    }
+
+    private void ClearOneTimeServiceToken() => oneTimeServiceToken = null;
+
+    private async Task RunAsync(Func<Task> action, bool clearSuccess = true)
+    {
+        if (isBusy)
+        {
+            return;
+        }
+
+        isBusy = true;
+        errorMessage = null;
+        if (clearSuccess)
+        {
+            successMessage = null;
+        }
+
+        try
+        {
+            await action();
+        }
+        catch (Exception exception)
+        {
+            errorMessage = exception.Message;
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private string GetLoginHref()
+        => $"/login?returnUrl={Uri.EscapeDataString(new Uri(Navigation.Uri).PathAndQuery)}";
+}

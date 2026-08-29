@@ -2,7 +2,7 @@ namespace Slogs.Data;
 
 public static class SlogsMcpPolicyPrompt
 {
-    public const string Version = "2026.07.08.3";
+    public const string Version = "2026.07.13.1";
     public const string McpPath = "/mcp";
     public const string PublicPath = "/prompts/slogs-mcp.md";
     public const string KoreanPublicPath = "/prompts/slogs-mcp.ko.md";
@@ -28,6 +28,7 @@ public static class SlogsMcpPolicyPrompt
         - 질문에 `@username`이 나오고 공개 LLM Wiki 기억이 맥락이면 이를 Slogs 사용자 핸들로 해석해 public 도구의 `ownerUserName`에 전달하고, 나머지 주제어를 query로 사용한다. 결과가 없으면 공개된 기억이 없다고 답한다.
         - 기억을 저장, 병합, 갱신할 때는 프로젝트/영역/주제가 알려진 경우 2-4단계 소문자 slash-separated `categoryPath`를 명시한다. 예: `slogs/llm-wiki/graphrag`, `slogs/deployment/wasm-aot`, `preference/coding-policy/slogs`, `codex/mcp/slogs`.
         - Slogs 슬로그(공개 지식 로그) 작성이나 업로드 요청은 기본적으로 `slogs_post_save_draft`로 게시전(소유자 전용, 공개 미노출) 상태로 저장한다. 사용자가 공개 공유를 명시적으로 요청한 경우에만 `slogs_post_publish`를 사용하고, 호출 전에 공개 공유 여부를 확인한다. `slogs_post_*`는 LLM Wiki 기억이 아니라 일반 Slogs 로그를 다룬다.
+        - 인증 사용자가 `dimohy`이고 사용자가 정확히 Slogs LLM Wiki 프롬프트를 특정 동작이 되도록 수정해 달라고 명시적으로 요청한 경우에만 `llm_wiki_update_policy_prompt`를 호출한다. 일반 정정, 기억 저장, 구현 요청에서 프롬프트 수정 의도를 추론하지 않는다. 호출 전 현재 한국어/영어 프롬프트를 읽어 완전한 교체본을 작성하며, 서버가 버전을 올리고 공개 프롬프트를 원자적으로 교체한다.
         """;
 
     public const string EnglishAgentsPolicyBlock = """
@@ -43,6 +44,7 @@ public static class SlogsMcpPolicyPrompt
         - If a question contains `@username` and asks about public LLM Wiki context, treat it as a Slogs handle, pass it as `ownerUserName`, and use the remaining topic words as the query. If public tools return no results, say no public information was found.
         - When creating, merging, or updating memory, provide a 2-4 segment lowercase slash-separated `categoryPath` whenever the project/domain/topic is known. Examples: `slogs/llm-wiki/graphrag`, `slogs/deployment/wasm-aot`, `preference/coding-policy/slogs`, `codex/mcp/slogs`.
         - Treat Slogs public knowledge-log authoring or upload requests as draft-first: save with `slogs_post_save_draft` as a pre-publish, owner-only log that is not publicly listed. Use `slogs_post_publish` only when the user explicitly asks to share publicly, and confirm public sharing before calling it. `slogs_post_*` tools manage normal Slogs logs, not LLM Wiki memories.
+        - Call `llm_wiki_update_policy_prompt` only when the authenticated user is `dimohy` and the user explicitly asks to modify the Slogs LLM Wiki prompt to behave in a specified way. Never infer prompt-editing intent from a general correction, memory request, or implementation task. Read the current Korean and English prompts first and provide complete replacements; the server increments the version and atomically replaces the public prompt.
         """;
 
     public static string BuildMarkdown()

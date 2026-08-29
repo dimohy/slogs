@@ -1,19 +1,24 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol.AspNetCore;
 using ModelContextProtocol.Server;
+using OpenIddict.Validation.AspNetCore;
 using Slogs.Components;
 using Slogs.Data;
 using System.Net;
 using System.Security.Claims;
+using System.Security.Cryptography.X509Certificates;
 
 var builder = WebApplication.CreateBuilder(args);
 const string GooglePictureClaim = "urn:google:picture";
 const string ExternalLoginScheme = "slogs.external";
 const string DefaultProductionPublicBaseUrl = "https://slogs.dev/";
+
+ConfigureDataProtection(builder.Services, builder.Configuration, builder.Environment);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -116,12 +121,14 @@ builder.Services.AddAuthorization();
 var connectionString = builder.Configuration.GetConnectionString("SlogsDatabase")
     ?? "Host=localhost;Port=54329;Database=slogs;Username=slogs;Password=slogs_dev_password";
 builder.Services.AddDbContextFactory<SlogsDbContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddOrganizationPlatform(connectionString, builder.Configuration, builder.Environment);
 builder.Services.AddScoped<BlogService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<EditorImageStorage>();
 builder.Services.AddScoped<PostImageService>();
 builder.Services.AddHttpClient<EmbeddingGemmaService>();
 builder.Services.AddScoped<LlmWikiService>();
+builder.Services.AddScoped<SlogsMcpPolicyPromptService>();
 builder.Services.AddScoped<ObsidianVaultService>();
 builder.Services.AddScoped<ObsidianStorageQuotaService>();
 builder.Services.AddScoped<ISlogsApiBackend, ServerSlogsApiBackend>();
@@ -129,8 +136,22 @@ builder.Services.AddScoped<SlogsAuthState>();
 builder.Services.AddMcpServer()
     .WithHttpTransport(options => options.Stateless = true)
     .WithTools<LlmWikiMcpTools>()
-    .WithTools<SlogsPostMcpTools>();
+    .WithTools<SlogsPostMcpTools>()
+    .WithTools<OrganizationWikiMcpTools>();
 builder.Services.AddHttpClient<SlogsApiClient>((serviceProvider, httpClient) =>
+{
+    var request = serviceProvider.GetRequiredService<IHttpContextAccessor>().HttpContext?.Request;
+    httpClient.BaseAddress = request is null
+        ? new Uri("https://localhost:5000/")
+        : new Uri(GetRequestBaseUri(request));
+
+    var cookieHeader = request?.Headers.Cookie.ToString();
+    if (!string.IsNullOrWhiteSpace(cookieHeader))
+    {
+        httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Cookie", cookieHeader);
+    }
+});
+builder.Services.AddHttpClient<OrganizationApiClient>((serviceProvider, httpClient) =>
 {
     var request = serviceProvider.GetRequiredService<IHttpContextAccessor>().HttpContext?.Request;
     httpClient.BaseAddress = request is null
@@ -203,9 +224,37 @@ app.UseStaticFiles();
 app.UseAuthentication();
 app.Use(async (httpContext, next) =>
 {
-    if (TryGetRequiredBearerScope(httpContext.Request.Path, out var requiredBearerScope)
+    if (httpContext.User.Identity?.IsAuthenticated != true
+        && TryGetBearerToken(httpContext.Request, out var guidedBearerToken)
+        && guidedBearerToken.StartsWith(OrganizationGuidedAccessService.TokenPrefix, StringComparison.Ordinal))
+    {
+        var guidedAccessService = httpContext.RequestServices.GetRequiredService<OrganizationGuidedAccessService>();
+        var principal = await guidedAccessService.AuthenticateAsync(guidedBearerToken, httpContext.RequestAborted);
+        if (principal is null)
+        {
+            httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return;
+        }
+
+        httpContext.User = principal;
+    }
+    else if (httpContext.User.Identity?.IsAuthenticated != true
+        && TryGetBearerToken(httpContext.Request, out var bearerToken)
+        && bearerToken.StartsWith(OrganizationTokenService.ServiceTokenPrefix, StringComparison.Ordinal))
+    {
+        var organizationTokenService = httpContext.RequestServices.GetRequiredService<OrganizationTokenService>();
+        var principal = await organizationTokenService.AuthenticateAsync(bearerToken, httpContext.RequestAborted);
+        if (principal is null)
+        {
+            httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return;
+        }
+
+        httpContext.User = principal;
+    }
+    else if (TryGetRequiredBearerScope(httpContext.Request.Path, out var requiredBearerScope)
         && httpContext.User.Identity?.IsAuthenticated != true
-        && TryGetBearerToken(httpContext.Request, out var bearerToken))
+        && TryGetBearerToken(httpContext.Request, out bearerToken))
     {
         var llmWikiService = httpContext.RequestServices.GetRequiredService<LlmWikiService>();
         var tokenAuthentication = await llmWikiService.AuthenticateBearerTokenAsync(
@@ -220,8 +269,26 @@ app.Use(async (httpContext, next) =>
 
         if (tokenAuthentication.User is not null)
         {
-            httpContext.User = SlogsAuthentication.CreatePrincipal(tokenAuthentication.User);
+            httpContext.User = SlogsAuthentication.CreatePrincipal(
+                tokenAuthentication.User,
+                tokenAuthentication.Scopes,
+                tokenAuthentication.TokenId);
         }
+    }
+
+    if (httpContext.Request.Path.StartsWithSegments("/api/organizations")
+        && httpContext.User.Identity?.IsAuthenticated != true
+        && TryGetBearerToken(httpContext.Request, out _))
+    {
+        var oidcAuthentication = await httpContext.AuthenticateAsync(
+            OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme);
+        if (!oidcAuthentication.Succeeded || oidcAuthentication.Principal is null)
+        {
+            httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return;
+        }
+
+        httpContext.User = oidcAuthentication.Principal;
     }
 
     if (httpContext.Request.Path.StartsWithSegments("/mcp")
@@ -237,6 +304,8 @@ app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapSlogsApi();
+app.MapOrganizationApi();
+app.MapOrganizationOidcEndpoints();
 app.MapMcp("/mcp").RequireAuthorization();
 
 app.MapPost("/auth/login", async (HttpContext httpContext, AuthService authService) =>
@@ -466,35 +535,33 @@ app.MapMethods("/robots.txt", getAndHeadMethods, () =>
     return Results.Text(SeoMetadata.BuildRobotsTxt(DefaultProductionPublicBaseUrl), "text/plain; charset=utf-8");
 });
 
-app.MapMethods(SlogsMcpPolicyPrompt.PublicPath, getAndHeadMethods, (HttpContext httpContext) =>
+app.MapMethods(SlogsMcpPolicyPrompt.PublicPath, getAndHeadMethods, async (HttpContext httpContext, SlogsMcpPolicyPromptService promptService) =>
+{
+    httpContext.Response.Headers.CacheControl = "no-cache";
+    return Results.Text((await promptService.GetAsync()).KoreanMarkdown, "text/markdown; charset=utf-8");
+});
+
+app.MapMethods(SlogsMcpPolicyPrompt.KoreanPublicPath, getAndHeadMethods, async (HttpContext httpContext, SlogsMcpPolicyPromptService promptService) =>
 {
     httpContext.Response.Headers.CacheControl = "no-cache";
     return Results.Text(
-        SlogsMcpPolicyPrompt.BuildKoreanMarkdown(),
+        (await promptService.GetAsync()).KoreanMarkdown,
         "text/markdown; charset=utf-8");
 });
 
-app.MapMethods(SlogsMcpPolicyPrompt.KoreanPublicPath, getAndHeadMethods, (HttpContext httpContext) =>
+app.MapMethods(SlogsMcpPolicyPrompt.EnglishPublicPath, getAndHeadMethods, async (HttpContext httpContext, SlogsMcpPolicyPromptService promptService) =>
 {
     httpContext.Response.Headers.CacheControl = "no-cache";
     return Results.Text(
-        SlogsMcpPolicyPrompt.BuildKoreanMarkdown(),
+        (await promptService.GetAsync()).EnglishMarkdown,
         "text/markdown; charset=utf-8");
 });
 
-app.MapMethods(SlogsMcpPolicyPrompt.EnglishPublicPath, getAndHeadMethods, (HttpContext httpContext) =>
+app.MapMethods(SlogsMcpPolicyPrompt.VersionPath, getAndHeadMethods, async (HttpContext httpContext, SlogsMcpPolicyPromptService promptService) =>
 {
     httpContext.Response.Headers.CacheControl = "no-cache";
     return Results.Text(
-        SlogsMcpPolicyPrompt.BuildEnglishMarkdown(),
-        "text/markdown; charset=utf-8");
-});
-
-app.MapMethods(SlogsMcpPolicyPrompt.VersionPath, getAndHeadMethods, (HttpContext httpContext) =>
-{
-    httpContext.Response.Headers.CacheControl = "no-cache";
-    return Results.Text(
-        SlogsMcpPolicyPrompt.BuildVersionText(),
+        $"{(await promptService.GetAsync()).Version}\n",
         "text/plain; charset=utf-8");
 });
 
@@ -689,6 +756,20 @@ app.MapRazorComponents<App>()
 if (!app.Configuration.GetValue("Slogs:SkipDbInitializer", false))
 {
     await SlogsDbInitializer.InitializeAsync(app.Services);
+    await OrganizationDbInitializer.InitializeAsync(app.Services);
+}
+
+if (TryReadSemanticImportArguments(args, out var semanticImport))
+{
+    var result = await LlmWikiSemanticGraphImporter.ImportAsync(
+        app.Services,
+        semanticImport.ManifestPath,
+        semanticImport.CorpusDirectory,
+        semanticImport.Version,
+        semanticImport.Activate);
+    Console.WriteLine(
+        $"SEMANTIC_IMPORT=PASS owner={result.OwnerUserName} version={result.Version} entities={result.EntityCount} mentions={result.MentionCount} relations={result.RelationCount} splits={result.SplitProposalCount} activated={result.Activated}");
+    return;
 }
 
 app.Run();
@@ -826,6 +907,60 @@ static bool IsGoogleAuthenticationConfigured(IConfiguration configuration)
     => !string.IsNullOrWhiteSpace(configuration["Authentication:Google:ClientId"])
         && !string.IsNullOrWhiteSpace(configuration["Authentication:Google:ClientSecret"]);
 
+static void ConfigureDataProtection(
+    IServiceCollection services,
+    IConfiguration configuration,
+    IWebHostEnvironment environment)
+{
+    var keysPath = configuration["DataProtection:KeysPath"];
+    if (string.IsNullOrWhiteSpace(keysPath))
+    {
+        if (!environment.IsDevelopment())
+        {
+            throw new InvalidOperationException("DataProtection:KeysPath is required outside Development.");
+        }
+
+        keysPath = Path.Combine(environment.ContentRootPath, "App_Data", "data-protection");
+    }
+
+    if (!Path.IsPathFullyQualified(keysPath))
+    {
+        throw new InvalidOperationException("DataProtection:KeysPath must be an absolute path.");
+    }
+
+    Directory.CreateDirectory(keysPath);
+    var dataProtection = services
+        .AddDataProtection()
+        .SetApplicationName("Slogs")
+        .PersistKeysToFileSystem(new DirectoryInfo(keysPath));
+
+    if (environment.IsDevelopment())
+    {
+        return;
+    }
+
+    var certificatePath = configuration["DataProtection:CertificatePath"];
+    var certificatePassword = configuration["DataProtection:CertificatePassword"];
+    if (string.IsNullOrWhiteSpace(certificatePath)
+        || string.IsNullOrWhiteSpace(certificatePassword))
+    {
+        throw new InvalidOperationException(
+            "DataProtection certificate path and password are required outside Development.");
+    }
+
+    if (!Path.IsPathFullyQualified(certificatePath) || !File.Exists(certificatePath))
+    {
+        throw new InvalidOperationException(
+            "DataProtection:CertificatePath must reference an existing absolute PFX path.");
+    }
+
+    var certificate = X509CertificateLoader.LoadPkcs12FromFile(
+        certificatePath,
+        certificatePassword,
+        X509KeyStorageFlags.EphemeralKeySet);
+    dataProtection.ProtectKeysWithCertificate(certificate);
+}
+
 static string NormalizeLocalReturnUrl(string? returnUrl, string fallback)
 {
     if (string.IsNullOrWhiteSpace(returnUrl)
@@ -925,4 +1060,36 @@ static bool TryGetRequiredBearerScope(PathString path, out string requiredScope)
     return false;
 }
 
+static bool TryReadSemanticImportArguments(string[] arguments, out SemanticImportArguments result)
+{
+    result = default!;
+    var importIndex = Array.IndexOf(arguments, "--llm-wiki-semantic-import");
+    if (importIndex < 0)
+    {
+        return false;
+    }
+
+    static string RequiredValue(string[] values, string name)
+    {
+        var index = Array.IndexOf(values, name);
+        if (index < 0 || index + 1 >= values.Length || values[index + 1].StartsWith("--", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException($"{name} requires a value.");
+        }
+        return values[index + 1];
+    }
+
+    if (importIndex + 1 >= arguments.Length || arguments[importIndex + 1].StartsWith("--", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("--llm-wiki-semantic-import requires a manifest path.");
+    }
+    result = new(
+        arguments[importIndex + 1],
+        RequiredValue(arguments, "--semantic-corpus"),
+        RequiredValue(arguments, "--semantic-version"),
+        arguments.Contains("--activate-semantic-graph", StringComparer.Ordinal));
+    return true;
+}
+
 public sealed record GoogleExternalLoginInfo(string ProviderUserId, string Email, string DisplayName, string ProfileImageUrl);
+public sealed record SemanticImportArguments(string ManifestPath, string CorpusDirectory, string Version, bool Activate);

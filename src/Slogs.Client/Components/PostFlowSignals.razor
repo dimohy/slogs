@@ -5,9 +5,6 @@
         <a class="post-log-card__signal"
            href="@($"/series/{Uri.EscapeDataString(Post.Series[0])}")">@GetSeriesSignalText()</a>
     }
-    <span class="post-log-card__signal">@($"{Post.Tags.Count} 태그")</span>
-    <span class="post-log-card__signal">@($"{Post.CommentCount} 대화 흔적")</span>
-    <span class="post-log-card__signal">@($"{Post.LikeCount} 공감")</span>
 </div>
 
 @code {
@@ -19,7 +16,7 @@
     {
         var first = Post.Series[0];
         return Post.Series.Count == 1
-            ? $"로그 시리즈: {first}"
-            : $"로그 시리즈: {first} +{Post.Series.Count - 1}";
+            ? first
+            : $"{first} 외 {Post.Series.Count - 1}개 시리즈";
     }
 }

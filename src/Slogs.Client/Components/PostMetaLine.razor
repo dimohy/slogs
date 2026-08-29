@@ -15,7 +15,7 @@
     {
         <span class="inline-flex items-center gap-1">
             <SlogsIcon Name="clock" Class="h-3.5 w-3.5" />
-            <span>@Post.ReadTimeMinutes 분</span>
+            <span>@($"{Post.ReadTimeMinutes}분")</span>
         </span>
     }
     @if (ShowLikes)
@@ -78,5 +78,5 @@
         => dateTime.ToLocalTime().ToString("yyyy.MM.dd");
 
     private static string FormatRecallAccessCount(int viewCount)
-        => $"{viewCount:N0} 조회";
+        => $"{viewCount:N0}";
 }

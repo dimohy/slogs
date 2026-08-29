@@ -60,13 +60,13 @@ else
                         <button class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-wait disabled:opacity-60"
                                 disabled="@isFollowBusy"
                                 @onclick="ToggleFollowAsync">
-                            @(isFollowing ? "관계 해제" : "관계 잇기")
+                            @(isFollowing ? "팔로우 취소" : "팔로우")
                         </button>
                     }
                     else
                     {
                         <a class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-                           href="@GetLoginReturnUrl()">관계 잇기</a>
+                           href="@GetLoginReturnUrl()">팔로우</a>
                     }
                 </div>
             </div>
@@ -95,7 +95,7 @@ else
                     <p class="mt-1 text-xl font-black text-slate-900">@totalLikeCount</p>
                 </div>
                 <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
-                    <p class="text-xs font-semibold text-slate-500">대화 흔적</p>
+                    <p class="text-xs font-semibold text-slate-500">댓글</p>
                     <p class="mt-1 text-xl font-black text-slate-900">@totalCommentCount</p>
                 </div>
                 <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
@@ -135,9 +135,6 @@ else
                 <div class="mt-4">
                     <PostCardImage Post="featuredPost" PostUrl="@GetPostUrl(featuredPost)" Priority="true" />
                     <PostFlowSignals Post="featuredPost" Class="post-log-card__signals post-detail-linked-card__signals" />
-                    <PostRecallPath Post="featuredPost"
-                                    Class="post-log-card__recall-path writer-featured-recall-path"
-                                    AriaLabel="대표 기억 정보 경로" />
                     <a class="block text-2xl font-black leading-tight text-slate-900 hover:underline"
                        href="@GetPostUrl(featuredPost)">@featuredPost.Title</a>
                     <p class="mt-2 text-sm leading-6 text-slate-700">@Shorten(featuredPost.Summary, 220)</p>

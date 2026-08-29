@@ -16,6 +16,7 @@ builder.Services.AddScoped(_ =>
     };
 });
 builder.Services.AddScoped(serviceProvider => new SlogsApiClient(serviceProvider.GetRequiredService<HttpClient>()));
+builder.Services.AddScoped(serviceProvider => new OrganizationApiClient(serviceProvider.GetRequiredService<HttpClient>()));
 builder.Services.AddScoped<SlogsAuthState>();
 
 await builder.Build().RunAsync();

@@ -66,9 +66,6 @@
                     <span>@FormatUserName(item.Author)</span>
                     <span class="text-xs text-slate-500 transition group-hover:text-slate-200">@($"{item.Count}개 로그")</span>
                 </span>
-                <span class="mt-2 block text-xs font-medium text-slate-500 transition group-hover:text-slate-200">
-                    @GetSloggerHomeRecallPath(item)
-                </span>
             </a>
         }
     }
@@ -197,9 +194,6 @@
 
     private static string FormatSloggerHomeCount(int count)
         => $"{count:N0}개 슬로거 홈";
-
-    private static string GetSloggerHomeRecallPath(AuthorSummary item)
-        => $"슬로거 홈 정보 경로: @{item.Author} -> 공개 로그";
 
     private string GetSearchResultHref()
     {

@@ -4,6 +4,7 @@ public sealed class ServerSlogsApiBackend(
     BlogService blogService,
     AuthService authService,
     LlmWikiService llmWikiService,
+    SlogsMcpPolicyPromptService mcpPolicyPromptService,
     ObsidianVaultService obsidianVaultService,
     ObsidianStorageQuotaService obsidianStorageQuotaService,
     IHttpContextAccessor httpContextAccessor) : ISlogsApiBackend
@@ -184,6 +185,12 @@ public sealed class ServerSlogsApiBackend(
 
     public Task<string> GetLlmWikiLlmsTextAsync(string userName, int limit)
         => llmWikiService.BuildLlmsTextAsync(ResolveUserName(userName), limit);
+
+    public async Task<SlogsMcpPolicyPromptResponse> GetMcpPolicyPromptAsync()
+    {
+        var snapshot = await mcpPolicyPromptService.GetAsync();
+        return new(snapshot.Version, snapshot.KoreanMarkdown, snapshot.EnglishMarkdown);
+    }
 
     public Task<IReadOnlyList<LlmWikiTokenResponse>> GetLlmWikiTokensAsync(string userName)
         => llmWikiService.GetTokensAsync(ResolveUserName(userName));
