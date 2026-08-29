@@ -423,6 +423,12 @@ public sealed class KnowledgeCorpusIntegrationTests
             Assert.Contains("Saul", identity.ToAliases!);
             Assert.Contains(identity.Evidence, evidence =>
                 evidence.Locator == "Acts.13.9" && evidence.ChunkIds!.Contains(result.ChunkId, StringComparer.Ordinal));
+
+            var exactOnlyCorpus = new KnowledgeCorpusService(factory, new RejectingEmbeddingService());
+            var exact = await exactOnlyCorpus.RecallAsync(owner, "사도행전 13장 9절", limit: 3, maxGraphHops: 2);
+            var exactResult = Assert.Single(exact, item => item.CollectionId == collectionId);
+            Assert.Equal("Acts.13.9", exactResult.StartLocator);
+            Assert.Equal("urn:test:bible:acts", exactResult.CollectionSourceUri);
         }
         finally
         {
@@ -543,5 +549,29 @@ public sealed class KnowledgeCorpusIntegrationTests
             {
                 Content = new StringContent(ResponseJson, Encoding.UTF8, "application/json")
             });
+    }
+
+    private sealed class RejectingEmbeddingService : IKnowledgeEmbeddingService
+    {
+        public string Model => "embeddinggemma";
+        public int Dimensions => 768;
+        public bool SupportsFullFunctionReranking => true;
+
+        public Task<IReadOnlyList<float>> EmbedQueryAsync(string query, CancellationToken cancellationToken)
+            => throw new InvalidOperationException("Explicit locator recall must not embed the query.");
+
+        public Task<IReadOnlyList<float>> EmbedDocumentAsync(string document, CancellationToken cancellationToken)
+            => throw new InvalidOperationException("Explicit locator recall must not embed documents.");
+
+        public Task<IReadOnlyList<IReadOnlyList<float>>> EmbedDocumentsAsync(
+            IReadOnlyList<string> documents,
+            CancellationToken cancellationToken)
+            => throw new InvalidOperationException("Explicit locator recall must not embed documents.");
+
+        public Task<IReadOnlyList<KnowledgeRerankScore>> ScorePairsAsync(
+            string query,
+            IReadOnlyList<string> passages,
+            CancellationToken cancellationToken)
+            => throw new InvalidOperationException("Explicit locator recall must not rerank.");
     }
 }
