@@ -14,10 +14,13 @@ MODEL_REVISION = os.environ["BGE_M3_MODEL_REVISION"]
 MODEL_ID = "BAAI/bge-m3"
 ENCODE_BATCH_SIZE = int(os.environ.get("BGE_M3_ENCODE_BATCH_SIZE", "1"))
 SCORE_BATCH_SIZE = int(os.environ.get("BGE_M3_SCORE_BATCH_SIZE", "8"))
+ENCODE_LOCK_SLICE_SIZE = int(os.environ.get("BGE_M3_ENCODE_LOCK_SLICE_SIZE", "4"))
 if ENCODE_BATCH_SIZE < 1 or ENCODE_BATCH_SIZE > 32:
     raise RuntimeError("BGE_M3_ENCODE_BATCH_SIZE must be between 1 and 32.")
 if SCORE_BATCH_SIZE < 1 or SCORE_BATCH_SIZE > 32:
     raise RuntimeError("BGE_M3_SCORE_BATCH_SIZE must be between 1 and 32.")
+if ENCODE_LOCK_SLICE_SIZE < ENCODE_BATCH_SIZE or ENCODE_LOCK_SLICE_SIZE > 256:
+    raise RuntimeError("BGE_M3_ENCODE_LOCK_SLICE_SIZE must be between encode batch size and 256.")
 model: BGEM3FlagModel | None = None
 gpu_condition = threading.Condition()
 gpu_busy = False
@@ -102,6 +105,7 @@ def info():
         "maxInputTokens": 8192,
         "encodeBatchSize": ENCODE_BATCH_SIZE,
         "scoreBatchSize": SCORE_BATCH_SIZE,
+        "encodeLockSliceSize": ENCODE_LOCK_SLICE_SIZE,
         "concurrentGpuRequests": 1,
         "priorityScheduling": True,
         "functions": ["dense", "sparse", "multi-vector", "pair-score"],
@@ -118,12 +122,12 @@ def encode(request: EncodeRequest):
     dense_values = []
     sparse_values = []
     multi_vector_values = []
-    for start in range(0, len(request.inputs), ENCODE_BATCH_SIZE):
-        inputs = request.inputs[start : start + ENCODE_BATCH_SIZE]
+    for start in range(0, len(request.inputs), ENCODE_LOCK_SLICE_SIZE):
+        inputs = request.inputs[start : start + ENCODE_LOCK_SLICE_SIZE]
         with gpu_slot(request.latency_sensitive):
             output = model.encode(
                 inputs,
-                batch_size=len(inputs),
+                batch_size=min(ENCODE_BATCH_SIZE, len(inputs)),
                 max_length=request.max_length,
                 return_dense=request.return_dense,
                 return_sparse=request.return_sparse,

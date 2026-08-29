@@ -112,7 +112,7 @@ public sealed class BgeM3EmbeddingServiceTests
             {
                 "/info" =>
                     """
-                    {"modelId":"BAAI/bge-m3","modelRevision":"5617a9f61b028005a4858fdac845db406aefb181","dimensions":1024,"encodeBatchSize":1,"scoreBatchSize":8,"concurrentGpuRequests":1,"priorityScheduling":true,"functions":["dense","sparse","multi-vector","pair-score"]}
+                    {"modelId":"BAAI/bge-m3","modelRevision":"5617a9f61b028005a4858fdac845db406aefb181","dimensions":1024,"encodeBatchSize":1,"scoreBatchSize":8,"encodeLockSliceSize":4,"concurrentGpuRequests":1,"priorityScheduling":true,"functions":["dense","sparse","multi-vector","pair-score"]}
                     """,
                 "/encode" => $"{{\"dense\":[{string.Join(',', Enumerable.Repeat($"[{string.Join(',', Enumerable.Repeat("0.25", 1024))}]", encodeCount))}]}}",
                 "/score" =>

@@ -74,7 +74,7 @@ public sealed class BgeM3EmbeddingService(HttpClient httpClient, IConfiguration 
         var requiredFunctions = new[] { "dense", "sparse", "multi-vector", "pair-score" };
         if (info is null || info.ModelId != RequiredModel || info.ModelRevision != RequiredRevision ||
             info.Dimensions != Dimensions || info.EncodeBatchSize != 1 || info.ScoreBatchSize != 8
-            || info.ConcurrentGpuRequests != 1 || !info.PriorityScheduling ||
+            || info.EncodeLockSliceSize != 4 || info.ConcurrentGpuRequests != 1 || !info.PriorityScheduling ||
             requiredFunctions.Except(info.Functions).Any())
         {
             throw new InvalidOperationException($"BGE-M3 runtime contract drift: {json}");
@@ -185,6 +185,7 @@ internal sealed record BgeM3InfoResponse(
     int Dimensions,
     int EncodeBatchSize,
     int ScoreBatchSize,
+    int EncodeLockSliceSize,
     int ConcurrentGpuRequests,
     bool PriorityScheduling,
     IReadOnlyList<string> Functions);
