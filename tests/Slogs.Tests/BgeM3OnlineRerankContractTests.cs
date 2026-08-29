@@ -9,8 +9,8 @@ public sealed class BgeM3OnlineRerankContractTests
 {
     [Theory]
     [InlineData(1, 2)]
-    [InlineData(3, 6)]
-    [InlineData(5, 6)]
+    [InlineData(3, 5)]
+    [InlineData(5, 5)]
     [InlineData(10, 10)]
     [InlineData(100, 100)]
     public void CandidateWindowBoundsExpensiveOnlinePairScoring(int requestedWindow, int expected)

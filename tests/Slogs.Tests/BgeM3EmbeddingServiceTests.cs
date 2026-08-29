@@ -40,7 +40,7 @@ public sealed class BgeM3EmbeddingServiceTests
             new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["BgeM3:BaseUrl"] = "http://bge.test",
-                ["BgeM3:RerankMaxPassageTokens"] = "768"
+                ["BgeM3:RerankMaxPassageTokens"] = "640"
             }).Build());
 
         await service.VerifyRuntimeAsync(CancellationToken.None);
@@ -54,7 +54,7 @@ public sealed class BgeM3EmbeddingServiceTests
         Assert.Equal(0.91f, scores[0].Combined);
         Assert.Equal(0.22f, scores[1].Combined);
         Assert.All(scores, score => Assert.True(score.Dense >= 0 && score.Sparse >= 0 && score.MultiVector >= 0));
-        Assert.Contains("\"max_passage_length\":768", handler.LastScoreRequest, StringComparison.Ordinal);
+        Assert.Contains("\"max_passage_length\":640", handler.LastScoreRequest, StringComparison.Ordinal);
     }
 
     [Theory]

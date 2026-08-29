@@ -36,7 +36,7 @@ public sealed class LlmWikiService(
     private const int MaxCategorySegmentLength = 48;
     private const int MaxEmbeddingContentLength = 18_000;
     private const int MaxBgeM3RerankDocumentLength = 6_000;
-    private const int MaxBgeM3OnlineRerankCandidates = 6;
+    private const int MaxBgeM3OnlineRerankCandidates = 5;
     private const int MaxGraphNodesPerEntry = 120;
     private const int MaxGraphNodeLength = 120;
     private const int MaxAuditInlineLength = 240;
