@@ -124,10 +124,16 @@ if (Test-Path $archivePath) {
     Remove-Item -Force $archivePath
 }
 
-$uploadsMountPoint = Join-Path $publishDir "wwwroot\uploads"
-New-Item -ItemType Directory -Force -Path $uploadsMountPoint | Out-Null
-if (-not (Test-Path -LiteralPath $uploadsMountPoint -PathType Container)) {
-    throw "Publish output is missing the required uploads volume mount point: $uploadsMountPoint"
+$requiredMountPoints = @(
+    (Join-Path $publishDir "wwwroot\uploads")
+    (Join-Path $publishDir "imports")
+    (Join-Path $publishDir "import-state")
+)
+foreach ($mountPoint in $requiredMountPoints) {
+    New-Item -ItemType Directory -Force -Path $mountPoint | Out-Null
+    if (-not (Test-Path -LiteralPath $mountPoint -PathType Container)) {
+        throw "Publish output is missing a required volume mount point: $mountPoint"
+    }
 }
 
 Invoke-Native tar "-czf" $archivePath "-C" $publishDir "."
@@ -145,7 +151,7 @@ if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($remoteGid)) {
 $remoteInitTemplate = @'
 set -eu
 REMOTE_ROOT="__REMOTE_ROOT__"
-mkdir -p "$REMOTE_ROOT/releases" "$REMOTE_ROOT/uploads" "$REMOTE_ROOT/postgres-data" "$REMOTE_ROOT/bge-m3-runtime" "$REMOTE_ROOT/bge-m3-data" "$REMOTE_ROOT/certificates" "$REMOTE_ROOT/data-protection" "$REMOTE_ROOT/backups"
+mkdir -p "$REMOTE_ROOT/releases" "$REMOTE_ROOT/uploads" "$REMOTE_ROOT/imports" "$REMOTE_ROOT/import-state" "$REMOTE_ROOT/postgres-data" "$REMOTE_ROOT/bge-m3-runtime" "$REMOTE_ROOT/bge-m3-data" "$REMOTE_ROOT/certificates" "$REMOTE_ROOT/data-protection" "$REMOTE_ROOT/backups"
 if [ ! -f "$REMOTE_ROOT/.env" ]; then
     umask 077
     if command -v openssl >/dev/null 2>&1; then
@@ -285,6 +291,8 @@ services:
     volumes:
       - ./${SLOGS_APP_DIR:-current}:/app:ro
       - ./uploads:/app/wwwroot/uploads
+      - ./imports:/app/imports:ro
+      - ./import-state:/app/import-state
       - ./certificates:/certificates:ro
       - ./data-protection:/data-protection
 '@
@@ -358,9 +366,9 @@ recover_on_failure() {
 }
 trap recover_on_failure EXIT
 
-mkdir -p "$RELEASE_DIR" "$REMOTE_ROOT/uploads"
+mkdir -p "$RELEASE_DIR" "$REMOTE_ROOT/uploads" "$REMOTE_ROOT/imports" "$REMOTE_ROOT/import-state"
 tar -xzf "$REMOTE_ROOT/releases/$RELEASE_ID.tar.gz" -C "$RELEASE_DIR"
-mkdir -p "$RELEASE_DIR/wwwroot/uploads"
+mkdir -p "$RELEASE_DIR/wwwroot/uploads" "$RELEASE_DIR/imports" "$RELEASE_DIR/import-state"
 chmod +x "$RELEASE_DIR/Slogs"
 if docker inspect slogs-postgres >/dev/null 2>&1; then
     docker exec slogs-postgres sh -lc 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > "$REMOTE_ROOT/backups/pre-$RELEASE_ID.dump"

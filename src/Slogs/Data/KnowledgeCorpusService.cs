@@ -18,6 +18,7 @@ public sealed class KnowledgeCorpusService(
     private const int MaxBatchEntities = KnowledgeCorpusBatchLimits.Entities;
     private const int MaxBatchRelations = KnowledgeCorpusBatchLimits.Relations;
     private const int MaxChunkTextLength = 50_000;
+    private const int MaxBgeM3OnlineRerankCandidates = 5;
     private const string IndexVersion = "knowledge-corpus-v1";
     private static readonly HashSet<string> AllowedVisibility = new(StringComparer.Ordinal)
     {
@@ -82,13 +83,17 @@ public sealed class KnowledgeCorpusService(
         }
         var storageOwner = access.StorageOwnerUserName;
 
-        var embeddedChunks = new List<EmbeddedChunk>(chunks.Count);
-        foreach (var chunk in chunks)
+        var searchTexts = chunks.Select(chunk => BuildChunkSearchText(collection, chunk)).ToArray();
+        var embeddings = chunks.Count == 0
+            ? []
+            : await embeddingService.EmbedDocumentsAsync(searchTexts, cancellationToken);
+        if (embeddings.Count != chunks.Count)
         {
-            var searchText = BuildChunkSearchText(collection, chunk);
-            var embedding = await embeddingService.EmbedDocumentAsync(searchText, cancellationToken);
-            embeddedChunks.Add(new EmbeddedChunk(chunk, searchText, Sha256(searchText), embedding));
+            throw new InvalidOperationException(
+                $"Corpus embedding count mismatch: embeddings={embeddings.Count}, chunks={chunks.Count}.");
         }
+        var embeddedChunks = chunks.Select((chunk, index) =>
+            new EmbeddedChunk(chunk, searchTexts[index], Sha256(searchTexts[index]), embeddings[index])).ToArray();
 
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         await UpsertCollectionAsync(db, storageOwner, collection, cancellationToken);
@@ -175,7 +180,7 @@ public sealed class KnowledgeCorpusService(
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
         await EnsureConnectionOpenAsync(db, cancellationToken);
         var candidateLimit = embeddingService.SupportsFullFunctionReranking
-            ? Math.Min(Math.Max(safeLimit * 4, 8), 32)
+            ? CalculateBgeM3CandidateLimit(safeLimit)
             : safeLimit;
         var seeds = await SearchSeedChunksAsync(
             db,
@@ -193,16 +198,17 @@ public sealed class KnowledgeCorpusService(
 
         if (embeddingService.SupportsFullFunctionReranking)
         {
+            var rerankCount = Math.Min(seeds.Count, MaxBgeM3OnlineRerankCandidates);
             var scores = await embeddingService.ScorePairsAsync(
                 searchText,
-                seeds.Select(BuildRerankPassage).ToArray(),
+                seeds.Take(rerankCount).Select(BuildRerankPassage).ToArray(),
                 cancellationToken);
-            if (scores.Count != seeds.Count)
+            if (scores.Count != rerankCount)
             {
                 throw new InvalidOperationException(
-                    $"BGE-M3 corpus rerank count mismatch: scores={scores.Count}, candidates={seeds.Count}.");
+                    $"BGE-M3 corpus rerank count mismatch: scores={scores.Count}, candidates={rerankCount}.");
             }
-            seeds = seeds.Select((seed, index) => new
+            var rerankedHead = seeds.Take(rerankCount).Select((seed, index) => new
                 {
                     Seed = seed with
                     {
@@ -216,8 +222,10 @@ public sealed class KnowledgeCorpusService(
                 })
                 .OrderByDescending(value => value.Score)
                 .ThenBy(value => value.OriginalOrder)
+                .Select(value => value.Seed);
+            seeds = rerankedHead
+                .Concat(seeds.Skip(rerankCount))
                 .Take(safeLimit)
-                .Select(value => value.Seed)
                 .ToArray();
         }
 
@@ -1100,6 +1108,13 @@ public sealed class KnowledgeCorpusService(
 
     private static string BuildRerankPassage(SeedChunk seed)
         => $"domain: {seed.Domain}\ndocument: {seed.DocumentTitle}\nlocator: {seed.StartLocator}..{seed.EndLocator}\n{seed.Text}";
+
+    private static int CalculateBgeM3CandidateLimit(int requestedLimit)
+        => Math.Min(
+            Math.Max(
+                requestedLimit,
+                Math.Min(requestedLimit * 2, MaxBgeM3OnlineRerankCandidates)),
+            10);
 
     private static IReadOnlyDictionary<string, string> NormalizeMetadata(IReadOnlyDictionary<string, string>? values)
         => (values ?? new Dictionary<string, string>())

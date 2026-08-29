@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Slogs.Data;
 using Xunit;
@@ -45,11 +46,14 @@ public sealed class BgeM3EmbeddingServiceTests
 
         await service.VerifyRuntimeAsync(CancellationToken.None);
         var embedding = await service.EmbedDocumentAsync("document", CancellationToken.None);
+        var embeddings = await service.EmbedDocumentsAsync(["first", "second"], CancellationToken.None);
         var scores = await service.ScorePairsAsync("query", ["relevant", "irrelevant"], CancellationToken.None);
 
         Assert.True(service.SupportsFullFunctionReranking);
         Assert.Equal("bge-m3", service.Model);
         Assert.Equal(1024, embedding.Count);
+        Assert.Equal(2, embeddings.Count);
+        Assert.All(embeddings, value => Assert.Equal(1024, value.Count));
         Assert.Equal(2, scores.Count);
         Assert.Equal(0.91f, scores[0].Combined);
         Assert.Equal(0.22f, scores[1].Combined);
@@ -85,6 +89,14 @@ public sealed class BgeM3EmbeddingServiceTests
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
+            var encodeCount = 1;
+            if (request.RequestUri?.AbsolutePath == "/encode")
+            {
+                var body = request.Content?.ReadAsStringAsync(cancellationToken).GetAwaiter().GetResult()
+                    ?? throw new InvalidOperationException("BGE-M3 encode request body is missing.");
+                using var document = JsonDocument.Parse(body);
+                encodeCount = document.RootElement.GetProperty("inputs").GetArrayLength();
+            }
             if (request.RequestUri?.AbsolutePath == "/score")
             {
                 LastScoreRequest = request.Content?.ReadAsStringAsync(cancellationToken).GetAwaiter().GetResult()
@@ -96,7 +108,7 @@ public sealed class BgeM3EmbeddingServiceTests
                     """
                     {"modelId":"BAAI/bge-m3","modelRevision":"5617a9f61b028005a4858fdac845db406aefb181","dimensions":1024,"maxBatchSize":8,"concurrentGpuRequests":1,"functions":["dense","sparse","multi-vector","pair-score"]}
                     """,
-                "/encode" => $"{{\"dense\":[[{string.Join(',', Enumerable.Repeat("0.25", 1024))}]]}}",
+                "/encode" => $"{{\"dense\":[{string.Join(',', Enumerable.Repeat($"[{string.Join(',', Enumerable.Repeat("0.25", 1024))}]", encodeCount))}]}}",
                 "/score" =>
                     """
                     {"dense":[0.8,0.2],"sparse":[0.7,0.1],"colbert":[0.9,0.3],"colbert+sparse+dense":[0.91,0.22]}

@@ -34,6 +34,24 @@ public sealed class EmbeddingGemmaService(HttpClient httpClient, IConfiguration 
     public Task<IReadOnlyList<float>> EmbedDocumentAsync(string document, CancellationToken cancellationToken)
         => EmbedAsync(document, cancellationToken);
 
+    public async Task<IReadOnlyList<IReadOnlyList<float>>> EmbedDocumentsAsync(
+        IReadOnlyList<string> documents,
+        CancellationToken cancellationToken)
+    {
+        if (documents.Count is < 1 or > KnowledgeCorpusBatchLimits.Chunks)
+        {
+            throw new ArgumentOutOfRangeException(nameof(documents),
+                $"EmbeddingGemma corpus encoding requires 1..{KnowledgeCorpusBatchLimits.Chunks} documents.");
+        }
+
+        var results = new List<IReadOnlyList<float>>(documents.Count);
+        foreach (var document in documents)
+        {
+            results.Add(await EmbedDocumentAsync(document, cancellationToken));
+        }
+        return results;
+    }
+
     private async Task<IReadOnlyList<float>> EmbedAsync(string text, CancellationToken cancellationToken)
     {
         var endpoint = configuration["EmbeddingGemma:Endpoint"] ?? DefaultEndpoint;

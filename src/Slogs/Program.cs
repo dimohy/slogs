@@ -141,6 +141,7 @@ builder.Services.AddSingleton<BibleKnowledgeCorpusAdapter>();
 builder.Services.AddSingleton<BibleCorpusPackageReader>();
 builder.Services.AddSingleton<BibleOriginalKnowledgeCorpusAdapter>();
 builder.Services.AddScoped<BibleCorpusImportRunner>();
+builder.Services.AddScoped<BibleCorpusImportOrchestrator>();
 builder.Services.AddScoped<KnowledgeCorpusPrincipalResolver>();
 builder.Services.AddScoped<ObsidianVaultService>();
 builder.Services.AddScoped<ObsidianStorageQuotaService>();
@@ -767,10 +768,29 @@ app.MapRazorComponents<App>()
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(Slogs.Components.Routes).Assembly);
 
+var hasBibleCorpusImport = TryReadBibleCorpusImportArguments(args, out var bibleCorpusImport);
+if (hasBibleCorpusImport && bibleCorpusImport.VerifyOnly)
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var orchestrator = scope.ServiceProvider.GetRequiredService<BibleCorpusImportOrchestrator>();
+    var result = await orchestrator.RunAsync(bibleCorpusImport);
+    WriteBibleCorpusImportResult(result);
+    return;
+}
+
 if (!app.Configuration.GetValue("Slogs:SkipDbInitializer", false))
 {
     await SlogsDbInitializer.InitializeAsync(app.Services);
     await OrganizationDbInitializer.InitializeAsync(app.Services);
+}
+
+if (hasBibleCorpusImport)
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var orchestrator = scope.ServiceProvider.GetRequiredService<BibleCorpusImportOrchestrator>();
+    var result = await orchestrator.RunAsync(bibleCorpusImport);
+    WriteBibleCorpusImportResult(result);
+    return;
 }
 
 if (TryReadSemanticImportArguments(args, out var semanticImport))
@@ -1143,6 +1163,56 @@ static bool TryReadBgeM3MigrationPhase(string[] arguments, out string phase)
             $"Unsupported BGE-M3 migration phase '{phase}'. Expected prepare, activate, validate, rollback, or finalize.");
     }
     return true;
+}
+
+static bool TryReadBibleCorpusImportArguments(string[] arguments, out BibleCorpusImportOptions result)
+{
+    result = default!;
+    var importIndex = Array.IndexOf(arguments, "--bible-corpus-import");
+    if (importIndex < 0)
+    {
+        return false;
+    }
+
+    static string RequiredValue(string[] values, string name)
+    {
+        var index = Array.IndexOf(values, name);
+        if (index < 0 || index + 1 >= values.Length || values[index + 1].StartsWith("--", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException($"{name} requires a value.");
+        }
+        return values[index + 1];
+    }
+
+    static string OptionalValue(string[] values, string name, string fallback)
+    {
+        var index = Array.IndexOf(values, name);
+        return index < 0 ? fallback : RequiredValue(values, name);
+    }
+
+    if (importIndex + 1 >= arguments.Length || arguments[importIndex + 1].StartsWith("--", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("--bible-corpus-import requires a package directory.");
+    }
+
+    result = new BibleCorpusImportOptions(
+        arguments[importIndex + 1],
+        RequiredValue(arguments, "--bible-import-checkpoints"),
+        RequiredValue(arguments, "--bible-owner"),
+        OptionalValue(arguments, "--bible-import-layer", "all"),
+        arguments.Contains("--bible-verify-only", StringComparer.Ordinal));
+    return true;
+}
+
+static void WriteBibleCorpusImportResult(BibleCorpusImportSummary result)
+{
+    foreach (var layer in result.Layers)
+    {
+        Console.WriteLine(
+            $"BIBLE_CORPUS_LAYER=PASS collection={layer.CollectionId} version={layer.Version} visibility={layer.Visibility} batches={layer.Batches} documents={layer.Documents} chunks={layer.Chunks} entities={layer.Entities} relations={layer.Relations} plan={layer.PlanHash} state={layer.State}");
+    }
+    Console.WriteLine(
+        $"BIBLE_CORPUS_IMPORT=PASS package={result.PackageId} version={result.PackageVersion} hash={result.PackageHash} verifyOnly={result.VerifyOnly.ToString().ToLowerInvariant()} layers={result.Layers.Count}");
 }
 
 public sealed record GoogleExternalLoginInfo(string ProviderUserId, string Email, string DisplayName, string ProfileImageUrl);

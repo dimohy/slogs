@@ -12,6 +12,22 @@ public sealed class BgeM3OnlineRerankContractTests
     [InlineData(3, 5)]
     [InlineData(5, 5)]
     [InlineData(10, 10)]
+    public void CorpusCandidateWindowBoundsExpensiveOnlinePairScoring(int requestedLimit, int expected)
+    {
+        var method = typeof(KnowledgeCorpusService).GetMethod(
+            "CalculateBgeM3CandidateLimit",
+            BindingFlags.NonPublic | BindingFlags.Static)
+            ?? throw new InvalidOperationException("Corpus BGE-M3 candidate limit calculator is missing.");
+
+        Assert.Equal(expected, (int)(method.Invoke(null, [requestedLimit])
+            ?? throw new InvalidOperationException("Corpus BGE-M3 candidate limit calculator returned null.")));
+    }
+
+    [Theory]
+    [InlineData(1, 2)]
+    [InlineData(3, 5)]
+    [InlineData(5, 5)]
+    [InlineData(10, 10)]
     [InlineData(100, 100)]
     public void CandidateWindowBoundsExpensiveOnlinePairScoring(int requestedWindow, int expected)
     {
