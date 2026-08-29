@@ -6,6 +6,28 @@ namespace Slogs.Tests;
 public sealed class BibleCorpusEvaluationRunnerTests
 {
     [Fact]
+    public void InterpretationSafetyDefaultsToAnswerEvaluationLayer()
+    {
+        using var document = System.Text.Json.JsonDocument.Parse(
+            """{"class":"interpretation_safety"}""");
+
+        var layer = BibleCorpusEvaluationRunner.ReadEvaluationLayer(document.RootElement);
+
+        Assert.Equal("answer", layer);
+    }
+
+    [Fact]
+    public void ExplicitRetrievalLayerOverridesClassification()
+    {
+        using var document = System.Text.Json.JsonDocument.Parse(
+            """{"class":"interpretation_safety","evaluationLayer":"retrieval"}""");
+
+        var layer = BibleCorpusEvaluationRunner.ReadEvaluationLayer(document.RootElement);
+
+        Assert.Equal("retrieval", layer);
+    }
+
+    [Fact]
     public void ScoreAcceptsTraceableEvidenceAndRequiredRelation()
     {
         var evaluationCase = new BibleCorpusEvaluationCase(

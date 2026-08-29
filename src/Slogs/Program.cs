@@ -773,11 +773,13 @@ app.MapRazorComponents<App>()
 var hasBibleCorpusImport = TryReadBibleCorpusImportArguments(args, out var bibleCorpusImport);
 var hasBibleReviewedRelationsImport = TryReadBibleReviewedRelationsImportArguments(args, out var bibleReviewedRelationsImport);
 var hasBibleCorpusEvaluation = TryReadBibleCorpusEvaluationArguments(args, out var bibleCorpusEvaluation);
+var hasBibleAnswerEvaluation = TryReadBibleAnswerEvaluationArguments(args, out var bibleAnswerEvaluation);
 if ((hasBibleCorpusImport ? 1 : 0)
     + (hasBibleReviewedRelationsImport ? 1 : 0)
-    + (hasBibleCorpusEvaluation ? 1 : 0) > 1)
+    + (hasBibleCorpusEvaluation ? 1 : 0)
+    + (hasBibleAnswerEvaluation ? 1 : 0) > 1)
 {
-    throw new InvalidOperationException("성경 본문 적재, 검토 관계 적재, 운영 평가는 한 프로세스에서 동시에 실행할 수 없습니다.");
+    throw new InvalidOperationException("성경 본문 적재, 검토 관계 적재, 검색 평가, 답변 평가는 한 프로세스에서 동시에 실행할 수 없습니다.");
 }
 if (hasBibleCorpusImport && bibleCorpusImport.VerifyOnly)
 {
@@ -804,6 +806,17 @@ if (hasBibleCorpusEvaluation)
     Console.WriteLine(
         $"BIBLE_CORPUS_EVALUATION={(passed == results.Count ? "PASS" : "FAIL")} passed={passed} total={results.Count} output={bibleCorpusEvaluation.OutputPath}");
     if (passed != results.Count)
+    {
+        Environment.ExitCode = 2;
+    }
+    return;
+}
+if (hasBibleAnswerEvaluation)
+{
+    var result = BibleAnswerSafetyEvaluator.Run(bibleAnswerEvaluation);
+    Console.WriteLine(
+        $"BIBLE_ANSWER_EVALUATION={(result.Passed ? "PASS" : "FAIL")} case={result.CaseId} violations={result.Violations.Count} output={bibleAnswerEvaluation.OutputPath}");
+    if (!result.Passed)
     {
         Environment.ExitCode = 2;
     }
@@ -1330,6 +1343,31 @@ static bool TryReadBibleCorpusEvaluationArguments(
         RequiredValue(arguments, "--bible-owner"),
         OptionalInt(arguments, "--bible-evaluation-limit", 10),
         OptionalInt(arguments, "--bible-evaluation-hops", 3));
+    return true;
+}
+
+static bool TryReadBibleAnswerEvaluationArguments(
+    string[] arguments,
+    out BibleAnswerSafetyEvaluationOptions result)
+{
+    result = default!;
+    var evaluationIndex = Array.IndexOf(arguments, "--bible-answer-evaluate");
+    if (evaluationIndex < 0)
+    {
+        return false;
+    }
+    if (evaluationIndex + 1 >= arguments.Length
+        || arguments[evaluationIndex + 1].StartsWith("--", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("--bible-answer-evaluate requires an answer evidence JSON path.");
+    }
+    var outputIndex = Array.IndexOf(arguments, "--bible-answer-output");
+    if (outputIndex < 0 || outputIndex + 1 >= arguments.Length
+        || arguments[outputIndex + 1].StartsWith("--", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("--bible-answer-output requires a result JSON path.");
+    }
+    result = new(arguments[evaluationIndex + 1], arguments[outputIndex + 1]);
     return true;
 }
 

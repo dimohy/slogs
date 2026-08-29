@@ -17,7 +17,8 @@ public sealed record BibleCorpusEvaluationCase(
     IReadOnlyList<string> MustNotMerge,
     IReadOnlyList<string> MustNotClaim,
     string? RequiredRelation,
-    string? RequiredClaimClass);
+    string? RequiredClaimClass,
+    string EvaluationLayer = "retrieval");
 
 public sealed record BibleCorpusEvaluationCaseResult(
     string Id,
@@ -49,9 +50,15 @@ public sealed class BibleCorpusEvaluationRunner(KnowledgeCorpusService corpusSer
 
         var cases = ReadCases(options.EvaluationPath);
         var results = new List<BibleCorpusEvaluationCaseResult>(cases.Count);
+        var excludedAnswerCaseIds = new List<string>();
         var actor = KnowledgeCorpusActor.User(options.OwnerUserName, isAdmin: true);
         foreach (var evaluationCase in cases)
         {
+            if (evaluationCase.EvaluationLayer.Equals("answer", StringComparison.Ordinal))
+            {
+                excludedAnswerCaseIds.Add(evaluationCase.Id);
+                continue;
+            }
             var recalled = await corpusService.RecallAsync(
                 actor,
                 evaluationCase.Query,
@@ -61,7 +68,7 @@ public sealed class BibleCorpusEvaluationRunner(KnowledgeCorpusService corpusSer
             results.Add(Score(evaluationCase, recalled));
         }
 
-        WriteResult(options, results);
+        WriteResult(options, results, cases.Count, excludedAnswerCaseIds);
         return results;
     }
 
@@ -170,7 +177,8 @@ public sealed class BibleCorpusEvaluationRunner(KnowledgeCorpusService corpusSer
                 ReadStrings(item, "mustNotMerge"),
                 ReadStrings(item, "mustNotClaim", "answerMustNotClaim"),
                 ReadOptionalString(item, "requiredRelation"),
-                ReadOptionalString(item, "requiredClaimClass")));
+                ReadOptionalString(item, "requiredClaimClass"),
+                ReadEvaluationLayer(item)));
         }
         if (cases.Count == 0)
         {
@@ -196,24 +204,48 @@ public sealed class BibleCorpusEvaluationRunner(KnowledgeCorpusService corpusSer
     private static string? ReadOptionalString(JsonElement element, string name)
         => element.TryGetProperty(name, out var value) ? value.GetString() : null;
 
+    public static string ReadEvaluationLayer(JsonElement element)
+    {
+        if (element.TryGetProperty("evaluationLayer", out var configured))
+        {
+            var value = configured.GetString();
+            if (value is not ("retrieval" or "answer"))
+            {
+                throw new InvalidDataException("evaluationLayer must be retrieval or answer.");
+            }
+            return value;
+        }
+
+        return element.TryGetProperty("class", out var classification)
+            && classification.GetString() == "interpretation_safety"
+                ? "answer"
+                : "retrieval";
+    }
+
     private static void WriteResult(
         BibleCorpusEvaluationOptions options,
-        IReadOnlyList<BibleCorpusEvaluationCaseResult> results)
+        IReadOnlyList<BibleCorpusEvaluationCaseResult> results,
+        int sourceCaseCount,
+        IReadOnlyList<string> excludedAnswerCaseIds)
     {
         var outputDirectory = Path.GetDirectoryName(Path.GetFullPath(options.OutputPath));
         Directory.CreateDirectory(outputDirectory!);
         using var stream = File.Create(options.OutputPath);
         using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
         writer.WriteStartObject();
-        writer.WriteNumber("schemaVersion", 1);
+        writer.WriteNumber("schemaVersion", 2);
         writer.WriteString("evaluatedAtUtc", DateTimeOffset.UtcNow);
         writer.WriteString("evaluationPath", Path.GetFileName(options.EvaluationPath));
         writer.WriteString("ownerUserName", options.OwnerUserName);
         writer.WriteNumber("limit", options.Limit);
         writer.WriteNumber("maxGraphHops", options.MaxGraphHops);
+        writer.WriteNumber("sourceCaseCount", sourceCaseCount);
+        writer.WriteNumber("retrievalCaseCount", results.Count);
+        writer.WriteNumber("answerCaseCount", excludedAnswerCaseIds.Count);
         writer.WriteNumber("passedCases", results.Count(value => value.Passed));
         writer.WriteNumber("totalCases", results.Count);
         writer.WriteBoolean("passed", results.All(value => value.Passed));
+        WriteStrings(writer, "excludedAnswerCaseIds", excludedAnswerCaseIds);
         writer.WriteStartArray("cases");
         foreach (var result in results)
         {
