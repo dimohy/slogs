@@ -9,6 +9,28 @@ namespace Slogs.Tests;
 public sealed class BgeM3EmbeddingServiceTests
 {
     [Fact]
+    public void HttpClientTimeoutRequiresAnExplicitBoundedContract()
+    {
+        using var httpClient = new HttpClient();
+        var missing = new ConfigurationBuilder().AddInMemoryCollection().Build();
+        var tooShort = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["BgeM3:RequestTimeoutSeconds"] = "100"
+        }).Build();
+        var configured = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["BgeM3:RequestTimeoutSeconds"] = "600"
+        }).Build();
+
+        Assert.Throws<InvalidOperationException>(() => BgeM3EmbeddingService.ConfigureHttpClient(httpClient, missing));
+        Assert.Throws<InvalidOperationException>(() => BgeM3EmbeddingService.ConfigureHttpClient(httpClient, tooShort));
+
+        BgeM3EmbeddingService.ConfigureHttpClient(httpClient, configured);
+
+        Assert.Equal(TimeSpan.FromMinutes(10), httpClient.Timeout);
+    }
+
+    [Fact]
     public async Task FullFunctionContractReturnsDenseAndThreeModePairScores()
     {
         using var httpClient = new HttpClient(new ContractHandler());

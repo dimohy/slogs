@@ -127,7 +127,10 @@ builder.Services.AddScoped<BlogService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<EditorImageStorage>();
 builder.Services.AddScoped<PostImageService>();
-builder.Services.AddHttpClient<BgeM3EmbeddingService>();
+builder.Services.AddHttpClient<BgeM3EmbeddingService>((serviceProvider, httpClient) =>
+    BgeM3EmbeddingService.ConfigureHttpClient(
+        httpClient,
+        serviceProvider.GetRequiredService<IConfiguration>()));
 builder.Services.AddScoped<IKnowledgeEmbeddingService>(provider => provider.GetRequiredService<BgeM3EmbeddingService>());
 builder.Services.AddScoped<BgeM3ShadowIndexMigration>();
 builder.Services.AddScoped<LlmWikiService>();

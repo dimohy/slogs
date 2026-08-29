@@ -7,6 +7,7 @@ namespace Slogs.Data;
 public sealed class BgeM3EmbeddingService(HttpClient httpClient, IConfiguration configuration)
     : IKnowledgeEmbeddingService
 {
+    private const string RequestTimeoutSecondsKey = "BgeM3:RequestTimeoutSeconds";
     private const string DefaultBaseUrl = "http://localhost:8082";
     private const string RequiredModel = "BAAI/bge-m3";
     private const string RequiredRevision = "5617a9f61b028005a4858fdac845db406aefb181";
@@ -14,6 +15,17 @@ public sealed class BgeM3EmbeddingService(HttpClient httpClient, IConfiguration 
     public string Model => "bge-m3";
     public int Dimensions => 1024;
     public bool SupportsFullFunctionReranking => true;
+
+    public static void ConfigureHttpClient(HttpClient client, IConfiguration configuration)
+    {
+        var configured = configuration[RequestTimeoutSecondsKey];
+        if (!int.TryParse(configured, out var seconds) || seconds is < 120 or > 3600)
+        {
+            throw new InvalidOperationException(
+                $"{RequestTimeoutSecondsKey} must be explicitly configured between 120 and 3600 seconds.");
+        }
+        client.Timeout = TimeSpan.FromSeconds(seconds);
+    }
 
     public Task<IReadOnlyList<float>> EmbedQueryAsync(string query, CancellationToken cancellationToken)
         => EmbedAsync(query, cancellationToken);
