@@ -88,6 +88,8 @@ function Assert-Collection {
     param(
         [string]$CollectionId,
         [string]$Version,
+        [string]$OwnerKind,
+        [string]$OwnerKey,
         [string]$Visibility,
         [bool]$RedistributionAllowed,
         [string]$License,
@@ -99,6 +101,8 @@ function Assert-Collection {
     Assert-Equal "$CollectionId active collection count" $matches.Count 1
     if ($matches.Count -ne 1) { return }
     $item = $matches[0]
+    Assert-Equal "$CollectionId ownerKind" $item.ownerKind $OwnerKind
+    Assert-Equal "$CollectionId ownerKey" $item.ownerKey $OwnerKey
     Assert-Equal "$CollectionId visibility" $item.visibility $Visibility
     Assert-Equal "$CollectionId redistributionAllowed" $item.redistributionAllowed $RedistributionAllowed
     Assert-Equal "$CollectionId license" $item.license $License
@@ -115,10 +119,10 @@ function Assert-Collection {
     }
 }
 
-Assert-Collection 'bible-ko-nkrv' '0.1.0' 'private' $false 'copyrighted-restricted' 1693 0 31101
-Assert-Collection 'bible-ko-tkv' '0.1.0' 'private' $false 'copyrighted-restricted' 2203 0 31097
-Assert-Collection 'bible-original-step' '0.1.0' 'public_shared' $true 'CC BY; CC BY 4.0; CC BY-SA 4.0' 48515 4259 456058
-Assert-Collection 'bible-reviewed-relations' '0.2.0' 'public_shared' $true 'CC BY 4.0 review metadata; underlying source references retain their licenses' 9 0 38
+Assert-Collection 'bible-ko-nkrv' '0.1.0' 'user' 'dimohy' 'private' $false 'copyrighted-restricted' 1693 0 31101
+Assert-Collection 'bible-ko-tkv' '0.1.0' 'user' 'dimohy' 'private' $false 'copyrighted-restricted' 2203 0 31097
+Assert-Collection 'bible-original-step' '0.1.0' 'system' 'slogs' 'public_shared' $true 'CC BY; CC BY 4.0; CC BY-SA 4.0' 48515 4259 456058
+Assert-Collection 'bible-reviewed-relations' '0.2.0' 'system' 'slogs' 'public_shared' $true 'CC BY 4.0 review metadata; underlying source references retain their licenses' 9 0 38
 Assert-Equal 'public original candidate count' $snapshot.publicOriginalCandidateCount 0
 Assert-Equal 'public original non-recallable review status count' $snapshot.publicOriginalNonRecallableReviewStatusCount 0
 Assert-Equal 'public original non-public source count' $snapshot.publicOriginalNonPublicSourceCount 0
