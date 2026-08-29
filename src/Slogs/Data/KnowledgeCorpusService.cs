@@ -1128,6 +1128,12 @@ public sealed class KnowledgeCorpusService(
                     ROW_NUMBER() OVER (ORDER BY v."CollectionId", v."Version", v."ChunkId") AS exact_rank
                 FROM visible v
                 WHERE v."SearchAliasesJson" ?| @exactLocatorAliases
+                   OR EXISTS (
+                     SELECT 1
+                     FROM jsonb_array_elements_text(v."SearchAliasesJson") alias
+                     CROSS JOIN unnest(@exactLocatorAliases::text[]) expected
+                     WHERE POSITION(':' || expected || ':' IN alias) > 0
+                   )
                    OR (@referenceChapter >= 0 AND @referenceVerse >= 0
                      AND POSITION(LOWER(v.document_title) IN LOWER(@queryText)) > 0
                      AND EXISTS (
@@ -1281,6 +1287,12 @@ public sealed class KnowledgeCorpusService(
               )
               AND (
                 k."SearchAliasesJson" ?| @exactLocatorAliases
+                OR EXISTS (
+                  SELECT 1
+                  FROM jsonb_array_elements_text(k."SearchAliasesJson") alias
+                  CROSS JOIN unnest(@exactLocatorAliases::text[]) expected
+                  WHERE POSITION(':' || expected || ':' IN alias) > 0
+                )
                 OR (@referenceChapter >= 0 AND @referenceVerse >= 0
                   AND POSITION(LOWER(d."Title") IN LOWER(@queryText)) > 0
                   AND EXISTS (

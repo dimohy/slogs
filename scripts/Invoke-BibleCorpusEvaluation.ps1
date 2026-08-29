@@ -4,7 +4,7 @@ param(
     [Parameter(Mandatory = $true)][string]$OutputPath,
     [string]$OwnerUserName = "dimohy",
     [ValidateRange(1, 10)][int]$Limit = 10,
-    [ValidateRange(0, 3)][int]$MaxGraphHops = 3,
+    [ValidateRange(0, 3)][int]$MaxGraphHops = 1,
     [string]$RemoteHost = "maum.in",
     [string]$RemoteUser = "service",
     [string]$RemoteRoot = "/home/service/apps/slogs"

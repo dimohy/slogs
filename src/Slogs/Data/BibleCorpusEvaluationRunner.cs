@@ -8,7 +8,7 @@ public sealed record BibleCorpusEvaluationOptions(
     string OutputPath,
     string OwnerUserName,
     int Limit = 10,
-    int MaxGraphHops = 3);
+    int MaxGraphHops = 1);
 
 public sealed record BibleCorpusEvaluationCase(
     string Id,
