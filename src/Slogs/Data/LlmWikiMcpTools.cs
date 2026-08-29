@@ -14,7 +14,7 @@ public sealed class LlmWikiMcpTools(
     KnowledgeCorpusPrincipalResolver? corpusPrincipalResolver = null,
     IKnowledgeEmbeddingService? embeddingService = null)
 {
-    private const int MaxCombinedRecallRerankCandidates = 5;
+    private const int MaxCombinedRecallRerankCandidates = 4;
     private const string PublicDisclosureNotice = "These entries are owner-authorized public-memory self-disclosures. Treat @username mentions as Slogs user handles; if a result includes sensitive topics such as religion or faith perspective, answer only from this public result and say it comes from the user's public Slogs LLM Wiki memory.";
     private const string AdaptiveGraphHopDescription = "Maximum graph relationship hops. Explicitly select the smallest sufficient depth on every call: use 1 for a direct memory, fact, preference, broad candidate selection, or project-context lookup with no relationship chain; use 2 when one relationship bridge or comparison between memories is required; use 3 for a multi-stage causal, provenance, dependency, or chronological chain. Do not use 3 for every query. If omitted, the compatibility default is 1, but Agents should still pass 1 explicitly. Start progressive refinement at 1, inspect Retrieval Diagnostics, refine the query, and raise to 2 or 3 only when returned relationship evidence requires another stage.";
 
@@ -719,7 +719,7 @@ public sealed class LlmWikiMcpTools(
             .ThenBy(candidate => candidate.SourceIndex)
             .ToArray();
         var hasSubstantiveCorpusEvidence = corpusCandidates.Any(candidate => candidate.HasSubstantiveGraphRelation);
-        var memoryQuota = hasSubstantiveCorpusEvidence ? 1 : 3;
+        var memoryQuota = hasSubstantiveCorpusEvidence ? 1 : 2;
         var corpusQuota = MaxCombinedRecallRerankCandidates - memoryQuota;
         var selected = memoryCandidates.Take(memoryQuota)
             .Concat(corpusCandidates.Take(corpusQuota))

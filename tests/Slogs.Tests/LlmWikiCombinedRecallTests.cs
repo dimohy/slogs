@@ -99,20 +99,20 @@ public sealed class LlmWikiCombinedRecallTests
 
         var selected = LlmWikiMcpTools.SelectCombinedRerankCandidates(memories, corpus);
 
-        Assert.Equal(5, selected.Count);
+        Assert.Equal(4, selected.Count);
         Assert.Single(selected, candidate => !candidate.IsCorpus);
-        Assert.Equal(4, selected.Count(candidate => candidate.IsCorpus));
+        Assert.Equal(3, selected.Count(candidate => candidate.IsCorpus));
         Assert.Contains(selected, candidate => candidate.IsCorpus && candidate.SourceIndex == 1);
     }
 
     [Fact]
-    public void CombinedRerankingFillsUnusedSourceQuotaWithoutExceedingFiveCandidates()
+    public void CombinedRerankingFillsUnusedSourceQuotaWithoutExceedingFourCandidates()
     {
         var selected = LlmWikiMcpTools.SelectCombinedRerankCandidates(
             [],
             Enumerable.Range(1, 10).Select(index => Corpus($"corpus-{index}", 50 - index)).ToArray());
 
-        Assert.Equal(5, selected.Count);
+        Assert.Equal(4, selected.Count);
         Assert.All(selected, candidate => Assert.True(candidate.IsCorpus));
     }
 
