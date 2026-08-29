@@ -778,10 +778,7 @@ public sealed class LlmWikiMcpTools(
         for (var index = 0; index < candidates.Count; index++)
         {
             var candidate = candidates[index];
-            var relevance = (int)Math.Round(Math.Clamp(
-                (scores[index].Combined * 0.8f) + ((candidate.RelevancePercent / 100f) * 0.2f),
-                0f,
-                1f) * 100f);
+            var relevance = CalculateCombinedRerankRelevance(candidate, scores[index].Combined);
             if (candidate.IsCorpus)
             {
                 rerankedCorpus.Add(corpusResults[candidate.SourceIndex] with
@@ -799,6 +796,17 @@ public sealed class LlmWikiMcpTools(
         }
 
         return new(rerankedMemories, rerankedCorpus.ToArray(), 1, candidates.Count);
+    }
+
+    internal static int CalculateCombinedRerankRelevance(CombinedRecallCandidate candidate, float combinedScore)
+    {
+        var reranked = (int)Math.Round(Math.Clamp(
+            (combinedScore * 0.8f) + ((candidate.RelevancePercent / 100f) * 0.2f),
+            0f,
+            1f) * 100f);
+        return candidate.HasSubstantiveGraphRelation
+            ? Math.Max(candidate.RelevancePercent, reranked)
+            : reranked;
     }
 
     private static string BuildCorpusRerankPassage(KnowledgeChunkRecall chunk)

@@ -116,6 +116,20 @@ public sealed class LlmWikiCombinedRecallTests
         Assert.All(selected, candidate => Assert.True(candidate.IsCorpus));
     }
 
+    [Fact]
+    public void ReviewedSubstantiveRelationCannotBeDemotedBelowItsHybridRetrievalScore()
+    {
+        var relation = new LlmWikiMcpTools.CombinedRecallCandidate(
+            IsCorpus: true,
+            SourceIndex: 0,
+            RelevancePercent: 50,
+            HasSubstantiveGraphRelation: true);
+        var ordinary = relation with { HasSubstantiveGraphRelation = false };
+
+        Assert.Equal(50, LlmWikiMcpTools.CalculateCombinedRerankRelevance(relation, 0.1f));
+        Assert.Equal(18, LlmWikiMcpTools.CalculateCombinedRerankRelevance(ordinary, 0.1f));
+    }
+
     [Theory]
     [InlineData("Acts.13.9 본문", true)]
     [InlineData("사도행전 13장 9절 본문", true)]
