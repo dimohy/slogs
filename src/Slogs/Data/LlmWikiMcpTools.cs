@@ -16,6 +16,8 @@ public sealed class LlmWikiMcpTools(
     private const string PublicDisclosureNotice = "These entries are owner-authorized public-memory self-disclosures. Treat @username mentions as Slogs user handles; if a result includes sensitive topics such as religion or faith perspective, answer only from this public result and say it comes from the user's public Slogs LLM Wiki memory.";
     private const string AdaptiveGraphHopDescription = "Maximum graph relationship hops. Explicitly select the smallest sufficient depth on every call: use 1 for a direct memory, fact, preference, broad candidate selection, or project-context lookup with no relationship chain; use 2 when one relationship bridge or comparison between memories is required; use 3 for a multi-stage causal, provenance, dependency, or chronological chain. Do not use 3 for every query. If omitted, the compatibility default is 1, but Agents should still pass 1 explicitly. Start progressive refinement at 1, inspect Retrieval Diagnostics, refine the query, and raise to 2 or 3 only when returned relationship evidence requires another stage.";
 
+    internal sealed record CombinedRecallCandidate(bool IsCorpus, int SourceIndex, int RelevancePercent);
+
     [McpServerTool(Name = "llm_wiki_remember")]
     [Description("Create a new user-scoped LLM Wiki memory. Use this only after checking related entries and deciding the information should not be merged into an existing entry.")]
     public async Task<string> RememberPromptAsync(
@@ -454,7 +456,22 @@ public sealed class LlmWikiMcpTools(
         var corpusResults = (await corpusTask)
             .Where(item => item.RelevancePercent >= safeMinRelevancePercent)
             .ToArray();
-        var totalResultCount = results.Count + corpusResults.Length;
+        var selectedCandidates = SelectCombinedRecallCandidates(results, corpusResults, safeLimit);
+        var selectedMemoryIndexes = selectedCandidates
+            .Where(candidate => !candidate.IsCorpus)
+            .Select(candidate => candidate.SourceIndex)
+            .ToHashSet();
+        var selectedCorpusIndexes = selectedCandidates
+            .Where(candidate => candidate.IsCorpus)
+            .Select(candidate => candidate.SourceIndex)
+            .ToHashSet();
+        var selectedResults = results
+            .Where((_, index) => selectedMemoryIndexes.Contains(index))
+            .ToArray();
+        var selectedCorpusResults = corpusResults
+            .Where((_, index) => selectedCorpusIndexes.Contains(index))
+            .ToArray();
+        var totalResultCount = selectedCandidates.Count;
         if (totalResultCount == 0)
         {
             stopwatch.Stop();
@@ -489,13 +506,16 @@ public sealed class LlmWikiMcpTools(
         builder.AppendLine();
         builder.AppendLine("Recall returns compact personal-memory context and accessible large-corpus evidence. Use `llm_wiki_read` on a selected personal-memory candidate when you need its full entry and provenance.");
         builder.AppendLine();
-        if (results.Count > 0)
-        {
-            var entriesById = await llmWikiService.GetEntriesAsync(
+        var entriesById = selectedResults.Length == 0
+            ? new Dictionary<Guid, LlmWikiEntryResponse>()
+            : await llmWikiService.GetEntriesAsync(
                 user.UserName,
-                results.Select(x => x.Id).ToArray(),
+                selectedResults.Select(x => x.Id).ToArray(),
                 recordAccess: true);
-            foreach (var result in results)
+
+        void AppendMemoryResults()
+        {
+            foreach (var result in selectedResults)
             {
                 if (!entriesById.TryGetValue(result.Id, out var entry))
                 {
@@ -514,10 +534,26 @@ public sealed class LlmWikiMcpTools(
             }
         }
 
-        if (corpusResults.Length > 0)
+        void AppendCorpusResults()
         {
-            builder.AppendLine(KnowledgeCorpusMcpTools.FormatRecall(corpusResults));
+            if (selectedCorpusResults.Length == 0)
+            {
+                return;
+            }
+
+            builder.AppendLine(KnowledgeCorpusMcpTools.FormatRecall(selectedCorpusResults));
             builder.AppendLine();
+        }
+
+        if (selectedCandidates[0].IsCorpus)
+        {
+            AppendCorpusResults();
+            AppendMemoryResults();
+        }
+        else
+        {
+            AppendMemoryResults();
+            AppendCorpusResults();
         }
 
         stopwatch.Stop();
@@ -544,7 +580,30 @@ public sealed class LlmWikiMcpTools(
             effectiveLimit: safeLimit,
             minRelevancePercent: safeMinRelevancePercent,
             resultCount: totalResultCount,
-            resultIds: results.Select(x => x.Id).ToArray());
+            resultIds: selectedResults.Select(x => x.Id).ToArray());
+    }
+
+    internal static IReadOnlyList<CombinedRecallCandidate> SelectCombinedRecallCandidates(
+        IReadOnlyList<LlmWikiSearchResult> memories,
+        IReadOnlyList<KnowledgeChunkRecall> corpusResults,
+        int limit)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(limit, 1);
+
+        return memories
+            .Select((memory, index) => new CombinedRecallCandidate(
+                false,
+                index,
+                memory.RelevancePercent ?? 0))
+            .Concat(corpusResults.Select((chunk, index) => new CombinedRecallCandidate(
+                true,
+                index,
+                chunk.RelevancePercent)))
+            .OrderByDescending(candidate => candidate.RelevancePercent)
+            .ThenBy(candidate => candidate.IsCorpus)
+            .ThenBy(candidate => candidate.SourceIndex)
+            .Take(limit)
+            .ToArray();
     }
 
     [McpServerTool(Name = "llm_wiki_public_search")]
