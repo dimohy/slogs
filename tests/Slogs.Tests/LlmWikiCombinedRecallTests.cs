@@ -130,6 +130,16 @@ public sealed class LlmWikiCombinedRecallTests
         Assert.Equal(18, LlmWikiMcpTools.CalculateCombinedRerankRelevance(ordinary, 0.1f));
     }
 
+    [Fact]
+    public void ReviewedSubstantiveRelationSurvivesTheSemanticThresholdGate()
+    {
+        var reviewed = Corpus("reviewed-relation", 20, "direct_quote");
+        var ordinary = Corpus("ordinary", 20);
+
+        Assert.True(LlmWikiMcpTools.ShouldKeepRerankedCorpusCandidate(reviewed, 45));
+        Assert.False(LlmWikiMcpTools.ShouldKeepRerankedCorpusCandidate(ordinary, 45));
+    }
+
     [Theory]
     [InlineData("Acts.13.9 본문", true)]
     [InlineData("사도행전 13장 9절 본문", true)]

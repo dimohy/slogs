@@ -510,7 +510,7 @@ public sealed class LlmWikiMcpTools(
                         .Where(item => (item.RelevancePercent ?? 0) >= safeMinRelevancePercent)
                         .ToArray();
                     corpusResults = reranked.CorpusResults
-                        .Where(item => item.RelevancePercent >= safeMinRelevancePercent)
+                        .Where(item => ShouldKeepRerankedCorpusCandidate(item, safeMinRelevancePercent))
                         .ToArray();
                     pairScoreCalls = reranked.PairScoreCalls;
                     pairScoreCandidates = reranked.PairScoreCandidates;
@@ -688,6 +688,12 @@ public sealed class LlmWikiMcpTools(
 
     private static bool IsSubstantiveGraphRelation(KnowledgeRelationRecall relation)
         => !string.Equals(relation.RelationType, "contains_passage", StringComparison.OrdinalIgnoreCase);
+
+    internal static bool ShouldKeepRerankedCorpusCandidate(
+        KnowledgeChunkRecall candidate,
+        int minRelevancePercent)
+        => candidate.RelevancePercent >= minRelevancePercent
+            || candidate.Relations.Any(IsSubstantiveGraphRelation);
 
     internal static int CalculateCorpusRecallLimit(int responseLimit, int maxGraphHops)
     {
