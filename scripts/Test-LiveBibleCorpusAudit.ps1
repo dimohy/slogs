@@ -36,7 +36,23 @@ SELECT json_build_object(
     'chunks',chunks,'entities',entities,'relations',relations,'aclGrants',acl_grants
   ) ORDER BY "CollectionId","Version") FROM collections),
   'publicOriginalCandidateCount', (SELECT COUNT(*) FROM original_relations WHERE "ReviewStatus"='candidate'),
+  'publicOriginalNonRecallableReviewStatusCount', (SELECT COUNT(*) FROM original_relations WHERE "ReviewStatus" NOT IN ('approved','published')),
   'publicOriginalNonPublicSourceCount', (SELECT COUNT(*) FROM original_relations WHERE COALESCE("MetadataJson"->>'sourceVisibility','public_shared') <> 'public_shared'),
+  'publicOriginalMissingEvidenceCount', (SELECT COUNT(*) FROM original_relations
+    WHERE jsonb_typeof("EvidenceJson") <> 'array' OR jsonb_array_length("EvidenceJson")=0),
+  'publicOriginalInvalidEvidenceFieldCount', (SELECT COUNT(*) FROM original_relations r
+    CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(r."EvidenceJson")='array' THEN r."EvidenceJson" ELSE '[]'::jsonb END) e
+    WHERE NULLIF(BTRIM(e->>'SourceId'),'') IS NULL
+       OR NULLIF(BTRIM(e->>'Locator'),'') IS NULL
+       OR NULLIF(BTRIM(e->>'EvidenceType'),'') IS NULL
+       OR jsonb_typeof(e->'ChunkIds') <> 'array'
+       OR jsonb_array_length(e->'ChunkIds')=0),
+  'publicOriginalDanglingEvidenceChunkCount', (SELECT COUNT(*) FROM original_relations r
+    CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(r."EvidenceJson")='array' THEN r."EvidenceJson" ELSE '[]'::jsonb END) e
+    CROSS JOIN LATERAL jsonb_array_elements_text(CASE WHEN jsonb_typeof(e->'ChunkIds')='array' THEN e->'ChunkIds' ELSE '[]'::jsonb END) chunk_id
+    WHERE NOT EXISTS (SELECT 1 FROM "LlmWikiKnowledgeChunks" k
+      WHERE k."CollectionId"=r."CollectionId" AND k."Version"=r."Version" AND k."OwnerUserName"=r."OwnerUserName"
+        AND k."ChunkId"=chunk_id.value)),
   'paulEntityCount', (SELECT COUNT(*) FROM "LlmWikiKnowledgeEntities" e JOIN original c
     ON c."CollectionId"=e."CollectionId" AND c."Version"=e."Version" AND c."OwnerUserName"=e."OwnerUserName"
     WHERE e."EntityId"='entity:step:G3972G' AND e."AliasesJson" ? 'Saul' AND e."MetadataJson"->>'strongIds' LIKE '%G4569G%'),
@@ -104,7 +120,11 @@ Assert-Collection 'bible-ko-tkv' '0.1.0' 'private' $false 'copyrighted-restricte
 Assert-Collection 'bible-original-step' '0.1.0' 'public_shared' $true 'CC BY; CC BY 4.0; CC BY-SA 4.0' 48515 4259 456058
 Assert-Collection 'bible-reviewed-relations' '0.2.0' 'public_shared' $true 'CC BY 4.0 review metadata; underlying source references retain their licenses' 9 0 38
 Assert-Equal 'public original candidate count' $snapshot.publicOriginalCandidateCount 0
+Assert-Equal 'public original non-recallable review status count' $snapshot.publicOriginalNonRecallableReviewStatusCount 0
 Assert-Equal 'public original non-public source count' $snapshot.publicOriginalNonPublicSourceCount 0
+Assert-Equal 'public original missing evidence count' $snapshot.publicOriginalMissingEvidenceCount 0
+Assert-Equal 'public original invalid evidence field count' $snapshot.publicOriginalInvalidEvidenceFieldCount 0
+Assert-Equal 'public original dangling evidence chunk count' $snapshot.publicOriginalDanglingEvidenceChunkCount 0
 Assert-Equal 'Paul entity with Saul and G4569G aliases' $snapshot.paulEntityCount 1
 Assert-Equal 'King Saul entity' $snapshot.kingSaulEntityCount 1
 Assert-Equal 'Acts 13:9 Paul mention' $snapshot.paulActsMentionCount 1
