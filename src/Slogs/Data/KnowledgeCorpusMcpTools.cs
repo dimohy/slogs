@@ -108,6 +108,9 @@ public sealed class KnowledgeCorpusMcpTools(
             builder.AppendLine();
             builder.AppendLine($"- corpus: {result.CollectionId}@{result.Version}");
             builder.AppendLine($"- domain: {result.Domain}");
+            builder.AppendLine($"- license: {result.License}");
+            builder.AppendLine($"- collectionSource: {result.CollectionSourceUri}");
+            builder.AppendLine($"- documentSource: {result.DocumentSourceUri}");
             builder.AppendLine($"- documentId: {result.DocumentId}");
             builder.AppendLine($"- chunkId: {result.ChunkId}");
             if (result.Relations.Count > 0)
@@ -116,6 +119,10 @@ public sealed class KnowledgeCorpusMcpTools(
                 foreach (var relation in result.Relations)
                 {
                     builder.AppendLine($"  - {relation.FromNodeId} --{relation.RelationType}--> {relation.ToNodeId} [{relation.ClaimClass}, {relation.Confidence:0.###}; {relation.CollectionId}@{relation.Version}]");
+                    foreach (var evidence in relation.Evidence)
+                    {
+                        builder.AppendLine($"    - evidence: {evidence.SourceId} @ {evidence.Locator} ({evidence.EvidenceType})");
+                    }
                 }
             }
 

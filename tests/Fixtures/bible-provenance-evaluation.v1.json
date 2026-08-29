@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "frozenBeforeFirstLiveRun": true,
+  "purpose": "Prove that Bible recall exposes translation, canonical locator, original-language lemma and morphology, license, package/document provenance, and source evidence without merging namesakes.",
+  "cases": [
+    {
+      "id": "acts-13-9-translation-and-source-provenance",
+      "class": "provenance",
+      "query": "사도행전 13장 9절을 개역개정과 현대어성경 및 원문 근거로 보여줘",
+      "mustFind": [
+        "bible-ko-nkrv",
+        "bible-ko-tkv",
+        "bible-original-step",
+        "Acts.13.9",
+        "copyrighted-restricted",
+        "bskorea-nkrv",
+        "icnu-tkv-collection",
+        "urn:slogs:bible-package:"
+      ],
+      "requiredRelation": "contains_passage",
+      "requiredClaimClass": "source_explicit"
+    },
+    {
+      "id": "acts-13-9-greek-morphology-provenance",
+      "class": "original_language_provenance",
+      "query": "사도행전 13장 9절의 사울과 바울 그리스어 표제어, 형태론, Strong 번호와 출처를 보여줘",
+      "mustFind": [
+        "Acts.13.9",
+        "Σαῦλος",
+        "lemma=Σαῦλος",
+        "strong=G4569G",
+        "morphology=N-NSM-P",
+        "Παῦλος",
+        "strong=G3972G",
+        "step-tagnt",
+        "CC BY"
+      ],
+      "mustNotMerge": ["H7586G"],
+      "requiredRelation": "contains_passage",
+      "requiredClaimClass": "source_explicit"
+    },
+    {
+      "id": "first-samuel-9-2-hebrew-namesake-provenance",
+      "class": "original_language_namesake",
+      "query": "사무엘상 9장 2절의 사울 왕 히브리어 표제어, 형태론, Strong 번호와 출처를 보여줘",
+      "mustFind": [
+        "1Sam.9.2",
+        "שָׁאוּל",
+        "lemma=שָׁאוּל",
+        "strong=H7586G",
+        "morphology=HNpm",
+        "step-tahot",
+        "CC BY"
+      ],
+      "mustNotMerge": ["G3972G"],
+      "requiredRelation": "contains_passage",
+      "requiredClaimClass": "source_explicit"
+    }
+  ]
+}

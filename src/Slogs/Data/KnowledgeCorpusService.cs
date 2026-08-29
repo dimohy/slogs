@@ -285,7 +285,10 @@ public sealed class KnowledgeCorpusService(
                 seed.StartLocator,
                 seed.EndLocator,
                 seed.RelevancePercent,
-                relations));
+                relations,
+                seed.License,
+                seed.CollectionSourceUri,
+                seed.DocumentSourceUri));
         }
 
         return results;
@@ -1034,7 +1037,9 @@ public sealed class KnowledgeCorpusService(
         await using var command = CreateCommand(db,
             """
             WITH visible AS NOT MATERIALIZED (
-                SELECT k.*, c."Domain", d."Title" AS document_title
+                SELECT k.*, c."Domain", c."License" AS collection_license,
+                    c."SourceUri" AS collection_source_uri, d."Title" AS document_title,
+                    d."SourceUri" AS document_source_uri
                 FROM "LlmWikiKnowledgeChunks" k
                 INNER JOIN "LlmWikiKnowledgeCollections" c ON c."CollectionId"=k."CollectionId" AND c."Version"=k."Version" AND c."OwnerUserName"=k."OwnerUserName"
                 INNER JOIN "LlmWikiKnowledgeDocuments" d ON d."CollectionId"=k."CollectionId" AND d."Version"=k."Version" AND d."OwnerUserName"=k."OwnerUserName" AND d."DocumentId"=k."DocumentId"
@@ -1127,6 +1132,7 @@ public sealed class KnowledgeCorpusService(
                 GROUP BY r."CollectionId", r."Version", r."OwnerUserName", r."ChunkId"
             )
             SELECT v."CollectionId", v."Version", v."OwnerUserName", v."Domain", v."DocumentId", v.document_title, v."ChunkId", v."StructureNodeId", v."Text", v."StartLocator", v."EndLocator",
+                v.collection_license, v.collection_source_uri, v.document_source_uri,
                 f.exact_rank IS NOT NULL,
                 ROUND(LEAST(GREATEST(COALESCE(f.vector_score,0)*0.8 + LEAST(COALESCE(f.lexical_score,0)*2,0.2),0),1)*100)::integer
             FROM fused f
@@ -1166,7 +1172,8 @@ public sealed class KnowledgeCorpusService(
         {
             results.Add(new SeedChunk(
                 reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetString(5), reader.GetString(6),
-                reader.IsDBNull(7) ? null : reader.GetString(7), reader.GetString(8), reader.GetString(9), reader.GetString(10), reader.GetBoolean(11), reader.GetInt32(12)));
+                reader.IsDBNull(7) ? null : reader.GetString(7), reader.GetString(8), reader.GetString(9), reader.GetString(10),
+                reader.GetString(11), reader.GetString(12), reader.GetString(13), reader.GetBoolean(14), reader.GetInt32(15)));
         }
 
         return results;
@@ -1186,7 +1193,8 @@ public sealed class KnowledgeCorpusService(
     {
         await using var command = CreateCommand(db,
             """
-            SELECT k."CollectionId", k."Version", k."OwnerUserName", c."Domain", k."DocumentId", d."Title", k."ChunkId", k."StructureNodeId", k."Text", k."StartLocator", k."EndLocator"
+            SELECT k."CollectionId", k."Version", k."OwnerUserName", c."Domain", k."DocumentId", d."Title", k."ChunkId", k."StructureNodeId", k."Text", k."StartLocator", k."EndLocator",
+                c."License", c."SourceUri", d."SourceUri"
             FROM "LlmWikiKnowledgeChunks" k
             INNER JOIN "LlmWikiKnowledgeCollections" c
               ON c."CollectionId"=k."CollectionId" AND c."Version"=k."Version" AND c."OwnerUserName"=k."OwnerUserName"
@@ -1232,7 +1240,8 @@ public sealed class KnowledgeCorpusService(
         {
             results.Add(new SeedChunk(
                 reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetString(5), reader.GetString(6),
-                reader.IsDBNull(7) ? null : reader.GetString(7), reader.GetString(8), reader.GetString(9), reader.GetString(10), true, 100));
+                reader.IsDBNull(7) ? null : reader.GetString(7), reader.GetString(8), reader.GetString(9), reader.GetString(10),
+                reader.GetString(11), reader.GetString(12), reader.GetString(13), true, 100));
         }
 
         return results;
@@ -1520,6 +1529,9 @@ public sealed class KnowledgeCorpusService(
         string Text,
         string StartLocator,
         string EndLocator,
+        string License,
+        string CollectionSourceUri,
+        string DocumentSourceUri,
         bool ExactLocatorMatch,
         int RelevancePercent);
 }

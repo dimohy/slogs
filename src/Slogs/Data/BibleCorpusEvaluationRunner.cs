@@ -84,7 +84,8 @@ public sealed class BibleCorpusEvaluationRunner(KnowledgeCorpusService corpusSer
         foreach (var result in recalled)
         {
             Append(searchable, result.CollectionId, result.Version, result.DocumentId, result.DocumentTitle,
-                result.ChunkId, result.Text, result.StartLocator, result.EndLocator);
+                result.ChunkId, result.Text, result.StartLocator, result.EndLocator, result.License,
+                result.CollectionSourceUri, result.DocumentSourceUri);
             locators.Add(result.StartLocator);
             locators.Add(result.EndLocator);
             foreach (var relation in result.Relations)

@@ -146,7 +146,10 @@ public sealed record KnowledgeChunkRecall(
     string StartLocator,
     string EndLocator,
     int RelevancePercent,
-    IReadOnlyList<KnowledgeRelationRecall> Relations);
+    IReadOnlyList<KnowledgeRelationRecall> Relations,
+    string License = "",
+    string CollectionSourceUri = "",
+    string DocumentSourceUri = "");
 
 public sealed record KnowledgeTextUnit(
     string UnitId,

@@ -88,6 +88,38 @@ public sealed class BibleCorpusEvaluationRunnerTests
         Assert.Contains("forbidden claim emitted: same_entity", result.Violations);
     }
 
+    [Fact]
+    public void ScoreAndMcpRecallExposeEndToEndProvenance()
+    {
+        var relation = new KnowledgeRelationRecall(
+            "bible-original-step",
+            "0.1.0",
+            "contains_passage",
+            "chunk:Acts.13.9",
+            "passage:Acts.13.9",
+            "source_explicit",
+            1,
+            [new("step-tagnt", "Acts.13.9", "original_tokens")]);
+        var recalled = Recall(relation);
+        var evaluationCase = new BibleCorpusEvaluationCase(
+            "original-provenance",
+            "사도행전 13장 9절 원문 근거",
+            ["CC BY", "urn:slogs:bible-package:", "#Acts", "step-tagnt", "Acts.13.9"],
+            [],
+            [],
+            "contains_passage",
+            "source_explicit");
+
+        var result = BibleCorpusEvaluationRunner.Score(evaluationCase, [recalled]);
+        var markdown = KnowledgeCorpusMcpTools.FormatRecall([recalled]);
+
+        Assert.True(result.Passed);
+        Assert.Contains("- license: CC BY 4.0", markdown);
+        Assert.Contains("- collectionSource: urn:slogs:bible-package:test:scholarly", markdown);
+        Assert.Contains("- documentSource: urn:slogs:bible-package:test:scholarly#Acts", markdown);
+        Assert.Contains("- evidence: step-tagnt @ Acts.13.9 (original_tokens)", markdown);
+    }
+
     private static KnowledgeChunkRecall Recall(params KnowledgeRelationRecall[] relations)
         => new(
             "bible-original",
@@ -100,5 +132,8 @@ public sealed class BibleCorpusEvaluationRunnerTests
             "Acts.13.9",
             "Acts.13.9",
             100,
-            relations);
+            relations,
+            "CC BY 4.0",
+            "urn:slogs:bible-package:test:scholarly",
+            "urn:slogs:bible-package:test:scholarly#Acts");
 }
