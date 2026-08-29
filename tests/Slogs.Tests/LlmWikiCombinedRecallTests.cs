@@ -87,6 +87,18 @@ public sealed class LlmWikiCombinedRecallTests
             KnowledgeCorpusService.ExtractLocatorCoordinateSuffixes("Rom.4.3 Gal.3.6 Gen.15.6"));
     }
 
+    [Theory]
+    [InlineData(5, 1, 5)]
+    [InlineData(3, 2, 10)]
+    [InlineData(5, 3, 10)]
+    public void RelationalRecallSearchesADeepCandidatePoolWithoutExpandingTheResponseLimit(
+        int responseLimit,
+        int maxGraphHops,
+        int expectedCorpusLimit)
+    {
+        Assert.Equal(expectedCorpusLimit, LlmWikiMcpTools.CalculateCorpusRecallLimit(responseLimit, maxGraphHops));
+    }
+
     private static LlmWikiSearchResult Memory(string title, int relevance)
         => new(
             Guid.NewGuid(),

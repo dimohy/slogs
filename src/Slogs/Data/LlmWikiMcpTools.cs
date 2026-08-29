@@ -446,10 +446,11 @@ public sealed class LlmWikiMcpTools(
         else
         {
             var corpusActor = await corpusPrincipalResolver.ResolveAsync(user);
+            var corpusRecallLimit = CalculateCorpusRecallLimit(safeLimit, safeMaxGraphHops);
             var corpusTask = corpusService.RecallAsync(
                 corpusActor,
                 query,
-                safeLimit,
+                corpusRecallLimit,
                 safeMaxGraphHops);
             if (KnowledgeCorpusService.HasSingleExplicitLocatorQuery(query))
             {
@@ -627,6 +628,12 @@ public sealed class LlmWikiMcpTools(
             .ThenBy(candidate => candidate.SourceIndex)
             .Take(limit)
             .ToArray();
+    }
+
+    internal static int CalculateCorpusRecallLimit(int responseLimit, int maxGraphHops)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(responseLimit, 1);
+        return maxGraphHops > 1 ? Math.Max(responseLimit, 10) : responseLimit;
     }
 
     [McpServerTool(Name = "llm_wiki_public_search")]
