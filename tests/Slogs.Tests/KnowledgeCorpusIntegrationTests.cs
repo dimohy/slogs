@@ -375,13 +375,22 @@ public sealed class KnowledgeCorpusIntegrationTests
         await using var db = await factory.CreateDbContextAsync();
         await InvokeEnsureSchemaAsync(db);
         var corpus = new KnowledgeCorpusService(factory, CreateEmbeddingService());
+        var checkpointPath = Path.Combine(
+            Path.GetTempPath(), $"slogs-bible-import-checkpoint-{suffix}.json");
 
         try
         {
-            foreach (var batch in plan.Batches)
-            {
-                await corpus.IngestAsync(owner, isAdmin: false, batch);
-            }
+            var runner = new BibleCorpusImportRunner(corpus);
+            var checkpoint = await runner.RunAsync(
+                KnowledgeCorpusActor.User(owner), plan, new string('A', 64), checkpointPath);
+            Assert.Equal("complete", checkpoint.State);
+            Assert.Equal(checkpoint.TotalBatches, checkpoint.NextBatchIndex);
+            Assert.True(File.Exists(checkpointPath));
+            var resumed = await runner.RunAsync(
+                KnowledgeCorpusActor.User(owner), plan, new string('A', 64), checkpointPath);
+            Assert.Equal(checkpoint, resumed);
+            await Assert.ThrowsAsync<InvalidDataException>(() => runner.RunAsync(
+                KnowledgeCorpusActor.User(owner), plan, new string('B', 64), checkpointPath));
 
             var recalled = await corpus.RecallAsync(owner, "사울은 바울과 같은 사람인가?", limit: 3, maxGraphHops: 2);
             var result = Assert.Single(recalled, item => item.CollectionId == collectionId);
@@ -398,6 +407,10 @@ public sealed class KnowledgeCorpusIntegrationTests
         {
             await db.Database.ExecuteSqlAsync(
                 $"DELETE FROM \"LlmWikiKnowledgeCollections\" WHERE \"CollectionId\" = {collectionId};");
+            if (File.Exists(checkpointPath))
+            {
+                File.Delete(checkpointPath);
+            }
         }
     }
 

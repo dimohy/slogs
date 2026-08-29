@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json;
 using Slogs.Data;
 using Xunit;
 
@@ -80,7 +79,7 @@ public sealed class BibleKnowledgeCorpusAdapterTests
     }
 
     [Fact]
-    public void FullVerifiedVersePackageProducesStrictPlansWhenExplicitlyEnabled()
+    public async Task FullVerifiedVersePackageProducesStrictPlansWhenExplicitlyEnabled()
     {
         var root = Environment.GetEnvironmentVariable("SLOGS_BIBLE_CORPUS_ROOT");
         if (string.IsNullOrWhiteSpace(root))
@@ -88,12 +87,9 @@ public sealed class BibleKnowledgeCorpusAdapterTests
             return;
         }
 
-        var path = Path.Combine(root, "verses.ndjson");
-        var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-        var verses = File.ReadLines(path)
-            .Select((line, index) => JsonSerializer.Deserialize<BibleVerseCorpusInput>(line, jsonOptions)
-                ?? throw new InvalidDataException($"verses.ndjson {index + 1}행을 읽을 수 없습니다."))
-            .ToArray();
+        var reader = new BibleCorpusPackageReader();
+        var package = await reader.VerifyAsync(root);
+        var verses = reader.ReadVerses(package);
         var adapter = new BibleKnowledgeCorpusAdapter(new KnowledgeChunkingService());
         var plans = verses.GroupBy(value => value.TranslationId, StringComparer.Ordinal)
             .Select(group => adapter.CreatePlan(
@@ -103,17 +99,13 @@ public sealed class BibleKnowledgeCorpusAdapterTests
                     Title = group.Key,
                     RequireContiguousVerses = true,
                     Chunking = new KnowledgeChunkingOptions(),
-                    DeclaredOmissions = group.Key == "ko-nkrv"
-                        ? [new BibleDeclaredOmission(
-                            "ko-nkrv", "Acts.24.7",
-                            "대한성서공회 개역개정 본문에서 6절 다음 8절로 이어지고 6절에 생략 표기가 있습니다.",
-                            "https://www.bskorea.or.kr/bible/korbibReadpage.php?version=GAE&book=act&chap=24")]
-                        : []
+                    DeclaredOmissions = package.Manifest.CoordinateExceptions?
+                        .Where(item => item.TranslationId == group.Key).ToArray() ?? []
                 },
                 group.ToArray()))
             .ToArray();
 
-        Assert.Equal(62_198, verses.Length);
+        Assert.Equal(62_198, verses.Count);
         Assert.Equal(2, plans.Length);
         Assert.All(plans, plan =>
         {
