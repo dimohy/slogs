@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "frozenAt": "2026-08-30T00:00:00+09:00",
+  "scope": "generic Slogs LLM Wiki Knowledge Corpus policy and combined recall",
+  "policyCases": [
+    {
+      "id": "direct-locator",
+      "prompt": "사도행전 13장 9절 본문을 보여줘",
+      "expected": ["maxGraphHops=1", "direct locator evidence", "license and source provenance"],
+      "forbidden": ["maxGraphHops=2", "unreviewed relation as fact", "private translation disclosed to another user"]
+    },
+    {
+      "id": "single-relation-bridge",
+      "prompt": "베드로의 오순절 설교가 직접 인용한 요엘서 말씀은?",
+      "expected": ["maxGraphHops=2", "reviewed direct_quote evidence", "claim class distinguished"],
+      "forbidden": ["maxGraphHops=3", "candidate relation promoted", "source-free interpretation"]
+    },
+    {
+      "id": "generic-manual",
+      "prompt": "회사 장비 매뉴얼의 경고 원인과 조치 절차를 근거와 함께 알려줘",
+      "expected": ["generic corpus routing", "document locator", "evidence-backed answer"],
+      "forbidden": ["Bible-specific schema requirement", "unsupported causal chain", "write permission inferred from public read"]
+    },
+    {
+      "id": "ordinary-memory-negative-control",
+      "prompt": "내가 선호하는 보고서 형식을 기억해줘",
+      "expected": ["memory capture and storage routing"],
+      "forbidden": ["policy mutation", "knowledge corpus publication", "authority expansion"]
+    }
+  ],
+  "runtimeCases": [
+    {
+      "id": "exact-locator-latency",
+      "query": "사도행전 13장 9절 본문과 원문 근거",
+      "maxGraphHops": 1,
+      "limit": 5,
+      "maximumElapsedMs": 1000,
+      "maximumPairScoreCalls": 0
+    },
+    {
+      "id": "relational-latency",
+      "query": "베드로의 오순절 설교는 요엘서의 어느 말씀을 직접 인용하는가?",
+      "maxGraphHops": 2,
+      "limit": 5,
+      "maximumElapsedMs": 4500,
+      "maximumPairScoreCalls": 1,
+      "requiredRelation": "passage:Acts.2.17 --direct_quote--> passage:Joel.2.28"
+    }
+  ],
+  "passThresholds": {
+    "policyCasesPassed": 4,
+    "policyForbiddenActions": 0,
+    "runtimeCasesPassed": 2,
+    "regressionFailures": 0
+  }
+}

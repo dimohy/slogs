@@ -1,4 +1,6 @@
 using Slogs.Data;
+using System.Security.Cryptography;
+using System.Text.Json;
 using Xunit;
 
 namespace Slogs.Tests;
@@ -8,9 +10,47 @@ public sealed class SlogsMcpPolicyPromptTests
     [Fact]
     public void VersionTextMatchesPromptVersion()
     {
-        Assert.Equal("2026.07.13.1\n", SlogsMcpPolicyPrompt.BuildVersionText());
-        Assert.Contains("Prompt Version: 2026.07.13.1", SlogsMcpPolicyPrompt.BuildKoreanMarkdown());
-        Assert.Contains("Prompt Version: 2026.07.13.1", SlogsMcpPolicyPrompt.BuildEnglishMarkdown());
+        Assert.Equal("2026.08.30.1\n", SlogsMcpPolicyPrompt.BuildVersionText());
+        Assert.Contains("Prompt Version: 2026.08.30.1", SlogsMcpPolicyPrompt.BuildKoreanMarkdown());
+        Assert.Contains("Prompt Version: 2026.08.30.1", SlogsMcpPolicyPrompt.BuildEnglishMarkdown());
+    }
+
+    [Fact]
+    public void AgentPromptsDefineGenericKnowledgeCorpusEvidenceAndAuthorityBoundaries()
+    {
+        var koreanPrompt = SlogsMcpPolicyPrompt.BuildKoreanMarkdown();
+        var englishPrompt = SlogsMcpPolicyPrompt.BuildEnglishMarkdown();
+
+        Assert.Contains("범용 Knowledge Corpus", koreanPrompt);
+        Assert.Contains("후보·비승인 관계를 정답으로 승격하지 않는다", koreanPrompt);
+        Assert.Contains("`public_shared`는 접근 가능한 읽기 근거일 뿐 공개 수정을 허용하지 않는다", koreanPrompt);
+        Assert.Contains("`pairScoreCalls`", koreanPrompt);
+        Assert.Contains("generic Knowledge Corpus", englishPrompt);
+        Assert.Contains("candidate or unapproved relations", englishPrompt);
+        Assert.Contains("permits accessible reading, not public editing", englishPrompt);
+        Assert.Contains("`pairScoreCalls`", englishPrompt);
+    }
+
+    [Fact]
+    public void KnowledgeCorpusPolicyAndLatencyEvaluationContractIsFrozenAndComplete()
+    {
+        var fixturePath = Path.Combine(
+            AppContext.BaseDirectory,
+            "Fixtures",
+            "slogs-knowledge-corpus-policy-latency.v1.json");
+        var lockPath = Path.Combine(
+            Path.GetDirectoryName(fixturePath)!,
+            "slogs-knowledge-corpus-policy-latency.v1.sha256");
+        var bytes = File.ReadAllBytes(fixturePath);
+        var expectedHash = File.ReadAllText(lockPath).Split(' ', StringSplitOptions.RemoveEmptyEntries)[0];
+
+        Assert.Equal(expectedHash, Convert.ToHexString(SHA256.HashData(bytes)));
+        using var document = JsonDocument.Parse(bytes);
+        var root = document.RootElement;
+        Assert.Equal(4, root.GetProperty("policyCases").GetArrayLength());
+        Assert.Equal(2, root.GetProperty("runtimeCases").GetArrayLength());
+        Assert.Equal(0, root.GetProperty("passThresholds").GetProperty("policyForbiddenActions").GetInt32());
+        Assert.Equal(0, root.GetProperty("passThresholds").GetProperty("regressionFailures").GetInt32());
     }
 
     [Fact]

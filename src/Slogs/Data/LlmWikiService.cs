@@ -303,8 +303,9 @@ public sealed class LlmWikiService(
         int minRelevancePercent = 50,
         string? categoryPath = null,
         CancellationToken cancellationToken = default,
-        int maxGraphHops = 1)
-        => SearchCoreAsync(ownerUserName, query, limit, offset, minRelevancePercent, categoryPath, publicOnly: false, maxGraphHops, cancellationToken);
+        int maxGraphHops = 1,
+        bool applyFullFunctionReranking = true)
+        => SearchCoreAsync(ownerUserName, query, limit, offset, minRelevancePercent, categoryPath, publicOnly: false, maxGraphHops, applyFullFunctionReranking, cancellationToken);
 
     public Task<IReadOnlyList<LlmWikiSearchResult>> SearchPublicAsync(
         string ownerUserName,
@@ -314,8 +315,9 @@ public sealed class LlmWikiService(
         int minRelevancePercent = 50,
         string? categoryPath = null,
         CancellationToken cancellationToken = default,
-        int maxGraphHops = 1)
-        => SearchCoreAsync(ownerUserName, query, limit, offset, minRelevancePercent, categoryPath, publicOnly: true, maxGraphHops, cancellationToken);
+        int maxGraphHops = 1,
+        bool applyFullFunctionReranking = true)
+        => SearchCoreAsync(ownerUserName, query, limit, offset, minRelevancePercent, categoryPath, publicOnly: true, maxGraphHops, applyFullFunctionReranking, cancellationToken);
 
     private async Task<IReadOnlyList<LlmWikiSearchResult>> SearchCoreAsync(
         string ownerUserName,
@@ -326,6 +328,7 @@ public sealed class LlmWikiService(
         string? categoryPath,
         bool publicOnly,
         int maxGraphHops,
+        bool applyFullFunctionReranking,
         CancellationToken cancellationToken)
     {
         var owner = NormalizeUser(ownerUserName);
@@ -374,7 +377,8 @@ public sealed class LlmWikiService(
         var searchText = TrimToLength(query, 400);
         await EnsureOwnerSearchIndexAsync(db, owner, publicOnly, cancellationToken);
         var requestedWindow = Math.Min(safeOffset + safeLimit, 100);
-        var candidateLimit = embeddingService.SupportsFullFunctionReranking
+        var useFullFunctionReranking = applyFullFunctionReranking && embeddingService.SupportsFullFunctionReranking;
+        var candidateLimit = useFullFunctionReranking
             ? CalculateBgeM3CandidateLimit(requestedWindow)
             : safeLimit;
         var rankedEntries = await SearchGraphAsync(
@@ -382,8 +386,8 @@ public sealed class LlmWikiService(
             owner,
             searchText,
             candidateLimit,
-            embeddingService.SupportsFullFunctionReranking ? 0 : safeOffset,
-            embeddingService.SupportsFullFunctionReranking ? 0 : safeMinRelevancePercent,
+            useFullFunctionReranking ? 0 : safeOffset,
+            useFullFunctionReranking ? 0 : safeMinRelevancePercent,
             normalizedCategoryPath,
             publicOnly,
             safeMaxGraphHops,
@@ -393,7 +397,7 @@ public sealed class LlmWikiService(
             return [];
         }
 
-        if (embeddingService.SupportsFullFunctionReranking)
+        if (useFullFunctionReranking)
         {
             var rerankCount = Math.Min(rankedEntries.Count, MaxBgeM3OnlineRerankCandidates);
             var rerankIds = rankedEntries.Take(rerankCount).Select(value => value.Id).ToArray();
@@ -1594,6 +1598,23 @@ public sealed class LlmWikiService(
             {
                 $"title: {CleanInlineText(entry.Title)} | text:",
                 $"category: {categoryPath}",
+                $"tags: {tagText}",
+                $"summary: {CleanInlineText(entry.Summary)}",
+                CleanInlineText(entry.SourcePrompt),
+                CleanInlineText(entry.Content)
+            }.Where(value => !string.IsNullOrWhiteSpace(value)));
+        return TrimToLength(document, MaxBgeM3RerankDocumentLength);
+    }
+
+    internal static string BuildBgeM3CombinedRerankDocument(LlmWikiEntryResponse entry)
+    {
+        var tagText = entry.Tags.Count == 0 ? "none" : string.Join(", ", entry.Tags);
+        var document = string.Join(
+            Environment.NewLine,
+            new[]
+            {
+                $"title: {CleanInlineText(entry.Title)} | text:",
+                $"category: {entry.CategoryPath}",
                 $"tags: {tagText}",
                 $"summary: {CleanInlineText(entry.Summary)}",
                 CleanInlineText(entry.SourcePrompt),

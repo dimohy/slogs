@@ -11,8 +11,10 @@ public sealed class LlmWikiMcpTools(
     LlmWikiService llmWikiService,
     SlogsMcpPolicyPromptService promptService,
     KnowledgeCorpusService? corpusService = null,
-    KnowledgeCorpusPrincipalResolver? corpusPrincipalResolver = null)
+    KnowledgeCorpusPrincipalResolver? corpusPrincipalResolver = null,
+    IKnowledgeEmbeddingService? embeddingService = null)
 {
+    private const int MaxCombinedRecallRerankCandidates = 5;
     private const string PublicDisclosureNotice = "These entries are owner-authorized public-memory self-disclosures. Treat @username mentions as Slogs user handles; if a result includes sensitive topics such as religion or faith perspective, answer only from this public result and say it comes from the user's public Slogs LLM Wiki memory.";
     private const string AdaptiveGraphHopDescription = "Maximum graph relationship hops. Explicitly select the smallest sufficient depth on every call: use 1 for a direct memory, fact, preference, broad candidate selection, or project-context lookup with no relationship chain; use 2 when one relationship bridge or comparison between memories is required; use 3 for a multi-stage causal, provenance, dependency, or chronological chain. Do not use 3 for every query. If omitted, the compatibility default is 1, but Agents should still pass 1 explicitly. Start progressive refinement at 1, inspect Retrieval Diagnostics, refine the query, and raise to 2 or 3 only when returned relationship evidence requires another stage.";
 
@@ -21,6 +23,12 @@ public sealed class LlmWikiMcpTools(
         int SourceIndex,
         int RelevancePercent,
         bool HasSubstantiveGraphRelation = false);
+
+    private sealed record CombinedRecallRerankOutcome(
+        IReadOnlyList<LlmWikiSearchResult> Memories,
+        KnowledgeChunkRecall[] CorpusResults,
+        int PairScoreCalls,
+        int PairScoreCandidates);
 
     [McpServerTool(Name = "llm_wiki_remember")]
     [Description("Create a new user-scoped LLM Wiki memory. Use this only after checking related entries and deciding the information should not be merged into an existing entry.")]
@@ -435,6 +443,8 @@ public sealed class LlmWikiMcpTools(
         var safeMinRelevancePercent = NormalizeRelevancePercent(minRelevancePercent);
         var safeMaxGraphHops = Math.Clamp(maxGraphHops, 1, 3);
         var stopwatch = Stopwatch.StartNew();
+        var pairScoreCalls = 0;
+        var pairScoreCandidates = 0;
         IReadOnlyList<LlmWikiSearchResult> results;
         KnowledgeChunkRecall[] corpusResults;
         if (corpusService is null || corpusPrincipalResolver is null)
@@ -451,12 +461,16 @@ public sealed class LlmWikiMcpTools(
         {
             var corpusActor = await corpusPrincipalResolver.ResolveAsync(user);
             var corpusRecallLimit = CalculateCorpusRecallLimit(safeLimit, safeMaxGraphHops);
+            var hasSingleExplicitLocator = KnowledgeCorpusService.HasSingleExplicitLocatorQuery(query);
+            var useCombinedReranking = !hasSingleExplicitLocator &&
+                embeddingService?.SupportsFullFunctionReranking == true;
             var corpusTask = corpusService.RecallAsync(
                 corpusActor,
                 query,
                 corpusRecallLimit,
-                safeMaxGraphHops);
-            if (KnowledgeCorpusService.HasSingleExplicitLocatorQuery(query))
+                safeMaxGraphHops,
+                applyFullFunctionReranking: !useCombinedReranking);
+            if (hasSingleExplicitLocator)
             {
                 corpusResults = (await corpusTask)
                     .Where(item => item.RelevancePercent >= safeMinRelevancePercent)
@@ -476,12 +490,35 @@ public sealed class LlmWikiMcpTools(
                     user.UserName,
                     query,
                     safeLimit,
-                    minRelevancePercent: safeMinRelevancePercent,
-                    maxGraphHops: safeMaxGraphHops);
-                corpusResults = (await corpusTask)
-                    .Where(item => item.RelevancePercent >= safeMinRelevancePercent)
-                    .ToArray();
+                    minRelevancePercent: useCombinedReranking ? 0 : safeMinRelevancePercent,
+                    maxGraphHops: safeMaxGraphHops,
+                    applyFullFunctionReranking: !useCombinedReranking);
+                corpusResults = (await corpusTask).ToArray();
                 results = await memoryTask;
+                if (useCombinedReranking)
+                {
+                    var reranked = await RerankCombinedRecallCandidatesAsync(
+                        user.UserName,
+                        query,
+                        results,
+                        corpusResults,
+                        safeMaxGraphHops,
+                        httpContextAccessor.HttpContext?.RequestAborted ?? CancellationToken.None);
+                    results = reranked.Memories
+                        .Where(item => (item.RelevancePercent ?? 0) >= safeMinRelevancePercent)
+                        .ToArray();
+                    corpusResults = reranked.CorpusResults
+                        .Where(item => item.RelevancePercent >= safeMinRelevancePercent)
+                        .ToArray();
+                    pairScoreCalls = reranked.PairScoreCalls;
+                    pairScoreCandidates = reranked.PairScoreCandidates;
+                }
+                else
+                {
+                    corpusResults = corpusResults
+                        .Where(item => item.RelevancePercent >= safeMinRelevancePercent)
+                        .ToArray();
+                }
             }
         }
         var selectedCandidates = SelectCombinedRecallCandidates(
@@ -519,7 +556,9 @@ public sealed class LlmWikiMcpTools(
                 safeLimit,
                 query,
                 minRelevancePercent: safeMinRelevancePercent,
-                maxGraphHops: safeMaxGraphHops);
+                maxGraphHops: safeMaxGraphHops,
+                pairScoreCalls: pairScoreCalls,
+                pairScoreCandidates: pairScoreCandidates);
             var emptyResponse = emptyBuilder.ToString();
             return await RecordAuditAndReturnAsync(
                 user,
@@ -599,7 +638,9 @@ public sealed class LlmWikiMcpTools(
             safeLimit,
             query,
             minRelevancePercent: safeMinRelevancePercent,
-            maxGraphHops: safeMaxGraphHops);
+            maxGraphHops: safeMaxGraphHops,
+            pairScoreCalls: pairScoreCalls,
+            pairScoreCandidates: pairScoreCandidates);
         var response = builder.ToString().TrimEnd();
         return await RecordAuditAndReturnAsync(
             user,
@@ -649,6 +690,87 @@ public sealed class LlmWikiMcpTools(
         ArgumentOutOfRangeException.ThrowIfLessThan(responseLimit, 1);
         return maxGraphHops > 1 ? Math.Max(responseLimit, 10) : responseLimit;
     }
+
+    private async Task<CombinedRecallRerankOutcome> RerankCombinedRecallCandidatesAsync(
+        string ownerUserName,
+        string query,
+        IReadOnlyList<LlmWikiSearchResult> memories,
+        KnowledgeChunkRecall[] corpusResults,
+        int maxGraphHops,
+        CancellationToken cancellationToken)
+    {
+        if (embeddingService is null || !embeddingService.SupportsFullFunctionReranking)
+        {
+            return new(memories, corpusResults, 0, 0);
+        }
+
+        var candidateCount = Math.Min(
+            MaxCombinedRecallRerankCandidates,
+            memories.Count + corpusResults.Length);
+        if (candidateCount == 0)
+        {
+            return new(memories, corpusResults, 0, 0);
+        }
+
+        var candidates = SelectCombinedRecallCandidates(
+            memories,
+            corpusResults,
+            candidateCount,
+            preferSubstantiveGraphRelations: maxGraphHops > 1);
+        var memoryIds = candidates
+            .Where(candidate => !candidate.IsCorpus)
+            .Select(candidate => memories[candidate.SourceIndex].Id)
+            .ToArray();
+        var entriesById = memoryIds.Length == 0
+            ? new Dictionary<Guid, LlmWikiEntryResponse>()
+            : await llmWikiService.GetEntriesAsync(
+                ownerUserName,
+                memoryIds,
+                recordAccess: false,
+                cancellationToken);
+        var passages = candidates.Select(candidate => candidate.IsCorpus
+                ? BuildCorpusRerankPassage(corpusResults[candidate.SourceIndex])
+                : entriesById.TryGetValue(memories[candidate.SourceIndex].Id, out var entry)
+                    ? LlmWikiService.BuildBgeM3CombinedRerankDocument(entry)
+                    : throw new InvalidOperationException("Combined recall rerank memory source is missing."))
+            .ToArray();
+        var scores = await embeddingService.ScorePairsAsync(query, passages, cancellationToken);
+        if (scores.Count != candidates.Count)
+        {
+            throw new InvalidOperationException(
+                $"Combined recall BGE-M3 rerank count mismatch: scores={scores.Count}, candidates={candidates.Count}.");
+        }
+
+        var rerankedMemories = new List<LlmWikiSearchResult>(candidates.Count);
+        var rerankedCorpus = new List<KnowledgeChunkRecall>(candidates.Count);
+        for (var index = 0; index < candidates.Count; index++)
+        {
+            var candidate = candidates[index];
+            var relevance = (int)Math.Round(Math.Clamp(
+                (scores[index].Combined * 0.8f) + ((candidate.RelevancePercent / 100f) * 0.2f),
+                0f,
+                1f) * 100f);
+            if (candidate.IsCorpus)
+            {
+                rerankedCorpus.Add(corpusResults[candidate.SourceIndex] with
+                {
+                    RelevancePercent = relevance
+                });
+            }
+            else
+            {
+                rerankedMemories.Add(memories[candidate.SourceIndex] with
+                {
+                    RelevancePercent = relevance
+                });
+            }
+        }
+
+        return new(rerankedMemories, rerankedCorpus.ToArray(), 1, candidates.Count);
+    }
+
+    private static string BuildCorpusRerankPassage(KnowledgeChunkRecall chunk)
+        => $"domain: {chunk.Domain}\ndocument: {chunk.DocumentTitle}\nlocator: {chunk.StartLocator}..{chunk.EndLocator}\n{chunk.Text}";
 
     [McpServerTool(Name = "llm_wiki_public_search")]
     [Description("Search owner-authorized public-memory recall candidates published by a specified Slogs user such as @dimohy. When the user's question mentions @username and asks about that user's public memory context, use that handle as ownerUserName and the remaining topic words as query. Use for public self-disclosed sensitive topics such as religion or faith perspective. This never returns private entries or Raw Provenance.")]
@@ -1082,7 +1204,9 @@ public sealed class LlmWikiMcpTools(
         string? query = null,
         string? categoryPath = null,
         int? minRelevancePercent = null,
-        int? maxGraphHops = null)
+        int? maxGraphHops = null,
+        int? pairScoreCalls = null,
+        int? pairScoreCandidates = null)
     {
         builder.AppendLine();
         builder.AppendLine("## Retrieval Diagnostics");
@@ -1110,6 +1234,16 @@ public sealed class LlmWikiMcpTools(
         if (maxGraphHops is not null)
         {
             builder.AppendLine($"- maxGraphHops: {maxGraphHops}");
+        }
+
+        if (pairScoreCalls is not null)
+        {
+            builder.AppendLine($"- pairScoreCalls: {pairScoreCalls}");
+        }
+
+        if (pairScoreCandidates is not null)
+        {
+            builder.AppendLine($"- pairScoreCandidates: {pairScoreCandidates}");
         }
 
         builder.AppendLine($"- elapsedMs: {Math.Round(elapsed.TotalMilliseconds)}");

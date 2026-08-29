@@ -18,4 +18,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Slogs\Slogs.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Fixtures\slogs-knowledge-corpus-policy-latency.v1.json" Link="Fixtures\slogs-knowledge-corpus-policy-latency.v1.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Fixtures\slogs-knowledge-corpus-policy-latency.v1.sha256" Link="Fixtures\slogs-knowledge-corpus-policy-latency.v1.sha256" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

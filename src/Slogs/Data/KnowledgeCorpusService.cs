@@ -213,15 +213,17 @@ public sealed class KnowledgeCorpusService(
         int limit = 3,
         int maxGraphHops = 2,
         IReadOnlyList<string>? organizationScopeKeys = null,
-        CancellationToken cancellationToken = default)
-        => RecallCoreAsync(ownerUserName, false, organizationScopeKeys, query, limit, maxGraphHops, cancellationToken);
+        CancellationToken cancellationToken = default,
+        bool applyFullFunctionReranking = true)
+        => RecallCoreAsync(ownerUserName, false, organizationScopeKeys, query, limit, maxGraphHops, applyFullFunctionReranking, cancellationToken);
 
     public Task<IReadOnlyList<KnowledgeChunkRecall>> RecallAsync(
         KnowledgeCorpusActor actor,
         string query,
         int limit = 3,
         int maxGraphHops = 2,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool applyFullFunctionReranking = true)
     {
         var validatedActor = ValidateActor(actor);
         return RecallCoreAsync(
@@ -231,6 +233,7 @@ public sealed class KnowledgeCorpusService(
             query,
             limit,
             maxGraphHops,
+            applyFullFunctionReranking,
             cancellationToken);
     }
 
@@ -241,6 +244,7 @@ public sealed class KnowledgeCorpusService(
         string query,
         int limit,
         int maxGraphHops,
+        bool applyFullFunctionReranking,
         CancellationToken cancellationToken)
     {
         var owner = Normalize(ownerUserName, 80, "ownerUserName");
@@ -277,7 +281,8 @@ public sealed class KnowledgeCorpusService(
         if (!exactFastPath)
         {
             var queryEmbedding = await embeddingService.EmbedQueryAsync(searchText, cancellationToken);
-            var candidateLimit = embeddingService.SupportsFullFunctionReranking
+            var useFullFunctionReranking = applyFullFunctionReranking && embeddingService.SupportsFullFunctionReranking;
+            var candidateLimit = useFullFunctionReranking
                 ? CalculateBgeM3CandidateLimit(safeLimit)
                 : safeLimit;
             seeds = await SearchSeedChunksAsync(
@@ -299,7 +304,7 @@ public sealed class KnowledgeCorpusService(
             return [];
         }
 
-        if (!exactFastPath && embeddingService.SupportsFullFunctionReranking)
+        if (!exactFastPath && applyFullFunctionReranking && embeddingService.SupportsFullFunctionReranking)
         {
             var rerankCount = Math.Min(seeds.Count, MaxBgeM3OnlineRerankCandidates);
             var scores = await embeddingService.ScorePairsAsync(
