@@ -8,6 +8,7 @@ public sealed class BgeM3EmbeddingService(HttpClient httpClient, IConfiguration 
     : IKnowledgeEmbeddingService
 {
     private const string RequestTimeoutSecondsKey = "BgeM3:RequestTimeoutSeconds";
+    private const string RerankMaxPassageTokensKey = "BgeM3:RerankMaxPassageTokens";
     private const string DefaultBaseUrl = "http://localhost:8082";
     private const string RequiredModel = "BAAI/bge-m3";
     private const string RequiredRevision = "5617a9f61b028005a4858fdac845db406aefb181";
@@ -86,7 +87,7 @@ public sealed class BgeM3EmbeddingService(HttpClient httpClient, IConfiguration 
             passages.Select(passage => new[] { query, passage }).ToArray(),
             [0.4f, 0.2f, 0.4f],
             512,
-            8192);
+            GetRerankMaxPassageTokens());
         var result = await PostAsync(
             "score",
             request,
@@ -135,6 +136,17 @@ public sealed class BgeM3EmbeddingService(HttpClient httpClient, IConfiguration 
         var configured = configuration["BgeM3:BaseUrl"];
         var baseUrl = string.IsNullOrWhiteSpace(configured) ? DefaultBaseUrl : configured.TrimEnd('/');
         return $"{baseUrl}/{path}";
+    }
+
+    private int GetRerankMaxPassageTokens()
+    {
+        var configured = configuration[RerankMaxPassageTokensKey];
+        if (!int.TryParse(configured, out var tokens) || tokens is < 256 or > 8192)
+        {
+            throw new InvalidOperationException(
+                $"{RerankMaxPassageTokensKey} must be explicitly configured between 256 and 8192 tokens.");
+        }
+        return tokens;
     }
 }
 

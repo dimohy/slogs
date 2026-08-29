@@ -35,6 +35,7 @@ public sealed class LlmWikiService(
     private const int MaxRawMetadataLength = 2_000;
     private const int MaxCategorySegmentLength = 48;
     private const int MaxEmbeddingContentLength = 18_000;
+    private const int MaxBgeM3RerankDocumentLength = 6_000;
     private const int MaxGraphNodesPerEntry = 120;
     private const int MaxGraphNodeLength = 120;
     private const int MaxAuditInlineLength = 240;
@@ -400,7 +401,7 @@ public sealed class LlmWikiService(
                 .ToListAsync(cancellationToken);
             var passageById = rerankEntries.ToDictionary(
                 value => value.Id,
-                value => BuildBgeM3SourceDocument(value).Text);
+                BuildBgeM3RerankDocument);
             if (passageById.Count != rerankIds.Length)
             {
                 throw new InvalidOperationException(
@@ -1579,6 +1580,25 @@ public sealed class LlmWikiService(
         var categoryPath = NormalizeCategoryPath(entry.CategoryPath, tags);
         var document = BuildEmbeddingDocument(entry.Title, entry.SourcePrompt, entry.Content, tags, categoryPath);
         return new BgeM3SourceDocument(entry.Id, entry.UpdatedAt, document, ComputeSearchContentHash(document));
+    }
+
+    internal static string BuildBgeM3RerankDocument(LlmWikiEntryRecord entry)
+    {
+        var tags = DeserializeTags(entry.TagsJson);
+        var categoryPath = NormalizeCategoryPath(entry.CategoryPath, tags);
+        var tagText = tags.Count == 0 ? "none" : string.Join(", ", tags);
+        var document = string.Join(
+            Environment.NewLine,
+            new[]
+            {
+                $"title: {CleanInlineText(entry.Title)} | text:",
+                $"category: {categoryPath}",
+                $"tags: {tagText}",
+                $"summary: {CleanInlineText(entry.Summary)}",
+                CleanInlineText(entry.SourcePrompt),
+                CleanInlineText(entry.Content)
+            }.Where(value => !string.IsNullOrWhiteSpace(value)));
+        return TrimToLength(document, MaxBgeM3RerankDocumentLength);
     }
 
     private static IQueryable<LlmWikiEntryRecord> FilterByCategory(
