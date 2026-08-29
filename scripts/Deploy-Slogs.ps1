@@ -223,7 +223,8 @@ services:
     environment:
       BGE_M3_MODEL_PATH: /models/bge-m3
       BGE_M3_MODEL_REVISION: 5617a9f61b028005a4858fdac845db406aefb181
-      BGE_M3_MAX_BATCH_SIZE: 8
+      BGE_M3_ENCODE_BATCH_SIZE: 1
+      BGE_M3_SCORE_BATCH_SIZE: 8
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
     volumes:

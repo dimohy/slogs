@@ -44,7 +44,8 @@ $runOutput = podman run -d --name $container `
     --device nvidia.com/gpu=all `
     -e "BGE_M3_MODEL_PATH=$modelPath" `
     -e "BGE_M3_MODEL_REVISION=$revision" `
-    -e "BGE_M3_MAX_BATCH_SIZE=8" `
+    -e "BGE_M3_ENCODE_BATCH_SIZE=1" `
+    -e "BGE_M3_SCORE_BATCH_SIZE=8" `
     -p "${port}:8080" `
     -v "${volume}:/models" `
     $image 2>&1
@@ -92,7 +93,7 @@ if (-not $ready) {
 $info = Invoke-RestMethod -Uri "${runtimeBaseUrl}/info"
 if ($info.modelId -ne $model -or $info.modelRevision -ne $revision -or
     $info.dimensions -ne 1024 -or $info.maxInputTokens -ne 8192 -or
-    $info.maxBatchSize -ne 8 -or $info.concurrentGpuRequests -ne 1) {
+    $info.encodeBatchSize -ne 1 -or $info.scoreBatchSize -ne 8 -or $info.concurrentGpuRequests -ne 1) {
     throw "BGE-M3 full-function runtime contract drift: $($info | ConvertTo-Json -Compress)"
 }
 $requiredFunctions = 'dense', 'sparse', 'multi-vector', 'pair-score'

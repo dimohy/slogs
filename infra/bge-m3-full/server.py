@@ -12,9 +12,12 @@ from pydantic import BaseModel, Field
 MODEL_PATH = os.environ["BGE_M3_MODEL_PATH"]
 MODEL_REVISION = os.environ["BGE_M3_MODEL_REVISION"]
 MODEL_ID = "BAAI/bge-m3"
-MAX_BATCH_SIZE = int(os.environ.get("BGE_M3_MAX_BATCH_SIZE", "8"))
-if MAX_BATCH_SIZE < 1 or MAX_BATCH_SIZE > 32:
-    raise RuntimeError("BGE_M3_MAX_BATCH_SIZE must be between 1 and 32.")
+ENCODE_BATCH_SIZE = int(os.environ.get("BGE_M3_ENCODE_BATCH_SIZE", "1"))
+SCORE_BATCH_SIZE = int(os.environ.get("BGE_M3_SCORE_BATCH_SIZE", "8"))
+if ENCODE_BATCH_SIZE < 1 or ENCODE_BATCH_SIZE > 32:
+    raise RuntimeError("BGE_M3_ENCODE_BATCH_SIZE must be between 1 and 32.")
+if SCORE_BATCH_SIZE < 1 or SCORE_BATCH_SIZE > 32:
+    raise RuntimeError("BGE_M3_SCORE_BATCH_SIZE must be between 1 and 32.")
 model: BGEM3FlagModel | None = None
 model_lock = threading.Lock()
 
@@ -75,7 +78,8 @@ def info():
         "runtimeVersion": "1.4.2",
         "dimensions": 1024,
         "maxInputTokens": 8192,
-        "maxBatchSize": MAX_BATCH_SIZE,
+        "encodeBatchSize": ENCODE_BATCH_SIZE,
+        "scoreBatchSize": SCORE_BATCH_SIZE,
         "concurrentGpuRequests": 1,
         "functions": ["dense", "sparse", "multi-vector", "pair-score"],
         "cudaDevice": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
@@ -91,7 +95,7 @@ def encode(request: EncodeRequest):
     with model_lock:
         output = model.encode(
             request.inputs,
-            batch_size=min(MAX_BATCH_SIZE, len(request.inputs)),
+            batch_size=min(ENCODE_BATCH_SIZE, len(request.inputs)),
             max_length=request.max_length,
             return_dense=request.return_dense,
             return_sparse=request.return_sparse,
@@ -116,7 +120,7 @@ def score(request: ScoreRequest):
     with model_lock:
         result = model.compute_score(
             request.pairs,
-            batch_size=min(MAX_BATCH_SIZE, len(request.pairs)),
+            batch_size=min(SCORE_BATCH_SIZE, len(request.pairs)),
             max_query_length=request.max_query_length,
             max_passage_length=request.max_passage_length,
             weights_for_different_modes=list(request.weights),
