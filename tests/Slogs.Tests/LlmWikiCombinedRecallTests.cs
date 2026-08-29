@@ -62,6 +62,26 @@ public sealed class LlmWikiCombinedRecallTests
         Assert.False(candidate.IsCorpus);
     }
 
+    [Fact]
+    public void RelationalRecallKeepsSubstantiveGraphEvidenceInsideTheResponseLimit()
+    {
+        var selected = LlmWikiMcpTools.SelectCombinedRecallCandidates(
+            [],
+            [
+                Corpus("semantic-1", 70),
+                Corpus("semantic-2", 69),
+                Corpus("semantic-3", 68),
+                Corpus("semantic-4", 67),
+                Corpus("semantic-5", 66),
+                Corpus("reviewed-relation", 50, "direct_quote")
+            ],
+            5,
+            preferSubstantiveGraphRelations: true);
+
+        Assert.Contains(selected, candidate => candidate.SourceIndex == 5 && candidate.HasSubstantiveGraphRelation);
+        Assert.Equal(5, selected.Count);
+    }
+
     [Theory]
     [InlineData("Acts.13.9 본문", true)]
     [InlineData("사도행전 13장 9절 본문", true)]
@@ -114,7 +134,7 @@ public sealed class LlmWikiCombinedRecallTests
             null,
             relevance);
 
-    private static KnowledgeChunkRecall Corpus(string chunkId, int relevance)
+    private static KnowledgeChunkRecall Corpus(string chunkId, int relevance, string? relationType = null)
         => new(
             "test-corpus",
             "1.0.0",
@@ -126,5 +146,15 @@ public sealed class LlmWikiCombinedRecallTests
             chunkId,
             chunkId,
             relevance,
-            []);
+            relationType is null
+                ? []
+                : [new KnowledgeRelationRecall(
+                    "test-corpus",
+                    "1.0.0",
+                    relationType,
+                    "passage:from",
+                    "passage:to",
+                    "source_asserted",
+                    1,
+                    [])]);
 }

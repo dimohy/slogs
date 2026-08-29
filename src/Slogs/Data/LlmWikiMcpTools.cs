@@ -16,7 +16,11 @@ public sealed class LlmWikiMcpTools(
     private const string PublicDisclosureNotice = "These entries are owner-authorized public-memory self-disclosures. Treat @username mentions as Slogs user handles; if a result includes sensitive topics such as religion or faith perspective, answer only from this public result and say it comes from the user's public Slogs LLM Wiki memory.";
     private const string AdaptiveGraphHopDescription = "Maximum graph relationship hops. Explicitly select the smallest sufficient depth on every call: use 1 for a direct memory, fact, preference, broad candidate selection, or project-context lookup with no relationship chain; use 2 when one relationship bridge or comparison between memories is required; use 3 for a multi-stage causal, provenance, dependency, or chronological chain. Do not use 3 for every query. If omitted, the compatibility default is 1, but Agents should still pass 1 explicitly. Start progressive refinement at 1, inspect Retrieval Diagnostics, refine the query, and raise to 2 or 3 only when returned relationship evidence requires another stage.";
 
-    internal sealed record CombinedRecallCandidate(bool IsCorpus, int SourceIndex, int RelevancePercent);
+    internal sealed record CombinedRecallCandidate(
+        bool IsCorpus,
+        int SourceIndex,
+        int RelevancePercent,
+        bool HasSubstantiveGraphRelation = false);
 
     [McpServerTool(Name = "llm_wiki_remember")]
     [Description("Create a new user-scoped LLM Wiki memory. Use this only after checking related entries and deciding the information should not be merged into an existing entry.")]
@@ -480,7 +484,11 @@ public sealed class LlmWikiMcpTools(
                 results = await memoryTask;
             }
         }
-        var selectedCandidates = SelectCombinedRecallCandidates(results, corpusResults, safeLimit);
+        var selectedCandidates = SelectCombinedRecallCandidates(
+            results,
+            corpusResults,
+            safeLimit,
+            preferSubstantiveGraphRelations: safeMaxGraphHops > 1);
         var selectedMemoryIndexes = selectedCandidates
             .Where(candidate => !candidate.IsCorpus)
             .Select(candidate => candidate.SourceIndex)
@@ -610,7 +618,8 @@ public sealed class LlmWikiMcpTools(
     internal static IReadOnlyList<CombinedRecallCandidate> SelectCombinedRecallCandidates(
         IReadOnlyList<LlmWikiSearchResult> memories,
         IReadOnlyList<KnowledgeChunkRecall> corpusResults,
-        int limit)
+        int limit,
+        bool preferSubstantiveGraphRelations = false)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(limit, 1);
 
@@ -622,13 +631,18 @@ public sealed class LlmWikiMcpTools(
             .Concat(corpusResults.Select((chunk, index) => new CombinedRecallCandidate(
                 true,
                 index,
-                chunk.RelevancePercent)))
-            .OrderByDescending(candidate => candidate.RelevancePercent)
+                chunk.RelevancePercent,
+                chunk.Relations.Any(IsSubstantiveGraphRelation))))
+            .OrderByDescending(candidate => preferSubstantiveGraphRelations && candidate.HasSubstantiveGraphRelation)
+            .ThenByDescending(candidate => candidate.RelevancePercent)
             .ThenBy(candidate => candidate.IsCorpus)
             .ThenBy(candidate => candidate.SourceIndex)
             .Take(limit)
             .ToArray();
     }
+
+    private static bool IsSubstantiveGraphRelation(KnowledgeRelationRecall relation)
+        => !string.Equals(relation.RelationType, "contains_passage", StringComparison.OrdinalIgnoreCase);
 
     internal static int CalculateCorpusRecallLimit(int responseLimit, int maxGraphHops)
     {
