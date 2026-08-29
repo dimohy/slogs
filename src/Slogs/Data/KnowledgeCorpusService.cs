@@ -258,7 +258,7 @@ public sealed class KnowledgeCorpusService(
         await EnsureConnectionOpenAsync(db, cancellationToken);
         var exactFastPath = false;
         IReadOnlyList<SeedChunk> seeds = [];
-        if (HasSingleExplicitLocatorQuery(searchText))
+        if (safeGraphHops <= 1 && HasSingleExplicitLocatorQuery(searchText))
         {
             seeds = await SearchExactLocatorChunksAsync(
                 db,
@@ -1541,7 +1541,11 @@ public sealed class KnowledgeCorpusService(
         int limit,
         CancellationToken cancellationToken)
     {
-        var seedChunkIds = seeds.Select(seed => seed.ChunkId).Distinct(StringComparer.Ordinal).ToArray();
+        var exactSeeds = seeds.Where(seed => seed.ExactLocatorMatch).ToArray();
+        var seedChunkIds = (exactSeeds.Length > 0 ? exactSeeds : seeds)
+            .Select(seed => seed.ChunkId)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
         await using var command = CreateCommand(db,
             """
             WITH visible AS (
