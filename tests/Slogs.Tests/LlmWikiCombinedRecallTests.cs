@@ -76,6 +76,17 @@ public sealed class LlmWikiCombinedRecallTests
         Assert.Equal(expected, KnowledgeCorpusService.HasSingleExplicitLocatorQuery(query));
     }
 
+    [Fact]
+    public void LocatorCoordinateExtractionKeepsEveryExplicitReferenceForCrossCollectionExpansion()
+    {
+        Assert.Equal(
+            [".9.19", ".9.26"],
+            KnowledgeCorpusService.ExtractLocatorCoordinateSuffixes("사도행전 9장 19절과 26절"));
+        Assert.Equal(
+            [".4.3", ".3.6", ".15.6"],
+            KnowledgeCorpusService.ExtractLocatorCoordinateSuffixes("Rom.4.3 Gal.3.6 Gen.15.6"));
+    }
+
     private static LlmWikiSearchResult Memory(string title, int relevance)
         => new(
             Guid.NewGuid(),

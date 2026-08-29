@@ -333,6 +333,23 @@ public sealed class KnowledgeCorpusService(
                 .ToArray();
         }
 
+        var coordinateSuffixes = ExtractLocatorCoordinateSuffixes(searchText);
+        if (coordinateSuffixes.Length > 0)
+        {
+            var expandedSeeds = await ExpandSeedsAcrossSharedPassagesAsync(
+                db, owner, isAdmin, scopeKeys, seeds, coordinateSuffixes, safeLimit, cancellationToken);
+            seeds = seeds
+                .Concat(expandedSeeds)
+                .GroupBy(seed => (seed.CollectionId, seed.Version, seed.OwnerUserName, seed.ChunkId))
+                .Select(group => group.OrderByDescending(seed => seed.ExactLocatorMatch).First())
+                .OrderByDescending(seed => seed.ExactLocatorMatch)
+                .ThenByDescending(seed => seed.RelevancePercent)
+                .ThenBy(seed => seed.CollectionId, StringComparer.Ordinal)
+                .ThenBy(seed => seed.ChunkId, StringComparer.Ordinal)
+                .Take(safeLimit)
+                .ToArray();
+        }
+
         var results = new List<KnowledgeChunkRecall>(seeds.Count);
         foreach (var seed in seeds)
         {
@@ -1373,10 +1390,21 @@ public sealed class KnowledgeCorpusService(
                     CASE WHEN r."FromNodeId"=g.frontier THEN r."ToNodeId" ELSE r."FromNodeId" END AS frontier,
                     g.path || CASE WHEN r."FromNodeId"=g.frontier THEN r."ToNodeId" ELSE r."FromNodeId" END
                 FROM graph g
-                INNER JOIN "LlmWikiKnowledgeRelations" r
-                  ON r."CollectionId"=g."CollectionId" AND r."Version"=g."Version" AND r."OwnerUserName"=g."OwnerUserName"
-                 AND r."ReviewStatus" IN ('approved','published')
-                 AND (r."FromNodeId"=g.frontier OR r."ToNodeId"=g.frontier)
+                INNER JOIN LATERAL (
+                    SELECT candidate.*
+                    FROM (
+                        (SELECT r.* FROM "LlmWikiKnowledgeRelations" r
+                         WHERE r."CollectionId"=g."CollectionId" AND r."Version"=g."Version" AND r."OwnerUserName"=g."OwnerUserName"
+                           AND r."ReviewStatus" IN ('approved','published') AND r."FromNodeId"=g.frontier
+                         ORDER BY r."Confidence" DESC, r."RelationId" LIMIT 64)
+                        UNION ALL
+                        (SELECT r.* FROM "LlmWikiKnowledgeRelations" r
+                         WHERE r."CollectionId"=g."CollectionId" AND r."Version"=g."Version" AND r."OwnerUserName"=g."OwnerUserName"
+                           AND r."ReviewStatus" IN ('approved','published') AND r."ToNodeId"=g.frontier
+                           AND r."FromNodeId"<>g.frontier
+                         ORDER BY r."Confidence" DESC, r."RelationId" LIMIT 64)
+                    ) candidate
+                ) r ON TRUE
                 WHERE g.depth<@maxGraphHops
                   AND NOT (CASE WHEN r."FromNodeId"=g.frontier THEN r."ToNodeId" ELSE r."FromNodeId" END=ANY(g.path))
             ), deduplicated AS (
@@ -1502,6 +1530,85 @@ public sealed class KnowledgeCorpusService(
         return results;
     }
 
+    private static async Task<IReadOnlyList<SeedChunk>> ExpandSeedsAcrossSharedPassagesAsync(
+        SlogsDbContext db,
+        string owner,
+        bool isAdmin,
+        string[] scopeKeys,
+        IReadOnlyList<SeedChunk> seeds,
+        string[] coordinateSuffixes,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        var seedChunkIds = seeds.Select(seed => seed.ChunkId).Distinct(StringComparer.Ordinal).ToArray();
+        await using var command = CreateCommand(db,
+            """
+            WITH visible AS (
+                SELECT k.*, c."Domain", c."License" AS collection_license, c."SourceUri" AS collection_source_uri,
+                    d."Title" AS document_title, d."SourceLocator" AS document_source_locator
+                FROM "LlmWikiKnowledgeChunks" k
+                INNER JOIN "LlmWikiKnowledgeCollections" c
+                  ON c."CollectionId"=k."CollectionId" AND c."Version"=k."Version" AND c."OwnerUserName"=k."OwnerUserName"
+                INNER JOIN "LlmWikiKnowledgeDocuments" d
+                  ON d."CollectionId"=k."CollectionId" AND d."Version"=k."Version" AND d."OwnerUserName"=k."OwnerUserName" AND d."DocumentId"=k."DocumentId"
+                WHERE c."Status"='active'
+                  AND (
+                    c."Visibility"='public_shared'
+                    OR (c."OwnerKind"='system' AND @isAdmin)
+                    OR (c."OwnerKind"='user' AND c."OwnerKey"=@owner)
+                    OR (c."OwnerKind"='organization' AND c."OwnerKey"=ANY(@scopeKeys))
+                    OR (c."Visibility"='organization' AND c."ScopeKey"=ANY(@scopeKeys))
+                    OR EXISTS (
+                        SELECT 1 FROM "LlmWikiKnowledgeCollectionAcl" acl
+                        WHERE acl."CollectionId"=c."CollectionId" AND acl."Version"=c."Version" AND acl."OwnerUserName"=c."OwnerUserName"
+                          AND ((acl."PrincipalKind"='user' AND acl."PrincipalKey"=@owner)
+                            OR (acl."PrincipalKind"='organization' AND acl."PrincipalKey"=ANY(@scopeKeys)))
+                    )
+                  )
+            ), passage_targets AS (
+                SELECT DISTINCT r."ToNodeId"
+                FROM "LlmWikiKnowledgeRelations" r
+                CROSS JOIN LATERAL jsonb_array_elements(r."EvidenceJson") evidence
+                WHERE r."FromNodeId"=ANY(@seedChunkIds)
+                  AND r."RelationType"='contains_passage'
+                  AND r."ReviewStatus" IN ('approved','published')
+                  AND EXISTS (
+                    SELECT 1 FROM unnest(@coordinateSuffixes::text[]) suffix
+                    WHERE RIGHT(evidence->>'Locator', LENGTH(suffix))=suffix
+                  )
+            )
+            SELECT DISTINCT ON (v."CollectionId",v."Version",v."OwnerUserName",v."ChunkId")
+                v."CollectionId", v."Version", v."OwnerUserName", v."Domain", v."DocumentId", v.document_title,
+                v."ChunkId", v."StructureNodeId", v."Text", v."StartLocator", v."EndLocator",
+                v.collection_license, v.collection_source_uri, v.document_source_locator
+            FROM visible v
+            INNER JOIN "LlmWikiKnowledgeRelations" r
+              ON r."CollectionId"=v."CollectionId" AND r."Version"=v."Version" AND r."OwnerUserName"=v."OwnerUserName"
+             AND r."FromNodeId"=v."ChunkId" AND r."RelationType"='contains_passage'
+             AND r."ReviewStatus" IN ('approved','published')
+            INNER JOIN passage_targets target ON target."ToNodeId"=r."ToNodeId"
+            ORDER BY v."CollectionId",v."Version",v."OwnerUserName",v."ChunkId"
+            LIMIT @limit;
+            """);
+        command.Parameters.Add(new NpgsqlParameter("owner", owner));
+        command.Parameters.Add(new NpgsqlParameter("isAdmin", isAdmin));
+        command.Parameters.Add(new NpgsqlParameter("scopeKeys", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = scopeKeys });
+        command.Parameters.Add(new NpgsqlParameter("seedChunkIds", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = seedChunkIds });
+        command.Parameters.Add(new NpgsqlParameter("coordinateSuffixes", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = coordinateSuffixes });
+        command.Parameters.Add(new NpgsqlParameter("limit", Math.Max(limit * 3, limit)));
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var results = new List<SeedChunk>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            results.Add(new SeedChunk(
+                reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetString(5), reader.GetString(6),
+                reader.IsDBNull(7) ? null : reader.GetString(7), reader.GetString(8), reader.GetString(9), reader.GetString(10),
+                reader.GetString(11), reader.GetString(12), reader.GetString(13), true, 100));
+        }
+
+        return results;
+    }
+
     private static string BuildChunkSearchText(KnowledgeCollectionInput collection, KnowledgeChunkInput chunk)
         => $"collection: {collection.Title}\ndomain: {collection.Domain}\ndocument: {chunk.DocumentId}\nlocator: {chunk.StartLocator}..{chunk.EndLocator}\naliases: {string.Join(", ", chunk.SearchAliases ?? [])}\n{chunk.Text}";
 
@@ -1564,6 +1671,35 @@ public sealed class KnowledgeCorpusService(
             .Distinct(StringComparer.Ordinal)
             .Take(8)
             .ToArray();
+
+    internal static string[] ExtractLocatorCoordinateSuffixes(string query)
+    {
+        var normalized = query.Normalize(NormalizationForm.FormKC);
+        var coordinates = new List<string>();
+        foreach (Match match in Regex.Matches(
+                     normalized,
+                     @"(?:[1-3]?[A-Za-z]{2,}\.)?(?<chapter>[1-9][0-9]*)(?:\.|\s*(?:장\s*|[:：]\s*))(?<verse>[0-9]+)\s*절?",
+                     RegexOptions.CultureInvariant))
+        {
+            coordinates.Add($".{match.Groups["chapter"].Value}.{match.Groups["verse"].Value}");
+        }
+
+        foreach (Match chapterMatch in Regex.Matches(
+                     normalized,
+                     @"(?<chapter>[1-9][0-9]*)\s*장(?<tail>[^장:：.]{0,120})",
+                     RegexOptions.CultureInvariant))
+        {
+            foreach (Match verseMatch in Regex.Matches(
+                         chapterMatch.Groups["tail"].Value,
+                         @"(?<verse>[0-9]+)\s*절",
+                         RegexOptions.CultureInvariant))
+            {
+                coordinates.Add($".{chapterMatch.Groups["chapter"].Value}.{verseMatch.Groups["verse"].Value}");
+            }
+        }
+
+        return coordinates.Distinct(StringComparer.Ordinal).Take(16).ToArray();
+    }
 
     private static IEnumerable<string> ExpandLexicalTerm(string term)
     {
