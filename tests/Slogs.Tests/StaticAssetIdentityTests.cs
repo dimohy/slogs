@@ -1212,7 +1212,8 @@ public sealed class StaticAssetIdentityTests
     [Fact]
     public void HeaderRecallCssKeepsMediumAndSmallWidthsOnOneRow()
     {
-        var appCss = File.ReadAllText(FindRepoFile("src", "Slogs", "wwwroot", "app.css"));
+        var appCss = File.ReadAllText(FindRepoFile("src", "Slogs", "wwwroot", "app.css"))
+            .Replace("\r\n", "\n", StringComparison.Ordinal);
         var mainLayout = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Layout", "MainLayout.razor"));
 
         Assert.Contains("class=\"slogs-header-tools\"", mainLayout);
