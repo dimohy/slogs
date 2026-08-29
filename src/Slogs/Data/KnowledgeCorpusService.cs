@@ -185,6 +185,7 @@ public sealed class KnowledgeCorpusService(
             ? CalculateBgeM3CandidateLimit(safeLimit)
             : safeLimit;
         var lexicalTerms = BuildLexicalTerms(searchText);
+        var hierarchicalReference = TryExtractHierarchicalReference(searchText);
         var seeds = await SearchSeedChunksAsync(
             db,
             owner,
@@ -192,6 +193,9 @@ public sealed class KnowledgeCorpusService(
             scopeKeys,
             ToVectorLiteral(queryEmbedding),
             lexicalTerms,
+            searchText,
+            hierarchicalReference?.Chapter ?? -1,
+            hierarchicalReference?.Verse ?? -1,
             candidateLimit,
             cancellationToken);
         if (seeds.Count == 0)
@@ -223,7 +227,8 @@ public sealed class KnowledgeCorpusService(
                     Score = scores[index].Combined,
                     OriginalOrder = index
                 })
-                .OrderByDescending(value => value.Score)
+                .OrderByDescending(value => value.Seed.ExactLocatorMatch)
+                .ThenByDescending(value => value.Score)
                 .ThenBy(value => value.OriginalOrder)
                 .Select(value => value.Seed);
             seeds = rerankedHead
@@ -988,6 +993,9 @@ public sealed class KnowledgeCorpusService(
         string[] scopeKeys,
         string vectorLiteral,
         string[] lexicalTerms,
+        string queryText,
+        int referenceChapter,
+        int referenceVerse,
         int limit,
         CancellationToken cancellationToken)
     {
@@ -1013,6 +1021,18 @@ public sealed class KnowledgeCorpusService(
                     )
                   )
                   AND k."EmbeddingModel"=@model AND k."EmbeddingDimensions"=@dimensions
+            ), exact_ranked AS (
+                SELECT v."CollectionId", v."Version", v."OwnerUserName", v."ChunkId",
+                    ROW_NUMBER() OVER (ORDER BY v."CollectionId", v."Version", v."ChunkId") AS exact_rank
+                FROM visible v
+                WHERE @referenceChapter >= 0 AND @referenceVerse >= 0
+                  AND POSITION(LOWER(v.document_title) IN LOWER(@queryText)) > 0
+                  AND EXISTS (
+                    SELECT 1 FROM jsonb_array_elements_text(v."SearchAliasesJson") alias
+                    WHERE alias LIKE ('%.' || @referenceChapter::text || '.' || @referenceVerse::text)
+                  )
+                ORDER BY v."CollectionId", v."Version", v."ChunkId"
+                LIMIT @channelLimit
             ), vector_ranked AS (
                 SELECT v."CollectionId", v."Version", v."OwnerUserName", v."ChunkId",
                     ROW_NUMBER() OVER (ORDER BY v."Embedding" <=> CAST(@embedding AS vector), v."ChunkId") AS vector_rank,
@@ -1051,14 +1071,19 @@ public sealed class KnowledgeCorpusService(
                 LIMIT @channelLimit
             ), rank_rows AS (
                 SELECT v."CollectionId", v."Version", v."OwnerUserName", v."ChunkId",
-                    v.vector_rank, v.vector_score, NULL::bigint AS lexical_rank, NULL::real AS lexical_score
+                    NULL::bigint AS exact_rank, v.vector_rank, v.vector_score, NULL::bigint AS lexical_rank, NULL::real AS lexical_score
                 FROM vector_ranked v
                 UNION ALL
                 SELECT l."CollectionId", l."Version", l."OwnerUserName", l."ChunkId",
-                    NULL::bigint, NULL::double precision, l.lexical_rank, l.lexical_score
+                    NULL::bigint, NULL::bigint, NULL::double precision, l.lexical_rank, l.lexical_score
                 FROM lexical_ranked l
+                UNION ALL
+                SELECT e."CollectionId", e."Version", e."OwnerUserName", e."ChunkId",
+                    e.exact_rank, NULL::bigint, NULL::double precision, NULL::bigint, NULL::real
+                FROM exact_ranked e
             ), fused AS (
                 SELECT r."CollectionId", r."Version", r."OwnerUserName", r."ChunkId",
+                    MIN(r.exact_rank) AS exact_rank,
                     MIN(r.vector_rank) AS vector_rank,
                     MAX(r.vector_score) AS vector_score,
                     MIN(r.lexical_rank) AS lexical_rank,
@@ -1069,12 +1094,15 @@ public sealed class KnowledgeCorpusService(
                 GROUP BY r."CollectionId", r."Version", r."OwnerUserName", r."ChunkId"
             )
             SELECT v."CollectionId", v."Version", v."OwnerUserName", v."Domain", v."DocumentId", v.document_title, v."ChunkId", v."StructureNodeId", v."Text", v."StartLocator", v."EndLocator",
+                f.exact_rank IS NOT NULL,
                 ROUND(LEAST(GREATEST(COALESCE(f.vector_score,0)*0.8 + LEAST(COALESCE(f.lexical_score,0)*2,0.2),0),1)*100)::integer
             FROM fused f
             INNER JOIN visible v
               ON v."CollectionId"=f."CollectionId" AND v."Version"=f."Version"
              AND v."OwnerUserName"=f."OwnerUserName" AND v."ChunkId"=f."ChunkId"
-            ORDER BY CASE
+            ORDER BY CASE WHEN f.exact_rank IS NOT NULL THEN 0 ELSE 1 END,
+                f.exact_rank,
+                CASE
                     WHEN f.vector_rank<=@channelQuota OR f.lexical_rank<=@channelQuota THEN 0
                     ELSE 1
                 END,
@@ -1091,6 +1119,9 @@ public sealed class KnowledgeCorpusService(
         command.Parameters.Add(new NpgsqlParameter("dimensions", embeddingService.Dimensions));
         command.Parameters.Add(new NpgsqlParameter("embedding", vectorLiteral));
         command.Parameters.Add(new NpgsqlParameter("lexicalTerms", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = lexicalTerms });
+        command.Parameters.Add(new NpgsqlParameter("queryText", queryText));
+        command.Parameters.Add(new NpgsqlParameter("referenceChapter", referenceChapter));
+        command.Parameters.Add(new NpgsqlParameter("referenceVerse", referenceVerse));
         command.Parameters.Add(new NpgsqlParameter("channelLimit", Math.Max(limit * 20, 100)));
         command.Parameters.Add(new NpgsqlParameter("channelQuota", CalculateHybridChannelQuota(limit)));
         command.Parameters.Add(new NpgsqlParameter("rrfConstant", ReciprocalRankFusionConstant));
@@ -1101,7 +1132,7 @@ public sealed class KnowledgeCorpusService(
         {
             results.Add(new SeedChunk(
                 reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetString(5), reader.GetString(6),
-                reader.IsDBNull(7) ? null : reader.GetString(7), reader.GetString(8), reader.GetString(9), reader.GetString(10), reader.GetInt32(11)));
+                reader.IsDBNull(7) ? null : reader.GetString(7), reader.GetString(8), reader.GetString(9), reader.GetString(10), reader.GetBoolean(11), reader.GetInt32(12)));
         }
 
         return results;
@@ -1213,6 +1244,18 @@ public sealed class KnowledgeCorpusService(
             .ToArray();
 
         return terms.Length == 0 ? ["slogsnoqueryterms"] : terms;
+    }
+
+    private static HierarchicalReference? TryExtractHierarchicalReference(string query)
+    {
+        var match = Regex.Match(
+            query.Normalize(NormalizationForm.FormKC),
+            @"(?<chapter>[1-9][0-9]*)\s*(?:장\s*(?<verse>[0-9]+)\s*절?|[:：]\s*(?<verse>[0-9]+))",
+            RegexOptions.CultureInvariant);
+        return match.Success
+            ? new(int.Parse(match.Groups["chapter"].Value, System.Globalization.CultureInfo.InvariantCulture),
+                int.Parse(match.Groups["verse"].Value, System.Globalization.CultureInfo.InvariantCulture))
+            : null;
     }
 
     private static IEnumerable<string> ExpandLexicalTerm(string term)
@@ -1337,6 +1380,7 @@ public sealed class KnowledgeCorpusService(
         string? ExistingVisibility,
         string? ExistingScopeKey);
     private sealed record CorpusCounts(int Documents, int Structures, int Chunks, int Entities, int Relations);
+    private sealed record HierarchicalReference(int Chapter, int Verse);
     private sealed record SeedChunk(
         string CollectionId,
         string Version,
@@ -1349,5 +1393,6 @@ public sealed class KnowledgeCorpusService(
         string Text,
         string StartLocator,
         string EndLocator,
+        bool ExactLocatorMatch,
         int RelevancePercent);
 }

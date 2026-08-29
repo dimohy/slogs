@@ -65,6 +65,37 @@ public sealed class BgeM3OnlineRerankContractTests
     }
 
     [Theory]
+    [InlineData("사도행전 13장 9절에서 사울과 바울을 어떻게 표현하는가", 13, 9)]
+    [InlineData("사도행전 13:9을 두 번역으로 비교해줘", 13, 9)]
+    public void CorpusQueryExtractsExplicitHierarchicalReference(
+        string query,
+        int expectedChapter,
+        int expectedVerse)
+    {
+        var method = typeof(KnowledgeCorpusService).GetMethod(
+            "TryExtractHierarchicalReference",
+            BindingFlags.NonPublic | BindingFlags.Static)
+            ?? throw new InvalidOperationException("Corpus hierarchical reference parser is missing.");
+
+        var result = method.Invoke(null, [query])
+            ?? throw new InvalidOperationException("Corpus hierarchical reference parser returned null.");
+
+        Assert.Equal(expectedChapter, result.GetType().GetProperty("Chapter")!.GetValue(result));
+        Assert.Equal(expectedVerse, result.GetType().GetProperty("Verse")!.GetValue(result));
+    }
+
+    [Fact]
+    public void CorpusQueryDoesNotInventHierarchicalReferenceWithoutChapterVerseSyntax()
+    {
+        var method = typeof(KnowledgeCorpusService).GetMethod(
+            "TryExtractHierarchicalReference",
+            BindingFlags.NonPublic | BindingFlags.Static)
+            ?? throw new InvalidOperationException("Corpus hierarchical reference parser is missing.");
+
+        Assert.Null(method.Invoke(null, ["사도 바울과 사울의 관계"]));
+    }
+
+    [Theory]
     [InlineData(1, 2)]
     [InlineData(3, 5)]
     [InlineData(5, 5)]
