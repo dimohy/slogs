@@ -142,6 +142,7 @@ builder.Services.AddSingleton<BibleCorpusPackageReader>();
 builder.Services.AddSingleton<BibleOriginalKnowledgeCorpusAdapter>();
 builder.Services.AddScoped<BibleCorpusImportRunner>();
 builder.Services.AddScoped<BibleCorpusImportOrchestrator>();
+builder.Services.AddScoped<BibleReviewedRelationsImportOrchestrator>();
 builder.Services.AddScoped<KnowledgeCorpusPrincipalResolver>();
 builder.Services.AddScoped<ObsidianVaultService>();
 builder.Services.AddScoped<ObsidianStorageQuotaService>();
@@ -769,12 +770,25 @@ app.MapRazorComponents<App>()
     .AddAdditionalAssemblies(typeof(Slogs.Components.Routes).Assembly);
 
 var hasBibleCorpusImport = TryReadBibleCorpusImportArguments(args, out var bibleCorpusImport);
+var hasBibleReviewedRelationsImport = TryReadBibleReviewedRelationsImportArguments(args, out var bibleReviewedRelationsImport);
+if (hasBibleCorpusImport && hasBibleReviewedRelationsImport)
+{
+    throw new InvalidOperationException("성경 본문 패키지와 검토 관계 패키지는 한 프로세스에서 동시에 적재할 수 없습니다.");
+}
 if (hasBibleCorpusImport && bibleCorpusImport.VerifyOnly)
 {
     await using var scope = app.Services.CreateAsyncScope();
     var orchestrator = scope.ServiceProvider.GetRequiredService<BibleCorpusImportOrchestrator>();
     var result = await orchestrator.RunAsync(bibleCorpusImport);
     WriteBibleCorpusImportResult(result);
+    return;
+}
+if (hasBibleReviewedRelationsImport && bibleReviewedRelationsImport.VerifyOnly)
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var orchestrator = scope.ServiceProvider.GetRequiredService<BibleReviewedRelationsImportOrchestrator>();
+    var result = await orchestrator.RunAsync(bibleReviewedRelationsImport);
+    WriteBibleReviewedRelationsImportResult(result);
     return;
 }
 
@@ -790,6 +804,14 @@ if (hasBibleCorpusImport)
     var orchestrator = scope.ServiceProvider.GetRequiredService<BibleCorpusImportOrchestrator>();
     var result = await orchestrator.RunAsync(bibleCorpusImport);
     WriteBibleCorpusImportResult(result);
+    return;
+}
+if (hasBibleReviewedRelationsImport)
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var orchestrator = scope.ServiceProvider.GetRequiredService<BibleReviewedRelationsImportOrchestrator>();
+    var result = await orchestrator.RunAsync(bibleReviewedRelationsImport);
+    WriteBibleReviewedRelationsImportResult(result);
     return;
 }
 
@@ -1213,6 +1235,46 @@ static void WriteBibleCorpusImportResult(BibleCorpusImportSummary result)
     }
     Console.WriteLine(
         $"BIBLE_CORPUS_IMPORT=PASS package={result.PackageId} version={result.PackageVersion} hash={result.PackageHash} verifyOnly={result.VerifyOnly.ToString().ToLowerInvariant()} layers={result.Layers.Count}");
+}
+
+static bool TryReadBibleReviewedRelationsImportArguments(
+    string[] arguments,
+    out BibleReviewedRelationsImportOptions result)
+{
+    result = default!;
+    var importIndex = Array.IndexOf(arguments, "--bible-reviewed-relations-import");
+    if (importIndex < 0)
+    {
+        return false;
+    }
+    static string RequiredValue(string[] values, string name)
+    {
+        var index = Array.IndexOf(values, name);
+        if (index < 0 || index + 1 >= values.Length || values[index + 1].StartsWith("--", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException($"{name} requires a value.");
+        }
+        return values[index + 1];
+    }
+    if (importIndex + 1 >= arguments.Length || arguments[importIndex + 1].StartsWith("--", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("--bible-reviewed-relations-import requires a package directory.");
+    }
+    result = new BibleReviewedRelationsImportOptions(
+        arguments[importIndex + 1],
+        RequiredValue(arguments, "--bible-review-checkpoints"),
+        RequiredValue(arguments, "--bible-owner"),
+        arguments.Contains("--bible-review-verify-only", StringComparer.Ordinal));
+    return true;
+}
+
+static void WriteBibleReviewedRelationsImportResult(BibleReviewedRelationsImportSummary result)
+{
+    var layer = result.Layer;
+    Console.WriteLine(
+        $"BIBLE_REVIEWED_RELATIONS_LAYER=PASS collection={layer.CollectionId} version={layer.Version} visibility={layer.Visibility} batches={layer.Batches} documents={layer.Documents} chunks={layer.Chunks} entities={layer.Entities} relations={layer.Relations} plan={layer.PlanHash} state={layer.State}");
+    Console.WriteLine(
+        $"BIBLE_REVIEWED_RELATIONS_IMPORT=PASS package={result.PackageId} version={result.PackageVersion} hash={result.PackageHash} verifyOnly={result.VerifyOnly.ToString().ToLowerInvariant()}");
 }
 
 public sealed record GoogleExternalLoginInfo(string ProviderUserId, string Email, string DisplayName, string ProfileImageUrl);
