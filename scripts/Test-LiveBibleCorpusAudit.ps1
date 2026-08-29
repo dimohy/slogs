@@ -32,6 +32,7 @@ SELECT json_build_object(
     'collectionId',"CollectionId",'version',"Version",'license',"License",
     'ownerKind',"OwnerKind",'ownerKey',"OwnerKey",'visibility',"Visibility",
     'redistributionAllowed',"RedistributionAllowed",'status',"Status",
+    'contentHash',"ContentHash",'activatedAt',"ActivatedAt",'expectedChunkCount',"ExpectedChunkCount",
     'chunks',chunks,'entities',entities,'relations',relations,'aclGrants',acl_grants
   ) ORDER BY "CollectionId","Version") FROM collections),
   'publicOriginalCandidateCount', (SELECT COUNT(*) FROM original_relations WHERE "ReviewStatus"='candidate'),
@@ -86,9 +87,16 @@ function Assert-Collection {
     Assert-Equal "$CollectionId redistributionAllowed" $item.redistributionAllowed $RedistributionAllowed
     Assert-Equal "$CollectionId license" $item.license $License
     Assert-Equal "$CollectionId chunks" $item.chunks $Chunks
+    Assert-Equal "$CollectionId expectedChunkCount" $item.expectedChunkCount $Chunks
     Assert-Equal "$CollectionId entities" $item.entities $Entities
     Assert-Equal "$CollectionId relations" $item.relations $Relations
     Assert-Equal "$CollectionId aclGrants" $item.aclGrants 0
+    if ([string]$item.contentHash -notmatch '^[0-9a-fA-F]{64}$') {
+        $errors.Add("${CollectionId} contentHash: expected=64 hexadecimal characters actual=$($item.contentHash)")
+    }
+    if ($null -eq $item.activatedAt) {
+        $errors.Add("${CollectionId} activatedAt: expected=non-null actual=null")
+    }
 }
 
 Assert-Collection 'bible-ko-nkrv' '0.1.0' 'private' $false 'copyrighted-restricted' 1693 0 31101
