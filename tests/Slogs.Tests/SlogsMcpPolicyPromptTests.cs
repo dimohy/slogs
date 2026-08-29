@@ -25,10 +25,14 @@ public sealed class SlogsMcpPolicyPromptTests
         Assert.Contains("후보·비승인 관계를 정답으로 승격하지 않는다", koreanPrompt);
         Assert.Contains("`public_shared`는 접근 가능한 읽기 근거일 뿐 공개 수정을 허용하지 않는다", koreanPrompt);
         Assert.Contains("`pairScoreCalls`", koreanPrompt);
+        Assert.Contains("`general-bge-m3-dense`", koreanPrompt);
+        Assert.Contains("`relational-bge-m3-full`", koreanPrompt);
         Assert.Contains("generic Knowledge Corpus", englishPrompt);
         Assert.Contains("candidate or unapproved relations", englishPrompt);
         Assert.Contains("permits accessible reading, not public editing", englishPrompt);
         Assert.Contains("`pairScoreCalls`", englishPrompt);
+        Assert.Contains("`general-bge-m3-dense`", englishPrompt);
+        Assert.Contains("`relational-bge-m3-full`", englishPrompt);
     }
 
     [Fact]

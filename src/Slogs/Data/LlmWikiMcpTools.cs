@@ -463,7 +463,10 @@ public sealed class LlmWikiMcpTools(
             var corpusRecallLimit = CalculateCorpusRecallLimit(safeLimit, safeMaxGraphHops);
             var hasSingleExplicitLocator = KnowledgeCorpusService.HasSingleExplicitLocatorQuery(query);
             var useCombinedReranking = !hasSingleExplicitLocator &&
-                embeddingService?.SupportsFullFunctionReranking == true;
+                KnowledgeRecallRouting.ShouldUseFullFunctionReranking(
+                    safeMaxGraphHops,
+                    requested: true,
+                    supported: embeddingService?.SupportsFullFunctionReranking == true);
             var corpusTask = corpusService.RecallAsync(
                 corpusActor,
                 query,
@@ -557,6 +560,7 @@ public sealed class LlmWikiMcpTools(
                 query,
                 minRelevancePercent: safeMinRelevancePercent,
                 maxGraphHops: safeMaxGraphHops,
+                retrievalProfile: KnowledgeRecallRouting.GetProfile(safeMaxGraphHops),
                 pairScoreCalls: pairScoreCalls,
                 pairScoreCandidates: pairScoreCandidates);
             var emptyResponse = emptyBuilder.ToString();
@@ -639,6 +643,7 @@ public sealed class LlmWikiMcpTools(
             query,
             minRelevancePercent: safeMinRelevancePercent,
             maxGraphHops: safeMaxGraphHops,
+            retrievalProfile: KnowledgeRecallRouting.GetProfile(safeMaxGraphHops),
             pairScoreCalls: pairScoreCalls,
             pairScoreCandidates: pairScoreCandidates);
         var response = builder.ToString().TrimEnd();
@@ -1205,6 +1210,7 @@ public sealed class LlmWikiMcpTools(
         string? categoryPath = null,
         int? minRelevancePercent = null,
         int? maxGraphHops = null,
+        string? retrievalProfile = null,
         int? pairScoreCalls = null,
         int? pairScoreCandidates = null)
     {
@@ -1234,6 +1240,11 @@ public sealed class LlmWikiMcpTools(
         if (maxGraphHops is not null)
         {
             builder.AppendLine($"- maxGraphHops: {maxGraphHops}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(retrievalProfile))
+        {
+            builder.AppendLine($"- retrievalProfile: {retrievalProfile}");
         }
 
         if (pairScoreCalls is not null)

@@ -377,7 +377,10 @@ public sealed class LlmWikiService(
         var searchText = TrimToLength(query, 400);
         await EnsureOwnerSearchIndexAsync(db, owner, publicOnly, cancellationToken);
         var requestedWindow = Math.Min(safeOffset + safeLimit, 100);
-        var useFullFunctionReranking = applyFullFunctionReranking && embeddingService.SupportsFullFunctionReranking;
+        var useFullFunctionReranking = KnowledgeRecallRouting.ShouldUseFullFunctionReranking(
+            safeMaxGraphHops,
+            applyFullFunctionReranking,
+            embeddingService.SupportsFullFunctionReranking);
         var candidateLimit = useFullFunctionReranking
             ? CalculateBgeM3CandidateLimit(requestedWindow)
             : safeLimit;

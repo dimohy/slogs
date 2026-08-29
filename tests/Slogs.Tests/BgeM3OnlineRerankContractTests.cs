@@ -8,6 +8,25 @@ namespace Slogs.Tests;
 public sealed class BgeM3OnlineRerankContractTests
 {
     [Theory]
+    [InlineData(1, true, true, false, "general-bge-m3-dense")]
+    [InlineData(2, true, true, true, "relational-bge-m3-full")]
+    [InlineData(3, true, true, true, "relational-bge-m3-full")]
+    [InlineData(2, false, true, false, "relational-bge-m3-full")]
+    [InlineData(2, true, false, false, "relational-bge-m3-full")]
+    public void RecallRoutingKeepsGeneralSearchDenseAndBoundsFullFunctionRerankingToRelations(
+        int maxGraphHops,
+        bool requested,
+        bool supported,
+        bool expectedReranking,
+        string expectedProfile)
+    {
+        Assert.Equal(
+            expectedReranking,
+            KnowledgeRecallRouting.ShouldUseFullFunctionReranking(maxGraphHops, requested, supported));
+        Assert.Equal(expectedProfile, KnowledgeRecallRouting.GetProfile(maxGraphHops));
+    }
+
+    [Theory]
     [InlineData(1, 2)]
     [InlineData(3, 5)]
     [InlineData(5, 5)]

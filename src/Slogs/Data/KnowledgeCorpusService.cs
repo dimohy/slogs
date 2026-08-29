@@ -281,7 +281,10 @@ public sealed class KnowledgeCorpusService(
         if (!exactFastPath)
         {
             var queryEmbedding = await embeddingService.EmbedQueryAsync(searchText, cancellationToken);
-            var useFullFunctionReranking = applyFullFunctionReranking && embeddingService.SupportsFullFunctionReranking;
+            var useFullFunctionReranking = KnowledgeRecallRouting.ShouldUseFullFunctionReranking(
+                safeGraphHops,
+                applyFullFunctionReranking,
+                embeddingService.SupportsFullFunctionReranking);
             var candidateLimit = useFullFunctionReranking
                 ? CalculateBgeM3CandidateLimit(safeLimit)
                 : safeLimit;
@@ -304,7 +307,10 @@ public sealed class KnowledgeCorpusService(
             return [];
         }
 
-        if (!exactFastPath && applyFullFunctionReranking && embeddingService.SupportsFullFunctionReranking)
+        if (!exactFastPath && KnowledgeRecallRouting.ShouldUseFullFunctionReranking(
+                safeGraphHops,
+                applyFullFunctionReranking,
+                embeddingService.SupportsFullFunctionReranking))
         {
             var rerankCount = Math.Min(seeds.Count, MaxBgeM3OnlineRerankCandidates);
             var scores = await embeddingService.ScorePairsAsync(
