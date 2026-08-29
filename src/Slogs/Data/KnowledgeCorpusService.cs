@@ -1074,7 +1074,11 @@ public sealed class KnowledgeCorpusService(
             INNER JOIN visible v
               ON v."CollectionId"=f."CollectionId" AND v."Version"=f."Version"
              AND v."OwnerUserName"=f."OwnerUserName" AND v."ChunkId"=f."ChunkId"
-            ORDER BY f.rrf_score DESC,
+            ORDER BY CASE
+                    WHEN f.vector_rank<=@channelQuota OR f.lexical_rank<=@channelQuota THEN 0
+                    ELSE 1
+                END,
+                f.rrf_score DESC,
                 COALESCE(f.lexical_score,0) DESC,
                 COALESCE(f.vector_score,0) DESC,
                 v."ChunkId"
@@ -1088,6 +1092,7 @@ public sealed class KnowledgeCorpusService(
         command.Parameters.Add(new NpgsqlParameter("embedding", vectorLiteral));
         command.Parameters.Add(new NpgsqlParameter("lexicalTerms", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = lexicalTerms });
         command.Parameters.Add(new NpgsqlParameter("channelLimit", Math.Max(limit * 20, 100)));
+        command.Parameters.Add(new NpgsqlParameter("channelQuota", CalculateHybridChannelQuota(limit)));
         command.Parameters.Add(new NpgsqlParameter("rrfConstant", ReciprocalRankFusionConstant));
         command.Parameters.Add(new NpgsqlParameter("limit", limit));
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -1254,6 +1259,9 @@ public sealed class KnowledgeCorpusService(
                 requestedLimit,
                 Math.Min(requestedLimit * 2, MaxBgeM3OnlineRerankCandidates)),
             10);
+
+    private static int CalculateHybridChannelQuota(int candidateLimit)
+        => Math.Max(1, (int)Math.Floor(candidateLimit * 0.4));
 
     private static IReadOnlyDictionary<string, string> NormalizeMetadata(IReadOnlyDictionary<string, string>? values)
         => (values ?? new Dictionary<string, string>())

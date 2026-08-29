@@ -24,6 +24,22 @@ public sealed class BgeM3OnlineRerankContractTests
     }
 
     [Theory]
+    [InlineData(1, 1)]
+    [InlineData(2, 1)]
+    [InlineData(5, 2)]
+    [InlineData(10, 4)]
+    public void CorpusHybridCandidateWindowReservesBothRetrievalChannels(int candidateLimit, int expected)
+    {
+        var method = typeof(KnowledgeCorpusService).GetMethod(
+            "CalculateHybridChannelQuota",
+            BindingFlags.NonPublic | BindingFlags.Static)
+            ?? throw new InvalidOperationException("Corpus hybrid channel quota calculator is missing.");
+
+        Assert.Equal(expected, (int)(method.Invoke(null, [candidateLimit])
+            ?? throw new InvalidOperationException("Corpus hybrid channel quota calculator returned null.")));
+    }
+
+    [Theory]
     [InlineData("오순절 설교에서 베드로가 요엘서의 어느 말씀을 인용했나?", "설교", "베드로", "요엘")]
     [InlineData("선한 사마리아인 비유의 문맥상 핵심 요구는 무엇인가?", "사마리아", "비유", "요구")]
     public void CorpusLexicalQueryExpandsKoreanParticlesAndDerivedNouns(
