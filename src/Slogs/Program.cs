@@ -9,6 +9,7 @@ using ModelContextProtocol.Server;
 using OpenIddict.Validation.AspNetCore;
 using Slogs.Components;
 using Slogs.Data;
+using System.Diagnostics;
 using System.Net;
 using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
@@ -126,7 +127,9 @@ builder.Services.AddScoped<BlogService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<EditorImageStorage>();
 builder.Services.AddScoped<PostImageService>();
-builder.Services.AddHttpClient<EmbeddingGemmaService>();
+builder.Services.AddHttpClient<BgeM3EmbeddingService>();
+builder.Services.AddScoped<IKnowledgeEmbeddingService>(provider => provider.GetRequiredService<BgeM3EmbeddingService>());
+builder.Services.AddScoped<BgeM3ShadowIndexMigration>();
 builder.Services.AddScoped<LlmWikiService>();
 builder.Services.AddScoped<SlogsMcpPolicyPromptService>();
 builder.Services.AddScoped<KnowledgeCorpusService>();
@@ -780,6 +783,24 @@ if (TryReadSemanticImportArguments(args, out var semanticImport))
     return;
 }
 
+if (TryReadBgeM3MigrationPhase(args, out var bgeM3MigrationPhase))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var migration = scope.ServiceProvider.GetRequiredService<BgeM3ShadowIndexMigration>();
+    var result = bgeM3MigrationPhase switch
+    {
+        "prepare" => await migration.PrepareAsync(),
+        "activate" => await migration.ActivateAsync(),
+        "validate" => await migration.ValidateActiveAsync(),
+        "rollback" => await migration.RollbackAsync(),
+        "finalize" => await migration.FinalizeAsync(),
+        _ => throw new UnreachableException()
+    };
+    Console.WriteLine(
+        $"BGE_M3_MIGRATION=PASS phase={result.Phase} personal={result.PersonalEntries} organization={result.OrganizationMemories} embedded={result.EmbeddedDocuments} model={result.Model} dimensions={result.Dimensions}");
+    return;
+}
+
 app.Run();
 
 static string GetFormValue(IFormCollection form, string name)
@@ -1096,6 +1117,28 @@ static bool TryReadSemanticImportArguments(string[] arguments, out SemanticImpor
         RequiredValue(arguments, "--semantic-corpus"),
         RequiredValue(arguments, "--semantic-version"),
         arguments.Contains("--activate-semantic-graph", StringComparer.Ordinal));
+    return true;
+}
+
+static bool TryReadBgeM3MigrationPhase(string[] arguments, out string phase)
+{
+    phase = string.Empty;
+    var index = Array.IndexOf(arguments, "--bge-m3-migration");
+    if (index < 0)
+    {
+        return false;
+    }
+    if (index + 1 >= arguments.Length || arguments[index + 1].StartsWith("--", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException(
+            "--bge-m3-migration requires one of: prepare, activate, validate, rollback, finalize.");
+    }
+    phase = arguments[index + 1].ToLowerInvariant();
+    if (phase is not ("prepare" or "activate" or "validate" or "rollback" or "finalize"))
+    {
+        throw new InvalidOperationException(
+            $"Unsupported BGE-M3 migration phase '{phase}'. Expected prepare, activate, validate, rollback, or finalize.");
+    }
     return true;
 }
 

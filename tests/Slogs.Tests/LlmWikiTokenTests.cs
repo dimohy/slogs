@@ -52,6 +52,8 @@ public sealed class LlmWikiTokenTests
             services.AddSingleton<EmbeddingGemmaService>(provider => new EmbeddingGemmaService(
                 new HttpClient(),
                 provider.GetRequiredService<IConfiguration>()));
+            services.AddSingleton<IKnowledgeEmbeddingService>(provider =>
+                provider.GetRequiredService<EmbeddingGemmaService>());
             services.AddScoped<LlmWikiService>();
             var provider = services.BuildServiceProvider();
 

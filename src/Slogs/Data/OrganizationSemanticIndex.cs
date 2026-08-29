@@ -20,9 +20,9 @@ public interface IOrganizationSemanticIndex
 
 public sealed class OrganizationSemanticIndex(
     IDbContextFactory<OrganizationDbContext> dbFactory,
-    EmbeddingGemmaService embeddingService) : IOrganizationSemanticIndex
+    IKnowledgeEmbeddingService embeddingService) : IOrganizationSemanticIndex
 {
-    private const string IndexVersion = "2026-08-25-organization-memory-v1";
+    internal const string IndexVersion = "2026-08-29-bge-m3-v1";
     private const int MaxEmbeddingContentLength = 18_000;
 
     public async Task IndexAsync(OrganizationMemoryRecord memory, CancellationToken cancellationToken = default)
@@ -106,7 +106,7 @@ public sealed class OrganizationSemanticIndex(
         return scores;
     }
 
-    private static string BuildDocument(OrganizationMemoryRecord memory)
+    internal static string BuildDocument(OrganizationMemoryRecord memory)
     {
         var text = string.Join(
             "\n",
@@ -138,3 +138,5 @@ public sealed class OrganizationSemanticIndex(
         }
     }
 }
+
+internal sealed record BgeM3SourceDocument(Guid Id, DateTime SourceUpdatedAt, string Text, string ContentHash);

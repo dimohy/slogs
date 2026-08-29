@@ -1,0 +1,60 @@
+using System.Net;
+using System.Text;
+using Microsoft.Extensions.Configuration;
+using Slogs.Data;
+using Xunit;
+
+namespace Slogs.Tests;
+
+public sealed class BgeM3EmbeddingServiceTests
+{
+    [Fact]
+    public async Task FullFunctionContractReturnsDenseAndThreeModePairScores()
+    {
+        using var httpClient = new HttpClient(new ContractHandler());
+        var service = new BgeM3EmbeddingService(
+            httpClient,
+            new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["BgeM3:BaseUrl"] = "http://bge.test"
+            }).Build());
+
+        await service.VerifyRuntimeAsync(CancellationToken.None);
+        var embedding = await service.EmbedDocumentAsync("document", CancellationToken.None);
+        var scores = await service.ScorePairsAsync("query", ["relevant", "irrelevant"], CancellationToken.None);
+
+        Assert.True(service.SupportsFullFunctionReranking);
+        Assert.Equal("bge-m3", service.Model);
+        Assert.Equal(1024, embedding.Count);
+        Assert.Equal(2, scores.Count);
+        Assert.Equal(0.91f, scores[0].Combined);
+        Assert.Equal(0.22f, scores[1].Combined);
+        Assert.All(scores, score => Assert.True(score.Dense >= 0 && score.Sparse >= 0 && score.MultiVector >= 0));
+    }
+
+    private sealed class ContractHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            var json = request.RequestUri?.AbsolutePath switch
+            {
+                "/info" =>
+                    """
+                    {"modelId":"BAAI/bge-m3","modelRevision":"5617a9f61b028005a4858fdac845db406aefb181","dimensions":1024,"maxBatchSize":8,"concurrentGpuRequests":1,"functions":["dense","sparse","multi-vector","pair-score"]}
+                    """,
+                "/encode" => $"{{\"dense\":[[{string.Join(',', Enumerable.Repeat("0.25", 1024))}]]}}",
+                "/score" =>
+                    """
+                    {"dense":[0.8,0.2],"sparse":[0.7,0.1],"colbert":[0.9,0.3],"colbert+sparse+dense":[0.91,0.22]}
+                    """,
+                _ => throw new InvalidOperationException($"Unexpected BGE-M3 request: {request.RequestUri}")
+            };
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json")
+            });
+        }
+    }
+}

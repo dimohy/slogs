@@ -138,7 +138,7 @@ if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($remoteGid)) {
 $remoteInitTemplate = @'
 set -eu
 REMOTE_ROOT="__REMOTE_ROOT__"
-mkdir -p "$REMOTE_ROOT/releases" "$REMOTE_ROOT/uploads" "$REMOTE_ROOT/postgres-data" "$REMOTE_ROOT/embeddinggemma-data" "$REMOTE_ROOT/certificates" "$REMOTE_ROOT/data-protection" "$REMOTE_ROOT/backups"
+mkdir -p "$REMOTE_ROOT/releases" "$REMOTE_ROOT/uploads" "$REMOTE_ROOT/postgres-data" "$REMOTE_ROOT/bge-m3-runtime" "$REMOTE_ROOT/bge-m3-data" "$REMOTE_ROOT/certificates" "$REMOTE_ROOT/data-protection" "$REMOTE_ROOT/backups"
 if [ ! -f "$REMOTE_ROOT/.env" ]; then
     umask 077
     if command -v openssl >/dev/null 2>&1; then
@@ -185,30 +185,37 @@ fi
 $remoteInit = $remoteInitTemplate.Replace("__REMOTE_ROOT__", $RemoteRoot)
 Invoke-Remote $remoteInit
 
+Send-RemoteContent (Get-Content (Join-Path $repoRoot "infra\bge-m3-full\Dockerfile") -Raw) "$RemoteRoot/bge-m3-runtime/Dockerfile"
+Send-RemoteContent (Get-Content (Join-Path $repoRoot "infra\bge-m3-full\server.py") -Raw) "$RemoteRoot/bge-m3-runtime/server.py"
+
 $remoteGpuCheck = @'
 set -eu
-if [ "$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' slogs-embeddinggemma 2>/dev/null || true)" = "healthy" ]; then
-    echo "embeddinggemma=existing-healthy"
+if [ "$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' slogs-bge-m3 2>/dev/null || true)" = "healthy" ]; then
+    echo "bge-m3=existing-healthy"
     exit 0
 fi
 command -v nvidia-smi >/dev/null 2>&1
 nvidia-smi >/dev/null
 docker run --rm --gpus=all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi >/dev/null
-echo "embeddinggemma=gpu-ready"
+echo "bge-m3=gpu-ready"
 '@
 Invoke-Remote $remoteGpuCheck
 
 $composeTemplate = @'
 services:
-  embeddinggemma:
-    image: ollama/ollama:0.11.10
-    container_name: slogs-embeddinggemma
+  bge-m3:
+    image: localhost/slogs-bge-m3-full:1.0.0
+    container_name: slogs-bge-m3
     restart: unless-stopped
     environment:
+      BGE_M3_MODEL_PATH: /models/bge-m3
+      BGE_M3_MODEL_REVISION: 5617a9f61b028005a4858fdac845db406aefb181
+      BGE_M3_MAX_BATCH_SIZE: 8
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
     volumes:
-      - ./embeddinggemma-data:/root/.ollama
+      - ./bge-m3-data:/models
+    shm_size: 1gb
     deploy:
       resources:
         reservations:
@@ -216,22 +223,11 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-    entrypoint:
-      - /bin/sh
-      - -lc
-    command:
-      - |
-        test -e /dev/nvidiactl || { echo "NVIDIA GPU is required for EmbeddingGemma"; exit 1; }
-        ollama serve &
-        server=$$!
-        until ollama list >/dev/null 2>&1; do sleep 1; done
-        ollama pull embeddinggemma
-        wait $$server
     healthcheck:
-      test: ["CMD-SHELL", "ollama list | grep -q embeddinggemma"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3).read()"]
       interval: 10s
       timeout: 5s
-      retries: 60
+      retries: 90
 
   postgres:
     image: pgvector/pgvector:pg16
@@ -254,7 +250,7 @@ services:
     container_name: slogs-app
     restart: unless-stopped
     depends_on:
-      embeddinggemma:
+      bge-m3:
         condition: service_healthy
       postgres:
         condition: service_healthy
@@ -274,12 +270,13 @@ services:
       DataProtection__KeysPath: /data-protection
       DataProtection__CertificatePath: /certificates/data-protection.pfx
       DataProtection__CertificatePassword: ${OIDC_CERT_PASSWORD}
+      BgeM3__BaseUrl: http://bge-m3:8080
       EmbeddingGemma__Endpoint: http://embeddinggemma:11434/api/embed
       Slogs__PublicBaseUrl: https://__DOMAIN__
     ports:
       - "127.0.0.1:__APP_PORT__:8080"
     volumes:
-      - ./current:/app:ro
+      - ./${SLOGS_APP_DIR:-current}:/app:ro
       - ./uploads:/app/wwwroot/uploads
       - ./certificates:/certificates:ro
       - ./data-protection:/data-protection
@@ -309,22 +306,129 @@ set -eu
 REMOTE_ROOT="__REMOTE_ROOT__"
 RELEASE_ID="__RELEASE_ID__"
 RELEASE_DIR="$REMOTE_ROOT/releases/$RELEASE_ID"
+PREVIOUS_RELEASE="$(readlink -f "$REMOTE_ROOT/current" 2>/dev/null || true)"
+ACTIVATED=0
+APP_STOPPED=0
+
+run_migration() {
+    phase="$1"
+    SLOGS_APP_DIR="releases/$RELEASE_ID" docker compose --env-file "$REMOTE_ROOT/.env" run --rm --no-deps \
+        -e Slogs__SkipDbInitializer=true \
+        app /app/Slogs --bge-m3-migration "$phase"
+}
+
+recover_on_failure() {
+    status=$?
+    if [ "$status" -eq 0 ]; then
+        return
+    fi
+    echo "Deployment failed; attempting the bounded embedding migration rollback." >&2
+    if [ "$ACTIVATED" -eq 1 ]; then
+        docker stop slogs-app >/dev/null 2>&1 || true
+        APP_STOPPED=1
+        run_migration rollback || true
+    fi
+    if [ -n "$PREVIOUS_RELEASE" ] && [ -d "$PREVIOUS_RELEASE" ]; then
+        ln -sfn "$PREVIOUS_RELEASE" "$REMOTE_ROOT/current"
+    fi
+    if docker inspect slogs-embeddinggemma >/dev/null 2>&1; then
+        docker start slogs-embeddinggemma >/dev/null 2>&1 || true
+    fi
+    if [ "$APP_STOPPED" -eq 1 ]; then
+        SLOGS_APP_DIR=current docker compose --env-file "$REMOTE_ROOT/.env" up -d --no-deps --force-recreate app || true
+    fi
+    exit "$status"
+}
+trap recover_on_failure EXIT
+
 mkdir -p "$RELEASE_DIR" "$REMOTE_ROOT/uploads"
 tar -xzf "$REMOTE_ROOT/releases/$RELEASE_ID.tar.gz" -C "$RELEASE_DIR"
 chmod +x "$RELEASE_DIR/Slogs"
 if docker inspect slogs-postgres >/dev/null 2>&1; then
     docker exec slogs-postgres sh -lc 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > "$REMOTE_ROOT/backups/pre-$RELEASE_ID.dump"
 fi
-ln -sfn "$RELEASE_DIR" "$REMOTE_ROOT/current"
 cd "$REMOTE_ROOT"
-docker compose --env-file "$REMOTE_ROOT/.env" up -d postgres
+
+docker build -t localhost/slogs-bge-m3-full:1.0.0 "$REMOTE_ROOT/bge-m3-runtime"
+docker run --rm \
+    -v "$REMOTE_ROOT/bge-m3-data:/models" \
+    --entrypoint python \
+    localhost/slogs-bge-m3-full:1.0.0 \
+    -c "from huggingface_hub import snapshot_download; snapshot_download('BAAI/bge-m3', revision='5617a9f61b028005a4858fdac845db406aefb181', local_dir='/models/bge-m3')"
+
+docker compose --env-file "$REMOTE_ROOT/.env" up -d postgres bge-m3
+ready=0
+i=0
+while [ "$i" -lt 180 ]; do
+    health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' slogs-bge-m3 2>/dev/null || true)"
+    if [ "$health" = "healthy" ]; then
+        ready=1
+        break
+    fi
+    i=$((i + 1))
+    sleep 2
+done
+if [ "$ready" -ne 1 ]; then
+    docker logs --tail 150 slogs-bge-m3 >&2 || true
+    echo "BGE-M3 runtime failed its readiness deadline." >&2
+    exit 1
+fi
+
+dimensions="$(docker exec slogs-postgres psql -U slogs -d slogs -Atc \
+    "SELECT a.atttypmod FROM pg_attribute a JOIN pg_class c ON c.oid=a.attrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relname='LlmWikiEntryEmbeddings' AND a.attname='Embedding' AND NOT a.attisdropped;" 2>/dev/null || true)"
+if [ "$dimensions" = "768" ]; then
+    run_migration prepare
+    docker stop slogs-app >/dev/null
+    APP_STOPPED=1
+    run_migration prepare
+    run_migration activate
+    ACTIVATED=1
+elif [ -n "$dimensions" ] && [ "$dimensions" != "1024" ]; then
+    echo "Unsupported active embedding dimensions: $dimensions" >&2
+    exit 1
+fi
+
+ln -sfn "$RELEASE_DIR" "$REMOTE_ROOT/current"
 docker compose --env-file "$REMOTE_ROOT/.env" up -d --force-recreate app
+APP_STOPPED=0
+
+ready=0
+i=0
+while [ "$i" -lt 60 ]; do
+    if curl -fsS "http://127.0.0.1:__APP_PORT__/" >/dev/null 2>&1; then
+        ready=1
+        break
+    fi
+    i=$((i + 1))
+    sleep 2
+done
+if [ "$ready" -ne 1 ]; then
+    docker logs --tail 150 slogs-app >&2 || true
+    echo "Slogs app failed its post-deployment readiness deadline." >&2
+    exit 1
+fi
+
+run_migration validate
+if [ "$ACTIVATED" -eq 1 ]; then
+    run_migration finalize
+    ACTIVATED=0
+fi
+
+if docker inspect slogs-embeddinggemma >/dev/null 2>&1; then
+    docker rm -f slogs-embeddinggemma >/dev/null
+fi
+if [ -d "$REMOTE_ROOT/embeddinggemma-data" ]; then
+    mv "$REMOTE_ROOT/embeddinggemma-data" "$REMOTE_ROOT/backups/embeddinggemma-data-retired-$RELEASE_ID"
+fi
+
 docker compose ps
 find "$REMOTE_ROOT/releases" -mindepth 1 -maxdepth 1 -type d | sort -r | tail -n +6 | xargs -r rm -rf
+trap - EXIT
 '@
 $deployCommand = $deployTemplate.
     Replace("__REMOTE_ROOT__", $RemoteRoot).
-    Replace("__RELEASE_ID__", $releaseId)
+    Replace("__RELEASE_ID__", $releaseId).
+    Replace("__APP_PORT__", [string]$AppPort)
 Invoke-Remote $deployCommand
 
 if ($ApplyCaddy) {

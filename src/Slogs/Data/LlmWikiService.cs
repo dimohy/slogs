@@ -25,7 +25,7 @@ public sealed record LlmWikiMcpAuditRequest(
 
 public sealed class LlmWikiService(
     IDbContextFactory<SlogsDbContext> dbFactory,
-    EmbeddingGemmaService embeddingService)
+    IKnowledgeEmbeddingService embeddingService)
 {
     private const int MaxPromptLength = 12_000;
     private const int MaxContentLength = 80_000;
@@ -40,7 +40,7 @@ public sealed class LlmWikiService(
     private const int MaxAuditInlineLength = 240;
     private const int MaxAuditResultIds = 5;
     private const int MaxSearchIndexRefreshPerQuery = 4;
-    private const string SearchIndexVersion = "2026-06-27-public-sharing-v1";
+    internal const string SearchIndexVersion = "2026-08-29-bge-m3-v1";
     private static readonly string[] AllowedTokenScopes =
     [
         SlogsTokenScopes.Mcp,
@@ -371,13 +371,17 @@ public sealed class LlmWikiService(
 
         var searchText = TrimToLength(query, 400);
         await EnsureOwnerSearchIndexAsync(db, owner, publicOnly, cancellationToken);
+        var requestedWindow = Math.Min(safeOffset + safeLimit, 100);
+        var candidateLimit = embeddingService.SupportsFullFunctionReranking
+            ? Math.Min(Math.Max(requestedWindow, Math.Min(requestedWindow * 2, 32)), 100)
+            : safeLimit;
         var rankedEntries = await SearchGraphAsync(
             db,
             owner,
             searchText,
-            safeLimit,
-            safeOffset,
-            safeMinRelevancePercent,
+            candidateLimit,
+            embeddingService.SupportsFullFunctionReranking ? 0 : safeOffset,
+            embeddingService.SupportsFullFunctionReranking ? 0 : safeMinRelevancePercent,
             normalizedCategoryPath,
             publicOnly,
             safeMaxGraphHops,
@@ -385,6 +389,58 @@ public sealed class LlmWikiService(
         if (rankedEntries.Count == 0)
         {
             return [];
+        }
+
+        if (embeddingService.SupportsFullFunctionReranking)
+        {
+            var rerankCount = Math.Min(rankedEntries.Count, 32);
+            var rerankIds = rankedEntries.Take(rerankCount).Select(value => value.Id).ToArray();
+            var rerankEntries = await ownerEntries
+                .Where(value => rerankIds.Contains(value.Id))
+                .ToListAsync(cancellationToken);
+            var passageById = rerankEntries.ToDictionary(
+                value => value.Id,
+                value => BuildBgeM3SourceDocument(value).Text);
+            if (passageById.Count != rerankIds.Length)
+            {
+                throw new InvalidOperationException(
+                    $"BGE-M3 LLM Wiki rerank source mismatch: passages={passageById.Count}, candidates={rerankIds.Length}.");
+            }
+            var scores = await embeddingService.ScorePairsAsync(
+                searchText,
+                rerankIds.Select(id => passageById[id]).ToArray(),
+                cancellationToken);
+            if (scores.Count != rerankIds.Length)
+            {
+                throw new InvalidOperationException(
+                    $"BGE-M3 LLM Wiki rerank count mismatch: scores={scores.Count}, candidates={rerankIds.Length}.");
+            }
+            var rerankedHead = rankedEntries.Take(rerankCount)
+                .Select((rank, index) => new
+                {
+                    Rank = rank with
+                    {
+                        RelevancePercent = (int)Math.Round(Math.Clamp(
+                            (scores[index].Combined * 0.8f) + ((rank.RelevancePercent / 100f) * 0.2f),
+                            0f,
+                            1f) * 100f)
+                    },
+                    Score = scores[index].Combined,
+                    OriginalOrder = index
+                })
+                .OrderByDescending(value => value.Score)
+                .ThenBy(value => value.OriginalOrder)
+                .Select(value => value.Rank);
+            rankedEntries = rerankedHead
+                .Concat(rankedEntries.Skip(rerankCount))
+                .Where(value => value.RelevancePercent >= safeMinRelevancePercent)
+                .Skip(safeOffset)
+                .Take(safeLimit)
+                .ToArray();
+            if (rankedEntries.Count == 0)
+            {
+                return [];
+            }
         }
 
         var rankedIds = rankedEntries.Select(x => x.Id).ToArray();
@@ -1516,6 +1572,14 @@ public sealed class LlmWikiService(
 
     private static string ComputeSearchContentHash(string embeddingDocument)
         => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{SearchIndexVersion}\n{embeddingDocument}"))).ToLowerInvariant();
+
+    internal static BgeM3SourceDocument BuildBgeM3SourceDocument(LlmWikiEntryRecord entry)
+    {
+        var tags = DeserializeTags(entry.TagsJson);
+        var categoryPath = NormalizeCategoryPath(entry.CategoryPath, tags);
+        var document = BuildEmbeddingDocument(entry.Title, entry.SourcePrompt, entry.Content, tags, categoryPath);
+        return new BgeM3SourceDocument(entry.Id, entry.UpdatedAt, document, ComputeSearchContentHash(document));
+    }
 
     private static IQueryable<LlmWikiEntryRecord> FilterByCategory(
         IQueryable<LlmWikiEntryRecord> query,

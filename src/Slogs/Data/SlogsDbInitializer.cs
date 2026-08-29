@@ -464,7 +464,7 @@ public static class SlogsDbInitializer
                 "Dimensions" integer NOT NULL,
                 "ContentHash" character varying(64) NOT NULL,
                 "IndexVersion" character varying(40) NOT NULL DEFAULT '',
-                "Embedding" vector(768) NOT NULL,
+                "Embedding" vector(1024) NOT NULL,
                 "UpdatedAt" timestamp with time zone NOT NULL,
                 CONSTRAINT "PK_LlmWikiEntryEmbeddings" PRIMARY KEY ("EntryId"),
                 CONSTRAINT "FK_LlmWikiEntryEmbeddings_LlmWikiEntries_EntryId"
@@ -922,7 +922,7 @@ public static class SlogsDbInitializer
                 "EmbeddingModel" character varying(80) NOT NULL,
                 "EmbeddingDimensions" integer NOT NULL,
                 "IndexVersion" character varying(80) NOT NULL,
-                "Embedding" vector(768) NOT NULL,
+                "Embedding" vector(1024) NOT NULL,
                 "UpdatedAt" timestamp with time zone NOT NULL,
                 CONSTRAINT "PK_LlmWikiKnowledgeChunks" PRIMARY KEY ("CollectionId", "Version", "OwnerUserName", "ChunkId"),
                 CONSTRAINT "FK_LlmWikiKnowledgeChunks_Document" FOREIGN KEY ("CollectionId", "Version", "OwnerUserName", "DocumentId")

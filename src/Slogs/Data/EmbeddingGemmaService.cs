@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 namespace Slogs.Data;
 
 public sealed class EmbeddingGemmaService(HttpClient httpClient, IConfiguration configuration)
+    : IKnowledgeEmbeddingService
 {
     private const string DefaultEndpoint = "http://localhost:11434/api/embed";
     private const string DefaultModel = "embeddinggemma";
@@ -14,6 +15,14 @@ public sealed class EmbeddingGemmaService(HttpClient httpClient, IConfiguration 
     public string Model => DefaultModel;
 
     public int Dimensions => DefaultDimensions;
+
+    public bool SupportsFullFunctionReranking => false;
+
+    public Task<IReadOnlyList<KnowledgeRerankScore>> ScorePairsAsync(
+        string query,
+        IReadOnlyList<string> passages,
+        CancellationToken cancellationToken)
+        => throw new NotSupportedException("EmbeddingGemma does not provide BGE-M3 full-function pair scoring.");
 
     private string KeepAlive => string.IsNullOrWhiteSpace(configuration["EmbeddingGemma:KeepAlive"])
         ? DefaultKeepAlive

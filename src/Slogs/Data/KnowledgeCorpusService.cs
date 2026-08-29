@@ -10,7 +10,7 @@ namespace Slogs.Data;
 
 public sealed class KnowledgeCorpusService(
     IDbContextFactory<SlogsDbContext> dbFactory,
-    EmbeddingGemmaService embeddingService)
+    IKnowledgeEmbeddingService embeddingService)
 {
     private const int MaxBatchDocuments = KnowledgeCorpusBatchLimits.Documents;
     private const int MaxBatchStructureNodes = KnowledgeCorpusBatchLimits.StructureNodes;
@@ -174,6 +174,9 @@ public sealed class KnowledgeCorpusService(
 
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
         await EnsureConnectionOpenAsync(db, cancellationToken);
+        var candidateLimit = embeddingService.SupportsFullFunctionReranking
+            ? Math.Min(Math.Max(safeLimit * 4, 8), 32)
+            : safeLimit;
         var seeds = await SearchSeedChunksAsync(
             db,
             owner,
@@ -181,11 +184,41 @@ public sealed class KnowledgeCorpusService(
             scopeKeys,
             searchText,
             ToVectorLiteral(queryEmbedding),
-            safeLimit,
+            candidateLimit,
             cancellationToken);
         if (seeds.Count == 0)
         {
             return [];
+        }
+
+        if (embeddingService.SupportsFullFunctionReranking)
+        {
+            var scores = await embeddingService.ScorePairsAsync(
+                searchText,
+                seeds.Select(BuildRerankPassage).ToArray(),
+                cancellationToken);
+            if (scores.Count != seeds.Count)
+            {
+                throw new InvalidOperationException(
+                    $"BGE-M3 corpus rerank count mismatch: scores={scores.Count}, candidates={seeds.Count}.");
+            }
+            seeds = seeds.Select((seed, index) => new
+                {
+                    Seed = seed with
+                    {
+                        RelevancePercent = (int)Math.Round(Math.Clamp(
+                            (scores[index].Combined * 0.8f) + ((seed.RelevancePercent / 100f) * 0.2f),
+                            0f,
+                            1f) * 100f)
+                    },
+                    Score = scores[index].Combined,
+                    OriginalOrder = index
+                })
+                .OrderByDescending(value => value.Score)
+                .ThenBy(value => value.OriginalOrder)
+                .Take(safeLimit)
+                .Select(value => value.Seed)
+                .ToArray();
         }
 
         var results = new List<KnowledgeChunkRecall>(seeds.Count);
@@ -1064,6 +1097,9 @@ public sealed class KnowledgeCorpusService(
 
     private static string BuildChunkSearchText(KnowledgeCollectionInput collection, KnowledgeChunkInput chunk)
         => $"collection: {collection.Title}\ndomain: {collection.Domain}\ndocument: {chunk.DocumentId}\nlocator: {chunk.StartLocator}..{chunk.EndLocator}\naliases: {string.Join(", ", chunk.SearchAliases ?? [])}\n{chunk.Text}";
+
+    private static string BuildRerankPassage(SeedChunk seed)
+        => $"domain: {seed.Domain}\ndocument: {seed.DocumentTitle}\nlocator: {seed.StartLocator}..{seed.EndLocator}\n{seed.Text}";
 
     private static IReadOnlyDictionary<string, string> NormalizeMetadata(IReadOnlyDictionary<string, string>? values)
         => (values ?? new Dictionary<string, string>())
