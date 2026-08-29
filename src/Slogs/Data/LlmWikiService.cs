@@ -36,6 +36,7 @@ public sealed class LlmWikiService(
     private const int MaxCategorySegmentLength = 48;
     private const int MaxEmbeddingContentLength = 18_000;
     private const int MaxBgeM3RerankDocumentLength = 6_000;
+    private const int MaxBgeM3OnlineRerankCandidates = 6;
     private const int MaxGraphNodesPerEntry = 120;
     private const int MaxGraphNodeLength = 120;
     private const int MaxAuditInlineLength = 240;
@@ -374,7 +375,7 @@ public sealed class LlmWikiService(
         await EnsureOwnerSearchIndexAsync(db, owner, publicOnly, cancellationToken);
         var requestedWindow = Math.Min(safeOffset + safeLimit, 100);
         var candidateLimit = embeddingService.SupportsFullFunctionReranking
-            ? Math.Min(Math.Max(requestedWindow, Math.Min(requestedWindow * 2, 32)), 100)
+            ? CalculateBgeM3CandidateLimit(requestedWindow)
             : safeLimit;
         var rankedEntries = await SearchGraphAsync(
             db,
@@ -394,7 +395,7 @@ public sealed class LlmWikiService(
 
         if (embeddingService.SupportsFullFunctionReranking)
         {
-            var rerankCount = Math.Min(rankedEntries.Count, 32);
+            var rerankCount = Math.Min(rankedEntries.Count, MaxBgeM3OnlineRerankCandidates);
             var rerankIds = rankedEntries.Take(rerankCount).Select(value => value.Id).ToArray();
             var rerankEntries = await ownerEntries
                 .Where(value => rerankIds.Contains(value.Id))
@@ -1600,6 +1601,13 @@ public sealed class LlmWikiService(
             }.Where(value => !string.IsNullOrWhiteSpace(value)));
         return TrimToLength(document, MaxBgeM3RerankDocumentLength);
     }
+
+    private static int CalculateBgeM3CandidateLimit(int requestedWindow)
+        => Math.Min(
+            Math.Max(
+                requestedWindow,
+                Math.Min(requestedWindow * 2, MaxBgeM3OnlineRerankCandidates)),
+            100);
 
     private static IQueryable<LlmWikiEntryRecord> FilterByCategory(
         IQueryable<LlmWikiEntryRecord> query,

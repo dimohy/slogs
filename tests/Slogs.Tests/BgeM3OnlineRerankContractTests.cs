@@ -7,6 +7,23 @@ namespace Slogs.Tests;
 
 public sealed class BgeM3OnlineRerankContractTests
 {
+    [Theory]
+    [InlineData(1, 2)]
+    [InlineData(3, 6)]
+    [InlineData(5, 6)]
+    [InlineData(10, 10)]
+    [InlineData(100, 100)]
+    public void CandidateWindowBoundsExpensiveOnlinePairScoring(int requestedWindow, int expected)
+    {
+        var method = typeof(LlmWikiService).GetMethod(
+            "CalculateBgeM3CandidateLimit",
+            BindingFlags.NonPublic | BindingFlags.Static)
+            ?? throw new InvalidOperationException("BGE-M3 candidate limit calculator is missing.");
+
+        Assert.Equal(expected, (int)(method.Invoke(null, [requestedWindow])
+            ?? throw new InvalidOperationException("BGE-M3 candidate limit calculator returned null.")));
+    }
+
     [Fact]
     public void RerankDocumentPrioritizesSummaryAndBoundsLongSourceText()
     {
