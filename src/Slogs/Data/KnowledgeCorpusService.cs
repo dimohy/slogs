@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
@@ -19,6 +20,7 @@ public sealed class KnowledgeCorpusService(
     private const int MaxBatchRelations = KnowledgeCorpusBatchLimits.Relations;
     private const int MaxChunkTextLength = 50_000;
     private const int MaxBgeM3OnlineRerankCandidates = 5;
+    private const int ReciprocalRankFusionConstant = 60;
     private const string IndexVersion = "knowledge-corpus-v1";
     private static readonly HashSet<string> AllowedVisibility = new(StringComparer.Ordinal)
     {
@@ -182,13 +184,14 @@ public sealed class KnowledgeCorpusService(
         var candidateLimit = embeddingService.SupportsFullFunctionReranking
             ? CalculateBgeM3CandidateLimit(safeLimit)
             : safeLimit;
+        var lexicalQuery = BuildLexicalTsQuery(searchText);
         var seeds = await SearchSeedChunksAsync(
             db,
             owner,
             isAdmin,
             scopeKeys,
-            searchText,
             ToVectorLiteral(queryEmbedding),
+            lexicalQuery,
             candidateLimit,
             cancellationToken);
         if (seeds.Count == 0)
@@ -978,7 +981,15 @@ public sealed class KnowledgeCorpusService(
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    private async Task<IReadOnlyList<SeedChunk>> SearchSeedChunksAsync(SlogsDbContext db, string owner, bool isAdmin, string[] scopeKeys, string query, string vectorLiteral, int limit, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<SeedChunk>> SearchSeedChunksAsync(
+        SlogsDbContext db,
+        string owner,
+        bool isAdmin,
+        string[] scopeKeys,
+        string vectorLiteral,
+        string lexicalQuery,
+        int limit,
+        CancellationToken cancellationToken)
     {
         await using var command = CreateCommand(db,
             """
@@ -1002,14 +1013,56 @@ public sealed class KnowledgeCorpusService(
                     )
                   )
                   AND k."EmbeddingModel"=@model AND k."EmbeddingDimensions"=@dimensions
-            ), ranked AS (
-                SELECT v.*, 1-(v."Embedding" <=> CAST(@embedding AS vector)) AS vector_score,
-                    CASE WHEN v."SearchText" ILIKE '%' || @query || '%' THEN 0.35 ELSE 0 END AS lexical_score
-                FROM visible v ORDER BY v."Embedding" <=> CAST(@embedding AS vector) LIMIT @seedLimit
+            ), vector_ranked AS (
+                SELECT v."CollectionId", v."Version", v."OwnerUserName", v."ChunkId",
+                    ROW_NUMBER() OVER (ORDER BY v."Embedding" <=> CAST(@embedding AS vector), v."ChunkId") AS vector_rank,
+                    1-(v."Embedding" <=> CAST(@embedding AS vector)) AS vector_score
+                FROM visible v
+                ORDER BY v."Embedding" <=> CAST(@embedding AS vector), v."ChunkId"
+                LIMIT @channelLimit
+            ), lexical_scored AS (
+                SELECT v."CollectionId", v."Version", v."OwnerUserName", v."ChunkId",
+                    ts_rank_cd(v."SearchVector", CAST(@lexicalQuery AS tsquery)) AS lexical_score,
+                    v."Embedding" <=> CAST(@embedding AS vector) AS vector_distance
+                FROM visible v
+                WHERE v."SearchVector" @@ CAST(@lexicalQuery AS tsquery)
+            ), lexical_ranked AS (
+                SELECT l."CollectionId", l."Version", l."OwnerUserName", l."ChunkId",
+                    ROW_NUMBER() OVER (ORDER BY l.lexical_score DESC, l.vector_distance, l."ChunkId") AS lexical_rank,
+                    l.lexical_score
+                FROM lexical_scored l
+                ORDER BY l.lexical_score DESC, l.vector_distance, l."ChunkId"
+                LIMIT @channelLimit
+            ), rank_rows AS (
+                SELECT v."CollectionId", v."Version", v."OwnerUserName", v."ChunkId",
+                    v.vector_rank, v.vector_score, NULL::bigint AS lexical_rank, NULL::real AS lexical_score
+                FROM vector_ranked v
+                UNION ALL
+                SELECT l."CollectionId", l."Version", l."OwnerUserName", l."ChunkId",
+                    NULL::bigint, NULL::double precision, l.lexical_rank, l.lexical_score
+                FROM lexical_ranked l
+            ), fused AS (
+                SELECT r."CollectionId", r."Version", r."OwnerUserName", r."ChunkId",
+                    MIN(r.vector_rank) AS vector_rank,
+                    MAX(r.vector_score) AS vector_score,
+                    MIN(r.lexical_rank) AS lexical_rank,
+                    MAX(r.lexical_score) AS lexical_score,
+                    COALESCE(1.0/(@rrfConstant+MIN(r.vector_rank)),0)
+                        + COALESCE(1.0/(@rrfConstant+MIN(r.lexical_rank)),0) AS rrf_score
+                FROM rank_rows r
+                GROUP BY r."CollectionId", r."Version", r."OwnerUserName", r."ChunkId"
             )
-            SELECT "CollectionId", "Version", "OwnerUserName", "Domain", "DocumentId", document_title, "ChunkId", "StructureNodeId", "Text", "StartLocator", "EndLocator",
-                ROUND(LEAST(GREATEST((vector_score+lexical_score)/1.20,0),1)*100)::integer
-            FROM ranked ORDER BY (vector_score+lexical_score) DESC, "ChunkId" LIMIT @limit;
+            SELECT v."CollectionId", v."Version", v."OwnerUserName", v."Domain", v."DocumentId", v.document_title, v."ChunkId", v."StructureNodeId", v."Text", v."StartLocator", v."EndLocator",
+                ROUND(LEAST(GREATEST(COALESCE(f.vector_score,0)*0.8 + LEAST(COALESCE(f.lexical_score,0)*2,0.2),0),1)*100)::integer
+            FROM fused f
+            INNER JOIN visible v
+              ON v."CollectionId"=f."CollectionId" AND v."Version"=f."Version"
+             AND v."OwnerUserName"=f."OwnerUserName" AND v."ChunkId"=f."ChunkId"
+            ORDER BY f.rrf_score DESC,
+                COALESCE(f.lexical_score,0) DESC,
+                COALESCE(f.vector_score,0) DESC,
+                v."ChunkId"
+            LIMIT @limit;
             """);
         command.Parameters.Add(new NpgsqlParameter("owner", owner));
         command.Parameters.Add(new NpgsqlParameter("isAdmin", isAdmin));
@@ -1017,8 +1070,9 @@ public sealed class KnowledgeCorpusService(
         command.Parameters.Add(new NpgsqlParameter("model", embeddingService.Model));
         command.Parameters.Add(new NpgsqlParameter("dimensions", embeddingService.Dimensions));
         command.Parameters.Add(new NpgsqlParameter("embedding", vectorLiteral));
-        command.Parameters.Add(new NpgsqlParameter("query", query));
-        command.Parameters.Add(new NpgsqlParameter("seedLimit", Math.Max(limit * 20, 100)));
+        command.Parameters.Add(new NpgsqlParameter("lexicalQuery", lexicalQuery));
+        command.Parameters.Add(new NpgsqlParameter("channelLimit", Math.Max(limit * 20, 100)));
+        command.Parameters.Add(new NpgsqlParameter("rrfConstant", ReciprocalRankFusionConstant));
         command.Parameters.Add(new NpgsqlParameter("limit", limit));
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var results = new List<SeedChunk>();
@@ -1121,6 +1175,61 @@ public sealed class KnowledgeCorpusService(
 
     private static string BuildRerankPassage(SeedChunk seed)
         => $"domain: {seed.Domain}\ndocument: {seed.DocumentTitle}\nlocator: {seed.StartLocator}..{seed.EndLocator}\n{seed.Text}";
+
+    private static string BuildLexicalTsQuery(string query)
+    {
+        var terms = Regex.Matches(query.Normalize(NormalizationForm.FormKC), @"[\p{L}\p{N}]+")
+            .Select(match => match.Value.ToLowerInvariant())
+            .Where(term => term.Length >= 2)
+            .Where(term => !LexicalQuestionWords.Contains(term))
+            .SelectMany(ExpandLexicalTerm)
+            .Where(term => !LexicalQuestionWords.Contains(term))
+            .Distinct(StringComparer.Ordinal)
+            .Take(48)
+            .ToArray();
+
+        return terms.Length == 0
+            ? "slogs_no_lexical_terms"
+            : string.Join(" | ", terms);
+    }
+
+    private static IEnumerable<string> ExpandLexicalTerm(string term)
+    {
+        yield return term;
+        var current = term;
+        foreach (var suffix in KoreanLexicalSuffixes)
+        {
+            if (current.Length - suffix.Length < 2 || !current.EndsWith(suffix, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            current = current[..^suffix.Length];
+            yield return current;
+            break;
+        }
+
+        if (current.Length >= 4 && current.EndsWith('인'))
+        {
+            yield return current[..^1];
+        }
+        if (current.Length >= 3 && current.EndsWith('서'))
+        {
+            yield return current[..^1];
+        }
+    }
+
+    private static readonly string[] KoreanLexicalSuffixes =
+    [
+        "으로부터", "에게서", "한테서", "이라고", "라고", "으로", "에서", "에게", "한테",
+        "께서", "처럼", "보다", "까지", "부터", "이나", "이나마", "이라도", "라도",
+        "은", "는", "이", "가", "을", "를", "의", "에", "로", "와", "과", "도", "만"
+    ];
+
+    private static readonly HashSet<string> LexicalQuestionWords = new(StringComparer.Ordinal)
+    {
+        "어느", "무엇", "무엇인가", "누구", "누구인가", "어디", "언제", "어떻게", "왜"
+    };
 
     private static int CalculateBgeM3CandidateLimit(int requestedLimit)
         => Math.Min(

@@ -24,6 +24,31 @@ public sealed class BgeM3OnlineRerankContractTests
     }
 
     [Theory]
+    [InlineData("오순절 설교에서 베드로가 요엘서의 어느 말씀을 인용했나?", "설교", "베드로", "요엘")]
+    [InlineData("선한 사마리아인 비유의 문맥상 핵심 요구는 무엇인가?", "사마리아", "비유", "요구")]
+    public void CorpusLexicalQueryExpandsKoreanParticlesAndDerivedNouns(
+        string query,
+        string expectedFirst,
+        string expectedSecond,
+        string expectedThird)
+    {
+        var method = typeof(KnowledgeCorpusService).GetMethod(
+            "BuildLexicalTsQuery",
+            BindingFlags.NonPublic | BindingFlags.Static)
+            ?? throw new InvalidOperationException("Corpus lexical query builder is missing.");
+
+        var result = (string)(method.Invoke(null, [query])
+            ?? throw new InvalidOperationException("Corpus lexical query builder returned null."));
+
+        Assert.Contains(expectedFirst, result, StringComparison.Ordinal);
+        Assert.Contains(expectedSecond, result, StringComparison.Ordinal);
+        Assert.Contains(expectedThird, result, StringComparison.Ordinal);
+        Assert.DoesNotContain("어느", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("무엇인가", result, StringComparison.Ordinal);
+        Assert.Contains(" | ", result, StringComparison.Ordinal);
+    }
+
+    [Theory]
     [InlineData(1, 2)]
     [InlineData(3, 5)]
     [InlineData(5, 5)]

@@ -931,6 +931,10 @@ public static class SlogsDbInitializer
                 CONSTRAINT "CK_LlmWikiKnowledgeChunks_Overlap" CHECK ("OverlapUnits" >= 0)
             );
 
+            ALTER TABLE "LlmWikiKnowledgeChunks"
+            ADD COLUMN IF NOT EXISTS "SearchVector" tsvector
+            GENERATED ALWAYS AS (to_tsvector('simple', coalesce("SearchText", ''))) STORED;
+
             CREATE TABLE IF NOT EXISTS "LlmWikiKnowledgeEntities" (
                 "CollectionId" character varying(120) NOT NULL,
                 "Version" character varying(80) NOT NULL,
@@ -996,6 +1000,8 @@ public static class SlogsDbInitializer
             ON "LlmWikiKnowledgeChunks" ("CollectionId", "Version", "OwnerUserName", "DocumentId", "Ordinal");
             CREATE INDEX IF NOT EXISTS "IX_LlmWikiKnowledgeChunks_Embedding_Hnsw"
             ON "LlmWikiKnowledgeChunks" USING hnsw ("Embedding" vector_cosine_ops);
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiKnowledgeChunks_SearchVector_Gin"
+            ON "LlmWikiKnowledgeChunks" USING gin ("SearchVector");
             CREATE INDEX IF NOT EXISTS "IX_LlmWikiKnowledgeRelations_From"
             ON "LlmWikiKnowledgeRelations" ("CollectionId", "Version", "OwnerUserName", "FromNodeId", "ReviewStatus");
             CREATE INDEX IF NOT EXISTS "IX_LlmWikiKnowledgeRelations_To"
