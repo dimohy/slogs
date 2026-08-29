@@ -84,6 +84,24 @@ public sealed class BgeM3OnlineRerankContractTests
     }
 
     [Theory]
+    [InlineData("인용했나", "인용")]
+    [InlineData("인용하는가", "인용")]
+    [InlineData("연결되는가", "연결")]
+    [InlineData("설명했다", "설명")]
+    public void CorpusLexicalQueryNormalizesCommonKoreanVerbEndings(string query, string expectedRoot)
+    {
+        var method = typeof(KnowledgeCorpusService).GetMethod(
+            "BuildLexicalTsQuery",
+            BindingFlags.NonPublic | BindingFlags.Static)
+            ?? throw new InvalidOperationException("Corpus lexical query builder is missing.");
+
+        var result = (string)(method.Invoke(null, [query])
+            ?? throw new InvalidOperationException("Corpus lexical query builder returned null."));
+
+        Assert.Contains(expectedRoot, result, StringComparison.Ordinal);
+    }
+
+    [Theory]
     [InlineData("사도행전 13장 9절에서 사울과 바울을 어떻게 표현하는가", 13, 9)]
     [InlineData("사도행전 13:9을 두 번역으로 비교해줘", 13, 9)]
     public void CorpusQueryExtractsExplicitHierarchicalReference(

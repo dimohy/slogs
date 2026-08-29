@@ -1731,7 +1731,7 @@ public sealed class KnowledgeCorpusService(
     {
         yield return term;
         var current = term;
-        foreach (var suffix in KoreanLexicalSuffixes)
+        foreach (var suffix in KoreanVerbSuffixes)
         {
             if (current.Length - suffix.Length < 2 || !current.EndsWith(suffix, StringComparison.Ordinal))
             {
@@ -1740,6 +1740,17 @@ public sealed class KnowledgeCorpusService(
 
             current = current[..^suffix.Length];
             yield return current;
+            break;
+        }
+
+        foreach (var suffix in KoreanLexicalSuffixes)
+        {
+            if (current.Length - suffix.Length < 2 || !current.EndsWith(suffix, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            yield return current[..^suffix.Length];
             break;
         }
 
@@ -1758,6 +1769,14 @@ public sealed class KnowledgeCorpusService(
         "으로부터", "에게서", "한테서", "이라고", "라고", "으로", "에서", "에게", "한테",
         "께서", "처럼", "보다", "까지", "부터", "이나", "이나마", "이라도", "라도",
         "은", "는", "이", "가", "을", "를", "의", "에", "로", "와", "과", "도", "만"
+    ];
+
+    private static readonly string[] KoreanVerbSuffixes =
+    [
+        "하였는가", "하였나요", "하였나", "하였습니다", "하였다", "하는가", "하나요", "합니다",
+        "했는가", "했나요", "했나", "했습니다", "했다", "하고", "한다", "한",
+        "되었는가", "되었나요", "되었나", "되었습니다", "되었다", "되는가", "되나요", "됩니다",
+        "됐는가", "됐나요", "됐나", "됐습니다", "됐다", "되고", "된다", "된"
     ];
 
     private static readonly HashSet<string> LexicalQuestionWords = new(StringComparer.Ordinal)

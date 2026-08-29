@@ -83,32 +83,36 @@ public sealed class LlmWikiCombinedRecallTests
     }
 
     [Fact]
-    public void CombinedRerankingReservesFiveCorpusCandidatesAndThreePersonalMemories()
+    public void CombinedRerankingReservesFourCorpusCandidatesWhenReviewedRelationEvidenceExists()
     {
         var memories = Enumerable.Range(1, 6)
             .Select(index => Memory($"memory-{index}", 100 - index))
             .ToArray();
-        var corpus = Enumerable.Range(1, 10)
-            .Select(index => Corpus($"corpus-{index}", 50 - index))
-            .ToArray();
+        var corpus = new[]
+        {
+            Corpus("ordinary-1", 80),
+            Corpus("reviewed-relation", 50, "direct_quote"),
+            Corpus("ordinary-2", 70),
+            Corpus("ordinary-3", 60),
+            Corpus("ordinary-4", 40)
+        };
 
         var selected = LlmWikiMcpTools.SelectCombinedRerankCandidates(memories, corpus);
 
-        Assert.Equal(8, selected.Count);
-        Assert.Equal(3, selected.Count(candidate => !candidate.IsCorpus));
-        Assert.Equal(5, selected.Count(candidate => candidate.IsCorpus));
-        Assert.Equal([0, 1, 2], selected.Where(candidate => !candidate.IsCorpus).Select(candidate => candidate.SourceIndex));
-        Assert.Equal([0, 1, 2, 3, 4], selected.Where(candidate => candidate.IsCorpus).Select(candidate => candidate.SourceIndex));
+        Assert.Equal(5, selected.Count);
+        Assert.Single(selected, candidate => !candidate.IsCorpus);
+        Assert.Equal(4, selected.Count(candidate => candidate.IsCorpus));
+        Assert.Contains(selected, candidate => candidate.IsCorpus && candidate.SourceIndex == 1);
     }
 
     [Fact]
-    public void CombinedRerankingFillsUnusedSourceQuotaWithoutExceedingOneBgeBatch()
+    public void CombinedRerankingFillsUnusedSourceQuotaWithoutExceedingFiveCandidates()
     {
         var selected = LlmWikiMcpTools.SelectCombinedRerankCandidates(
             [],
             Enumerable.Range(1, 10).Select(index => Corpus($"corpus-{index}", 50 - index)).ToArray());
 
-        Assert.Equal(8, selected.Count);
+        Assert.Equal(5, selected.Count);
         Assert.All(selected, candidate => Assert.True(candidate.IsCorpus));
     }
 
