@@ -149,7 +149,20 @@ public sealed record KnowledgeChunkRecall(
     IReadOnlyList<KnowledgeRelationRecall> Relations,
     string License = "",
     string CollectionSourceUri = "",
-    string DocumentSourceLocator = "");
+    string DocumentSourceLocator = "",
+    string StorageOwnerUserName = "");
+
+public sealed record LlmWikiKnowledgeLink(
+    Guid AnchorEntryId,
+    string CollectionId,
+    string Version,
+    string TargetOwnerUserName,
+    string ChunkId,
+    string RelationType,
+    string Direction,
+    double Confidence,
+    string AnchorEvidenceQuote,
+    string TargetEvidenceQuote);
 
 public sealed record KnowledgeTextUnit(
     string UnitId,

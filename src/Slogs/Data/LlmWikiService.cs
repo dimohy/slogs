@@ -42,6 +42,9 @@ public sealed class LlmWikiService(
     private const int MaxAuditInlineLength = 240;
     private const int MaxAuditResultIds = 5;
     private const int MaxSearchIndexRefreshPerQuery = 4;
+    private const int MaxSubmittedRelations = 12;
+    private const int MaxRelationEvidenceLength = 500;
+    private const double MinimumActiveRelationConfidence = 0.70;
     internal const string SearchIndexVersion = "2026-08-29-bge-m3-v1";
     private static readonly string[] AllowedTokenScopes =
     [
@@ -91,7 +94,8 @@ public sealed class LlmWikiService(
     public async Task<LlmWikiEntryResponse> RememberAsync(
         string ownerUserName,
         LlmWikiRememberRequest request,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        KnowledgeCorpusActor? corpusActor = null)
     {
         var owner = NormalizeUser(ownerUserName);
         var prompt = TrimToLength(request.Prompt, MaxPromptLength);
@@ -143,6 +147,8 @@ public sealed class LlmWikiService(
         db.LlmWikiEntries.Add(entry);
         await db.SaveChangesAsync(cancellationToken);
         await StoreEntrySearchIndexAsync(db, entry.Id, owner, contentHash, embedding, graphNodes, cancellationToken);
+        await StoreSubmittedRelationsAsync(
+            db, entry.Id, owner, embeddingDocument, request.Relations, corpusActor, now, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
         return ToEntryResponse(entry);
@@ -153,7 +159,8 @@ public sealed class LlmWikiService(
         string idOrSlug,
         LlmWikiUpdateRequest request,
         CancellationToken cancellationToken = default,
-        string sourceAction = "update")
+        string sourceAction = "update",
+        KnowledgeCorpusActor? corpusActor = null)
     {
         var owner = NormalizeUser(ownerUserName);
         var prompt = TrimToLength(request.Prompt, MaxPromptLength);
@@ -212,6 +219,9 @@ public sealed class LlmWikiService(
 
         await db.SaveChangesAsync(cancellationToken);
         await StoreEntrySearchIndexAsync(db, entry.Id, owner, contentHash, embedding, graphNodes, cancellationToken);
+        await RevalidateRelationsForEntryAsync(db, entry.Id, owner, embeddingDocument, now, cancellationToken);
+        await StoreSubmittedRelationsAsync(
+            db, entry.Id, owner, embeddingDocument, request.Relations, corpusActor, now, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
         return ToEntryResponse(entry);
@@ -293,6 +303,94 @@ public sealed class LlmWikiService(
             .OrderBy(x => matchOrder[x.Id])
             .Select(entry => ToEntryResponse(entry))
             .ToList();
+    }
+
+    public async Task<IReadOnlyList<LlmWikiKnowledgeLink>> GetKnowledgeLinksAsync(
+        string ownerUserName,
+        IReadOnlyCollection<Guid> anchorEntryIds,
+        CancellationToken cancellationToken = default)
+    {
+        var owner = NormalizeUser(ownerUserName);
+        if (anchorEntryIds.Count == 0)
+        {
+            return [];
+        }
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.CommandText =
+            """
+            SELECT "AnchorEntryId", "TargetCollectionId", "TargetVersion", "TargetOwnerUserName", "TargetChunkId",
+                   "RelationType", "Direction", "Confidence", "AnchorEvidenceQuote", "TargetEvidenceQuote"
+            FROM "LlmWikiEntryKnowledgeRelations"
+            WHERE "OwnerUserName"=@owner AND "State"='active' AND "AnchorEntryId"=ANY(@entryIds)
+            ORDER BY "Confidence" DESC, "AnchorEntryId", "TargetCollectionId", "TargetChunkId";
+            """;
+        command.Parameters.Add(new NpgsqlParameter("owner", owner));
+        command.Parameters.Add(new NpgsqlParameter("entryIds", NpgsqlDbType.Array | NpgsqlDbType.Uuid)
+        {
+            Value = anchorEntryIds.Distinct().ToArray()
+        });
+        await EnsureConnectionOpenAsync(db, cancellationToken);
+        var links = new List<LlmWikiKnowledgeLink>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            links.Add(new(
+                reader.GetGuid(0), reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetString(4),
+                reader.GetString(5), reader.GetString(6), reader.GetDouble(7), reader.GetString(8), reader.GetString(9)));
+        }
+        return links;
+    }
+
+    public async Task<IReadOnlyList<LlmWikiSearchResult>> GetMemoriesLinkedFromKnowledgeChunksAsync(
+        string ownerUserName,
+        IReadOnlyCollection<KnowledgeChunkRecall> chunks,
+        CancellationToken cancellationToken = default)
+    {
+        var owner = NormalizeUser(ownerUserName);
+        if (chunks.Count == 0)
+        {
+            return [];
+        }
+        var identities = chunks
+            .Select(chunk => $"{chunk.CollectionId}\n{chunk.Version}\n{chunk.StorageOwnerUserName}\n{chunk.ChunkId}")
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.CommandText =
+            """
+            SELECT e."Id", e."Slug", e."Title", e."Summary", e."TagsJson", e."CategoryPath", e."CategoryDepth",
+                   e."UpdatedAt", e."AccessCount", e."IsPublic", e."PublishedAt",
+                   r."RelationType", r."Direction", r."Confidence"
+            FROM "LlmWikiEntryKnowledgeRelations" r
+            INNER JOIN "LlmWikiEntries" e ON e."Id"=r."AnchorEntryId"
+            WHERE r."OwnerUserName"=@owner AND e."OwnerUserName"=@owner AND r."State"='active'
+              AND (r."TargetCollectionId" || E'\n' || r."TargetVersion" || E'\n' || r."TargetOwnerUserName" || E'\n' || r."TargetChunkId")=ANY(@identities)
+            ORDER BY r."Confidence" DESC, e."Id";
+            """;
+        command.Parameters.Add(new NpgsqlParameter("owner", owner));
+        command.Parameters.Add(new NpgsqlParameter("identities", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = identities });
+        await EnsureConnectionOpenAsync(db, cancellationToken);
+        var results = new List<LlmWikiSearchResult>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var direction = reader.GetString(12);
+            var relationType = reader.GetString(11);
+            var path = direction == LlmWikiRelationDirections.Outgoing
+                ? $"inverse:{relationType}"
+                : relationType;
+            results.Add(new(
+                reader.GetGuid(0), reader.GetString(1), reader.GetString(2), reader.GetString(3),
+                DeserializeTags(reader.GetString(4)), reader.GetString(5), reader.GetInt32(6), reader.GetDateTime(7),
+                reader.GetInt32(8), reader.GetBoolean(9), reader.IsDBNull(10) ? null : reader.GetDateTime(10),
+                (int)Math.Round(reader.GetDouble(13) * 100), 1, reader.GetDouble(13), path));
+        }
+        return results
+            .GroupBy(result => result.Id)
+            .Select(group => group.OrderByDescending(result => result.GraphScore).First())
+            .ToArray();
     }
 
     public Task<IReadOnlyList<LlmWikiSearchResult>> SearchAsync(
@@ -1296,6 +1394,13 @@ public sealed class LlmWikiService(
         IReadOnlyList<LlmWikiGraphNode> graphNodes,
         CancellationToken cancellationToken)
     {
+        var previousNodeKeys = await ReadEntryGraphNodeKeysAsync(db, entryId, owner, cancellationToken);
+        var affectedNodeKeys = previousNodeKeys
+            .Concat(graphNodes.Select(node => node.Key))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        var impactedEntryIds = await ReadEntriesForGraphNodesAsync(
+            db, owner, affectedNodeKeys, cancellationToken);
         var vectorLiteral = ToVectorLiteral(embedding);
         await using (var command = db.Database.GetDbConnection().CreateCommand())
         {
@@ -1333,7 +1438,8 @@ public sealed class LlmWikiService(
 
         if (graphNodes.Count == 0)
         {
-            await RefreshGraphNodeStatisticsAsync(db, owner, cancellationToken);
+            await RefreshGraphNodeStatisticsAsync(
+                db, owner, affectedNodeKeys, impactedEntryIds.Append(entryId).Distinct().ToArray(), cancellationToken);
             return;
         }
 
@@ -1371,22 +1477,473 @@ public sealed class LlmWikiService(
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
 
-        await RefreshGraphNodeStatisticsAsync(db, owner, cancellationToken);
+        var newImpactedEntryIds = await ReadEntriesForGraphNodesAsync(
+            db, owner, affectedNodeKeys, cancellationToken);
+        await RefreshGraphNodeStatisticsAsync(
+            db,
+            owner,
+            affectedNodeKeys,
+            impactedEntryIds.Concat(newImpactedEntryIds).Append(entryId).Distinct().ToArray(),
+            cancellationToken);
     }
 
-    private static async Task RefreshGraphNodeStatisticsAsync(
+    private static async Task<string[]> ReadEntryGraphNodeKeysAsync(
         SlogsDbContext db,
+        Guid entryId,
         string owner,
         CancellationToken cancellationToken)
     {
         await using var command = db.Database.GetDbConnection().CreateCommand();
         command.CommandText =
+            "SELECT \"NodeKey\" FROM \"LlmWikiEntryGraphNodes\" WHERE \"OwnerUserName\"=@owner AND \"EntryId\"=@entry;";
+        command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
+        command.Parameters.Add(new NpgsqlParameter("owner", owner));
+        command.Parameters.Add(new NpgsqlParameter("entry", entryId));
+        await EnsureConnectionOpenAsync(db, cancellationToken);
+        var values = new List<string>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            values.Add(reader.GetString(0));
+        }
+        return values.ToArray();
+    }
+
+    private static async Task<Guid[]> ReadEntriesForGraphNodesAsync(
+        SlogsDbContext db,
+        string owner,
+        string[] nodeKeys,
+        CancellationToken cancellationToken)
+    {
+        if (nodeKeys.Length == 0)
+        {
+            return [];
+        }
+        await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.CommandText =
+            "SELECT DISTINCT \"EntryId\" FROM \"LlmWikiEntryGraphNodes\" WHERE \"OwnerUserName\"=@owner AND \"NodeKey\"=ANY(@nodeKeys);";
+        command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
+        command.Parameters.Add(new NpgsqlParameter("owner", owner));
+        command.Parameters.Add(new NpgsqlParameter("nodeKeys", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = nodeKeys });
+        await EnsureConnectionOpenAsync(db, cancellationToken);
+        var values = new List<Guid>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            values.Add(reader.GetGuid(0));
+        }
+        return values.ToArray();
+    }
+
+    private async Task StoreSubmittedRelationsAsync(
+        SlogsDbContext db,
+        Guid anchorEntryId,
+        string owner,
+        string anchorDocument,
+        IReadOnlyList<LlmWikiRelationInput>? submittedRelations,
+        KnowledgeCorpusActor? corpusActor,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        if (submittedRelations is null || submittedRelations.Count == 0)
+        {
+            return;
+        }
+        if (submittedRelations.Count > MaxSubmittedRelations)
+        {
+            throw new InvalidOperationException($"한 번에 제출할 수 있는 의미 관계는 최대 {MaxSubmittedRelations}개입니다.");
+        }
+
+        var normalizedRelations = submittedRelations
+            .Select(NormalizeSubmittedRelation)
+            .ToArray();
+        var duplicate = normalizedRelations
+            .GroupBy(BuildSubmittedRelationIdentity, StringComparer.Ordinal)
+            .FirstOrDefault(group => group.Count() > 1);
+        if (duplicate is not null)
+        {
+            throw new InvalidOperationException($"중복된 의미 관계가 제출되었습니다: {duplicate.Key}");
+        }
+
+        foreach (var relation in normalizedRelations)
+        {
+            EnsureEvidenceOccurs(anchorDocument, relation.AnchorEvidenceQuote, "새 기억");
+            if (relation.TargetKind == LlmWikiRelationTargetKinds.Memory)
+            {
+                await StoreMemoryRelationAsync(
+                    db, anchorEntryId, owner, anchorDocument, relation, now, cancellationToken);
+                continue;
+            }
+
+            if (corpusActor is null || !string.Equals(
+                    NormalizeUser(corpusActor.UserName), owner, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    "Knowledge Corpus 관계를 저장하려면 현재 사용자의 검증된 코퍼스 접근 범위가 필요합니다.");
+            }
+            await StoreKnowledgeRelationAsync(
+                db, anchorEntryId, owner, corpusActor, relation, now, cancellationToken);
+        }
+    }
+
+    private async Task StoreMemoryRelationAsync(
+        SlogsDbContext db,
+        Guid anchorEntryId,
+        string owner,
+        string anchorDocument,
+        LlmWikiRelationInput relation,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        var relatedEntryId = relation.TargetEntryId
+            ?? throw new InvalidOperationException("memory 관계에는 targetEntryId가 필요합니다.");
+        if (relatedEntryId == anchorEntryId)
+        {
+            throw new InvalidOperationException("기억은 자기 자신과 의미 관계를 만들 수 없습니다.");
+        }
+
+        var related = await db.LlmWikiEntries.AsNoTracking()
+            .Where(entry => entry.OwnerUserName == owner && entry.Id == relatedEntryId)
+            .Select(entry => new
+            {
+                entry.Title,
+                entry.SourcePrompt,
+                entry.Content,
+                entry.TagsJson,
+                entry.CategoryPath
+            })
+            .SingleOrDefaultAsync(cancellationToken)
+            ?? throw new InvalidOperationException(
+                $"관련 기억 '{relatedEntryId}'가 없거나 현재 사용자의 기억이 아닙니다.");
+        var relatedDocument = BuildEmbeddingDocument(
+            related.Title,
+            related.SourcePrompt,
+            related.Content,
+            DeserializeTags(related.TagsJson),
+            related.CategoryPath);
+        EnsureEvidenceOccurs(relatedDocument, relation.TargetEvidenceQuote, "관련 기억");
+
+        await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.CommandText =
+            """
+            INSERT INTO "LlmWikiEntrySemanticRelations"
+                ("Id", "OwnerUserName", "AnchorEntryId", "RelatedEntryId", "RelationType", "Direction",
+                 "Confidence", "State", "AnchorEvidenceQuote", "RelatedEvidenceQuote", "CreatedAt", "UpdatedAt", "LastValidatedAt")
+            VALUES
+                (@id, @owner, @anchor, @related, @type, @direction,
+                 @confidence, 'active', @anchorEvidence, @targetEvidence, @now, @now, @now)
+            ON CONFLICT ("OwnerUserName", "AnchorEntryId", "RelatedEntryId", "RelationType", "Direction") DO UPDATE SET
+                "Confidence" = EXCLUDED."Confidence",
+                "State" = 'active',
+                "AnchorEvidenceQuote" = EXCLUDED."AnchorEvidenceQuote",
+                "RelatedEvidenceQuote" = EXCLUDED."RelatedEvidenceQuote",
+                "UpdatedAt" = EXCLUDED."UpdatedAt",
+                "LastValidatedAt" = EXCLUDED."LastValidatedAt";
+            """;
+        command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
+        command.Parameters.Add(new NpgsqlParameter("id", StableRelationId(
+            $"memory|{owner}|{anchorEntryId}|{relatedEntryId}|{relation.RelationType}|{relation.Direction}")));
+        command.Parameters.Add(new NpgsqlParameter("owner", owner));
+        command.Parameters.Add(new NpgsqlParameter("anchor", anchorEntryId));
+        command.Parameters.Add(new NpgsqlParameter("related", relatedEntryId));
+        command.Parameters.Add(new NpgsqlParameter("type", relation.RelationType));
+        command.Parameters.Add(new NpgsqlParameter("direction", relation.Direction));
+        command.Parameters.Add(new NpgsqlParameter("confidence", relation.Confidence));
+        command.Parameters.Add(new NpgsqlParameter("anchorEvidence", relation.AnchorEvidenceQuote));
+        command.Parameters.Add(new NpgsqlParameter("targetEvidence", relation.TargetEvidenceQuote));
+        command.Parameters.Add(new NpgsqlParameter("now", now));
+        await EnsureConnectionOpenAsync(db, cancellationToken);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task StoreKnowledgeRelationAsync(
+        SlogsDbContext db,
+        Guid anchorEntryId,
+        string owner,
+        KnowledgeCorpusActor actor,
+        LlmWikiRelationInput relation,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        var collectionId = RequireRelationTargetValue(relation.TargetCollectionId, "targetCollectionId");
+        var version = RequireRelationTargetValue(relation.TargetVersion, "targetVersion");
+        var targetOwner = RequireRelationTargetValue(relation.TargetOwnerUserName, "targetOwnerUserName");
+        var chunkId = RequireRelationTargetValue(relation.TargetChunkId, "targetChunkId");
+        var scopeKeys = actor.OrganizationKeys.ToArray();
+
+        await using var lookup = db.Database.GetDbConnection().CreateCommand();
+        lookup.CommandText =
+            """
+            SELECT k."Text", k."StartLocator", k."EndLocator", d."Title"
+            FROM "LlmWikiKnowledgeChunks" k
+            INNER JOIN "LlmWikiKnowledgeCollections" c
+              ON c."CollectionId"=k."CollectionId" AND c."Version"=k."Version" AND c."OwnerUserName"=k."OwnerUserName"
+            INNER JOIN "LlmWikiKnowledgeDocuments" d
+              ON d."CollectionId"=k."CollectionId" AND d."Version"=k."Version"
+             AND d."OwnerUserName"=k."OwnerUserName" AND d."DocumentId"=k."DocumentId"
+            WHERE k."CollectionId"=@collection AND k."Version"=@version
+              AND k."OwnerUserName"=@targetOwner AND k."ChunkId"=@chunk
+              AND c."Status"='active'
+              AND (
+                c."Visibility"='public_shared'
+                OR (c."OwnerKind"='system' AND @isAdmin)
+                OR (c."OwnerKind"='user' AND c."OwnerKey"=@owner)
+                OR (c."OwnerKind"='organization' AND c."OwnerKey"=ANY(@scopeKeys))
+                OR (c."Visibility"='organization' AND c."ScopeKey"=ANY(@scopeKeys))
+                OR EXISTS (
+                    SELECT 1 FROM "LlmWikiKnowledgeCollectionAcl" acl
+                    WHERE acl."CollectionId"=c."CollectionId" AND acl."Version"=c."Version"
+                      AND acl."OwnerUserName"=c."OwnerUserName"
+                      AND ((acl."PrincipalKind"='user' AND acl."PrincipalKey"=@owner)
+                        OR (acl."PrincipalKind"='organization' AND acl."PrincipalKey"=ANY(@scopeKeys)))
+                )
+              );
+            """;
+        lookup.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
+        lookup.Parameters.Add(new NpgsqlParameter("collection", collectionId));
+        lookup.Parameters.Add(new NpgsqlParameter("version", version));
+        lookup.Parameters.Add(new NpgsqlParameter("targetOwner", targetOwner));
+        lookup.Parameters.Add(new NpgsqlParameter("chunk", chunkId));
+        lookup.Parameters.Add(new NpgsqlParameter("owner", owner));
+        lookup.Parameters.Add(new NpgsqlParameter("isAdmin", actor.IsAdmin));
+        lookup.Parameters.Add(new NpgsqlParameter("scopeKeys", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = scopeKeys });
+        await EnsureConnectionOpenAsync(db, cancellationToken);
+        await using var reader = await lookup.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            throw new InvalidOperationException(
+                "지정한 Knowledge Corpus 청크가 active 상태가 아니거나 현재 사용자가 접근할 수 없습니다.");
+        }
+        var targetDocument = $"{reader.GetString(3)}\n{reader.GetString(1)}\n{reader.GetString(2)}\n{reader.GetString(0)}";
+        await reader.DisposeAsync();
+        EnsureEvidenceOccurs(targetDocument, relation.TargetEvidenceQuote, "Knowledge Corpus 청크");
+
+        await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.CommandText =
+            """
+            INSERT INTO "LlmWikiEntryKnowledgeRelations"
+                ("Id", "OwnerUserName", "AnchorEntryId", "TargetCollectionId", "TargetVersion", "TargetOwnerUserName",
+                 "TargetChunkId", "RelationType", "Direction", "Confidence", "State", "AnchorEvidenceQuote",
+                 "TargetEvidenceQuote", "CreatedAt", "UpdatedAt", "LastValidatedAt")
+            VALUES
+                (@id, @owner, @anchor, @collection, @version, @targetOwner,
+                 @chunk, @type, @direction, @confidence, 'active', @anchorEvidence,
+                 @targetEvidence, @now, @now, @now)
+            ON CONFLICT ("OwnerUserName", "AnchorEntryId", "TargetCollectionId", "TargetVersion", "TargetOwnerUserName", "TargetChunkId", "RelationType", "Direction") DO UPDATE SET
+                "Confidence" = EXCLUDED."Confidence",
+                "State" = 'active',
+                "AnchorEvidenceQuote" = EXCLUDED."AnchorEvidenceQuote",
+                "TargetEvidenceQuote" = EXCLUDED."TargetEvidenceQuote",
+                "UpdatedAt" = EXCLUDED."UpdatedAt",
+                "LastValidatedAt" = EXCLUDED."LastValidatedAt";
+            """;
+        command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
+        command.Parameters.Add(new NpgsqlParameter("id", StableRelationId(
+            $"knowledge|{owner}|{anchorEntryId}|{collectionId}|{version}|{targetOwner}|{chunkId}|{relation.RelationType}|{relation.Direction}")));
+        command.Parameters.Add(new NpgsqlParameter("owner", owner));
+        command.Parameters.Add(new NpgsqlParameter("anchor", anchorEntryId));
+        command.Parameters.Add(new NpgsqlParameter("collection", collectionId));
+        command.Parameters.Add(new NpgsqlParameter("version", version));
+        command.Parameters.Add(new NpgsqlParameter("targetOwner", targetOwner));
+        command.Parameters.Add(new NpgsqlParameter("chunk", chunkId));
+        command.Parameters.Add(new NpgsqlParameter("type", relation.RelationType));
+        command.Parameters.Add(new NpgsqlParameter("direction", relation.Direction));
+        command.Parameters.Add(new NpgsqlParameter("confidence", relation.Confidence));
+        command.Parameters.Add(new NpgsqlParameter("anchorEvidence", relation.AnchorEvidenceQuote));
+        command.Parameters.Add(new NpgsqlParameter("targetEvidence", relation.TargetEvidenceQuote));
+        command.Parameters.Add(new NpgsqlParameter("now", now));
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task RevalidateRelationsForEntryAsync(
+        SlogsDbContext db,
+        Guid entryId,
+        string owner,
+        string currentDocument,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.CommandText =
+            """
+            UPDATE "LlmWikiEntrySemanticRelations"
+            SET "State"='retired', "UpdatedAt"=@now, "LastValidatedAt"=@now
+            WHERE "OwnerUserName"=@owner AND "State"='active'
+              AND (("AnchorEntryId"=@entry AND NOT ("AnchorEvidenceQuote" = ANY(@evidenceQuotes)))
+                OR ("RelatedEntryId"=@entry AND NOT ("RelatedEvidenceQuote" = ANY(@evidenceQuotes))));
+
+            UPDATE "LlmWikiEntryKnowledgeRelations"
+            SET "State"='retired', "UpdatedAt"=@now, "LastValidatedAt"=@now
+            WHERE "OwnerUserName"=@owner AND "AnchorEntryId"=@entry AND "State"='active'
+              AND NOT ("AnchorEvidenceQuote" = ANY(@evidenceQuotes));
+            """;
+        command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
+        var evidenceQuotes = await ReadRelationEvidenceQuotesAsync(db, entryId, owner, currentDocument, cancellationToken);
+        command.Parameters.Add(new NpgsqlParameter("owner", owner));
+        command.Parameters.Add(new NpgsqlParameter("entry", entryId));
+        command.Parameters.Add(new NpgsqlParameter("now", now));
+        command.Parameters.Add(new NpgsqlParameter("evidenceQuotes", NpgsqlDbType.Array | NpgsqlDbType.Text)
+        {
+            Value = evidenceQuotes
+        });
+        await EnsureConnectionOpenAsync(db, cancellationToken);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task<string[]> ReadRelationEvidenceQuotesAsync(
+        SlogsDbContext db,
+        Guid entryId,
+        string owner,
+        string currentDocument,
+        CancellationToken cancellationToken)
+    {
+        await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.CommandText =
+            """
+            SELECT "AnchorEvidenceQuote" FROM "LlmWikiEntrySemanticRelations"
+            WHERE "OwnerUserName"=@owner AND "AnchorEntryId"=@entry AND "State"='active'
+            UNION
+            SELECT "RelatedEvidenceQuote" FROM "LlmWikiEntrySemanticRelations"
+            WHERE "OwnerUserName"=@owner AND "RelatedEntryId"=@entry AND "State"='active'
+            UNION
+            SELECT "AnchorEvidenceQuote" FROM "LlmWikiEntryKnowledgeRelations"
+            WHERE "OwnerUserName"=@owner AND "AnchorEntryId"=@entry AND "State"='active';
+            """;
+        command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
+        command.Parameters.Add(new NpgsqlParameter("owner", owner));
+        command.Parameters.Add(new NpgsqlParameter("entry", entryId));
+        await EnsureConnectionOpenAsync(db, cancellationToken);
+        var retained = new List<string>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var quote = reader.GetString(0);
+            if (EvidenceOccurs(currentDocument, quote))
+            {
+                retained.Add(quote);
+            }
+        }
+        return retained.Distinct(StringComparer.Ordinal).ToArray();
+    }
+
+    private static LlmWikiRelationInput NormalizeSubmittedRelation(LlmWikiRelationInput value)
+    {
+        var targetKind = (value.TargetKind ?? string.Empty).Trim().ToLowerInvariant();
+        if (targetKind is not (LlmWikiRelationTargetKinds.Memory or LlmWikiRelationTargetKinds.KnowledgeChunk))
+        {
+            throw new InvalidOperationException($"지원하지 않는 관계 대상 종류입니다: {targetKind}");
+        }
+        var relationType = (value.RelationType ?? string.Empty).Trim().ToLowerInvariant();
+        if (!LlmWikiSemanticGraphContract.RelationTypes.Contains(relationType))
+        {
+            throw new InvalidOperationException($"지원하지 않는 의미 관계 유형입니다: {relationType}");
+        }
+        var direction = (value.Direction ?? string.Empty).Trim().ToLowerInvariant();
+        if (direction is not (LlmWikiRelationDirections.Outgoing or LlmWikiRelationDirections.Incoming))
+        {
+            throw new InvalidOperationException($"지원하지 않는 의미 관계 방향입니다: {direction}");
+        }
+        if (!double.IsFinite(value.Confidence) || value.Confidence < MinimumActiveRelationConfidence || value.Confidence > 1)
+        {
+            throw new InvalidOperationException(
+                $"활성 의미 관계 confidence는 {MinimumActiveRelationConfidence:0.00} 이상 1 이하이어야 합니다.");
+        }
+        var anchorEvidence = NormalizeEvidenceQuote(value.AnchorEvidenceQuote, "anchorEvidenceQuote");
+        var targetEvidence = NormalizeEvidenceQuote(value.TargetEvidenceQuote, "targetEvidenceQuote");
+        return value with
+        {
+            TargetKind = targetKind,
+            RelationType = relationType,
+            Direction = direction,
+            Confidence = Math.Round(value.Confidence, 4),
+            AnchorEvidenceQuote = anchorEvidence,
+            TargetEvidenceQuote = targetEvidence,
+            TargetCollectionId = value.TargetCollectionId?.Trim(),
+            TargetVersion = value.TargetVersion?.Trim(),
+            TargetOwnerUserName = value.TargetOwnerUserName?.Trim(),
+            TargetChunkId = value.TargetChunkId?.Trim()
+        };
+    }
+
+    private static string BuildSubmittedRelationIdentity(LlmWikiRelationInput value)
+        => value.TargetKind == LlmWikiRelationTargetKinds.Memory
+            ? $"memory|{value.TargetEntryId}|{value.RelationType}|{value.Direction}"
+            : $"knowledge|{value.TargetCollectionId}|{value.TargetVersion}|{value.TargetOwnerUserName}|{value.TargetChunkId}|{value.RelationType}|{value.Direction}";
+
+    private static string NormalizeEvidenceQuote(string? value, string fieldName)
+    {
+        var quote = TrimToLength((value ?? string.Empty).Normalize(NormalizationForm.FormKC).Trim(), MaxRelationEvidenceLength);
+        if (quote.Length < 2)
+        {
+            throw new InvalidOperationException($"{fieldName}에는 실제 근거 인용문이 필요합니다.");
+        }
+        return quote;
+    }
+
+    private static string RequireRelationTargetValue(string? value, string fieldName)
+    {
+        var normalized = (value ?? string.Empty).Trim();
+        if (normalized.Length == 0)
+        {
+            throw new InvalidOperationException($"knowledge-chunk 관계에는 {fieldName}가 필요합니다.");
+        }
+        return normalized;
+    }
+
+    private static void EnsureEvidenceOccurs(string document, string quote, string sourceName)
+    {
+        if (!EvidenceOccurs(document, quote))
+        {
+            throw new InvalidOperationException($"{sourceName}에서 관계 근거 인용문을 찾을 수 없습니다: {quote}");
+        }
+    }
+
+    private static bool EvidenceOccurs(string document, string quote)
+        => NormalizeEvidenceText(document).Contains(NormalizeEvidenceText(quote), StringComparison.OrdinalIgnoreCase);
+
+    private static string NormalizeEvidenceText(string value)
+    {
+        var builder = new StringBuilder(value.Length);
+        var pendingSpace = false;
+        foreach (var character in value.Normalize(NormalizationForm.FormKC))
+        {
+            if (char.IsWhiteSpace(character))
+            {
+                pendingSpace = builder.Length > 0;
+                continue;
+            }
+            if (pendingSpace)
+            {
+                builder.Append(' ');
+                pendingSpace = false;
+            }
+            builder.Append(character);
+        }
+        return builder.ToString().Trim();
+    }
+
+    private static Guid StableRelationId(string value)
+        => new(SHA256.HashData(Encoding.UTF8.GetBytes(value)).AsSpan(0, 16));
+
+    private static async Task RefreshGraphNodeStatisticsAsync(
+        SlogsDbContext db,
+        string owner,
+        string[] affectedNodeKeys,
+        Guid[] impactedEntryIds,
+        CancellationToken cancellationToken)
+    {
+        if (affectedNodeKeys.Length == 0 || impactedEntryIds.Length == 0)
+        {
+            return;
+        }
+        await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.CommandText =
             """
             DELETE FROM "LlmWikiGraphEdges"
-            WHERE "OwnerUserName" = @owner;
+            WHERE "OwnerUserName" = @owner AND "FromEntryId"=ANY(@impactedEntryIds);
 
             DELETE FROM "LlmWikiGraphNodeStatistics"
-            WHERE "OwnerUserName" = @owner;
+            WHERE "OwnerUserName" = @owner AND "NodeKey"=ANY(@affectedNodeKeys);
 
             INSERT INTO "LlmWikiGraphNodeStatistics"
                 ("OwnerUserName", "NodeKey", "EntryCount", "IndexVersion", "UpdatedAt")
@@ -1397,7 +1954,7 @@ public sealed class LlmWikiService(
                 @graphIndexVersion,
                 @updatedAt
             FROM "LlmWikiEntryGraphNodes"
-            WHERE "OwnerUserName" = @owner
+            WHERE "OwnerUserName" = @owner AND "NodeKey"=ANY(@affectedNodeKeys)
             GROUP BY "OwnerUserName", "NodeKey";
 
             WITH scored_edges AS (
@@ -1420,6 +1977,7 @@ public sealed class LlmWikiService(
                     ON frequency."OwnerUserName" = source_nodes."OwnerUserName"
                    AND frequency."NodeKey" = source_nodes."NodeKey"
                 WHERE source_nodes."OwnerUserName" = @owner
+                  AND source_nodes."EntryId"=ANY(@impactedEntryIds)
                 GROUP BY source_nodes."EntryId", neighbor_nodes."EntryId"
             ),
             ranked_edges AS (
@@ -1448,6 +2006,14 @@ public sealed class LlmWikiService(
             """;
         command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
         command.Parameters.Add(new NpgsqlParameter("owner", owner));
+        command.Parameters.Add(new NpgsqlParameter("affectedNodeKeys", NpgsqlDbType.Array | NpgsqlDbType.Text)
+        {
+            Value = affectedNodeKeys
+        });
+        command.Parameters.Add(new NpgsqlParameter("impactedEntryIds", NpgsqlDbType.Array | NpgsqlDbType.Uuid)
+        {
+            Value = impactedEntryIds
+        });
         command.Parameters.Add(new NpgsqlParameter("graphIndexVersion", LlmWikiGraphSearchCommand.GraphIndexVersion));
         command.Parameters.Add(new NpgsqlParameter("updatedAt", DateTime.UtcNow));
         await EnsureConnectionOpenAsync(db, cancellationToken);

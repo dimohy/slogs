@@ -107,6 +107,7 @@ public sealed class KnowledgeCorpusMcpTools(
             builder.AppendLine(result.Text);
             builder.AppendLine();
             builder.AppendLine($"- corpus: {result.CollectionId}@{result.Version}");
+            builder.AppendLine($"- storageOwner: {result.StorageOwnerUserName}");
             builder.AppendLine($"- domain: {result.Domain}");
             builder.AppendLine($"- license: {result.License}");
             builder.AppendLine($"- collectionSource: {result.CollectionSourceUri}");

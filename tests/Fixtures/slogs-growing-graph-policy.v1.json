@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "slogs-growing-graph-eval.v1",
+  "frozenAt": "2026-08-30T00:00:00Z",
+  "positiveCases": [
+    "memory_relation_commits_with_memory_vector_nodes_and_provenance",
+    "typed_directed_relation_returns_evidenced_semantic_path",
+    "accessible_active_corpus_chunk_links_bidirectionally",
+    "memory_update_retires_relation_when_evidence_disappears",
+    "unaffected_graph_edges_are_not_rebuilt"
+  ],
+  "negativeCases": [
+    "embedding_similarity_without_agent_relation_creates_no_typed_edge",
+    "missing_anchor_or_target_quote_rolls_back_entire_memory",
+    "cross_owner_private_memory_target_is_rejected",
+    "inaccessible_private_corpus_target_is_not_recalled",
+    "confidence_below_active_threshold_is_rejected"
+  ],
+  "metrics": {
+    "requiredRecallHits": 2,
+    "allowedFalsePositiveTypedEdges": 0,
+    "allowedPermissionLeaks": 0,
+    "allowedPartialCommits": 0,
+    "allowedUnrelatedEdgeRebuilds": 0
+  }
+}

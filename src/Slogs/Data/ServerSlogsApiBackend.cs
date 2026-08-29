@@ -178,10 +178,28 @@ public sealed class ServerSlogsApiBackend(
         => llmWikiService.GetEntryAsync(ResolveUserName(userName), idOrSlug);
 
     public Task<LlmWikiEntryResponse> RememberLlmWikiAsync(string userName, LlmWikiRememberRequest request)
-        => llmWikiService.RememberAsync(ResolveUserName(userName), request);
+    {
+        var owner = ResolveUserName(userName);
+        var actor = request.Relations?.Any(relation => string.Equals(
+                relation.TargetKind,
+                LlmWikiRelationTargetKinds.KnowledgeChunk,
+                StringComparison.OrdinalIgnoreCase)) == true
+            ? KnowledgeCorpusActor.User(owner)
+            : null;
+        return llmWikiService.RememberAsync(owner, request, corpusActor: actor);
+    }
 
     public Task<LlmWikiEntryResponse?> UpdateLlmWikiAsync(string userName, string idOrSlug, LlmWikiUpdateRequest request)
-        => llmWikiService.UpdateAsync(ResolveUserName(userName), idOrSlug, request);
+    {
+        var owner = ResolveUserName(userName);
+        var actor = request.Relations?.Any(relation => string.Equals(
+                relation.TargetKind,
+                LlmWikiRelationTargetKinds.KnowledgeChunk,
+                StringComparison.OrdinalIgnoreCase)) == true
+            ? KnowledgeCorpusActor.User(owner)
+            : null;
+        return llmWikiService.UpdateAsync(owner, idOrSlug, request, corpusActor: actor);
+    }
 
     public Task<string> GetLlmWikiLlmsTextAsync(string userName, int limit)
         => llmWikiService.BuildLlmsTextAsync(ResolveUserName(userName), limit);

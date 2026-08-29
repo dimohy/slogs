@@ -179,6 +179,64 @@ public static class LlmWikiGraphSearchCommand
                 WHERE walk.depth BETWEEN 1 AND @maxGraphHops
                 ORDER BY mention."EntryId", walk.path_score DESC, walk.depth, semantic_path
             ),
+            online_semantic_walk AS (
+                SELECT
+                    seed."Id",
+                    0 AS depth,
+                    ARRAY[seed."Id"] AS visited,
+                    GREATEST(seed.vector_score, 0.05)::double precision AS path_score,
+                    ARRAY[]::text[] AS relation_path
+                FROM graph_seed AS seed
+                WHERE @maxGraphHops > 1
+                UNION ALL
+                SELECT
+                    edge.to_entry_id AS "Id",
+                    walk.depth + 1 AS depth,
+                    walk.visited || edge.to_entry_id AS visited,
+                    walk.path_score * edge.confidence
+                        * CASE WHEN walk.depth = 0 THEN 0.55 ELSE 0.70 END,
+                    walk.relation_path || edge.path_label
+                FROM online_semantic_walk AS walk
+                INNER JOIN LATERAL (
+                    SELECT directed.to_entry_id, directed.confidence, directed.path_label
+                    FROM (
+                        SELECT
+                            relation."RelatedEntryId" AS to_entry_id,
+                            relation."Confidence" AS confidence,
+                            CASE WHEN relation."Direction"='outgoing'
+                                THEN relation."RelationType"
+                                ELSE 'inverse:' || relation."RelationType" END AS path_label
+                        FROM "LlmWikiEntrySemanticRelations" AS relation
+                        WHERE relation."OwnerUserName"=@owner AND relation."State"='active'
+                          AND relation."AnchorEntryId"=walk."Id"
+                        UNION ALL
+                        SELECT
+                            relation."AnchorEntryId" AS to_entry_id,
+                            relation."Confidence" AS confidence,
+                            CASE WHEN relation."Direction"='outgoing'
+                                THEN 'inverse:' || relation."RelationType"
+                                ELSE relation."RelationType" END AS path_label
+                        FROM "LlmWikiEntrySemanticRelations" AS relation
+                        WHERE relation."OwnerUserName"=@owner AND relation."State"='active'
+                          AND relation."RelatedEntryId"=walk."Id"
+                    ) AS directed
+                    ORDER BY directed.confidence DESC, directed.to_entry_id, directed.path_label
+                    LIMIT @semanticFanout
+                ) AS edge ON TRUE
+                INNER JOIN filtered_entries AS neighbor_entry ON neighbor_entry."Id"=edge.to_entry_id
+                WHERE walk.depth < @maxGraphHops
+                  AND NOT edge.to_entry_id = ANY(walk.visited)
+            ),
+            online_semantic_candidates AS (
+                SELECT DISTINCT ON (walk."Id")
+                    walk."Id",
+                    walk.depth AS graph_depth,
+                    walk.path_score AS graph_score,
+                    array_to_string(walk.relation_path, ' > ') AS semantic_path
+                FROM online_semantic_walk AS walk
+                WHERE walk.depth BETWEEN 1 AND @maxGraphHops
+                ORDER BY walk."Id", walk.path_score DESC, walk.depth, semantic_path
+            ),
             graph_walk AS (
                 SELECT
                     seed."Id",
@@ -281,6 +339,17 @@ public static class LlmWikiGraphSearchCommand
                     0::double precision AS lexical_score,
                     semantic_path
                 FROM semantic_candidates
+                UNION ALL
+                SELECT
+                    "Id",
+                    0::double precision AS vector_score,
+                    0::double precision AS query_graph_score,
+                    0::double precision AS expanded_graph_score,
+                    graph_score AS multi_hop_graph_score,
+                    graph_depth,
+                    0::double precision AS lexical_score,
+                    semantic_path
+                FROM online_semantic_candidates
             ),
             ranked AS (
                 SELECT

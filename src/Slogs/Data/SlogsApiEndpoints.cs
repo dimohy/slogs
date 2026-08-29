@@ -950,6 +950,7 @@ public static class SlogsApiEndpoints
         api.MapPost("/llm-wiki/entries", async (
             HttpContext httpContext,
             LlmWikiService llmWikiService,
+            KnowledgeCorpusPrincipalResolver corpusPrincipalResolver,
             LlmWikiRememberRequest request,
             CancellationToken cancellationToken) =>
         {
@@ -961,7 +962,14 @@ public static class SlogsApiEndpoints
 
             try
             {
-                var entry = await llmWikiService.RememberAsync(user.UserName, request, cancellationToken);
+                var corpusActor = request.Relations?.Any(relation => string.Equals(
+                        relation.TargetKind,
+                        LlmWikiRelationTargetKinds.KnowledgeChunk,
+                        StringComparison.OrdinalIgnoreCase)) == true
+                    ? await corpusPrincipalResolver.ResolveAsync(user, cancellationToken)
+                    : null;
+                var entry = await llmWikiService.RememberAsync(
+                    user.UserName, request, cancellationToken, corpusActor);
                 return Results.Created($"/api/llm-wiki/entries/{entry.Id}", entry);
             }
             catch (InvalidOperationException ex)
@@ -989,6 +997,7 @@ public static class SlogsApiEndpoints
         api.MapPut("/llm-wiki/entries/{idOrSlug}", async (
             HttpContext httpContext,
             LlmWikiService llmWikiService,
+            KnowledgeCorpusPrincipalResolver corpusPrincipalResolver,
             string idOrSlug,
             LlmWikiUpdateRequest request,
             CancellationToken cancellationToken) =>
@@ -1001,7 +1010,14 @@ public static class SlogsApiEndpoints
 
             try
             {
-                var entry = await llmWikiService.UpdateAsync(user.UserName, idOrSlug, request, cancellationToken);
+                var corpusActor = request.Relations?.Any(relation => string.Equals(
+                        relation.TargetKind,
+                        LlmWikiRelationTargetKinds.KnowledgeChunk,
+                        StringComparison.OrdinalIgnoreCase)) == true
+                    ? await corpusPrincipalResolver.ResolveAsync(user, cancellationToken)
+                    : null;
+                var entry = await llmWikiService.UpdateAsync(
+                    user.UserName, idOrSlug, request, cancellationToken, corpusActor: corpusActor);
                 return entry is null ? Results.NotFound() : Results.Ok(entry);
             }
             catch (InvalidOperationException ex)

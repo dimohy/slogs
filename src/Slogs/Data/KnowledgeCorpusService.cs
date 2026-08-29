@@ -237,6 +237,111 @@ public sealed class KnowledgeCorpusService(
             cancellationToken);
     }
 
+    public async Task<IReadOnlyList<KnowledgeChunkRecall>> ReadLinkedChunksAsync(
+        KnowledgeCorpusActor actor,
+        IReadOnlyCollection<LlmWikiKnowledgeLink> links,
+        int maxGraphHops,
+        CancellationToken cancellationToken = default)
+    {
+        var validatedActor = ValidateActor(actor);
+        if (links.Count == 0)
+        {
+            return [];
+        }
+        var safeGraphHops = Math.Clamp(maxGraphHops, 1, 3);
+        var scopeKeys = validatedActor.OrganizationKeys.ToArray();
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        await EnsureConnectionOpenAsync(db, cancellationToken);
+        var selected = new List<(SeedChunk Seed, LlmWikiKnowledgeLink Link)>();
+        foreach (var link in links
+                     .OrderByDescending(value => value.Confidence)
+                     .GroupBy(value => (value.CollectionId, value.Version, value.TargetOwnerUserName, value.ChunkId))
+                     .Select(group => group.First())
+                     .Take(20))
+        {
+            await using var command = CreateCommand(db,
+                """
+                SELECT k."CollectionId", k."Version", k."OwnerUserName", c."Domain", k."DocumentId", d."Title",
+                       k."ChunkId", k."StructureNodeId", k."Text", k."StartLocator", k."EndLocator",
+                       c."License", c."SourceUri", d."SourceLocator"
+                FROM "LlmWikiKnowledgeChunks" k
+                INNER JOIN "LlmWikiKnowledgeCollections" c
+                  ON c."CollectionId"=k."CollectionId" AND c."Version"=k."Version" AND c."OwnerUserName"=k."OwnerUserName"
+                INNER JOIN "LlmWikiKnowledgeDocuments" d
+                  ON d."CollectionId"=k."CollectionId" AND d."Version"=k."Version"
+                 AND d."OwnerUserName"=k."OwnerUserName" AND d."DocumentId"=k."DocumentId"
+                WHERE k."CollectionId"=@collection AND k."Version"=@version
+                  AND k."OwnerUserName"=@targetOwner AND k."ChunkId"=@chunk
+                  AND c."Status"='active'
+                  AND (
+                    c."Visibility"='public_shared'
+                    OR (c."OwnerKind"='system' AND @isAdmin)
+                    OR (c."OwnerKind"='user' AND c."OwnerKey"=@owner)
+                    OR (c."OwnerKind"='organization' AND c."OwnerKey"=ANY(@scopeKeys))
+                    OR (c."Visibility"='organization' AND c."ScopeKey"=ANY(@scopeKeys))
+                    OR EXISTS (
+                        SELECT 1 FROM "LlmWikiKnowledgeCollectionAcl" acl
+                        WHERE acl."CollectionId"=c."CollectionId" AND acl."Version"=c."Version"
+                          AND acl."OwnerUserName"=c."OwnerUserName"
+                          AND ((acl."PrincipalKind"='user' AND acl."PrincipalKey"=@owner)
+                            OR (acl."PrincipalKind"='organization' AND acl."PrincipalKey"=ANY(@scopeKeys)))
+                    )
+                  );
+                """);
+            command.Parameters.Add(new NpgsqlParameter("collection", link.CollectionId));
+            command.Parameters.Add(new NpgsqlParameter("version", link.Version));
+            command.Parameters.Add(new NpgsqlParameter("targetOwner", link.TargetOwnerUserName));
+            command.Parameters.Add(new NpgsqlParameter("chunk", link.ChunkId));
+            command.Parameters.Add(new NpgsqlParameter("owner", validatedActor.UserName));
+            command.Parameters.Add(new NpgsqlParameter("isAdmin", validatedActor.IsAdmin));
+            command.Parameters.Add(new NpgsqlParameter("scopeKeys", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = scopeKeys });
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            if (await reader.ReadAsync(cancellationToken))
+            {
+                selected.Add((new SeedChunk(
+                    reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetString(3),
+                    reader.GetString(4), reader.GetString(5), reader.GetString(6),
+                    reader.IsDBNull(7) ? null : reader.GetString(7), reader.GetString(8), reader.GetString(9),
+                    reader.GetString(10), reader.GetString(11), reader.GetString(12), reader.GetString(13),
+                    false, (int)Math.Round(link.Confidence * 100)), link));
+            }
+        }
+
+        var results = new List<KnowledgeChunkRecall>(selected.Count);
+        foreach (var (seed, link) in selected)
+        {
+            var fromNode = link.Direction == LlmWikiRelationDirections.Outgoing
+                ? $"memory:{link.AnchorEntryId}"
+                : seed.ChunkId;
+            var toNode = link.Direction == LlmWikiRelationDirections.Outgoing
+                ? seed.ChunkId
+                : $"memory:{link.AnchorEntryId}";
+            var relation = new KnowledgeRelationRecall(
+                seed.CollectionId,
+                seed.Version,
+                link.RelationType,
+                fromNode,
+                toNode,
+                "agent-reviewed",
+                link.Confidence,
+                [new KnowledgeEvidenceInput(
+                    $"llm-wiki-entry:{link.AnchorEntryId}",
+                    "source-prompt/content",
+                    "agent-reviewed",
+                    [seed.ChunkId])]);
+            var corpusRelations = safeGraphHops <= 1
+                ? []
+                : await ReadRelationsAsync(
+                    db, validatedActor.UserName, validatedActor.IsAdmin, scopeKeys, seed, safeGraphHops - 1, cancellationToken);
+            results.Add(new KnowledgeChunkRecall(
+                seed.CollectionId, seed.Version, seed.Domain, seed.DocumentId, seed.DocumentTitle, seed.ChunkId,
+                seed.Text, seed.StartLocator, seed.EndLocator, seed.RelevancePercent,
+                new[] { relation }.Concat(corpusRelations).ToArray(), seed.License,
+                seed.CollectionSourceUri, seed.DocumentSourceLocator, seed.OwnerUserName));
+        }
+        return results;
+    }
+
     private async Task<IReadOnlyList<KnowledgeChunkRecall>> RecallCoreAsync(
         string ownerUserName,
         bool isAdmin,
@@ -381,7 +486,8 @@ public sealed class KnowledgeCorpusService(
                 relations,
                 seed.License,
                 seed.CollectionSourceUri,
-                seed.DocumentSourceLocator));
+                seed.DocumentSourceLocator,
+                seed.OwnerUserName));
         }
 
         return results;

@@ -521,6 +521,33 @@ public static class SlogsDbInitializer
                     FOREIGN KEY ("ToEntryId") REFERENCES "LlmWikiEntries" ("Id") ON DELETE CASCADE
             );
 
+            CREATE TABLE IF NOT EXISTS "LlmWikiEntrySemanticRelations" (
+                "Id" uuid NOT NULL,
+                "OwnerUserName" character varying(80) NOT NULL,
+                "AnchorEntryId" uuid NOT NULL,
+                "RelatedEntryId" uuid NOT NULL,
+                "RelationType" character varying(40) NOT NULL,
+                "Direction" character varying(16) NOT NULL,
+                "Confidence" double precision NOT NULL,
+                "State" character varying(24) NOT NULL,
+                "AnchorEvidenceQuote" text NOT NULL,
+                "RelatedEvidenceQuote" text NOT NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "UpdatedAt" timestamp with time zone NOT NULL,
+                "LastValidatedAt" timestamp with time zone NOT NULL,
+                CONSTRAINT "PK_LlmWikiEntrySemanticRelations" PRIMARY KEY ("Id"),
+                CONSTRAINT "UQ_LlmWikiEntrySemanticRelations_TypedEdge"
+                    UNIQUE ("OwnerUserName", "AnchorEntryId", "RelatedEntryId", "RelationType", "Direction"),
+                CONSTRAINT "FK_LlmWikiEntrySemanticRelations_Anchor"
+                    FOREIGN KEY ("AnchorEntryId") REFERENCES "LlmWikiEntries" ("Id") ON DELETE CASCADE,
+                CONSTRAINT "FK_LlmWikiEntrySemanticRelations_Related"
+                    FOREIGN KEY ("RelatedEntryId") REFERENCES "LlmWikiEntries" ("Id") ON DELETE CASCADE,
+                CONSTRAINT "CK_LlmWikiEntrySemanticRelations_Confidence" CHECK ("Confidence" >= 0.0 AND "Confidence" <= 1.0),
+                CONSTRAINT "CK_LlmWikiEntrySemanticRelations_State" CHECK ("State" IN ('active', 'retired', 'rejected')),
+                CONSTRAINT "CK_LlmWikiEntrySemanticRelations_Direction" CHECK ("Direction" IN ('outgoing', 'incoming')),
+                CONSTRAINT "CK_LlmWikiEntrySemanticRelations_Endpoints" CHECK ("AnchorEntryId" <> "RelatedEntryId")
+            );
+
             CREATE TABLE IF NOT EXISTS "LlmWikiSemanticGraphVersions" (
                 "OwnerUserName" character varying(80) NOT NULL,
                 "Version" character varying(80) NOT NULL,
@@ -931,6 +958,36 @@ public static class SlogsDbInitializer
                 CONSTRAINT "CK_LlmWikiKnowledgeChunks_Overlap" CHECK ("OverlapUnits" >= 0)
             );
 
+            CREATE TABLE IF NOT EXISTS "LlmWikiEntryKnowledgeRelations" (
+                "Id" uuid NOT NULL,
+                "OwnerUserName" character varying(80) NOT NULL,
+                "AnchorEntryId" uuid NOT NULL,
+                "TargetCollectionId" character varying(120) NOT NULL,
+                "TargetVersion" character varying(80) NOT NULL,
+                "TargetOwnerUserName" character varying(80) NOT NULL,
+                "TargetChunkId" character varying(240) NOT NULL,
+                "RelationType" character varying(40) NOT NULL,
+                "Direction" character varying(16) NOT NULL,
+                "Confidence" double precision NOT NULL,
+                "State" character varying(24) NOT NULL,
+                "AnchorEvidenceQuote" text NOT NULL,
+                "TargetEvidenceQuote" text NOT NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "UpdatedAt" timestamp with time zone NOT NULL,
+                "LastValidatedAt" timestamp with time zone NOT NULL,
+                CONSTRAINT "PK_LlmWikiEntryKnowledgeRelations" PRIMARY KEY ("Id"),
+                CONSTRAINT "UQ_LlmWikiEntryKnowledgeRelations_TypedEdge"
+                    UNIQUE ("OwnerUserName", "AnchorEntryId", "TargetCollectionId", "TargetVersion", "TargetOwnerUserName", "TargetChunkId", "RelationType", "Direction"),
+                CONSTRAINT "FK_LlmWikiEntryKnowledgeRelations_Anchor"
+                    FOREIGN KEY ("AnchorEntryId") REFERENCES "LlmWikiEntries" ("Id") ON DELETE CASCADE,
+                CONSTRAINT "FK_LlmWikiEntryKnowledgeRelations_Target"
+                    FOREIGN KEY ("TargetCollectionId", "TargetVersion", "TargetOwnerUserName", "TargetChunkId")
+                    REFERENCES "LlmWikiKnowledgeChunks" ("CollectionId", "Version", "OwnerUserName", "ChunkId") ON DELETE CASCADE,
+                CONSTRAINT "CK_LlmWikiEntryKnowledgeRelations_Confidence" CHECK ("Confidence" >= 0.0 AND "Confidence" <= 1.0),
+                CONSTRAINT "CK_LlmWikiEntryKnowledgeRelations_State" CHECK ("State" IN ('active', 'retired', 'rejected')),
+                CONSTRAINT "CK_LlmWikiEntryKnowledgeRelations_Direction" CHECK ("Direction" IN ('outgoing', 'incoming'))
+            );
+
             ALTER TABLE "LlmWikiKnowledgeChunks"
             ADD COLUMN IF NOT EXISTS "SearchVector" tsvector
             GENERATED ALWAYS AS (to_tsvector('simple', coalesce("SearchText", ''))) STORED;
@@ -1002,6 +1059,18 @@ public static class SlogsDbInitializer
             ON "LlmWikiKnowledgeChunks" USING hnsw ("Embedding" vector_cosine_ops);
             CREATE INDEX IF NOT EXISTS "IX_LlmWikiKnowledgeChunks_SearchVector_Gin"
             ON "LlmWikiKnowledgeChunks" USING gin ("SearchVector");
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiEntrySemanticRelations_Anchor_Active"
+            ON "LlmWikiEntrySemanticRelations" ("OwnerUserName", "AnchorEntryId", "Confidence" DESC)
+            WHERE "State"='active';
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiEntrySemanticRelations_Related_Active"
+            ON "LlmWikiEntrySemanticRelations" ("OwnerUserName", "RelatedEntryId", "Confidence" DESC)
+            WHERE "State"='active';
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiEntryKnowledgeRelations_Anchor_Active"
+            ON "LlmWikiEntryKnowledgeRelations" ("OwnerUserName", "AnchorEntryId", "Confidence" DESC)
+            WHERE "State"='active';
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiEntryKnowledgeRelations_Target_Active"
+            ON "LlmWikiEntryKnowledgeRelations" ("TargetCollectionId", "TargetVersion", "TargetOwnerUserName", "TargetChunkId", "Confidence" DESC)
+            WHERE "State"='active';
             CREATE INDEX IF NOT EXISTS "IX_LlmWikiKnowledgeRelations_From"
             ON "LlmWikiKnowledgeRelations" ("CollectionId", "Version", "OwnerUserName", "FromNodeId", "ReviewStatus");
             CREATE INDEX IF NOT EXISTS "IX_LlmWikiKnowledgeRelations_To"

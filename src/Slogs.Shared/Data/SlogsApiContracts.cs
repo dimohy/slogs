@@ -339,9 +339,46 @@ public static class ObsidianVaultContentEncodings
 
 public sealed record SlogsMcpPolicyPromptResponse(string Version, string KoreanMarkdown, string EnglishMarkdown);
 
-public sealed record LlmWikiRememberRequest(string Prompt, string? Content, string? Title, string? Tags, string? CategoryPath = null);
+public static class LlmWikiRelationTargetKinds
+{
+    public const string Memory = "memory";
+    public const string KnowledgeChunk = "knowledge-chunk";
+}
 
-public sealed record LlmWikiUpdateRequest(string Prompt, string? Content, string? Title, string? Tags, string? CategoryPath = null);
+public static class LlmWikiRelationDirections
+{
+    public const string Outgoing = "outgoing";
+    public const string Incoming = "incoming";
+}
+
+public sealed record LlmWikiRelationInput(
+    string TargetKind,
+    string RelationType,
+    string Direction,
+    double Confidence,
+    string AnchorEvidenceQuote,
+    string TargetEvidenceQuote,
+    Guid? TargetEntryId = null,
+    string? TargetCollectionId = null,
+    string? TargetVersion = null,
+    string? TargetOwnerUserName = null,
+    string? TargetChunkId = null);
+
+public sealed record LlmWikiRememberRequest(
+    string Prompt,
+    string? Content,
+    string? Title,
+    string? Tags,
+    string? CategoryPath = null,
+    IReadOnlyList<LlmWikiRelationInput>? Relations = null);
+
+public sealed record LlmWikiUpdateRequest(
+    string Prompt,
+    string? Content,
+    string? Title,
+    string? Tags,
+    string? CategoryPath = null,
+    IReadOnlyList<LlmWikiRelationInput>? Relations = null);
 
 public sealed record LlmWikiEntryResponse(
     Guid Id,

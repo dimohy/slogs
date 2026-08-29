@@ -10,9 +10,50 @@ public sealed class SlogsMcpPolicyPromptTests
     [Fact]
     public void VersionTextMatchesPromptVersion()
     {
-        Assert.Equal("2026.08.30.1\n", SlogsMcpPolicyPrompt.BuildVersionText());
-        Assert.Contains("Prompt Version: 2026.08.30.1", SlogsMcpPolicyPrompt.BuildKoreanMarkdown());
-        Assert.Contains("Prompt Version: 2026.08.30.1", SlogsMcpPolicyPrompt.BuildEnglishMarkdown());
+        Assert.Equal("2026.08.30.2\n", SlogsMcpPolicyPrompt.BuildVersionText());
+        Assert.Contains("Prompt Version: 2026.08.30.2", SlogsMcpPolicyPrompt.BuildKoreanMarkdown());
+        Assert.Contains("Prompt Version: 2026.08.30.2", SlogsMcpPolicyPrompt.BuildEnglishMarkdown());
+    }
+
+    [Fact]
+    public void AgentPromptsDefineEvidenceBackedIncrementalGrowingGraphBehavior()
+    {
+        var koreanPrompt = SlogsMcpPolicyPrompt.BuildKoreanMarkdown();
+        var englishPrompt = SlogsMcpPolicyPrompt.BuildEnglishMarkdown();
+
+        Assert.Contains("성장형 그래프", koreanPrompt);
+        Assert.Contains("`relationsJson`", koreanPrompt);
+        Assert.Contains("같은 트랜잭션", koreanPrompt);
+        Assert.Contains("근거가 사라진 관계는 retired 처리", koreanPrompt);
+        Assert.Contains("edge 수나 호출 횟수가 아니라", koreanPrompt);
+        Assert.Contains("growing graph", englishPrompt);
+        Assert.Contains("evidence quotes that occur in both sources", englishPrompt);
+        Assert.Contains("same transaction", englishPrompt);
+        Assert.Contains("Retire relations whose evidence disappears", englishPrompt);
+        Assert.Contains("not edge count or call count", englishPrompt);
+    }
+
+    [Fact]
+    public void GrowingGraphBehaviorEvaluationContractIsFrozen()
+    {
+        var fixturePath = Path.Combine(
+            AppContext.BaseDirectory,
+            "Fixtures",
+            "slogs-growing-graph-policy.v1.json");
+        var lockPath = Path.Combine(
+            Path.GetDirectoryName(fixturePath)!,
+            "slogs-growing-graph-policy.v1.sha256");
+        var bytes = File.ReadAllBytes(fixturePath);
+        var expectedHash = File.ReadAllText(lockPath).Split(' ', StringSplitOptions.RemoveEmptyEntries)[0];
+
+        Assert.Equal(expectedHash, Convert.ToHexString(SHA256.HashData(bytes)));
+        using var document = JsonDocument.Parse(bytes);
+        var root = document.RootElement;
+        Assert.Equal(5, root.GetProperty("positiveCases").GetArrayLength());
+        Assert.Equal(5, root.GetProperty("negativeCases").GetArrayLength());
+        Assert.Equal(0, root.GetProperty("metrics").GetProperty("allowedFalsePositiveTypedEdges").GetInt32());
+        Assert.Equal(0, root.GetProperty("metrics").GetProperty("allowedPermissionLeaks").GetInt32());
+        Assert.Equal(0, root.GetProperty("metrics").GetProperty("allowedPartialCommits").GetInt32());
     }
 
     [Fact]

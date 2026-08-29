@@ -14,7 +14,9 @@ public static class LlmWikiSemanticGraphContract
     public static readonly IReadOnlySet<string> RelationTypes = new HashSet<string>(StringComparer.Ordinal)
     {
         "alias-of", "same-as", "part-of", "depends-on", "implements", "documents", "supports",
-        "contradicts", "supersedes", "refines", "caused-by", "resolves", "example-of", "precedes", "related-to"
+        "contradicts", "supersedes", "refines", "caused-by", "resolves", "example-of", "precedes", "related-to",
+        "references", "quotes", "direct-quote", "alludes-to", "fulfills", "explains", "interprets", "defines",
+        "derived-from", "verified-by", "applies-to", "uses", "produces"
     };
 
     public static readonly IReadOnlySet<string> EvidenceFields = new HashSet<string>(StringComparer.Ordinal)

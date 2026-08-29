@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Text;
+using System.Text.Json;
 using ModelContextProtocol.Server;
 
 namespace Slogs.Data;
@@ -31,19 +32,23 @@ public sealed class LlmWikiMcpTools(
         int PairScoreCandidates);
 
     [McpServerTool(Name = "llm_wiki_remember")]
-    [Description("Create a new user-scoped LLM Wiki memory. Use this only after checking related entries and deciding the information should not be merged into an existing entry.")]
+    [Description("Create a new user-scoped LLM Wiki memory. Use this only after checking related entries and deciding the information should not be merged. Submit only agent-judged, evidence-backed semantic relations returned by capture/recall; the server validates and stores them atomically with the memory.")]
     public async Task<string> RememberPromptAsync(
         [Description("The durable user prompt, preference, decision, or instruction to remember as a new entry.")] string prompt,
         [Description("Optional answer, implementation result, or extra context to store with the prompt.")] string? content = null,
         [Description("Optional short title. If omitted, Slogs derives it from the prompt.")] string? title = null,
         [Description("Optional comma-separated tags such as preference, api, ux, or release.")] string? tags = null,
-        [Description("Strongly recommended hierarchical category path such as project/domain/topic. Example: slogs/llm-wiki/graphrag. Do not omit it when the project or topic is known.")] string? categoryPath = null)
+        [Description("Strongly recommended hierarchical category path such as project/domain/topic. Example: slogs/llm-wiki/graphrag. Do not omit it when the project or topic is known.")] string? categoryPath = null,
+        [Description("Optional JSON array of agent-judged semantic relations. Each item requires targetKind (memory or knowledge-chunk), relationType, direction (outgoing or incoming), confidence >= 0.70, exact anchorEvidenceQuote and targetEvidenceQuote, plus targetEntryId or the corpus collection/version/owner/chunk identity. Do not submit similarity-only guesses.")] string? relationsJson = null)
     {
         var user = RequireUser();
+        var relations = ParseRelationsJson(relationsJson);
+        var corpusActor = await ResolveCorpusActorForRelationsAsync(user, relations);
         var stopwatch = Stopwatch.StartNew();
         var entry = await llmWikiService.RememberAsync(
             user.UserName,
-            new LlmWikiRememberRequest(prompt, content, title, tags, categoryPath));
+            new LlmWikiRememberRequest(prompt, content, title, tags, categoryPath, relations),
+            corpusActor: corpusActor);
         stopwatch.Stop();
 
         var response = LlmWikiService.FormatEntryMarkdown(entry);
@@ -107,6 +112,8 @@ public sealed class LlmWikiMcpTools(
         var safeLimit = NormalizeMcpLimit(limit, 5, 10);
         var stopwatch = Stopwatch.StartNew();
         var results = await llmWikiService.SearchAsync(user.UserName, query, safeLimit);
+        var corpusResults = await FindRelatedCorpusCandidatesAsync(user, query, safeLimit);
+        var totalRelatedCount = results.Count + corpusResults.Count;
         stopwatch.Stop();
 
         var builder = new StringBuilder();
@@ -123,14 +130,16 @@ public sealed class LlmWikiMcpTools(
         builder.AppendLine("- If the user corrected an unwanted conversation direction, structure the memory around the unwanted development, the intended direction, avoid-next-time pattern, proactive judgment criteria, and applicable scope rather than storing only the raw correction text.");
         builder.AppendLine("- Do not store sensitive information, one-time logs, temporary execution traces, unverified speculation, simple facts recoverable from current files, or intermediate state that only matters in this turn.");
         builder.AppendLine("- Avoid interrupting the user for routine memory choices; ask only when sensitivity or scope is genuinely ambiguous.");
+        builder.AppendLine("- When a new memory has a demonstrable semantic relationship to a returned memory or corpus chunk, pass an evidence-backed `relationsJson` item to remember/merge/update. Similarity alone is not a relationship.");
         builder.AppendLine();
         builder.Append(FormatRelatedResults(results));
+        AppendRelatedCorpusResults(builder, corpusResults);
         AppendRetrievalDiagnostics(
             builder,
             "llm_wiki_capture",
             "related recall candidates",
             stopwatch.Elapsed,
-            results.Count,
+            totalRelatedCount,
             limit,
             safeLimit,
             query);
@@ -144,7 +153,7 @@ public sealed class LlmWikiMcpTools(
             query,
             requestedLimit: limit,
             effectiveLimit: safeLimit,
-            resultCount: results.Count,
+            resultCount: totalRelatedCount,
             resultIds: results.Select(x => x.Id).ToArray());
     }
 
@@ -158,15 +167,18 @@ public sealed class LlmWikiMcpTools(
         var safeLimit = NormalizeMcpLimit(limit, 5, 10);
         var stopwatch = Stopwatch.StartNew();
         var results = await llmWikiService.SearchAsync(user.UserName, query, safeLimit);
+        var corpusResults = await FindRelatedCorpusCandidatesAsync(user, query, safeLimit);
+        var totalRelatedCount = results.Count + corpusResults.Count;
         stopwatch.Stop();
         var builder = new StringBuilder();
         builder.Append(FormatRelatedResults(results));
+        AppendRelatedCorpusResults(builder, corpusResults);
         AppendRetrievalDiagnostics(
             builder,
             "llm_wiki_find_related",
             "related recall candidates",
             stopwatch.Elapsed,
-            results.Count,
+            totalRelatedCount,
             limit,
             safeLimit,
             query);
@@ -180,7 +192,7 @@ public sealed class LlmWikiMcpTools(
             query,
             requestedLimit: limit,
             effectiveLimit: safeLimit,
-            resultCount: results.Count,
+            resultCount: totalRelatedCount,
             resultIds: results.Select(x => x.Id).ToArray());
     }
 
@@ -303,14 +315,18 @@ public sealed class LlmWikiMcpTools(
         [Description("Optional complete corrected Content text. Omit to keep existing content; pass an empty string to clear it.")] string? content = null,
         [Description("Optional corrected title. Omit to keep the current title.")] string? title = null,
         [Description("Optional corrected comma-separated tags. Omit to keep current tags; pass an empty string to clear them.")] string? tags = null,
-        [Description("Corrected hierarchical category path. Pass it when the current category is vague or the project/topic is known. Omit only to keep the existing category.")] string? categoryPath = null)
+        [Description("Corrected hierarchical category path. Pass it when the current category is vague or the project/topic is known. Omit only to keep the existing category.")] string? categoryPath = null,
+        [Description("Optional JSON array of new or corrected evidence-backed semantic relations, using the same contract as llm_wiki_remember. Existing relations whose evidence disappears are retired automatically.")] string? relationsJson = null)
     {
         var user = RequireUser();
+        var relations = ParseRelationsJson(relationsJson);
+        var corpusActor = await ResolveCorpusActorForRelationsAsync(user, relations);
         var stopwatch = Stopwatch.StartNew();
         var entry = await llmWikiService.UpdateAsync(
             user.UserName,
             idOrSlug,
-            new LlmWikiUpdateRequest(prompt, content, title, tags, categoryPath));
+            new LlmWikiUpdateRequest(prompt, content, title, tags, categoryPath, relations),
+            corpusActor: corpusActor);
         stopwatch.Stop();
 
         var response = entry is null
@@ -336,15 +352,19 @@ public sealed class LlmWikiMcpTools(
         [Description("Optional complete merged Content text. Omit to keep existing content; pass an empty string to clear it.")] string? mergedContent = null,
         [Description("Optional merged title. Omit to keep the current title.")] string? title = null,
         [Description("Optional merged comma-separated tags. Omit to keep current tags; pass an empty string to clear them.")] string? tags = null,
-        [Description("Merged hierarchical category path. Pass it when the merged memory should move into a clearer project/domain/topic path. Omit only to keep the existing category.")] string? categoryPath = null)
+        [Description("Merged hierarchical category path. Pass it when the merged memory should move into a clearer project/domain/topic path. Omit only to keep the existing category.")] string? categoryPath = null,
+        [Description("Optional JSON array of new or corrected evidence-backed semantic relations, using the same contract as llm_wiki_remember. Existing relations whose evidence disappears are retired automatically.")] string? relationsJson = null)
     {
         var user = RequireUser();
+        var relations = ParseRelationsJson(relationsJson);
+        var corpusActor = await ResolveCorpusActorForRelationsAsync(user, relations);
         var stopwatch = Stopwatch.StartNew();
         var entry = await llmWikiService.UpdateAsync(
             user.UserName,
             idOrSlug,
-            new LlmWikiUpdateRequest(mergedPrompt, mergedContent, title, tags, categoryPath),
-            sourceAction: "merge");
+            new LlmWikiUpdateRequest(mergedPrompt, mergedContent, title, tags, categoryPath, relations),
+            sourceAction: "merge",
+            corpusActor: corpusActor);
         stopwatch.Stop();
 
         var response = entry is null
@@ -498,6 +518,42 @@ public sealed class LlmWikiMcpTools(
                     applyFullFunctionReranking: !useCombinedReranking);
                 corpusResults = (await corpusTask).ToArray();
                 results = await memoryTask;
+                if (safeMaxGraphHops > 1)
+                {
+                    var knowledgeLinks = await llmWikiService.GetKnowledgeLinksAsync(
+                        user.UserName,
+                        results.Select(result => result.Id).ToArray(),
+                        httpContextAccessor.HttpContext?.RequestAborted ?? CancellationToken.None);
+                    var linkedCorpus = await corpusService.ReadLinkedChunksAsync(
+                        corpusActor,
+                        knowledgeLinks,
+                        safeMaxGraphHops,
+                        httpContextAccessor.HttpContext?.RequestAborted ?? CancellationToken.None);
+                    var linkedMemories = await llmWikiService.GetMemoriesLinkedFromKnowledgeChunksAsync(
+                        user.UserName,
+                        corpusResults,
+                        httpContextAccessor.HttpContext?.RequestAborted ?? CancellationToken.None);
+                    results = results
+                        .Concat(linkedMemories)
+                        .GroupBy(result => result.Id)
+                        .Select(group => group
+                            .OrderByDescending(result => !string.IsNullOrWhiteSpace(result.SemanticPath))
+                            .ThenByDescending(result => result.RelevancePercent ?? 0)
+                            .First())
+                        .ToArray();
+                    corpusResults = corpusResults
+                        .Concat(linkedCorpus)
+                        .GroupBy(result => (
+                            result.CollectionId,
+                            result.Version,
+                            result.StorageOwnerUserName,
+                            result.ChunkId))
+                        .Select(group => group
+                            .OrderByDescending(result => result.Relations.Any(IsSubstantiveGraphRelation))
+                            .ThenByDescending(result => result.RelevancePercent)
+                            .First())
+                        .ToArray();
+                }
                 if (useCombinedReranking)
                 {
                     var reranked = await RerankCombinedRecallCandidatesAsync(
@@ -1195,12 +1251,90 @@ public sealed class LlmWikiMcpTools(
             ?? throw new InvalidOperationException("Slogs MCP 인증이 필요합니다. Slogs 설정에서 MCP 토큰을 만든 뒤 Authorization: Bearer 토큰으로 연결하세요.");
     }
 
+    private static IReadOnlyList<LlmWikiRelationInput>? ParseRelationsJson(string? relationsJson)
+    {
+        if (string.IsNullOrWhiteSpace(relationsJson))
+        {
+            return null;
+        }
+        try
+        {
+            return JsonSerializer.Deserialize<IReadOnlyList<LlmWikiRelationInput>>(
+                    relationsJson,
+                    new JsonSerializerOptions(JsonSerializerDefaults.Web))
+                ?? throw new InvalidOperationException("relationsJson은 JSON 배열이어야 합니다.");
+        }
+        catch (JsonException exception)
+        {
+            throw new InvalidOperationException($"relationsJson 형식이 잘못되었습니다: {exception.Message}", exception);
+        }
+    }
+
+    private async Task<KnowledgeCorpusActor?> ResolveCorpusActorForRelationsAsync(
+        AuthUser user,
+        IReadOnlyList<LlmWikiRelationInput>? relations)
+    {
+        if (relations?.Any(relation => string.Equals(
+                relation.TargetKind,
+                LlmWikiRelationTargetKinds.KnowledgeChunk,
+                StringComparison.OrdinalIgnoreCase)) != true)
+        {
+            return null;
+        }
+        if (corpusPrincipalResolver is null)
+        {
+            throw new InvalidOperationException(
+                "Knowledge Corpus 관계 검증기가 구성되지 않아 관계를 저장할 수 없습니다.");
+        }
+        return await corpusPrincipalResolver.ResolveAsync(
+            user,
+            httpContextAccessor.HttpContext?.RequestAborted ?? CancellationToken.None);
+    }
+
     private static string BuildRelatedQuery(string prompt, string? content, string? tags)
         => string.Join(
             Environment.NewLine,
             new[] { prompt, content, tags }
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Select(x => x!.Trim()));
+
+    private async Task<IReadOnlyList<KnowledgeChunkRecall>> FindRelatedCorpusCandidatesAsync(
+        AuthUser user,
+        string query,
+        int limit)
+    {
+        if (corpusService is null || corpusPrincipalResolver is null)
+        {
+            return [];
+        }
+        var actor = await corpusPrincipalResolver.ResolveAsync(
+            user,
+            httpContextAccessor.HttpContext?.RequestAborted ?? CancellationToken.None);
+        return await corpusService.RecallAsync(
+            actor,
+            query,
+            Math.Min(limit, 5),
+            maxGraphHops: 1,
+            cancellationToken: httpContextAccessor.HttpContext?.RequestAborted ?? CancellationToken.None,
+            applyFullFunctionReranking: false);
+    }
+
+    private static void AppendRelatedCorpusResults(
+        StringBuilder builder,
+        IReadOnlyList<KnowledgeChunkRecall> corpusResults)
+    {
+        if (corpusResults.Count == 0)
+        {
+            return;
+        }
+        builder.AppendLine();
+        builder.AppendLine();
+        builder.AppendLine("# Related Knowledge Corpus Candidates");
+        builder.AppendLine();
+        builder.AppendLine("Use these only when the new memory contains an explicit, quotable relationship. For `knowledge-chunk`, copy corpus, version, storageOwner, and chunkId exactly into `relationsJson`.");
+        builder.AppendLine();
+        builder.Append(KnowledgeCorpusMcpTools.FormatRecall(corpusResults));
+    }
 
     private static string FormatRelatedResults(IReadOnlyList<LlmWikiSearchResult> results)
     {
