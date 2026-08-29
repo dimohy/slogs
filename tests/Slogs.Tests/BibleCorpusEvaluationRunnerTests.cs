@@ -120,6 +120,86 @@ public sealed class BibleCorpusEvaluationRunnerTests
         Assert.Contains("- evidence: step-tagnt @ Acts.13.9 (original_tokens)", markdown);
     }
 
+    [Fact]
+    public void StructuredRelationRequirementCannotCombineEvidenceFromDifferentRelations()
+    {
+        var requirement = new BibleCorpusEvaluationRelationRequirement(
+            "mentions",
+            "bible-original-step",
+            "passage:Acts.13.9",
+            "entity:step:G3972G",
+            null,
+            null,
+            "text_explicit",
+            ["step-tagnt"],
+            ["Acts.13.9"]);
+        var evaluationCase = new BibleCorpusEvaluationCase(
+            "coupled-relation-evidence",
+            "사울과 바울 관계",
+            [],
+            [],
+            [],
+            null,
+            null,
+            RequiredRelations: [requirement]);
+        var wrongSource = new KnowledgeRelationRecall(
+            "bible-original-step",
+            "0.1.0",
+            "mentions",
+            "passage:Acts.13.9",
+            "entity:step:G3972G",
+            "text_explicit",
+            1,
+            [new("unrelated-source", "Acts.13.9", "original_token")]);
+        var sourceOnDifferentRelation = new KnowledgeRelationRecall(
+            "bible-original-step",
+            "0.1.0",
+            "contains_passage",
+            "chunk:Acts.13.9",
+            "passage:Acts.13.9",
+            "source_explicit",
+            1,
+            [new("step-tagnt", "Acts.13.9", "original_tokens")]);
+
+        var result = BibleCorpusEvaluationRunner.Score(
+            evaluationCase,
+            [Recall(wrongSource, sourceOnDifferentRelation)]);
+
+        Assert.False(result.Passed);
+        Assert.Contains(result.Violations, value => value.StartsWith(
+            "missing required relation evidence:", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void StructuredRelationRequirementsParseFromFrozenFixtureShape()
+    {
+        using var document = System.Text.Json.JsonDocument.Parse(
+            """
+            {
+              "requiredRelations": [{
+                "collectionId": "bible-original-step",
+                "relationType": "mentions",
+                "fromNodeId": "passage:Acts.13.9",
+                "toNodeId": "entity:step:G3972G",
+                "claimClass": "text_explicit",
+                "evidenceSourceIds": ["step-tagnt"],
+                "evidenceLocators": ["Acts.13.9"]
+              }]
+            }
+            """);
+
+        var requirement = Assert.Single(
+            BibleCorpusEvaluationRunner.ReadRelationRequirements(document.RootElement));
+
+        Assert.Equal("bible-original-step", requirement.CollectionId);
+        Assert.Equal("mentions", requirement.RelationType);
+        Assert.Equal("passage:Acts.13.9", requirement.FromNodeId);
+        Assert.Equal("entity:step:G3972G", requirement.ToNodeId);
+        Assert.Equal("text_explicit", requirement.ClaimClass);
+        Assert.Equal(["step-tagnt"], requirement.EvidenceSourceIds);
+        Assert.Equal(["Acts.13.9"], requirement.EvidenceLocators);
+    }
+
     private static KnowledgeChunkRecall Recall(params KnowledgeRelationRecall[] relations)
         => new(
             "bible-original",

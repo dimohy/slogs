@@ -18,7 +18,33 @@
         "urn:slogs:bible-package:"
       ],
       "requiredRelation": "contains_passage",
-      "requiredClaimClass": "source_explicit"
+      "requiredClaimClass": "source_explicit",
+      "requiredRelations": [
+        {
+          "collectionId": "bible-ko-nkrv",
+          "relationType": "contains_passage",
+          "toNodeId": "passage:Acts.13.9",
+          "claimClass": "source_explicit",
+          "evidenceSourceIds": ["bskorea-nkrv"],
+          "evidenceLocators": ["Acts.13.9"]
+        },
+        {
+          "collectionId": "bible-ko-tkv",
+          "relationType": "contains_passage",
+          "toNodeId": "passage:Acts.13.9",
+          "claimClass": "source_explicit",
+          "evidenceSourceIds": ["icnu-tkv-collection"],
+          "evidenceLocators": ["Acts.13.9"]
+        },
+        {
+          "collectionId": "bible-original-step",
+          "relationType": "contains_passage",
+          "toNodeId": "passage:Acts.13.9",
+          "claimClass": "source_explicit",
+          "evidenceSourceIds": ["step-tagnt"],
+          "evidenceLocators": ["Acts.13.9"]
+        }
+      ]
     },
     {
       "id": "acts-13-9-greek-morphology-provenance",
@@ -37,7 +63,17 @@
       ],
       "mustNotMerge": ["H7586G"],
       "requiredRelation": "contains_passage",
-      "requiredClaimClass": "source_explicit"
+      "requiredClaimClass": "source_explicit",
+      "requiredRelations": [
+        {
+          "collectionId": "bible-original-step",
+          "relationType": "contains_passage",
+          "toNodeId": "passage:Acts.13.9",
+          "claimClass": "source_explicit",
+          "evidenceSourceIds": ["step-tagnt"],
+          "evidenceLocators": ["Acts.13.9"]
+        }
+      ]
     },
     {
       "id": "first-samuel-9-2-hebrew-namesake-provenance",
@@ -54,7 +90,17 @@
       ],
       "mustNotMerge": ["G3972G"],
       "requiredRelation": "contains_passage",
-      "requiredClaimClass": "source_explicit"
+      "requiredClaimClass": "source_explicit",
+      "requiredRelations": [
+        {
+          "collectionId": "bible-original-step",
+          "relationType": "contains_passage",
+          "toNodeId": "passage:1Sam.9.2",
+          "claimClass": "source_explicit",
+          "evidenceSourceIds": ["step-tahot"],
+          "evidenceLocators": ["1Sam.9.2"]
+        }
+      ]
     }
   ]
 }

@@ -18,7 +18,19 @@ public sealed record BibleCorpusEvaluationCase(
     IReadOnlyList<string> MustNotClaim,
     string? RequiredRelation,
     string? RequiredClaimClass,
-    string EvaluationLayer = "retrieval");
+    string EvaluationLayer = "retrieval",
+    IReadOnlyList<BibleCorpusEvaluationRelationRequirement>? RequiredRelations = null);
+
+public sealed record BibleCorpusEvaluationRelationRequirement(
+    string RelationType,
+    string? CollectionId,
+    string? FromNodeId,
+    string? ToNodeId,
+    string? FromNodeContains,
+    string? ToNodeContains,
+    string? ClaimClass,
+    IReadOnlyList<string> EvidenceSourceIds,
+    IReadOnlyList<string> EvidenceLocators);
 
 public sealed record BibleCorpusEvaluationCaseResult(
     string Id,
@@ -134,6 +146,16 @@ public sealed class BibleCorpusEvaluationRunner(KnowledgeCorpusService corpusSer
         {
             violations.Add($"missing required claim class: {evaluationCase.RequiredClaimClass}");
         }
+        foreach (var requirement in evaluationCase.RequiredRelations ?? [])
+        {
+            if (!relations.Any(relation => Matches(requirement, relation)))
+            {
+                violations.Add(
+                    $"missing required relation evidence: {requirement.FromNodeId ?? requirement.FromNodeContains ?? "*"} " +
+                    $"--{requirement.RelationType}--> {requirement.ToNodeId ?? requirement.ToNodeContains ?? "*"} " +
+                    $"[{requirement.ClaimClass ?? "*"}]");
+            }
+        }
         foreach (var forbidden in evaluationCase.MustNotMerge)
         {
             if (relations.Any(value => IsSameEntity(value.RelationType)
@@ -179,7 +201,8 @@ public sealed class BibleCorpusEvaluationRunner(KnowledgeCorpusService corpusSer
                 ReadStrings(item, "mustNotClaim", "answerMustNotClaim"),
                 ReadOptionalString(item, "requiredRelation"),
                 ReadOptionalString(item, "requiredClaimClass"),
-                ReadEvaluationLayer(item)));
+                ReadEvaluationLayer(item),
+                ReadRelationRequirements(item)));
         }
         if (cases.Count == 0)
         {
@@ -204,6 +227,27 @@ public sealed class BibleCorpusEvaluationRunner(KnowledgeCorpusService corpusSer
 
     private static string? ReadOptionalString(JsonElement element, string name)
         => element.TryGetProperty(name, out var value) ? value.GetString() : null;
+
+    internal static IReadOnlyList<BibleCorpusEvaluationRelationRequirement> ReadRelationRequirements(
+        JsonElement element)
+    {
+        if (!element.TryGetProperty("requiredRelations", out var configured))
+        {
+            return [];
+        }
+
+        return configured.EnumerateArray().Select(value => new BibleCorpusEvaluationRelationRequirement(
+            ReadOptionalString(value, "relationType")
+                ?? throw new InvalidDataException("requiredRelations.relationType is missing."),
+            ReadOptionalString(value, "collectionId"),
+            ReadOptionalString(value, "fromNodeId"),
+            ReadOptionalString(value, "toNodeId"),
+            ReadOptionalString(value, "fromNodeContains"),
+            ReadOptionalString(value, "toNodeContains"),
+            ReadOptionalString(value, "claimClass"),
+            ReadStrings(value, "evidenceSourceIds"),
+            ReadStrings(value, "evidenceLocators"))).ToArray();
+    }
 
     public static string ReadEvaluationLayer(JsonElement element)
     {
@@ -288,6 +332,27 @@ public sealed class BibleCorpusEvaluationRunner(KnowledgeCorpusService corpusSer
 
     private static bool Contains(string value, string expected)
         => value.Contains(expected, StringComparison.OrdinalIgnoreCase);
+
+    private static bool Matches(
+        BibleCorpusEvaluationRelationRequirement requirement,
+        KnowledgeRelationRecall relation)
+        => relation.RelationType.Equals(requirement.RelationType, StringComparison.OrdinalIgnoreCase)
+            && MatchesOptionalExact(relation.CollectionId, requirement.CollectionId)
+            && MatchesOptionalExact(relation.FromNodeId, requirement.FromNodeId)
+            && MatchesOptionalExact(relation.ToNodeId, requirement.ToNodeId)
+            && MatchesOptionalContains(relation.FromNodeId, requirement.FromNodeContains)
+            && MatchesOptionalContains(relation.ToNodeId, requirement.ToNodeContains)
+            && MatchesOptionalExact(relation.ClaimClass, requirement.ClaimClass)
+            && requirement.EvidenceSourceIds.All(expected => relation.Evidence.Any(evidence =>
+                evidence.SourceId.Equals(expected, StringComparison.OrdinalIgnoreCase)))
+            && requirement.EvidenceLocators.All(expected => relation.Evidence.Any(evidence =>
+                evidence.Locator.Equals(expected, StringComparison.OrdinalIgnoreCase)));
+
+    private static bool MatchesOptionalExact(string actual, string? expected)
+        => expected is null || actual.Equals(expected, StringComparison.OrdinalIgnoreCase);
+
+    private static bool MatchesOptionalContains(string actual, string? expected)
+        => expected is null || actual.Contains(expected, StringComparison.OrdinalIgnoreCase);
 
     private static bool IsSameEntity(string value)
         => value.Equals("same_as", StringComparison.OrdinalIgnoreCase)
