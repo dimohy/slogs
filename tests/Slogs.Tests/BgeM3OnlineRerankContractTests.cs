@@ -95,6 +95,20 @@ public sealed class BgeM3OnlineRerankContractTests
         Assert.Null(method.Invoke(null, ["사도 바울과 사울의 관계"]));
     }
 
+    [Fact]
+    public void CorpusQueryExtractsCanonicalOsisLocatorAliases()
+    {
+        var method = typeof(KnowledgeCorpusService).GetMethod(
+            "ExtractCanonicalLocatorAliases",
+            BindingFlags.NonPublic | BindingFlags.Static)
+            ?? throw new InvalidOperationException("Corpus canonical locator extractor is missing.");
+
+        var result = (string[])(method.Invoke(null, ["Acts.13.9와 1Sam.9.2를 비교해줘"])
+            ?? throw new InvalidOperationException("Corpus canonical locator extractor returned null."));
+
+        Assert.Equal(["passage:Acts.13.9", "passage:1Sam.9.2"], result);
+    }
+
     [Theory]
     [InlineData(1, 2)]
     [InlineData(3, 5)]

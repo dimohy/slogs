@@ -186,6 +186,7 @@ public sealed class KnowledgeCorpusService(
             : safeLimit;
         var lexicalTerms = BuildLexicalTerms(searchText);
         var hierarchicalReference = TryExtractHierarchicalReference(searchText);
+        var exactLocatorAliases = ExtractCanonicalLocatorAliases(searchText);
         var seeds = await SearchSeedChunksAsync(
             db,
             owner,
@@ -196,6 +197,7 @@ public sealed class KnowledgeCorpusService(
             searchText,
             hierarchicalReference?.Chapter ?? -1,
             hierarchicalReference?.Verse ?? -1,
+            exactLocatorAliases,
             candidateLimit,
             cancellationToken);
         if (seeds.Count == 0)
@@ -996,6 +998,7 @@ public sealed class KnowledgeCorpusService(
         string queryText,
         int referenceChapter,
         int referenceVerse,
+        string[] exactLocatorAliases,
         int limit,
         CancellationToken cancellationToken)
     {
@@ -1025,12 +1028,13 @@ public sealed class KnowledgeCorpusService(
                 SELECT v."CollectionId", v."Version", v."OwnerUserName", v."ChunkId",
                     ROW_NUMBER() OVER (ORDER BY v."CollectionId", v."Version", v."ChunkId") AS exact_rank
                 FROM visible v
-                WHERE @referenceChapter >= 0 AND @referenceVerse >= 0
-                  AND POSITION(LOWER(v.document_title) IN LOWER(@queryText)) > 0
-                  AND EXISTS (
-                    SELECT 1 FROM jsonb_array_elements_text(v."SearchAliasesJson") alias
-                    WHERE alias LIKE ('%.' || @referenceChapter::text || '.' || @referenceVerse::text)
-                  )
+                WHERE v."SearchAliasesJson" ?| @exactLocatorAliases
+                   OR (@referenceChapter >= 0 AND @referenceVerse >= 0
+                     AND POSITION(LOWER(v.document_title) IN LOWER(@queryText)) > 0
+                     AND EXISTS (
+                       SELECT 1 FROM jsonb_array_elements_text(v."SearchAliasesJson") alias
+                       WHERE alias LIKE ('%.' || @referenceChapter::text || '.' || @referenceVerse::text)
+                     ))
                 ORDER BY v."CollectionId", v."Version", v."ChunkId"
                 LIMIT @channelLimit
             ), vector_ranked AS (
@@ -1122,6 +1126,7 @@ public sealed class KnowledgeCorpusService(
         command.Parameters.Add(new NpgsqlParameter("queryText", queryText));
         command.Parameters.Add(new NpgsqlParameter("referenceChapter", referenceChapter));
         command.Parameters.Add(new NpgsqlParameter("referenceVerse", referenceVerse));
+        command.Parameters.Add(new NpgsqlParameter("exactLocatorAliases", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = exactLocatorAliases });
         command.Parameters.Add(new NpgsqlParameter("channelLimit", Math.Max(limit * 20, 100)));
         command.Parameters.Add(new NpgsqlParameter("channelQuota", CalculateHybridChannelQuota(limit)));
         command.Parameters.Add(new NpgsqlParameter("rrfConstant", ReciprocalRankFusionConstant));
@@ -1257,6 +1262,16 @@ public sealed class KnowledgeCorpusService(
                 int.Parse(match.Groups["verse"].Value, System.Globalization.CultureInfo.InvariantCulture))
             : null;
     }
+
+    private static string[] ExtractCanonicalLocatorAliases(string query)
+        => Regex.Matches(
+                query.Normalize(NormalizationForm.FormKC),
+                @"(?<reference>[1-3]?[A-Za-z]{2,}\.[1-9][0-9]*\.[0-9]+)",
+                RegexOptions.CultureInvariant)
+            .Select(match => $"passage:{match.Groups["reference"].Value}")
+            .Distinct(StringComparer.Ordinal)
+            .Take(8)
+            .ToArray();
 
     private static IEnumerable<string> ExpandLexicalTerm(string term)
     {
