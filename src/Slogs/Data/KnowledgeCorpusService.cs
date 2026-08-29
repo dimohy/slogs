@@ -1315,6 +1315,11 @@ public sealed class KnowledgeCorpusService(
     private static async Task<IReadOnlyList<KnowledgeRelationRecall>> ReadRelationsAsync(SlogsDbContext db, string owner, bool isAdmin, string[] scopeKeys, SeedChunk seed, int maxGraphHops, CancellationToken cancellationToken)
     {
         var startNodes = new[] { seed.ChunkId, seed.StructureNodeId, seed.DocumentId }.Where(value => value is not null).Cast<string>().ToArray();
+        if (maxGraphHops <= 1)
+        {
+            return await ReadDirectRelationsAsync(db, owner, isAdmin, scopeKeys, startNodes, cancellationToken);
+        }
+
         await using var command = CreateCommand(db,
             """
             WITH RECURSIVE visible_relations AS (
@@ -1380,6 +1385,81 @@ public sealed class KnowledgeCorpusService(
         command.Parameters.Add(new NpgsqlParameter("scopeKeys", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = scopeKeys });
         command.Parameters.Add(new NpgsqlParameter("startNodes", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = startNodes });
         command.Parameters.Add(new NpgsqlParameter("maxGraphHops", maxGraphHops));
+        return await ReadRelationResultsAsync(command, cancellationToken);
+    }
+
+    private static async Task<IReadOnlyList<KnowledgeRelationRecall>> ReadDirectRelationsAsync(
+        SlogsDbContext db,
+        string owner,
+        bool isAdmin,
+        string[] scopeKeys,
+        string[] startNodes,
+        CancellationToken cancellationToken)
+    {
+        await using var command = CreateCommand(db,
+            """
+            WITH visible_collections AS (
+                SELECT c.*
+                FROM "LlmWikiKnowledgeCollections" c
+                WHERE c."Status"='active'
+                  AND (
+                    c."Visibility"='public_shared'
+                    OR (c."OwnerKind"='system' AND @isAdmin)
+                    OR (c."OwnerKind"='user' AND c."OwnerKey"=@owner)
+                    OR (c."OwnerKind"='organization' AND c."OwnerKey"=ANY(@scopeKeys))
+                    OR (c."Visibility"='organization' AND c."ScopeKey"=ANY(@scopeKeys))
+                    OR EXISTS (
+                        SELECT 1 FROM "LlmWikiKnowledgeCollectionAcl" acl
+                        WHERE acl."CollectionId"=c."CollectionId" AND acl."Version"=c."Version" AND acl."OwnerUserName"=c."OwnerUserName"
+                          AND ((acl."PrincipalKind"='user' AND acl."PrincipalKey"=@owner)
+                            OR (acl."PrincipalKind"='organization' AND acl."PrincipalKey"=ANY(@scopeKeys)))
+                    )
+                  )
+            ), graph AS (
+                SELECT r.*, 1 AS depth
+                FROM visible_collections c
+                INNER JOIN "LlmWikiKnowledgeRelations" r
+                  ON r."CollectionId"=c."CollectionId" AND r."Version"=c."Version" AND r."OwnerUserName"=c."OwnerUserName"
+                WHERE r."ReviewStatus" IN ('approved','published') AND r."FromNodeId"=ANY(@startNodes)
+                UNION ALL
+                SELECT r.*, 1 AS depth
+                FROM visible_collections c
+                INNER JOIN "LlmWikiKnowledgeRelations" r
+                  ON r."CollectionId"=c."CollectionId" AND r."Version"=c."Version" AND r."OwnerUserName"=c."OwnerUserName"
+                WHERE r."ReviewStatus" IN ('approved','published') AND r."ToNodeId"=ANY(@startNodes)
+                  AND NOT (r."FromNodeId"=ANY(@startNodes))
+            )
+            SELECT g."CollectionId", g."Version", g."RelationType", g."FromNodeId", g."ToNodeId", g."ClaimClass", g."Confidence", g."EvidenceJson"::text,
+                COALESCE(from_entity."CanonicalLabel", from_structure."Label", g."FromNodeId"),
+                COALESCE(from_entity."AliasesJson"::text, '[]'),
+                COALESCE(to_entity."CanonicalLabel", to_structure."Label", g."ToNodeId"),
+                COALESCE(to_entity."AliasesJson"::text, '[]')
+            FROM graph g
+            LEFT JOIN "LlmWikiKnowledgeEntities" from_entity
+              ON from_entity."CollectionId"=g."CollectionId" AND from_entity."Version"=g."Version"
+             AND from_entity."OwnerUserName"=g."OwnerUserName" AND from_entity."EntityId"=g."FromNodeId"
+            LEFT JOIN "LlmWikiKnowledgeStructureNodes" from_structure
+              ON from_structure."CollectionId"=g."CollectionId" AND from_structure."Version"=g."Version"
+             AND from_structure."OwnerUserName"=g."OwnerUserName" AND from_structure."NodeId"=g."FromNodeId"
+            LEFT JOIN "LlmWikiKnowledgeEntities" to_entity
+              ON to_entity."CollectionId"=g."CollectionId" AND to_entity."Version"=g."Version"
+             AND to_entity."OwnerUserName"=g."OwnerUserName" AND to_entity."EntityId"=g."ToNodeId"
+            LEFT JOIN "LlmWikiKnowledgeStructureNodes" to_structure
+              ON to_structure."CollectionId"=g."CollectionId" AND to_structure."Version"=g."Version"
+             AND to_structure."OwnerUserName"=g."OwnerUserName" AND to_structure."NodeId"=g."ToNodeId"
+            ORDER BY CASE WHEN g."RelationType" IN ('contains_passage','contains','part_of') THEN 1 ELSE 0 END,
+                g."Confidence" DESC, g."RelationId"
+            LIMIT 30;
+            """);
+        command.Parameters.Add(new NpgsqlParameter("owner", owner));
+        command.Parameters.Add(new NpgsqlParameter("isAdmin", isAdmin));
+        command.Parameters.Add(new NpgsqlParameter("scopeKeys", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = scopeKeys });
+        command.Parameters.Add(new NpgsqlParameter("startNodes", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = startNodes });
+        return await ReadRelationResultsAsync(command, cancellationToken);
+    }
+
+    private static async Task<IReadOnlyList<KnowledgeRelationRecall>> ReadRelationResultsAsync(NpgsqlCommand command, CancellationToken cancellationToken)
+    {
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var results = new List<KnowledgeRelationRecall>();
         while (await reader.ReadAsync(cancellationToken))

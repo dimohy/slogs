@@ -45,8 +45,9 @@ SELECT json_build_object(
     WHERE NULLIF(BTRIM(e->>'SourceId'),'') IS NULL
        OR NULLIF(BTRIM(e->>'Locator'),'') IS NULL
        OR NULLIF(BTRIM(e->>'EvidenceType'),'') IS NULL
-       OR jsonb_typeof(e->'ChunkIds') <> 'array'
-       OR jsonb_array_length(e->'ChunkIds')=0),
+       OR (e ? 'ChunkIds'
+         AND e->'ChunkIds' <> 'null'::jsonb
+         AND jsonb_typeof(e->'ChunkIds') <> 'array')),
   'publicOriginalDanglingEvidenceChunkCount', (SELECT COUNT(*) FROM original_relations r
     CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(r."EvidenceJson")='array' THEN r."EvidenceJson" ELSE '[]'::jsonb END) e
     CROSS JOIN LATERAL jsonb_array_elements_text(CASE WHEN jsonb_typeof(e->'ChunkIds')='array' THEN e->'ChunkIds' ELSE '[]'::jsonb END) chunk_id
