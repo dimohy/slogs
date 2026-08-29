@@ -186,35 +186,55 @@ public sealed class KnowledgeCorpusService(
             .Select(value => Normalize(value, 160, "organizationScopeKey"))
             .Distinct(StringComparer.Ordinal)
             .ToArray();
-        var queryEmbedding = await embeddingService.EmbedQueryAsync(searchText, cancellationToken);
+        var hierarchicalReference = TryExtractHierarchicalReference(searchText);
+        var exactLocatorAliases = ExtractCanonicalLocatorAliases(searchText);
 
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
         await EnsureConnectionOpenAsync(db, cancellationToken);
-        var candidateLimit = embeddingService.SupportsFullFunctionReranking
-            ? CalculateBgeM3CandidateLimit(safeLimit)
-            : safeLimit;
-        var lexicalTerms = BuildLexicalTerms(searchText);
-        var hierarchicalReference = TryExtractHierarchicalReference(searchText);
-        var exactLocatorAliases = ExtractCanonicalLocatorAliases(searchText);
-        var seeds = await SearchSeedChunksAsync(
-            db,
-            owner,
-            isAdmin,
-            scopeKeys,
-            ToVectorLiteral(queryEmbedding),
-            lexicalTerms,
-            searchText,
-            hierarchicalReference?.Chapter ?? -1,
-            hierarchicalReference?.Verse ?? -1,
-            exactLocatorAliases,
-            candidateLimit,
-            cancellationToken);
+        var exactFastPath = false;
+        IReadOnlyList<SeedChunk> seeds = [];
+        if (HasSingleExplicitLocatorQuery(searchText))
+        {
+            seeds = await SearchExactLocatorChunksAsync(
+                db,
+                owner,
+                isAdmin,
+                scopeKeys,
+                searchText,
+                hierarchicalReference?.Chapter ?? -1,
+                hierarchicalReference?.Verse ?? -1,
+                exactLocatorAliases,
+                safeLimit,
+                cancellationToken);
+            exactFastPath = seeds.Count > 0;
+        }
+
+        if (!exactFastPath)
+        {
+            var queryEmbedding = await embeddingService.EmbedQueryAsync(searchText, cancellationToken);
+            var candidateLimit = embeddingService.SupportsFullFunctionReranking
+                ? CalculateBgeM3CandidateLimit(safeLimit)
+                : safeLimit;
+            seeds = await SearchSeedChunksAsync(
+                db,
+                owner,
+                isAdmin,
+                scopeKeys,
+                ToVectorLiteral(queryEmbedding),
+                BuildLexicalTerms(searchText),
+                searchText,
+                hierarchicalReference?.Chapter ?? -1,
+                hierarchicalReference?.Verse ?? -1,
+                exactLocatorAliases,
+                candidateLimit,
+                cancellationToken);
+        }
         if (seeds.Count == 0)
         {
             return [];
         }
 
-        if (embeddingService.SupportsFullFunctionReranking)
+        if (!exactFastPath && embeddingService.SupportsFullFunctionReranking)
         {
             var rerankCount = Math.Min(seeds.Count, MaxBgeM3OnlineRerankCandidates);
             var scores = await embeddingService.ScorePairsAsync(
@@ -1152,6 +1172,72 @@ public sealed class KnowledgeCorpusService(
         return results;
     }
 
+    private static async Task<IReadOnlyList<SeedChunk>> SearchExactLocatorChunksAsync(
+        SlogsDbContext db,
+        string owner,
+        bool isAdmin,
+        string[] scopeKeys,
+        string queryText,
+        int referenceChapter,
+        int referenceVerse,
+        string[] exactLocatorAliases,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        await using var command = CreateCommand(db,
+            """
+            SELECT k."CollectionId", k."Version", k."OwnerUserName", c."Domain", k."DocumentId", d."Title", k."ChunkId", k."StructureNodeId", k."Text", k."StartLocator", k."EndLocator"
+            FROM "LlmWikiKnowledgeChunks" k
+            INNER JOIN "LlmWikiKnowledgeCollections" c
+              ON c."CollectionId"=k."CollectionId" AND c."Version"=k."Version" AND c."OwnerUserName"=k."OwnerUserName"
+            INNER JOIN "LlmWikiKnowledgeDocuments" d
+              ON d."CollectionId"=k."CollectionId" AND d."Version"=k."Version" AND d."OwnerUserName"=k."OwnerUserName" AND d."DocumentId"=k."DocumentId"
+            WHERE c."Status"='active'
+              AND (
+                c."Visibility"='public_shared'
+                OR (c."OwnerKind"='system' AND @isAdmin)
+                OR (c."OwnerKind"='user' AND c."OwnerKey"=@owner)
+                OR (c."OwnerKind"='organization' AND c."OwnerKey"=ANY(@scopeKeys))
+                OR (c."Visibility"='organization' AND c."ScopeKey"=ANY(@scopeKeys))
+                OR EXISTS (
+                    SELECT 1 FROM "LlmWikiKnowledgeCollectionAcl" acl
+                    WHERE acl."CollectionId"=c."CollectionId" AND acl."Version"=c."Version" AND acl."OwnerUserName"=c."OwnerUserName"
+                      AND ((acl."PrincipalKind"='user' AND acl."PrincipalKey"=@owner)
+                        OR (acl."PrincipalKind"='organization' AND acl."PrincipalKey"=ANY(@scopeKeys)))
+                )
+              )
+              AND (
+                k."SearchAliasesJson" ?| @exactLocatorAliases
+                OR (@referenceChapter >= 0 AND @referenceVerse >= 0
+                  AND POSITION(LOWER(d."Title") IN LOWER(@queryText)) > 0
+                  AND EXISTS (
+                    SELECT 1 FROM jsonb_array_elements_text(k."SearchAliasesJson") alias
+                    WHERE alias LIKE ('%.' || @referenceChapter::text || '.' || @referenceVerse::text)
+                  ))
+              )
+            ORDER BY k."CollectionId", k."Version", k."ChunkId"
+            LIMIT @limit;
+            """);
+        command.Parameters.Add(new NpgsqlParameter("owner", owner));
+        command.Parameters.Add(new NpgsqlParameter("isAdmin", isAdmin));
+        command.Parameters.Add(new NpgsqlParameter("scopeKeys", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = scopeKeys });
+        command.Parameters.Add(new NpgsqlParameter("queryText", queryText));
+        command.Parameters.Add(new NpgsqlParameter("referenceChapter", referenceChapter));
+        command.Parameters.Add(new NpgsqlParameter("referenceVerse", referenceVerse));
+        command.Parameters.Add(new NpgsqlParameter("exactLocatorAliases", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = exactLocatorAliases });
+        command.Parameters.Add(new NpgsqlParameter("limit", limit));
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var results = new List<SeedChunk>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            results.Add(new SeedChunk(
+                reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetString(5), reader.GetString(6),
+                reader.IsDBNull(7) ? null : reader.GetString(7), reader.GetString(8), reader.GetString(9), reader.GetString(10), true, 100));
+        }
+
+        return results;
+    }
+
     private static async Task<IReadOnlyList<KnowledgeRelationRecall>> ReadRelationsAsync(SlogsDbContext db, string owner, bool isAdmin, string[] scopeKeys, SeedChunk seed, int maxGraphHops, CancellationToken cancellationToken)
     {
         var startNodes = new[] { seed.ChunkId, seed.StructureNodeId, seed.DocumentId }.Where(value => value is not null).Cast<string>().ToArray();
@@ -1270,6 +1356,23 @@ public sealed class KnowledgeCorpusService(
             ? new(int.Parse(match.Groups["chapter"].Value, System.Globalization.CultureInfo.InvariantCulture),
                 int.Parse(match.Groups["verse"].Value, System.Globalization.CultureInfo.InvariantCulture))
             : null;
+    }
+
+    internal static bool HasSingleExplicitLocatorQuery(string query)
+    {
+        var normalized = query.Normalize(NormalizationForm.FormKC);
+        var canonicalCount = Regex.Matches(
+                normalized,
+                @"(?<reference>[1-3]?[A-Za-z]{2,}\.[1-9][0-9]*\.[0-9]+)",
+                RegexOptions.CultureInvariant)
+            .Select(match => match.Groups["reference"].Value)
+            .Distinct(StringComparer.Ordinal)
+            .Count();
+        var hierarchicalCount = Regex.Matches(
+            normalized,
+            @"(?<chapter>[1-9][0-9]*)\s*(?:장\s*(?<verse>[0-9]+)\s*절?|[:：]\s*(?<verse>[0-9]+))",
+            RegexOptions.CultureInvariant).Count;
+        return canonicalCount + hierarchicalCount == 1;
     }
 
     private static string[] ExtractCanonicalLocatorAliases(string query)

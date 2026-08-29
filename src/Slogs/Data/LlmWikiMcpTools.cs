@@ -431,31 +431,54 @@ public sealed class LlmWikiMcpTools(
         var safeMinRelevancePercent = NormalizeRelevancePercent(minRelevancePercent);
         var safeMaxGraphHops = Math.Clamp(maxGraphHops, 1, 3);
         var stopwatch = Stopwatch.StartNew();
-        var memoryTask = llmWikiService.SearchAsync(
-            user.UserName,
-            query,
-            safeLimit,
-            minRelevancePercent: safeMinRelevancePercent,
-            maxGraphHops: safeMaxGraphHops);
-        Task<IReadOnlyList<KnowledgeChunkRecall>> corpusTask;
+        IReadOnlyList<LlmWikiSearchResult> results;
+        KnowledgeChunkRecall[] corpusResults;
         if (corpusService is null || corpusPrincipalResolver is null)
         {
-            corpusTask = Task.FromResult<IReadOnlyList<KnowledgeChunkRecall>>([]);
+            results = await llmWikiService.SearchAsync(
+                user.UserName,
+                query,
+                safeLimit,
+                minRelevancePercent: safeMinRelevancePercent,
+                maxGraphHops: safeMaxGraphHops);
+            corpusResults = [];
         }
         else
         {
             var corpusActor = await corpusPrincipalResolver.ResolveAsync(user);
-            corpusTask = corpusService.RecallAsync(
+            var corpusTask = corpusService.RecallAsync(
                 corpusActor,
                 query,
                 safeLimit,
                 safeMaxGraphHops);
+            if (KnowledgeCorpusService.HasSingleExplicitLocatorQuery(query))
+            {
+                corpusResults = (await corpusTask)
+                    .Where(item => item.RelevancePercent >= safeMinRelevancePercent)
+                    .ToArray();
+                results = corpusResults.Length == 0
+                    ? await llmWikiService.SearchAsync(
+                        user.UserName,
+                        query,
+                        safeLimit,
+                        minRelevancePercent: safeMinRelevancePercent,
+                        maxGraphHops: safeMaxGraphHops)
+                    : [];
+            }
+            else
+            {
+                var memoryTask = llmWikiService.SearchAsync(
+                    user.UserName,
+                    query,
+                    safeLimit,
+                    minRelevancePercent: safeMinRelevancePercent,
+                    maxGraphHops: safeMaxGraphHops);
+                corpusResults = (await corpusTask)
+                    .Where(item => item.RelevancePercent >= safeMinRelevancePercent)
+                    .ToArray();
+                results = await memoryTask;
+            }
         }
-
-        var results = await memoryTask;
-        var corpusResults = (await corpusTask)
-            .Where(item => item.RelevancePercent >= safeMinRelevancePercent)
-            .ToArray();
         var selectedCandidates = SelectCombinedRecallCandidates(results, corpusResults, safeLimit);
         var selectedMemoryIndexes = selectedCandidates
             .Where(candidate => !candidate.IsCorpus)

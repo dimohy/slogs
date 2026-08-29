@@ -62,6 +62,20 @@ public sealed class LlmWikiCombinedRecallTests
         Assert.False(candidate.IsCorpus);
     }
 
+    [Theory]
+    [InlineData("Acts.13.9 본문", true)]
+    [InlineData("사도행전 13장 9절 본문", true)]
+    [InlineData("사도행전 13:9 본문", true)]
+    [InlineData("Acts.13.9와 1Sam.9.2 비교", false)]
+    [InlineData("사도행전 13장 9절과 사무엘상 9장 2절 비교", false)]
+    [InlineData("사울과 바울의 관계", false)]
+    public void SingleExplicitLocatorDetectionProtectsMultiLocatorAndSemanticQueries(
+        string query,
+        bool expected)
+    {
+        Assert.Equal(expected, KnowledgeCorpusService.HasSingleExplicitLocatorQuery(query));
+    }
+
     private static LlmWikiSearchResult Memory(string title, int relevance)
         => new(
             Guid.NewGuid(),
