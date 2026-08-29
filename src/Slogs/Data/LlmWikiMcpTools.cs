@@ -734,8 +734,8 @@ public sealed class LlmWikiMcpTools(
                 index,
                 chunk.RelevancePercent,
                 chunk.Relations.Any(IsSubstantiveGraphRelation))))
-            .OrderByDescending(candidate => preferSubstantiveGraphRelations && candidate.HasSubstantiveGraphRelation)
-            .ThenByDescending(candidate => candidate.RelevancePercent)
+            .OrderByDescending(candidate => candidate.RelevancePercent)
+            .ThenByDescending(candidate => preferSubstantiveGraphRelations && candidate.HasSubstantiveGraphRelation)
             .ThenBy(candidate => candidate.IsCorpus)
             .ThenBy(candidate => candidate.SourceIndex)
             .Take(limit)
@@ -748,8 +748,7 @@ public sealed class LlmWikiMcpTools(
     internal static bool ShouldKeepRerankedCorpusCandidate(
         KnowledgeChunkRecall candidate,
         int minRelevancePercent)
-        => candidate.RelevancePercent >= minRelevancePercent
-            || candidate.Relations.Any(IsSubstantiveGraphRelation);
+        => candidate.RelevancePercent >= minRelevancePercent;
 
     internal static int CalculateCorpusRecallLimit(int responseLimit, int maxGraphHops)
     {
@@ -868,7 +867,7 @@ public sealed class LlmWikiMcpTools(
             (combinedScore * 0.8f) + ((candidate.RelevancePercent / 100f) * 0.2f),
             0f,
             1f) * 100f);
-        return candidate.HasSubstantiveGraphRelation
+        return !candidate.IsCorpus || candidate.HasSubstantiveGraphRelation
             ? Math.Max(candidate.RelevancePercent, reranked)
             : reranked;
     }

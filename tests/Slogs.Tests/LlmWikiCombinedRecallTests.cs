@@ -63,7 +63,7 @@ public sealed class LlmWikiCombinedRecallTests
     }
 
     [Fact]
-    public void RelationalRecallKeepsSubstantiveGraphEvidenceInsideTheResponseLimit()
+    public void RelationalRecallUsesSubstantiveGraphEvidenceAsARelevanceTieBreaker()
     {
         var selected = LlmWikiMcpTools.SelectCombinedRecallCandidates(
             [],
@@ -73,13 +73,27 @@ public sealed class LlmWikiCombinedRecallTests
                 Corpus("semantic-3", 68),
                 Corpus("semantic-4", 67),
                 Corpus("semantic-5", 66),
-                Corpus("reviewed-relation", 50, "direct_quote")
+                Corpus("reviewed-relation", 66, "direct_quote")
             ],
             5,
             preferSubstantiveGraphRelations: true);
 
         Assert.Contains(selected, candidate => candidate.SourceIndex == 5 && candidate.HasSubstantiveGraphRelation);
         Assert.Equal(5, selected.Count);
+    }
+
+    [Fact]
+    public void RelationalRecallDoesNotLetUnrelatedGraphEvidenceDisplaceRelevantPersonalMemory()
+    {
+        var selected = LlmWikiMcpTools.SelectCombinedRecallCandidates(
+            [Memory("eed6e77", 100)],
+            [Corpus("unrelated-bible-relation", 39, "cross_reference")],
+            1,
+            preferSubstantiveGraphRelations: true);
+
+        var candidate = Assert.Single(selected);
+        Assert.False(candidate.IsCorpus);
+        Assert.Equal(100, candidate.RelevancePercent);
     }
 
     [Fact]
@@ -151,12 +165,23 @@ public sealed class LlmWikiCombinedRecallTests
     }
 
     [Fact]
-    public void ReviewedSubstantiveRelationSurvivesTheSemanticThresholdGate()
+    public void PersonalMemoryCannotBeDemotedBelowItsDirectRetrievalScore()
+    {
+        var memory = new LlmWikiMcpTools.CombinedRecallCandidate(
+            IsCorpus: false,
+            SourceIndex: 0,
+            RelevancePercent: 100);
+
+        Assert.Equal(100, LlmWikiMcpTools.CalculateCombinedRerankRelevance(memory, 0.1f));
+    }
+
+    [Fact]
+    public void ReviewedSubstantiveRelationMustStillPassTheSemanticThresholdGate()
     {
         var reviewed = Corpus("reviewed-relation", 20, "direct_quote");
         var ordinary = Corpus("ordinary", 20);
 
-        Assert.True(LlmWikiMcpTools.ShouldKeepRerankedCorpusCandidate(reviewed, 45));
+        Assert.False(LlmWikiMcpTools.ShouldKeepRerankedCorpusCandidate(reviewed, 45));
         Assert.False(LlmWikiMcpTools.ShouldKeepRerankedCorpusCandidate(ordinary, 45));
     }
 
