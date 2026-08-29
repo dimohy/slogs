@@ -14,6 +14,17 @@ namespace Slogs.Tests;
 public sealed class OrganizationPlatformTests
 {
     [Fact]
+    public async Task KnowledgeCorpusPrincipalResolverUsesOnlyActiveOrganizationMemberships()
+    {
+        await using var fixture = await OrganizationFixture.CreateAsync();
+        var adminActor = await fixture.CorpusPrincipals.ResolveAsync(new AuthUser { UserName = "admin" });
+        Assert.Equal(OrganizationRoles.Admin, adminActor.OrganizationRoles[fixture.OrganizationId.ToString("D")]);
+
+        var outsiderActor = await fixture.CorpusPrincipals.ResolveAsync(new AuthUser { UserName = "outsider" });
+        Assert.Empty(outsiderActor.OrganizationRoles);
+    }
+
+    [Fact]
     public async Task OrganizationServicePrincipalCannotEnterPersonalLlmWikiTools()
     {
         var principal = new ClaimsPrincipal(new ClaimsIdentity(
@@ -401,6 +412,7 @@ public sealed class OrganizationPlatformTests
             Metrics = services.GetRequiredService<OrganizationMetricsService>();
             Tokens = services.GetRequiredService<OrganizationTokenService>();
             GuidedAccess = services.GetRequiredService<OrganizationGuidedAccessService>();
+            CorpusPrincipals = services.GetRequiredService<KnowledgeCorpusPrincipalResolver>();
         }
 
         public Guid OrganizationId { get; }
@@ -409,6 +421,7 @@ public sealed class OrganizationPlatformTests
         public OrganizationMetricsService Metrics { get; }
         public OrganizationTokenService Tokens { get; }
         public OrganizationGuidedAccessService GuidedAccess { get; }
+        public KnowledgeCorpusPrincipalResolver CorpusPrincipals { get; }
 
         public static async Task<OrganizationFixture> CreateAsync()
         {
@@ -424,6 +437,7 @@ public sealed class OrganizationPlatformTests
             });
             services.AddDbContextFactory<SlogsDbContext>(options => options.UseSqlite(slogsConnection));
             services.AddScoped<OrganizationActorResolver>();
+            services.AddScoped<KnowledgeCorpusPrincipalResolver>();
             services.AddSingleton<IOrganizationSemanticIndex, TestOrganizationSemanticIndex>();
             services.AddScoped<OrganizationDirectoryService>();
             services.AddScoped<OrganizationWikiService>();

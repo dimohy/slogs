@@ -822,6 +822,187 @@ public static class SlogsDbInitializer
             """);
         await db.Database.ExecuteSqlRawAsync(
             """
+            CREATE TABLE IF NOT EXISTS "LlmWikiKnowledgeCollections" (
+                "CollectionId" character varying(120) NOT NULL,
+                "Version" character varying(80) NOT NULL,
+                "OwnerUserName" character varying(80) NOT NULL,
+                "Title" character varying(200) NOT NULL,
+                "Domain" character varying(80) NOT NULL,
+                "Language" character varying(40) NOT NULL,
+                "License" character varying(120) NOT NULL,
+                "SourceUri" character varying(1000) NOT NULL,
+                "OwnerKind" character varying(24) NOT NULL DEFAULT 'user',
+                "OwnerKey" character varying(160) NOT NULL DEFAULT '',
+                "Visibility" character varying(40) NOT NULL,
+                "ScopeKey" character varying(160) NULL,
+                "RedistributionAllowed" boolean NOT NULL,
+                "ExpectedChunkCount" integer NOT NULL,
+                "Status" character varying(24) NOT NULL,
+                "ContentHash" character varying(64) NOT NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "UpdatedAt" timestamp with time zone NOT NULL,
+                "ActivatedAt" timestamp with time zone NULL,
+                CONSTRAINT "PK_LlmWikiKnowledgeCollections" PRIMARY KEY ("CollectionId", "Version", "OwnerUserName"),
+                CONSTRAINT "CK_LlmWikiKnowledgeCollections_OwnerKind" CHECK ("OwnerKind" IN ('user', 'organization', 'system')),
+                CONSTRAINT "CK_LlmWikiKnowledgeCollections_Visibility" CHECK ("Visibility" IN ('private', 'organization', 'public_shared')),
+                CONSTRAINT "CK_LlmWikiKnowledgeCollections_OrganizationScope" CHECK ("Visibility" <> 'organization' OR "ScopeKey" IS NOT NULL),
+                CONSTRAINT "CK_LlmWikiKnowledgeCollections_Status" CHECK ("Status" IN ('staging', 'active', 'retired')),
+                CONSTRAINT "CK_LlmWikiKnowledgeCollections_PublicLicense" CHECK ("Visibility" <> 'public_shared' OR "RedistributionAllowed" = TRUE)
+            );
+
+            ALTER TABLE "LlmWikiKnowledgeCollections"
+                ADD COLUMN IF NOT EXISTS "OwnerKind" character varying(24) NOT NULL DEFAULT 'user',
+                ADD COLUMN IF NOT EXISTS "OwnerKey" character varying(160) NOT NULL DEFAULT '';
+            UPDATE "LlmWikiKnowledgeCollections"
+            SET "OwnerKey" = "OwnerUserName"
+            WHERE "OwnerKey" = '';
+            DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CK_LlmWikiKnowledgeCollections_OwnerKind') THEN
+                    ALTER TABLE "LlmWikiKnowledgeCollections"
+                    ADD CONSTRAINT "CK_LlmWikiKnowledgeCollections_OwnerKind"
+                    CHECK ("OwnerKind" IN ('user', 'organization', 'system'));
+                END IF;
+            END $$;
+
+            CREATE TABLE IF NOT EXISTS "LlmWikiKnowledgeDocuments" (
+                "CollectionId" character varying(120) NOT NULL,
+                "Version" character varying(80) NOT NULL,
+                "OwnerUserName" character varying(80) NOT NULL,
+                "DocumentId" character varying(180) NOT NULL,
+                "Title" character varying(300) NOT NULL,
+                "DocumentType" character varying(80) NOT NULL,
+                "Ordinal" integer NOT NULL,
+                "SourceLocator" character varying(1000) NOT NULL,
+                "MetadataJson" jsonb NOT NULL,
+                "UpdatedAt" timestamp with time zone NOT NULL,
+                CONSTRAINT "PK_LlmWikiKnowledgeDocuments" PRIMARY KEY ("CollectionId", "Version", "OwnerUserName", "DocumentId"),
+                CONSTRAINT "FK_LlmWikiKnowledgeDocuments_Collection" FOREIGN KEY ("CollectionId", "Version", "OwnerUserName")
+                    REFERENCES "LlmWikiKnowledgeCollections" ("CollectionId", "Version", "OwnerUserName") ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS "LlmWikiKnowledgeStructureNodes" (
+                "CollectionId" character varying(120) NOT NULL,
+                "Version" character varying(80) NOT NULL,
+                "OwnerUserName" character varying(80) NOT NULL,
+                "NodeId" character varying(220) NOT NULL,
+                "DocumentId" character varying(180) NOT NULL,
+                "ParentNodeId" character varying(220) NULL,
+                "NodeType" character varying(80) NOT NULL,
+                "Label" character varying(300) NOT NULL,
+                "Ordinal" integer NOT NULL,
+                "Locator" character varying(500) NOT NULL,
+                "MetadataJson" jsonb NOT NULL,
+                "UpdatedAt" timestamp with time zone NOT NULL,
+                CONSTRAINT "PK_LlmWikiKnowledgeStructureNodes" PRIMARY KEY ("CollectionId", "Version", "OwnerUserName", "NodeId"),
+                CONSTRAINT "FK_LlmWikiKnowledgeStructureNodes_Document" FOREIGN KEY ("CollectionId", "Version", "OwnerUserName", "DocumentId")
+                    REFERENCES "LlmWikiKnowledgeDocuments" ("CollectionId", "Version", "OwnerUserName", "DocumentId") ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS "LlmWikiKnowledgeChunks" (
+                "CollectionId" character varying(120) NOT NULL,
+                "Version" character varying(80) NOT NULL,
+                "OwnerUserName" character varying(80) NOT NULL,
+                "ChunkId" character varying(240) NOT NULL,
+                "DocumentId" character varying(180) NOT NULL,
+                "StructureNodeId" character varying(220) NULL,
+                "Ordinal" integer NOT NULL,
+                "Text" text NOT NULL,
+                "StartLocator" character varying(500) NOT NULL,
+                "EndLocator" character varying(500) NOT NULL,
+                "PreviousChunkId" character varying(240) NULL,
+                "NextChunkId" character varying(240) NULL,
+                "OverlapUnits" integer NOT NULL,
+                "TokenCount" integer NOT NULL,
+                "TokenizerId" character varying(80) NOT NULL,
+                "SearchAliasesJson" jsonb NOT NULL,
+                "MetadataJson" jsonb NOT NULL,
+                "SearchText" text NOT NULL,
+                "ContentHash" character varying(64) NOT NULL,
+                "EmbeddingModel" character varying(80) NOT NULL,
+                "EmbeddingDimensions" integer NOT NULL,
+                "IndexVersion" character varying(80) NOT NULL,
+                "Embedding" vector(768) NOT NULL,
+                "UpdatedAt" timestamp with time zone NOT NULL,
+                CONSTRAINT "PK_LlmWikiKnowledgeChunks" PRIMARY KEY ("CollectionId", "Version", "OwnerUserName", "ChunkId"),
+                CONSTRAINT "FK_LlmWikiKnowledgeChunks_Document" FOREIGN KEY ("CollectionId", "Version", "OwnerUserName", "DocumentId")
+                    REFERENCES "LlmWikiKnowledgeDocuments" ("CollectionId", "Version", "OwnerUserName", "DocumentId") ON DELETE CASCADE,
+                CONSTRAINT "CK_LlmWikiKnowledgeChunks_TokenCount" CHECK ("TokenCount" > 0),
+                CONSTRAINT "CK_LlmWikiKnowledgeChunks_Overlap" CHECK ("OverlapUnits" >= 0)
+            );
+
+            CREATE TABLE IF NOT EXISTS "LlmWikiKnowledgeEntities" (
+                "CollectionId" character varying(120) NOT NULL,
+                "Version" character varying(80) NOT NULL,
+                "OwnerUserName" character varying(80) NOT NULL,
+                "EntityId" character varying(240) NOT NULL,
+                "EntityType" character varying(80) NOT NULL,
+                "CanonicalLabel" character varying(300) NOT NULL,
+                "AliasesJson" jsonb NOT NULL,
+                "MetadataJson" jsonb NOT NULL,
+                "UpdatedAt" timestamp with time zone NOT NULL,
+                CONSTRAINT "PK_LlmWikiKnowledgeEntities" PRIMARY KEY ("CollectionId", "Version", "OwnerUserName", "EntityId")
+            );
+
+            CREATE TABLE IF NOT EXISTS "LlmWikiKnowledgeRelations" (
+                "CollectionId" character varying(120) NOT NULL,
+                "Version" character varying(80) NOT NULL,
+                "OwnerUserName" character varying(80) NOT NULL,
+                "RelationId" character varying(240) NOT NULL,
+                "FromNodeId" character varying(240) NOT NULL,
+                "RelationType" character varying(100) NOT NULL,
+                "ToNodeId" character varying(240) NOT NULL,
+                "ClaimClass" character varying(80) NOT NULL,
+                "ReviewStatus" character varying(40) NOT NULL,
+                "Confidence" double precision NOT NULL,
+                "EvidenceJson" jsonb NOT NULL,
+                "CreatedBy" character varying(80) NOT NULL,
+                "MetadataJson" jsonb NOT NULL,
+                "UpdatedAt" timestamp with time zone NOT NULL,
+                CONSTRAINT "PK_LlmWikiKnowledgeRelations" PRIMARY KEY ("CollectionId", "Version", "OwnerUserName", "RelationId"),
+                CONSTRAINT "CK_LlmWikiKnowledgeRelations_Confidence" CHECK ("Confidence" >= 0 AND "Confidence" <= 1),
+                CONSTRAINT "CK_LlmWikiKnowledgeRelations_Status" CHECK ("ReviewStatus" IN ('candidate', 'approved', 'published', 'disputed', 'rejected'))
+            );
+
+            CREATE TABLE IF NOT EXISTS "LlmWikiKnowledgeCollectionAcl" (
+                "CollectionId" character varying(120) NOT NULL,
+                "Version" character varying(80) NOT NULL,
+                "OwnerUserName" character varying(80) NOT NULL,
+                "PrincipalKind" character varying(24) NOT NULL,
+                "PrincipalKey" character varying(160) NOT NULL,
+                "Permission" character varying(24) NOT NULL,
+                "GrantedByUserName" character varying(80) NOT NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                CONSTRAINT "PK_LlmWikiKnowledgeCollectionAcl" PRIMARY KEY ("CollectionId", "Version", "OwnerUserName", "PrincipalKind", "PrincipalKey"),
+                CONSTRAINT "FK_LlmWikiKnowledgeCollectionAcl_Collection" FOREIGN KEY ("CollectionId", "Version", "OwnerUserName")
+                    REFERENCES "LlmWikiKnowledgeCollections" ("CollectionId", "Version", "OwnerUserName") ON DELETE CASCADE,
+                CONSTRAINT "CK_LlmWikiKnowledgeCollectionAcl_PrincipalKind" CHECK ("PrincipalKind" IN ('user', 'organization')),
+                CONSTRAINT "CK_LlmWikiKnowledgeCollectionAcl_Permission" CHECK ("Permission" IN ('reader', 'editor', 'maintainer'))
+            );
+
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiKnowledgeCollections_Visibility_Status"
+            ON "LlmWikiKnowledgeCollections" ("Visibility", "Status", "Domain");
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiKnowledgeCollections_Owner"
+            ON "LlmWikiKnowledgeCollections" ("OwnerKind", "OwnerKey", "Status");
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_LlmWikiKnowledgeCollections_OwnerIdentity"
+            ON "LlmWikiKnowledgeCollections" ("CollectionId", "Version", "OwnerKind", "OwnerKey");
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiKnowledgeCollectionAcl_Principal"
+            ON "LlmWikiKnowledgeCollectionAcl" ("PrincipalKind", "PrincipalKey", "Permission");
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiKnowledgeDocuments_Order"
+            ON "LlmWikiKnowledgeDocuments" ("CollectionId", "Version", "OwnerUserName", "Ordinal");
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiKnowledgeStructureNodes_Parent"
+            ON "LlmWikiKnowledgeStructureNodes" ("CollectionId", "Version", "OwnerUserName", "ParentNodeId", "Ordinal");
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiKnowledgeChunks_Document_Order"
+            ON "LlmWikiKnowledgeChunks" ("CollectionId", "Version", "OwnerUserName", "DocumentId", "Ordinal");
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiKnowledgeChunks_Embedding_Hnsw"
+            ON "LlmWikiKnowledgeChunks" USING hnsw ("Embedding" vector_cosine_ops);
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiKnowledgeRelations_From"
+            ON "LlmWikiKnowledgeRelations" ("CollectionId", "Version", "OwnerUserName", "FromNodeId", "ReviewStatus");
+            CREATE INDEX IF NOT EXISTS "IX_LlmWikiKnowledgeRelations_To"
+            ON "LlmWikiKnowledgeRelations" ("CollectionId", "Version", "OwnerUserName", "ToNodeId", "ReviewStatus");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """
             CREATE UNIQUE INDEX IF NOT EXISTS "IX_LlmWikiMcpTokens_TokenHash"
             ON "LlmWikiMcpTokens" ("TokenHash");
             """);

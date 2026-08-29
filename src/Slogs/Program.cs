@@ -129,6 +129,9 @@ builder.Services.AddScoped<PostImageService>();
 builder.Services.AddHttpClient<EmbeddingGemmaService>();
 builder.Services.AddScoped<LlmWikiService>();
 builder.Services.AddScoped<SlogsMcpPolicyPromptService>();
+builder.Services.AddScoped<KnowledgeCorpusService>();
+builder.Services.AddSingleton<KnowledgeChunkingService>();
+builder.Services.AddScoped<KnowledgeCorpusPrincipalResolver>();
 builder.Services.AddScoped<ObsidianVaultService>();
 builder.Services.AddScoped<ObsidianStorageQuotaService>();
 builder.Services.AddScoped<ISlogsApiBackend, ServerSlogsApiBackend>();
@@ -137,6 +140,7 @@ builder.Services.AddMcpServer()
     .WithHttpTransport(options => options.Stateless = true)
     .WithTools<LlmWikiMcpTools>()
     .WithTools<SlogsPostMcpTools>()
+    .WithTools<KnowledgeCorpusMcpTools>()
     .WithTools<OrganizationWikiMcpTools>();
 builder.Services.AddHttpClient<SlogsApiClient>((serviceProvider, httpClient) =>
 {

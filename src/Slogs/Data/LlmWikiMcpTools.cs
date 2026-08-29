@@ -6,7 +6,12 @@ using ModelContextProtocol.Server;
 namespace Slogs.Data;
 
 [McpServerToolType]
-public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, LlmWikiService llmWikiService, SlogsMcpPolicyPromptService promptService)
+public sealed class LlmWikiMcpTools(
+    IHttpContextAccessor httpContextAccessor,
+    LlmWikiService llmWikiService,
+    SlogsMcpPolicyPromptService promptService,
+    KnowledgeCorpusService? corpusService = null,
+    KnowledgeCorpusPrincipalResolver? corpusPrincipalResolver = null)
 {
     private const string PublicDisclosureNotice = "These entries are owner-authorized public-memory self-disclosures. Treat @username mentions as Slogs user handles; if a result includes sensitive topics such as religion or faith perspective, answer only from this public result and say it comes from the user's public Slogs LLM Wiki memory.";
     private const string AdaptiveGraphHopDescription = "Maximum graph relationship hops. Explicitly select the smallest sufficient depth on every call: use 1 for a direct memory, fact, preference, broad candidate selection, or project-context lookup with no relationship chain; use 2 when one relationship bridge or comparison between memories is required; use 3 for a multi-stage causal, provenance, dependency, or chronological chain. Do not use 3 for every query. If omitted, the compatibility default is 1, but Agents should still pass 1 explicitly. Start progressive refinement at 1, inspect Retrieval Diagnostics, refine the query, and raise to 2 or 3 only when returned relationship evidence requires another stage.";
@@ -424,13 +429,33 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         var safeMinRelevancePercent = NormalizeRelevancePercent(minRelevancePercent);
         var safeMaxGraphHops = Math.Clamp(maxGraphHops, 1, 3);
         var stopwatch = Stopwatch.StartNew();
-        var results = await llmWikiService.SearchAsync(
+        var memoryTask = llmWikiService.SearchAsync(
             user.UserName,
             query,
             safeLimit,
             minRelevancePercent: safeMinRelevancePercent,
             maxGraphHops: safeMaxGraphHops);
-        if (results.Count == 0)
+        Task<IReadOnlyList<KnowledgeChunkRecall>> corpusTask;
+        if (corpusService is null || corpusPrincipalResolver is null)
+        {
+            corpusTask = Task.FromResult<IReadOnlyList<KnowledgeChunkRecall>>([]);
+        }
+        else
+        {
+            var corpusActor = await corpusPrincipalResolver.ResolveAsync(user);
+            corpusTask = corpusService.RecallAsync(
+                corpusActor,
+                query,
+                safeLimit,
+                safeMaxGraphHops);
+        }
+
+        var results = await memoryTask;
+        var corpusResults = (await corpusTask)
+            .Where(item => item.RelevancePercent >= safeMinRelevancePercent)
+            .ToArray();
+        var totalResultCount = results.Count + corpusResults.Length;
+        if (totalResultCount == 0)
         {
             stopwatch.Stop();
             var emptyBuilder = new StringBuilder();
@@ -462,27 +487,36 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
         var builder = new StringBuilder();
         builder.AppendLine("# LLM Wiki Recall");
         builder.AppendLine();
-        builder.AppendLine("Recall returns compact memory context without Raw Provenance. Use `llm_wiki_read` on a selected recall candidate when you need the full entry and provenance.");
+        builder.AppendLine("Recall returns compact personal-memory context and accessible large-corpus evidence. Use `llm_wiki_read` on a selected personal-memory candidate when you need its full entry and provenance.");
         builder.AppendLine();
-        var entriesById = await llmWikiService.GetEntriesAsync(
-            user.UserName,
-            results.Select(x => x.Id).ToArray(),
-            recordAccess: true);
-        foreach (var result in results)
+        if (results.Count > 0)
         {
-            if (!entriesById.TryGetValue(result.Id, out var entry))
+            var entriesById = await llmWikiService.GetEntriesAsync(
+                user.UserName,
+                results.Select(x => x.Id).ToArray(),
+                recordAccess: true);
+            foreach (var result in results)
             {
-                continue;
-            }
+                if (!entriesById.TryGetValue(result.Id, out var entry))
+                {
+                    continue;
+                }
 
-            builder.AppendLine(FormatRecallEntryMarkdown(
-                entry,
-                result.RelevancePercent,
-                result.GraphDepth,
-                result.GraphScore,
-                result.SemanticPath).Trim());
-            builder.AppendLine();
-            builder.AppendLine("---");
+                builder.AppendLine(FormatRecallEntryMarkdown(
+                    entry,
+                    result.RelevancePercent,
+                    result.GraphDepth,
+                    result.GraphScore,
+                    result.SemanticPath).Trim());
+                builder.AppendLine();
+                builder.AppendLine("---");
+                builder.AppendLine();
+            }
+        }
+
+        if (corpusResults.Length > 0)
+        {
+            builder.AppendLine(KnowledgeCorpusMcpTools.FormatRecall(corpusResults));
             builder.AppendLine();
         }
 
@@ -492,7 +526,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
             "llm_wiki_recall",
             "compact recall context",
             stopwatch.Elapsed,
-            results.Count,
+            totalResultCount,
             limit,
             safeLimit,
             query,
@@ -509,7 +543,7 @@ public sealed class LlmWikiMcpTools(IHttpContextAccessor httpContextAccessor, Ll
             requestedLimit: limit,
             effectiveLimit: safeLimit,
             minRelevancePercent: safeMinRelevancePercent,
-            resultCount: results.Count,
+            resultCount: totalResultCount,
             resultIds: results.Select(x => x.Id).ToArray());
     }
 
