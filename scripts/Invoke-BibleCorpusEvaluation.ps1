@@ -36,13 +36,26 @@ function Invoke-Remote {
 }
 
 $evaluationFile = (Resolve-Path -LiteralPath $EvaluationPath).Path
+$evaluationDocument = Get-Content -Raw -LiteralPath $evaluationFile | ConvertFrom-Json -Depth 40
+$evaluationHash = (Get-FileHash -LiteralPath $evaluationFile -Algorithm SHA256).Hash
+if ($evaluationDocument.frozenBeforeCorrectedOriginalActivation -eq $true) {
+    $lockFile = [System.IO.Path]::ChangeExtension($evaluationFile, ".lock.json")
+    if (-not (Test-Path -LiteralPath $lockFile -PathType Leaf)) {
+        throw "Frozen Bible evaluation lock is missing: $lockFile"
+    }
+    $lock = Get-Content -Raw -LiteralPath $lockFile | ConvertFrom-Json -Depth 20
+    if ($lock.state -ne "frozen" -or
+        $lock.frozenBeforeCorrectedOriginalActivation -ne $true -or
+        $lock.holdoutSha256 -ne $evaluationHash) {
+        throw "Frozen Bible evaluation lock does not match the evaluation SHA-256."
+    }
+}
 $outputFile = [System.IO.Path]::GetFullPath($OutputPath)
 $outputDirectory = Split-Path -Parent $outputFile
 if (-not [string]::IsNullOrWhiteSpace($outputDirectory)) {
     New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
 }
 
-$evaluationHash = (Get-FileHash -LiteralPath $evaluationFile -Algorithm SHA256).Hash
 $remote = "$RemoteUser@$RemoteHost"
 $remoteEvaluation = "$RemoteRoot/imports/bible-evaluation-$evaluationHash.json"
 $remoteOutput = "$RemoteRoot/import-state/bible-evaluation-$evaluationHash-result.json"
