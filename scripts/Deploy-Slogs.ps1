@@ -32,7 +32,8 @@ function Invoke-Native {
 
 function Invoke-Remote {
     param([Parameter(Mandatory = $true)][string]$Command)
-    Invoke-Native ssh "-o" "BatchMode=yes" "$RemoteUser@$RemoteHost" $Command
+    $normalizedCommand = $Command.Replace("`r`n", "`n").Replace("`r", "`n")
+    Invoke-Native ssh "-o" "BatchMode=yes" "$RemoteUser@$RemoteHost" $normalizedCommand
 }
 
 function Send-RemoteContent {
