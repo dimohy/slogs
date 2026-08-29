@@ -19,7 +19,8 @@ public sealed record BibleCorpusEvaluationCase(
     string? RequiredRelation,
     string? RequiredClaimClass,
     string EvaluationLayer = "retrieval",
-    IReadOnlyList<BibleCorpusEvaluationRelationRequirement>? RequiredRelations = null);
+    IReadOnlyList<BibleCorpusEvaluationRelationRequirement>? RequiredRelations = null,
+    IReadOnlyList<BibleCorpusEvaluationRelationRequirement>? ForbiddenRelations = null);
 
 public sealed record BibleCorpusEvaluationRelationRequirement(
     string RelationType,
@@ -156,6 +157,16 @@ public sealed class BibleCorpusEvaluationRunner(KnowledgeCorpusService corpusSer
                     $"[{requirement.ClaimClass ?? "*"}]");
             }
         }
+        foreach (var forbidden in evaluationCase.ForbiddenRelations ?? [])
+        {
+            if (relations.Any(relation => Matches(forbidden, relation)))
+            {
+                violations.Add(
+                    $"forbidden relation evidence: {forbidden.FromNodeId ?? forbidden.FromNodeContains ?? "*"} " +
+                    $"--{forbidden.RelationType}--> {forbidden.ToNodeId ?? forbidden.ToNodeContains ?? "*"} " +
+                    $"[{forbidden.ClaimClass ?? "*"}]");
+            }
+        }
         foreach (var forbidden in evaluationCase.MustNotMerge)
         {
             if (relations.Any(value => IsSameEntity(value.RelationType)
@@ -202,7 +213,8 @@ public sealed class BibleCorpusEvaluationRunner(KnowledgeCorpusService corpusSer
                 ReadOptionalString(item, "requiredRelation"),
                 ReadOptionalString(item, "requiredClaimClass"),
                 ReadEvaluationLayer(item),
-                ReadRelationRequirements(item)));
+                ReadRelationRequirements(item, "requiredRelations"),
+                ReadRelationRequirements(item, "forbiddenRelations")));
         }
         if (cases.Count == 0)
         {
@@ -229,16 +241,17 @@ public sealed class BibleCorpusEvaluationRunner(KnowledgeCorpusService corpusSer
         => element.TryGetProperty(name, out var value) ? value.GetString() : null;
 
     internal static IReadOnlyList<BibleCorpusEvaluationRelationRequirement> ReadRelationRequirements(
-        JsonElement element)
+        JsonElement element,
+        string propertyName = "requiredRelations")
     {
-        if (!element.TryGetProperty("requiredRelations", out var configured))
+        if (!element.TryGetProperty(propertyName, out var configured))
         {
             return [];
         }
 
         return configured.EnumerateArray().Select(value => new BibleCorpusEvaluationRelationRequirement(
             ReadOptionalString(value, "relationType")
-                ?? throw new InvalidDataException("requiredRelations.relationType is missing."),
+                ?? throw new InvalidDataException($"{propertyName}.relationType is missing."),
             ReadOptionalString(value, "collectionId"),
             ReadOptionalString(value, "fromNodeId"),
             ReadOptionalString(value, "toNodeId"),

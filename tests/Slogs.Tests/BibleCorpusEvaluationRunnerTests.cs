@@ -200,6 +200,72 @@ public sealed class BibleCorpusEvaluationRunnerTests
         Assert.Equal(["Acts.13.9"], requirement.EvidenceLocators);
     }
 
+    [Fact]
+    public void ForbiddenStructuredRelationRejectsWrongNamesakeMention()
+    {
+        var forbidden = new BibleCorpusEvaluationRelationRequirement(
+            "mentions",
+            "bible-original-step",
+            "passage:Acts.9.19",
+            "entity:step:H7586G",
+            null,
+            null,
+            "text_explicit",
+            ["step-tagnt"],
+            ["Acts.9.19"]);
+        var evaluationCase = new BibleCorpusEvaluationCase(
+            "apostle-saul-not-king-saul",
+            "사도행전 9장 19절의 사울은 누구인가?",
+            [],
+            [],
+            [],
+            null,
+            null,
+            ForbiddenRelations: [forbidden]);
+        var wrongMention = new KnowledgeRelationRecall(
+            "bible-original-step",
+            "0.1.0",
+            "mentions",
+            "passage:Acts.9.19",
+            "entity:step:H7586G",
+            "text_explicit",
+            1,
+            [new("step-tagnt", "Acts.9.19", "original_token")]);
+
+        var result = BibleCorpusEvaluationRunner.Score(evaluationCase, [Recall(wrongMention)]);
+
+        Assert.False(result.Passed);
+        Assert.Contains(result.Violations, value => value.StartsWith(
+            "forbidden relation evidence:", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ForbiddenRelationRequirementsParseFromFrozenFixtureShape()
+    {
+        using var document = System.Text.Json.JsonDocument.Parse(
+            """
+            {
+              "forbiddenRelations": [{
+                "collectionId": "bible-original-step",
+                "relationType": "mentions",
+                "fromNodeId": "passage:Acts.9.26",
+                "toNodeId": "entity:step:H7586G",
+                "claimClass": "text_explicit",
+                "evidenceSourceIds": ["step-tagnt"],
+                "evidenceLocators": ["Acts.9.26"]
+              }]
+            }
+            """);
+
+        var requirement = Assert.Single(
+            BibleCorpusEvaluationRunner.ReadRelationRequirements(
+                document.RootElement,
+                "forbiddenRelations"));
+
+        Assert.Equal("passage:Acts.9.26", requirement.FromNodeId);
+        Assert.Equal("entity:step:H7586G", requirement.ToNodeId);
+    }
+
     private static KnowledgeChunkRecall Recall(params KnowledgeRelationRecall[] relations)
         => new(
             "bible-original",

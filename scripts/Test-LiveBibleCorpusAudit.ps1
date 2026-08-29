@@ -62,6 +62,15 @@ SELECT json_build_object(
   'paulActsMentionCount', (SELECT COUNT(*) FROM original_relations
     WHERE "RelationType"='mentions' AND "FromNodeId"='passage:Acts.13.9' AND "ToNodeId"='entity:step:G3972G'
       AND "ReviewStatus"='published'),
+  'apostleSaulPaulMentionCount', (SELECT COUNT(*) FROM original_relations
+    WHERE "RelationType"='mentions'
+      AND "FromNodeId" IN ('passage:Acts.9.19','passage:Acts.9.26','passage:Acts.13.9')
+      AND "ToNodeId"='entity:step:G3972G'
+      AND "ReviewStatus"='published'),
+  'forbiddenKingSaulApostleMentionCount', (SELECT COUNT(*) FROM original_relations
+    WHERE "RelationType"='mentions'
+      AND "FromNodeId" IN ('passage:Acts.9.19','passage:Acts.9.26','passage:Acts.13.9')
+      AND "ToNodeId"='entity:step:H7586G'),
   'forbiddenKingSaulPaulMergeCount', (SELECT COUNT(*) FROM original_relations
     WHERE "RelationType" IN ('same_as','same_entity')
       AND (("FromNodeId"='entity:step:H7586G' AND "ToNodeId"='entity:step:G3972G')
@@ -121,7 +130,7 @@ function Assert-Collection {
 
 Assert-Collection 'bible-ko-nkrv' '0.1.0' 'user' 'dimohy' 'private' $false 'copyrighted-restricted' 1693 0 31101
 Assert-Collection 'bible-ko-tkv' '0.1.0' 'user' 'dimohy' 'private' $false 'copyrighted-restricted' 2203 0 31097
-Assert-Collection 'bible-original-step' '0.1.0' 'system' 'slogs' 'public_shared' $true 'CC BY; CC BY 4.0; CC BY-SA 4.0' 48515 4259 456058
+Assert-Collection 'bible-original-step' '0.1.0' 'system' 'slogs' 'public_shared' $true 'CC BY; CC BY 4.0; CC BY-SA 4.0' 48515 4259 455966
 Assert-Collection 'bible-reviewed-relations' '0.2.0' 'system' 'slogs' 'public_shared' $true 'CC BY 4.0 review metadata; underlying source references retain their licenses' 9 0 38
 Assert-Equal 'public original candidate count' $snapshot.publicOriginalCandidateCount 0
 Assert-Equal 'public original non-recallable review status count' $snapshot.publicOriginalNonRecallableReviewStatusCount 0
@@ -132,6 +141,8 @@ Assert-Equal 'public original dangling evidence chunk count' $snapshot.publicOri
 Assert-Equal 'Paul entity with Saul and G4569G aliases' $snapshot.paulEntityCount 1
 Assert-Equal 'King Saul entity' $snapshot.kingSaulEntityCount 1
 Assert-Equal 'Acts 13:9 Paul mention' $snapshot.paulActsMentionCount 1
+Assert-Equal 'Acts 9:19, Acts 9:26, and Acts 13:9 apostle Saul-Paul mentions' $snapshot.apostleSaulPaulMentionCount 3
+Assert-Equal 'forbidden King Saul mentions in apostle Saul-Paul passages' $snapshot.forbiddenKingSaulApostleMentionCount 0
 Assert-Equal 'forbidden King Saul-Paul merge count' $snapshot.forbiddenKingSaulPaulMergeCount 0
 
 $result = [ordered]@{
