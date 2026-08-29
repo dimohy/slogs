@@ -143,6 +143,7 @@ builder.Services.AddSingleton<BibleOriginalKnowledgeCorpusAdapter>();
 builder.Services.AddScoped<BibleCorpusImportRunner>();
 builder.Services.AddScoped<BibleCorpusImportOrchestrator>();
 builder.Services.AddScoped<BibleReviewedRelationsImportOrchestrator>();
+builder.Services.AddScoped<BibleCorpusEvaluationRunner>();
 builder.Services.AddScoped<KnowledgeCorpusPrincipalResolver>();
 builder.Services.AddScoped<ObsidianVaultService>();
 builder.Services.AddScoped<ObsidianStorageQuotaService>();
@@ -771,9 +772,12 @@ app.MapRazorComponents<App>()
 
 var hasBibleCorpusImport = TryReadBibleCorpusImportArguments(args, out var bibleCorpusImport);
 var hasBibleReviewedRelationsImport = TryReadBibleReviewedRelationsImportArguments(args, out var bibleReviewedRelationsImport);
-if (hasBibleCorpusImport && hasBibleReviewedRelationsImport)
+var hasBibleCorpusEvaluation = TryReadBibleCorpusEvaluationArguments(args, out var bibleCorpusEvaluation);
+if ((hasBibleCorpusImport ? 1 : 0)
+    + (hasBibleReviewedRelationsImport ? 1 : 0)
+    + (hasBibleCorpusEvaluation ? 1 : 0) > 1)
 {
-    throw new InvalidOperationException("성경 본문 패키지와 검토 관계 패키지는 한 프로세스에서 동시에 적재할 수 없습니다.");
+    throw new InvalidOperationException("성경 본문 적재, 검토 관계 적재, 운영 평가는 한 프로세스에서 동시에 실행할 수 없습니다.");
 }
 if (hasBibleCorpusImport && bibleCorpusImport.VerifyOnly)
 {
@@ -812,6 +816,20 @@ if (hasBibleReviewedRelationsImport)
     var orchestrator = scope.ServiceProvider.GetRequiredService<BibleReviewedRelationsImportOrchestrator>();
     var result = await orchestrator.RunAsync(bibleReviewedRelationsImport);
     WriteBibleReviewedRelationsImportResult(result);
+    return;
+}
+if (hasBibleCorpusEvaluation)
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var runner = scope.ServiceProvider.GetRequiredService<BibleCorpusEvaluationRunner>();
+    var results = await runner.RunAsync(bibleCorpusEvaluation);
+    var passed = results.Count(value => value.Passed);
+    Console.WriteLine(
+        $"BIBLE_CORPUS_EVALUATION={(passed == results.Count ? "PASS" : "FAIL")} passed={passed} total={results.Count} output={bibleCorpusEvaluation.OutputPath}");
+    if (passed != results.Count)
+    {
+        Environment.ExitCode = 2;
+    }
     return;
 }
 
@@ -1265,6 +1283,54 @@ static bool TryReadBibleReviewedRelationsImportArguments(
         RequiredValue(arguments, "--bible-review-checkpoints"),
         RequiredValue(arguments, "--bible-owner"),
         arguments.Contains("--bible-review-verify-only", StringComparer.Ordinal));
+    return true;
+}
+
+static bool TryReadBibleCorpusEvaluationArguments(
+    string[] arguments,
+    out BibleCorpusEvaluationOptions result)
+{
+    result = default!;
+    var evaluationIndex = Array.IndexOf(arguments, "--bible-corpus-evaluate");
+    if (evaluationIndex < 0)
+    {
+        return false;
+    }
+
+    static string RequiredValue(string[] values, string name)
+    {
+        var index = Array.IndexOf(values, name);
+        if (index < 0 || index + 1 >= values.Length || values[index + 1].StartsWith("--", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException($"{name} requires a value.");
+        }
+        return values[index + 1];
+    }
+
+    static int OptionalInt(string[] values, string name, int fallback)
+    {
+        var index = Array.IndexOf(values, name);
+        if (index < 0)
+        {
+            return fallback;
+        }
+        var raw = RequiredValue(values, name);
+        return int.TryParse(raw, out var parsed)
+            ? parsed
+            : throw new InvalidOperationException($"{name} requires an integer value.");
+    }
+
+    if (evaluationIndex + 1 >= arguments.Length || arguments[evaluationIndex + 1].StartsWith("--", StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException("--bible-corpus-evaluate requires an evaluation JSON path.");
+    }
+
+    result = new BibleCorpusEvaluationOptions(
+        arguments[evaluationIndex + 1],
+        RequiredValue(arguments, "--bible-evaluation-output"),
+        RequiredValue(arguments, "--bible-owner"),
+        OptionalInt(arguments, "--bible-evaluation-limit", 10),
+        OptionalInt(arguments, "--bible-evaluation-hops", 3));
     return true;
 }
 
