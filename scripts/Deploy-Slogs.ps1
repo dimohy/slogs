@@ -309,6 +309,15 @@ RELEASE_DIR="$REMOTE_ROOT/releases/$RELEASE_ID"
 PREVIOUS_RELEASE="$(readlink -f "$REMOTE_ROOT/current" 2>/dev/null || true)"
 ACTIVATED=0
 APP_STOPPED=0
+EMBEDDINGGEMMA_CONTAINER=""
+EMBEDDINGGEMMA_WAS_RUNNING=0
+
+for candidate in slogs-embeddinggemma-preserved slogs-embeddinggemma; do
+    if docker inspect "$candidate" >/dev/null 2>&1; then
+        EMBEDDINGGEMMA_CONTAINER="$candidate"
+        break
+    fi
+done
 
 run_migration() {
     phase="$1"
@@ -331,8 +340,9 @@ recover_on_failure() {
     if [ -n "$PREVIOUS_RELEASE" ] && [ -d "$PREVIOUS_RELEASE" ]; then
         ln -sfn "$PREVIOUS_RELEASE" "$REMOTE_ROOT/current"
     fi
-    if docker inspect slogs-embeddinggemma >/dev/null 2>&1; then
-        docker start slogs-embeddinggemma >/dev/null 2>&1 || true
+    if [ -n "$EMBEDDINGGEMMA_CONTAINER" ] && [ "$EMBEDDINGGEMMA_WAS_RUNNING" -eq 1 ]; then
+        docker update --restart unless-stopped "$EMBEDDINGGEMMA_CONTAINER" >/dev/null 2>&1 || true
+        docker start "$EMBEDDINGGEMMA_CONTAINER" >/dev/null 2>&1 || true
     fi
     if [ "$APP_STOPPED" -eq 1 ]; then
         SLOGS_APP_DIR=current docker compose --env-file "$REMOTE_ROOT/.env" up -d --no-deps --force-recreate app || true
@@ -348,6 +358,16 @@ if docker inspect slogs-postgres >/dev/null 2>&1; then
     docker exec slogs-postgres sh -lc 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > "$REMOTE_ROOT/backups/pre-$RELEASE_ID.dump"
 fi
 cd "$REMOTE_ROOT"
+
+# A 6 GB GPU cannot safely serve EmbeddingGemma and run full BGE-M3
+# dense+sparse+multi-vector inference at the same time. Preserve the old
+# runtime and model data for rollback, but unload it before BGE-M3 starts.
+if [ -n "$EMBEDDINGGEMMA_CONTAINER" ]; then
+    if [ "$(docker inspect --format '{{.State.Running}}' "$EMBEDDINGGEMMA_CONTAINER")" = "true" ]; then
+        EMBEDDINGGEMMA_WAS_RUNNING=1
+        docker stop --time 30 "$EMBEDDINGGEMMA_CONTAINER" >/dev/null
+    fi
+fi
 
 docker build -t localhost/slogs-bge-m3-full:1.0.0 "$REMOTE_ROOT/bge-m3-runtime"
 docker run --rm \
@@ -410,15 +430,13 @@ fi
 
 run_migration validate
 if [ "$ACTIVATED" -eq 1 ]; then
-    run_migration finalize
+    echo "EmbeddingGemma legacy indexes are preserved for bounded rollback."
     ACTIVATED=0
 fi
 
-if docker inspect slogs-embeddinggemma >/dev/null 2>&1; then
-    docker rm -f slogs-embeddinggemma >/dev/null
-fi
-if [ -d "$REMOTE_ROOT/embeddinggemma-data" ]; then
-    mv "$REMOTE_ROOT/embeddinggemma-data" "$REMOTE_ROOT/backups/embeddinggemma-data-retired-$RELEASE_ID"
+if [ -n "$EMBEDDINGGEMMA_CONTAINER" ]; then
+    docker update --restart no "$EMBEDDINGGEMMA_CONTAINER" >/dev/null
+    echo "EmbeddingGemma runtime preserved stopped as $EMBEDDINGGEMMA_CONTAINER."
 fi
 
 docker compose ps
