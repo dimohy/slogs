@@ -227,7 +227,10 @@ public sealed class BibleReviewedRelationsImportOrchestrator(BibleCorpusImportRu
     {
         const string documentId = "document:bible-reviewed-relations";
         const string rootNodeId = "reviewed-relations:root";
-        const string chunkId = "chunk:bible-reviewed-relations:review-decisions";
+        var approvedDecisions = decisions
+            .Where(value => value.Verdict == "approved")
+            .OrderBy(value => value.Id, StringComparer.Ordinal)
+            .ToArray();
         var endpoints = relations.SelectMany(value => new[] { value.From, value.To })
             .Distinct(StringComparer.Ordinal)
             .OrderBy(value => value, StringComparer.Ordinal)
@@ -252,28 +255,38 @@ public sealed class BibleReviewedRelationsImportOrchestrator(BibleCorpusImportRu
             }
         }
 
-        var text = string.Join('\n', relations.OrderBy(value => value.Id, StringComparer.Ordinal)
-            .Select(value => $"{value.From} {value.Relation} {value.To} | {value.ClaimClass} | review={value.Id}"));
-        var chunk = new KnowledgeChunkInput(
-            chunkId,
-            documentId,
-            rootNodeId,
-            0,
-            text,
-            decisions.Min(value => value.ReviewedAt).ToString("O"),
-            decisions.Max(value => value.ReviewedAt).ToString("O"),
-            null,
-            null,
-            0,
-            KnowledgeChunkingService.CountTokens(text),
-            "unicode-word-estimate-v1",
-            endpoints.Concat(relations.Select(value => value.Relation)).Distinct(StringComparer.Ordinal).ToArray(),
-            new Dictionary<string, string>
-            {
-                ["reviewedBy"] = string.Join(',', decisions.Select(value => value.ReviewedBy).Distinct(StringComparer.Ordinal)),
-                ["packageHash"] = packageHash,
-                ["containsRestrictedTranslationText"] = "false"
-            });
+        var chunks = approvedDecisions.Select((decision, index) =>
+        {
+            var relation = relations.Single(value =>
+                value.Id == $"edge:reviewed:{decision.Id["review:".Length..]}");
+            var text = $"{decision.Rationale}\n{decision.From} {decision.Relation} {decision.To} | {decision.ClaimClass} | review={decision.Id}\n근거: {string.Join(", ", decision.EvidenceReferences)}";
+            var aliases = decision.EvidenceReferences
+                .Concat([decision.Id, decision.Id.Replace('-', ' '), decision.From, decision.To, decision.Relation])
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            return new KnowledgeChunkInput(
+                $"chunk:bible-reviewed-relations:{decision.Id["review:".Length..]}",
+                documentId,
+                decision.From,
+                index,
+                text,
+                decision.From,
+                decision.To,
+                index == 0 ? null : $"chunk:bible-reviewed-relations:{approvedDecisions[index - 1].Id["review:".Length..]}",
+                index == approvedDecisions.Length - 1 ? null : $"chunk:bible-reviewed-relations:{approvedDecisions[index + 1].Id["review:".Length..]}",
+                0,
+                KnowledgeChunkingService.CountTokens(text),
+                "unicode-word-estimate-v1",
+                aliases,
+                new Dictionary<string, string>
+                {
+                    ["reviewedBy"] = decision.ReviewedBy,
+                    ["reviewedAt"] = decision.ReviewedAt.ToString("O"),
+                    ["packageHash"] = packageHash,
+                    ["relationId"] = relation.Id,
+                    ["containsRestrictedTranslationText"] = "false"
+                });
+        }).ToArray();
         var mappedRelations = relations.Select(value => new KnowledgeRelationInput(
             value.Id,
             value.From,
@@ -299,13 +312,13 @@ public sealed class BibleReviewedRelationsImportOrchestrator(BibleCorpusImportRu
             "public_shared",
             null,
             true,
-            1);
+            chunks.Length);
         var batch = new KnowledgeCorpusIngestRequest(
             collection,
             [new KnowledgeDocumentInput(documentId, "성경 본문 기반 Agent 관계 검토", "review_ledger", 0,
                 "reviews/bible-relation-reviews.v1.ndjson")],
             structures,
-            [chunk],
+            chunks,
             entities,
             mappedRelations,
             null,

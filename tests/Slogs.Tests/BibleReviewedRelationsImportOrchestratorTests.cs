@@ -23,17 +23,17 @@ public sealed class BibleReviewedRelationsImportOrchestratorTests
                 VerifyOnly: true));
 
         Assert.Equal("slogs-bible-agent-reviewed-relations", result.PackageId);
-        Assert.Equal("0.1.0", result.PackageVersion);
-        Assert.Equal("60D0BA3E971FD0282F8F168F4FE2227348E4D8A994585704ABDC61EB73D7B6AF", result.PackageHash);
+        Assert.Equal("0.2.0", result.PackageVersion);
+        Assert.Equal("B0754CFE88CD79C30AF2188F902F0B4C7231768D844B139C9305FDCD8BD56973", result.PackageHash);
         Assert.True(result.VerifyOnly);
         Assert.Equal("bible-reviewed-relations", result.Layer.CollectionId);
         Assert.Equal("public_shared", result.Layer.Visibility);
         Assert.Equal(1, result.Layer.Batches);
         Assert.Equal(1, result.Layer.Documents);
-        Assert.Equal(1, result.Layer.Chunks);
+        Assert.Equal(9, result.Layer.Chunks);
         Assert.Equal(0, result.Layer.Entities);
         Assert.Equal(38, result.Layer.Relations);
-        Assert.Equal("BF3A46BC30D445CF396138D325EFA6F915FEDEB5D518B16A61AC8416E7A9E03F", result.Layer.PlanHash);
+        Assert.Equal("0C46BE6586C8BFF0658667E1F188BA7DA73C529E711FA2AFC2F4A8CD796945BD", result.Layer.PlanHash);
         Assert.Equal("verified", result.Layer.State);
     }
 }
