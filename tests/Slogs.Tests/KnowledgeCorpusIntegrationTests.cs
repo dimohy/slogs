@@ -414,6 +414,79 @@ public sealed class KnowledgeCorpusIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task OriginalBibleAdapterRecallsMorphologyAndPaulSaulAliasFromPublicScholarlyLayer()
+    {
+        if (!string.Equals(Environment.GetEnvironmentVariable("SLOGS_KNOWLEDGE_INTEGRATION"), "1", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var suffix = Guid.NewGuid().ToString("N");
+        var collectionId = $"bible-original-fixture-{suffix}";
+        var coordinate = BibleKnowledgeCorpusAdapterTests.Verse("Acts.13.9", 13, 9, "restricted coordinate text");
+        var token = new BibleOriginalTokenCorpusInput(
+            "token:Acts.13.9:001:K", "Acts.13.9", 1, "grc", "Σαῦλος", "Saulos", "Saul",
+            "G4569", "N-NSM-P", "Σαῦλος", "Saul", false, "K", "step-tagnt", ["Paul@Acts.7.58"]);
+        var plan = new BibleOriginalKnowledgeCorpusAdapter(new KnowledgeChunkingService()).CreatePlan(
+            new BibleOriginalCorpusOptions(
+                collectionId, "1.0.0", "STEP 원문 fixture", "CC BY 4.0", "urn:test:step",
+                "system", "slogs", "public_shared", null, true, RequireAllBooks: false,
+                Chunking: new KnowledgeChunkingOptions(TargetTokens: 80, MaxTokens: 120, MinTokens: 1, OverlapUnits: 0)),
+            [coordinate],
+            [token],
+            [new BibleEntityCorpusInput(
+                "entity:step:G3972G", "Male", "Paul", ["Paul", "Saul", "Παῦλος", "Σαῦλος"],
+                "Apostle", ["G3972", "G4569"], "step-tipnr")],
+            [
+                new BibleGraphEdgeCorpusInput(
+                    "edge:mention:Acts.13.9:entity:step:G3972G", "passage:Acts.13.9", "mentions",
+                    "entity:step:G3972G", "text_explicit", "published", 1.0, "public_shared",
+                    [new BiblePackageEvidence("step-tagnt", "Acts.13.9", "original_token", [token.Id])],
+                    "deterministic_import"),
+                new BibleGraphEdgeCorpusInput(
+                    "candidate:Acts.13.9:entity:step:G3972G", "passage:Acts.13.9", "proposed_identity",
+                    "entity:step:G3972G", "source_proposed", "candidate", 0.9, "internal_review",
+                    [new BiblePackageEvidence("candidate-fixture", "Acts.13.9", "dataset_record")],
+                    "deterministic_candidate_import")
+            ]);
+        var services = new ServiceCollection();
+        services.AddDbContextFactory<SlogsDbContext>(options => options.UseNpgsql(
+            "Host=localhost;Port=54329;Database=slogs;Username=slogs;Password=slogs_dev_password"));
+        await using var provider = services.BuildServiceProvider();
+        var factory = provider.GetRequiredService<IDbContextFactory<SlogsDbContext>>();
+        await using var db = await factory.CreateDbContextAsync();
+        await InvokeEnsureSchemaAsync(db);
+        var corpus = new KnowledgeCorpusService(factory, CreateEmbeddingService());
+        var checkpointPath = Path.Combine(Path.GetTempPath(), $"slogs-bible-original-checkpoint-{suffix}.json");
+
+        try
+        {
+            await new BibleCorpusImportRunner(corpus).RunAsync(
+                KnowledgeCorpusActor.User("dimohy", isAdmin: true), plan, new string('C', 64), checkpointPath);
+            var recalled = await corpus.RecallAsync(
+                KnowledgeCorpusActor.User("reader"), "Σαῦλος G4569 형태론", limit: 3, maxGraphHops: 2);
+            var result = Assert.Single(recalled, value => value.CollectionId == collectionId);
+            Assert.Contains("morphology=N-NSM-P", result.Text);
+            Assert.DoesNotContain(coordinate.Text, result.Text);
+            var mention = Assert.Single(result.Relations, value => value.RelationType == "mentions");
+            Assert.Equal("Paul", mention.ToLabel);
+            Assert.Contains("Saul", mention.ToAliases!);
+            Assert.Contains(mention.Evidence, value =>
+                value.SourceId == "step-tagnt" && value.ChunkIds!.Contains(result.ChunkId, StringComparer.Ordinal));
+            Assert.DoesNotContain(result.Relations, value => value.RelationType == "proposed_identity");
+        }
+        finally
+        {
+            await db.Database.ExecuteSqlAsync(
+                $"DELETE FROM \"LlmWikiKnowledgeCollections\" WHERE \"CollectionId\" = {collectionId};");
+            if (File.Exists(checkpointPath))
+            {
+                File.Delete(checkpointPath);
+            }
+        }
+    }
+
     private static async Task InvokeEnsureSchemaAsync(SlogsDbContext db)
     {
         var method = typeof(SlogsDbInitializer).GetMethod("EnsureSchemaAsync", BindingFlags.Static | BindingFlags.NonPublic)

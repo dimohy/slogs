@@ -19,7 +19,7 @@ public sealed class BibleCorpusPackageReaderTests
                 DateTimeOffset.UtcNow,
                 [new BiblePackageSource(
                     "korean-translations", "verified", "workspace:data", "1", "copyrighted",
-                    "publisher_and_collection", "restricted_no_public_redistribution")]);
+                    "publisher_and_collection", "restricted_no_public_redistribution", new string('A', 64))]);
             await File.WriteAllTextAsync(Path.Combine(root, "sources.lock.json"), JsonSerializer.Serialize(sources));
             var files = new[]
             {

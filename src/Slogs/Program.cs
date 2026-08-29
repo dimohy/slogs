@@ -133,6 +133,7 @@ builder.Services.AddScoped<KnowledgeCorpusService>();
 builder.Services.AddSingleton<KnowledgeChunkingService>();
 builder.Services.AddSingleton<BibleKnowledgeCorpusAdapter>();
 builder.Services.AddSingleton<BibleCorpusPackageReader>();
+builder.Services.AddSingleton<BibleOriginalKnowledgeCorpusAdapter>();
 builder.Services.AddScoped<BibleCorpusImportRunner>();
 builder.Services.AddScoped<KnowledgeCorpusPrincipalResolver>();
 builder.Services.AddScoped<ObsidianVaultService>();

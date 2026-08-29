@@ -358,17 +358,23 @@ public sealed partial class BibleKnowledgeCorpusAdapter(KnowledgeChunkingService
         IReadOnlyList<KnowledgeChunkInput> chunks,
         IReadOnlyList<BibleVerseCorpusInput> verses)
     {
+        var expected = verses.Select(value => $"passage:{value.Reference}").ToHashSet(StringComparer.Ordinal);
         var result = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var verse in verses)
+        foreach (var chunk in chunks)
         {
-            var passageId = $"passage:{verse.Reference}";
-            var matches = chunks.Where(chunk => chunk.SearchAliases?.Contains(passageId, StringComparer.Ordinal) is true).ToArray();
-            if (matches.Length == 0)
+            foreach (var passageId in chunk.SearchAliases ?? [])
             {
-                throw new InvalidDataException($"구절을 포함하는 청크를 찾을 수 없습니다: {verse.Reference}");
+                if (expected.Contains(passageId))
+                {
+                    result.TryAdd(passageId["passage:".Length..], chunk.ChunkId);
+                }
             }
+        }
 
-            result[verse.Reference] = matches[0].ChunkId;
+        var missing = verses.Select(value => value.Reference).Where(reference => !result.ContainsKey(reference)).Take(5).ToArray();
+        if (missing.Length > 0)
+        {
+            throw new InvalidDataException($"구절을 포함하는 청크를 찾을 수 없습니다: {string.Join(',', missing)}");
         }
 
         return result;
@@ -456,7 +462,7 @@ public sealed partial class BibleKnowledgeCorpusAdapter(KnowledgeChunkingService
             "deterministic_adapter",
             new Dictionary<string, string> { ["translationId"] = value.TranslationId })).ToArray();
 
-    private static IReadOnlyList<KnowledgeCorpusIngestRequest> CreateBatches(
+    internal static IReadOnlyList<KnowledgeCorpusIngestRequest> CreateBatches(
         KnowledgeCollectionInput collection,
         IReadOnlyList<KnowledgeDocumentInput> documents,
         IReadOnlyList<KnowledgeStructureInput> structures,
