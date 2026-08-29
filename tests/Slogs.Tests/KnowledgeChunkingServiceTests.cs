@@ -6,6 +6,24 @@ namespace Slogs.Tests;
 public sealed class KnowledgeChunkingServiceTests
 {
     [Fact]
+    public void CreateChunksUsesCanonicalLfBetweenUnits()
+    {
+        var chunks = new KnowledgeChunkingService().CreateChunks(
+            "corpus",
+            "1.0.0",
+            "document",
+            null,
+            [
+                new KnowledgeTextUnit("u1", "1", "first line"),
+                new KnowledgeTextUnit("u2", "2", "second line")
+            ],
+            new KnowledgeChunkingOptions(TargetTokens: 20, MaxTokens: 30, MinTokens: 1, OverlapUnits: 0));
+
+        Assert.Equal("first line\nsecond line", Assert.Single(chunks).Text);
+        Assert.DoesNotContain('\r', chunks[0].Text);
+    }
+
+    [Fact]
     public void CreateChunksPreservesNaturalLocatorsNeighborsAndOverlap()
     {
         var service = new KnowledgeChunkingService();

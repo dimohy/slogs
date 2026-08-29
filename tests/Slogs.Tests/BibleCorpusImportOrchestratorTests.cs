@@ -32,11 +32,11 @@ public sealed class BibleCorpusImportOrchestratorTests
         Assert.Collection(
             result.Layers,
             layer => AssertLayer(layer, "bible-ko-nkrv", "private", 85, 66, 1_693, 0, 31_101,
-                "EB10C98E6EBF3E4D0A8107A0F3E8D67A0534AE81B1EE4FEED07BE0A25DEBF47D"),
+                "6A9A4A8BFB1D4DCF0C83602907CBD588483777733F7EAFAFC27468938AFC09FE"),
             layer => AssertLayer(layer, "bible-ko-tkv", "private", 111, 66, 2_203, 0, 31_097,
-                "767DF60B8804BB48821629FDFDBC039BC284C6930D90444F3E91D39D129AD7D2"),
+                "6892EB4E5E03747215A3468C7D6EAB8145921B7998D626937D814E0C458953AD"),
             layer => AssertLayer(layer, "bible-original-step", "public_shared", 2_426, 66, 48_515, 4_259, 461_355,
-                "90FBF073C6A0DC7E677279B8A6694A559D5C310540EA8939B2EF15468B332B30"));
+                "FA38B5CD44F291BCDA9F9E029D6407CF4FFF4D733C0167554039D6ABC76EA2C2"));
     }
 
     private static void AssertLayer(

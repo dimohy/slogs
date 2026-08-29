@@ -37,7 +37,7 @@ public sealed class KnowledgeChunkingService
             var nextChunkId = index == groups.Count - 1
                 ? null
                 : BuildStableChunkId(collectionId, version, documentId, structureNodeId, groups[index + 1]);
-            var text = string.Join(Environment.NewLine, group.Select(unit => unit.Text.Trim()));
+            var text = string.Join('\n', group.Select(unit => unit.Text.Trim()));
             var metadata = MergeMetadata(group);
             chunks.Add(new KnowledgeChunkInput(
                 chunkId,

@@ -74,39 +74,42 @@ public sealed class BibleCorpusImportRunner(KnowledgeCorpusService corpus)
     public static string ComputePlanHash(BibleCorpusPlan plan)
     {
         var builder = new StringBuilder();
-        builder.AppendLine($"collection|{plan.Collection.CollectionId}|{plan.Collection.Version}|{plan.Collection.OwnerKind}|{plan.Collection.OwnerKey}|{plan.Collection.Visibility}|{plan.Collection.ExpectedChunkCount}");
+        AppendCanonicalLine(builder, $"collection|{plan.Collection.CollectionId}|{plan.Collection.Version}|{plan.Collection.OwnerKind}|{plan.Collection.OwnerKey}|{plan.Collection.Visibility}|{plan.Collection.ExpectedChunkCount}");
         foreach (var document in plan.Batches.SelectMany(value => value.Documents).OrderBy(value => value.DocumentId, StringComparer.Ordinal))
         {
-            builder.AppendLine($"document|{document.DocumentId}|{document.SourceLocator}");
+            AppendCanonicalLine(builder, $"document|{document.DocumentId}|{document.SourceLocator}");
         }
 
         foreach (var structure in plan.Batches.SelectMany(value => value.StructureNodes).OrderBy(value => value.NodeId, StringComparer.Ordinal))
         {
-            builder.AppendLine($"structure|{structure.NodeId}|{structure.ParentNodeId}|{structure.Locator}");
+            AppendCanonicalLine(builder, $"structure|{structure.NodeId}|{structure.ParentNodeId}|{structure.Locator}");
         }
 
         foreach (var chunk in plan.Batches.SelectMany(value => value.Chunks).OrderBy(value => value.ChunkId, StringComparer.Ordinal))
         {
             var textHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(chunk.Text)));
-            builder.AppendLine($"chunk|{chunk.ChunkId}|{chunk.StartLocator}|{chunk.EndLocator}|{textHash}");
+            AppendCanonicalLine(builder, $"chunk|{chunk.ChunkId}|{chunk.StartLocator}|{chunk.EndLocator}|{textHash}");
         }
 
         foreach (var entity in plan.Batches.SelectMany(value => value.Entities).OrderBy(value => value.EntityId, StringComparer.Ordinal))
         {
-            builder.AppendLine($"entity|{entity.EntityId}|{entity.EntityType}|{entity.CanonicalLabel}|{string.Join(',', entity.Aliases ?? [])}");
+            AppendCanonicalLine(builder, $"entity|{entity.EntityId}|{entity.EntityType}|{entity.CanonicalLabel}|{string.Join(',', entity.Aliases ?? [])}");
         }
 
         foreach (var relation in plan.Batches.SelectMany(value => value.Relations).OrderBy(value => value.RelationId, StringComparer.Ordinal))
         {
-            builder.AppendLine($"relation|{relation.RelationId}|{relation.FromNodeId}|{relation.RelationType}|{relation.ToNodeId}|{relation.ReviewStatus}|{relation.Confidence:R}");
+            AppendCanonicalLine(builder, $"relation|{relation.RelationId}|{relation.FromNodeId}|{relation.RelationType}|{relation.ToNodeId}|{relation.ReviewStatus}|{relation.Confidence:R}");
             foreach (var evidence in relation.Evidence.OrderBy(value => value.SourceId, StringComparer.Ordinal).ThenBy(value => value.Locator, StringComparer.Ordinal))
             {
-                builder.AppendLine($"evidence|{evidence.SourceId}|{evidence.Locator}|{evidence.EvidenceType}|{string.Join(',', evidence.ChunkIds ?? [])}");
+                AppendCanonicalLine(builder, $"evidence|{evidence.SourceId}|{evidence.Locator}|{evidence.EvidenceType}|{string.Join(',', evidence.ChunkIds ?? [])}");
             }
         }
 
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString())));
     }
+
+    private static void AppendCanonicalLine(StringBuilder builder, string value)
+        => builder.Append(value).Append('\n');
 
     private static async Task<BibleCorpusImportCheckpoint> ReadCheckpointAsync(
         string path,
