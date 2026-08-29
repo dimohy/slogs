@@ -124,6 +124,12 @@ if (Test-Path $archivePath) {
     Remove-Item -Force $archivePath
 }
 
+$uploadsMountPoint = Join-Path $publishDir "wwwroot\uploads"
+New-Item -ItemType Directory -Force -Path $uploadsMountPoint | Out-Null
+if (-not (Test-Path -LiteralPath $uploadsMountPoint -PathType Container)) {
+    throw "Publish output is missing the required uploads volume mount point: $uploadsMountPoint"
+}
+
 Invoke-Native tar "-czf" $archivePath "-C" $publishDir "."
 
 $remoteUid = (ssh -o BatchMode=yes $remote "id -u").Trim()
@@ -354,6 +360,7 @@ trap recover_on_failure EXIT
 
 mkdir -p "$RELEASE_DIR" "$REMOTE_ROOT/uploads"
 tar -xzf "$REMOTE_ROOT/releases/$RELEASE_ID.tar.gz" -C "$RELEASE_DIR"
+mkdir -p "$RELEASE_DIR/wwwroot/uploads"
 chmod +x "$RELEASE_DIR/Slogs"
 if docker inspect slogs-postgres >/dev/null 2>&1; then
     docker exec slogs-postgres sh -lc 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > "$REMOTE_ROOT/backups/pre-$RELEASE_ID.dump"
