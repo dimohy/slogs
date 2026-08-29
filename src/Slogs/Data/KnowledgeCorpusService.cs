@@ -1152,7 +1152,12 @@ public sealed class KnowledgeCorpusService(
                      WHERE POSITION(':' || expected || ':' IN alias) > 0
                    )
                    OR (@referenceChapter >= 0 AND @referenceVerse >= 0
-                     AND POSITION(LOWER(v.document_title) IN LOWER(@queryText)) > 0
+                     AND (
+                       POSITION(LOWER(REPLACE(v.document_title,' ', '') || @referenceChapter::text || '장')
+                         IN LOWER(regexp_replace(@queryText,'\s+','','g'))) > 0
+                       OR POSITION(LOWER(REPLACE(v.document_title,' ', '') || @referenceChapter::text || ':')
+                         IN LOWER(regexp_replace(@queryText,'\s+','','g'))) > 0
+                     )
                      AND EXISTS (
                        SELECT 1 FROM jsonb_array_elements_text(v."SearchAliasesJson") alias
                        WHERE alias LIKE ('%.' || @referenceChapter::text || '.' || @referenceVerse::text)
@@ -1311,7 +1316,12 @@ public sealed class KnowledgeCorpusService(
                   WHERE POSITION(':' || expected || ':' IN alias) > 0
                 )
                 OR (@referenceChapter >= 0 AND @referenceVerse >= 0
-                  AND POSITION(LOWER(d."Title") IN LOWER(@queryText)) > 0
+                  AND (
+                    POSITION(LOWER(REPLACE(d."Title",' ', '') || @referenceChapter::text || '장')
+                      IN LOWER(regexp_replace(@queryText,'\s+','','g'))) > 0
+                    OR POSITION(LOWER(REPLACE(d."Title",' ', '') || @referenceChapter::text || ':')
+                      IN LOWER(regexp_replace(@queryText,'\s+','','g'))) > 0
+                  )
                   AND EXISTS (
                     SELECT 1 FROM jsonb_array_elements_text(k."SearchAliasesJson") alias
                     WHERE alias LIKE ('%.' || @referenceChapter::text || '.' || @referenceVerse::text)
