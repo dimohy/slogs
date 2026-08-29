@@ -30,16 +30,17 @@ public sealed partial class BibleOriginalKnowledgeCorpusAdapter(KnowledgeChunkin
         IReadOnlyList<BibleGraphEdgeCorpusInput> edges)
     {
         ValidateOptions(options);
+        var collectionEdges = SelectEdgesForCollection(options, edges);
         var books = BuildBookCatalog(coordinateVerses, options.RequireAllBooks);
         var tokens = ValidateTokens(originalTokens, books);
-        var references = CollectReferences(coordinateVerses, tokens, edges, books);
+        var references = CollectReferences(coordinateVerses, tokens, collectionEdges, books);
         var documents = CreateDocuments(options.SourceUri, books);
-        var structures = CreateStructures(references, books, edges);
+        var structures = CreateStructures(references, books, collectionEdges);
         var chunks = CreateChunks(options, tokens, books);
         var tokenChunkIds = BuildTokenChunkIndex(chunks, tokens);
         var passageChunkIds = BuildPassageChunkIndex(tokens, tokenChunkIds);
         var mappedEntities = MapEntities(entities);
-        var mappedEdges = MapEdges(edges, structures, mappedEntities, tokenChunkIds, passageChunkIds);
+        var mappedEdges = MapEdges(collectionEdges, structures, mappedEntities, tokenChunkIds, passageChunkIds);
         var containment = CreateContainmentRelations(tokens, tokenChunkIds);
         var allRelations = containment.Concat(mappedEdges).ToArray();
         var collection = new KnowledgeCollectionInput(
@@ -83,6 +84,20 @@ public sealed partial class BibleOriginalKnowledgeCorpusAdapter(KnowledgeChunkin
         {
             throw new InvalidDataException("원문 토큰의 단일 청크 귀속을 위해 overlapUnits는 0이어야 합니다.");
         }
+    }
+
+    private static IReadOnlyList<BibleGraphEdgeCorpusInput> SelectEdgesForCollection(
+        BibleOriginalCorpusOptions options,
+        IReadOnlyList<BibleGraphEdgeCorpusInput> edges)
+    {
+        if (options.Visibility != "public_shared")
+        {
+            return edges;
+        }
+
+        return edges.Where(edge =>
+            edge.Visibility == "public_shared"
+            && edge.ReviewStatus is "approved" or "published").ToArray();
     }
 
     private static IReadOnlyDictionary<string, BibleBook> BuildBookCatalog(

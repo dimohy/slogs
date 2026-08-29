@@ -35,8 +35,8 @@ public sealed class BibleCorpusImportOrchestratorTests
                 "6A9A4A8BFB1D4DCF0C83602907CBD588483777733F7EAFAFC27468938AFC09FE"),
             layer => AssertLayer(layer, "bible-ko-tkv", "private", 111, 66, 2_203, 0, 31_097,
                 "6892EB4E5E03747215A3468C7D6EAB8145921B7998D626937D814E0C458953AD"),
-            layer => AssertLayer(layer, "bible-original-step", "public_shared", 2_426, 66, 48_515, 4_259, 461_355,
-                "FA38B5CD44F291BCDA9F9E029D6407CF4FFF4D733C0167554039D6ABC76EA2C2"));
+            layer => AssertLayer(layer, "bible-original-step", "public_shared", 2_426, 66, 48_515, 4_259, 456_058,
+                "6F00F97A1A5D50B2853C6F556D9E0033F978B2EBE6C05BE3B0E486C5AC88D137"));
     }
 
     private static void AssertLayer(

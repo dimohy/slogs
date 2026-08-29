@@ -60,6 +60,28 @@ public sealed class BibleOriginalKnowledgeCorpusAdapterTests
     }
 
     [Fact]
+    public void PublicOriginalPlanExcludesInternalResearchCandidatesAtStorageBoundary()
+    {
+        var adapter = new BibleOriginalKnowledgeCorpusAdapter(new KnowledgeChunkingService());
+        var coordinate = BibleKnowledgeCorpusAdapterTests.Verse("Acts.13.9", 13, 9, "fixture");
+        var token = new BibleOriginalTokenCorpusInput(
+            "token:Acts.13.9:001:K", "Acts.13.9", 1, "grc", "Σαῦλος", "Saulos", "Saul",
+            "G4569", "N-NSM-P", "Σαῦλος", "Saul", false, "K", "step-tagnt", []);
+        var candidate = new BibleGraphEdgeCorpusInput(
+            "edge:candidate:Acts.13.9", "passage:Acts.13.9", "same_as", "passage:Acts.13.9",
+            "interpretive", "candidate", 0.5, "internal_research",
+            [new BiblePackageEvidence("agent-candidate", "Acts.13.9", "candidate", null)],
+            "deterministic_candidate_import");
+
+        var plan = adapter.CreatePlan(Options(), [coordinate], [token], [], [candidate]);
+
+        Assert.DoesNotContain(plan.Batches.SelectMany(value => value.Relations),
+            value => value.RelationId == candidate.Id);
+        Assert.DoesNotContain(plan.Batches.SelectMany(value => value.Relations),
+            value => value.ReviewStatus == "candidate");
+    }
+
+    [Fact]
     public async Task FullVerifiedOriginalTokensEntitiesAndMentionsProduceAPlanWhenExplicitlyEnabled()
     {
         var root = Environment.GetEnvironmentVariable("SLOGS_BIBLE_CORPUS_ROOT");
@@ -88,12 +110,8 @@ public sealed class BibleOriginalKnowledgeCorpusAdapterTests
         Assert.Equal(4_259, plan.Batches.SelectMany(value => value.Entities).Count());
         Assert.Equal(38_343, plan.Batches.SelectMany(value => value.Relations).Count(value => value.RelationType == "mentions"));
         Assert.Equal(344_799, plan.Batches.SelectMany(value => value.Relations).Count(value => value.RelationType == "cross_reference"));
-        Assert.Equal(5_297, plan.Batches.SelectMany(value => value.Relations).Count(value => value.ReviewStatus == "candidate"));
-        Assert.All(plan.Batches.SelectMany(value => value.Relations).Where(value => value.ReviewStatus == "candidate"), value =>
-        {
-            Assert.Equal("true", value.Metadata!["requiresBiblicalValidation"]);
-            Assert.Contains("denominational_doctrine", value.Metadata["prohibitedGrounds"]);
-        });
+        Assert.DoesNotContain(plan.Batches.SelectMany(value => value.Relations),
+            value => value.ReviewStatus == "candidate");
         Assert.Equal(66, plan.Batches.SelectMany(value => value.Documents).Count());
         Assert.Equal(plan.Collection.ExpectedChunkCount, plan.Batches.SelectMany(value => value.Chunks).Count());
         Assert.True(plan.Batches[^1].Activate);
