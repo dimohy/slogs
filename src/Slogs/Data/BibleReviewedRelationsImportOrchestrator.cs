@@ -170,8 +170,11 @@ public sealed class BibleReviewedRelationsImportOrchestrator(BibleCorpusImportRu
         }
         var approved = decisions.Where(value => value.Verdict == "approved")
             .ToDictionary(value => $"edge:reviewed:{value.Id["review:".Length..]}", StringComparer.Ordinal);
-        if (approved.Count != relations.Count
-            || relations.Any(relation => !approved.TryGetValue(relation.Id, out var decision)
+        var reviewedRelations = relations.Where(value => value.Id.StartsWith("edge:reviewed:", StringComparison.Ordinal)).ToArray();
+        var rangeBridges = relations.Where(value => value.Id.StartsWith("edge:reviewed-range:", StringComparison.Ordinal)).ToArray();
+        if (reviewedRelations.Length + rangeBridges.Length != relations.Count
+            || approved.Count != reviewedRelations.Length
+            || reviewedRelations.Any(relation => !approved.TryGetValue(relation.Id, out var decision)
                 || relation.From != decision.From
                 || relation.Relation != decision.Relation
                 || relation.To != decision.To
@@ -183,7 +186,38 @@ public sealed class BibleReviewedRelationsImportOrchestrator(BibleCorpusImportRu
         {
             throw new InvalidDataException("승인 결정과 게시 관계가 일대일로 일치하지 않습니다.");
         }
+        var approvedRangeEndpoints = reviewedRelations
+            .SelectMany(value => new[] { value.From, value.To })
+            .Where(IsPassageRange)
+            .ToHashSet(StringComparer.Ordinal);
+        if (approvedRangeEndpoints.Count > 0
+            && approvedRangeEndpoints.Any(endpoint => !rangeBridges.Any(value => value.From == endpoint)))
+        {
+            throw new InvalidDataException("승인 범위 관계에 개별 절 연결이 누락됐습니다.");
+        }
+        if (rangeBridges.Any(value => !approvedRangeEndpoints.Contains(value.From)
+            || !value.To.StartsWith("passage:", StringComparison.Ordinal)
+            || IsPassageRange(value.To)
+            || value.Relation != "contains_passage"
+            || value.ClaimClass != "source_explicit"
+            || value.ReviewStatus != "published"
+            || value.Visibility != "public_shared"
+            || value.Confidence != 1
+            || value.CreatedBy != "deterministic:osis-range-expansion-v1"
+            || !value.Evidence.Any(evidence => evidence.SourceId == "scripture-coordinate"
+                && evidence.Locator == value.To["passage:".Length..]
+                && evidence.EvidenceType == "verse")
+            || !value.Evidence.Any(evidence => evidence.SourceId == "agent-reviewed-range"
+                && evidence.Locator == value.From
+                && evidence.EvidenceType == "derived_range")))
+        {
+            throw new InvalidDataException("승인 범위의 결정론적 개별 절 연결 계약이 올바르지 않습니다.");
+        }
     }
+
+    private static bool IsPassageRange(string value)
+        => value.StartsWith("passage:", StringComparison.Ordinal)
+            && value["passage:".Length..].Contains("-", StringComparison.Ordinal);
 
     private static BibleCorpusPlan CreatePlan(
         BibleCorpusPackageManifest manifest,
