@@ -1644,7 +1644,7 @@ public sealed class KnowledgeCorpusService(
     private static string BuildLexicalTsQuery(string query)
         => string.Join(" | ", BuildLexicalTerms(query));
 
-    private static string[] BuildLexicalTerms(string query)
+    internal static string[] BuildLexicalTerms(string query)
     {
         var terms = Regex.Matches(query.Normalize(NormalizationForm.FormKC), @"[\p{L}\p{N}]+")
             .Select(match => match.Value.ToLowerInvariant())

@@ -703,7 +703,8 @@ public sealed class LlmWikiMcpTools(
 
     internal static IReadOnlyList<CombinedRecallCandidate> SelectCombinedRerankCandidates(
         IReadOnlyList<LlmWikiSearchResult> memories,
-        IReadOnlyList<KnowledgeChunkRecall> corpusResults)
+        IReadOnlyList<KnowledgeChunkRecall> corpusResults,
+        string? query = null)
     {
         var memoryCandidates = memories
             .Select((memory, index) => new CombinedRecallCandidate(false, index, memory.RelevancePercent ?? 0))
@@ -715,6 +716,7 @@ public sealed class LlmWikiMcpTools(
                 chunk.RelevancePercent,
                 chunk.Relations.Any(IsSubstantiveGraphRelation)))
             .OrderByDescending(candidate => candidate.HasSubstantiveGraphRelation)
+            .ThenByDescending(candidate => CalculateCandidateTermDistinctiveness(query, corpusResults, candidate.SourceIndex))
             .ThenByDescending(candidate => candidate.RelevancePercent)
             .ThenBy(candidate => candidate.SourceIndex)
             .ToArray();
@@ -750,7 +752,7 @@ public sealed class LlmWikiMcpTools(
             return new(memories, corpusResults, 0, 0);
         }
 
-        var candidates = SelectCombinedRerankCandidates(memories, corpusResults);
+        var candidates = SelectCombinedRerankCandidates(memories, corpusResults, query);
         if (candidates.Count == 0)
         {
             return new(memories, corpusResults, 0, 0);
@@ -817,6 +819,39 @@ public sealed class LlmWikiMcpTools(
 
     private static string BuildCorpusRerankPassage(KnowledgeChunkRecall chunk)
         => $"domain: {chunk.Domain}\ndocument: {chunk.DocumentTitle}\nlocator: {chunk.StartLocator}..{chunk.EndLocator}\n{chunk.Text}";
+
+    internal static double CalculateCandidateTermDistinctiveness(
+        string? query,
+        IReadOnlyList<KnowledgeChunkRecall> corpusResults,
+        int candidateIndex)
+    {
+        if (string.IsNullOrWhiteSpace(query) || candidateIndex < 0 || candidateIndex >= corpusResults.Count)
+        {
+            return 0;
+        }
+
+        var terms = KnowledgeCorpusService.BuildLexicalTerms(query)
+            .Where(term => !term.EndsWith(":*", StringComparison.Ordinal))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        if (terms.Length == 0)
+        {
+            return 0;
+        }
+
+        var documents = corpusResults
+            .Select(chunk => $"{chunk.DocumentTitle}\n{chunk.Text}".Normalize(NormalizationForm.FormKC).ToLowerInvariant())
+            .ToArray();
+        var candidate = documents[candidateIndex];
+        return terms
+            .Where(term => candidate.Contains(term, StringComparison.Ordinal))
+            .Sum(term =>
+            {
+                var inverseDocumentFrequency = Math.Log((documents.Length + 1d) /
+                    (documents.Count(document => document.Contains(term, StringComparison.Ordinal)) + 1d)) + 1d;
+                return inverseDocumentFrequency * inverseDocumentFrequency;
+            });
+    }
 
     [McpServerTool(Name = "llm_wiki_public_search")]
     [Description("Search owner-authorized public-memory recall candidates published by a specified Slogs user such as @dimohy. When the user's question mentions @username and asks about that user's public memory context, use that handle as ownerUserName and the remaining topic words as query. Use for public self-disclosed sensitive topics such as religion or faith perspective. This never returns private entries or Raw Provenance.")]

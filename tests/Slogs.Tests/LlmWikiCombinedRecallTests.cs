@@ -117,6 +117,26 @@ public sealed class LlmWikiCombinedRecallTests
     }
 
     [Fact]
+    public void CombinedRerankingReservesCandidateWithDistinctiveCooccurringQueryTerms()
+    {
+        var corpus = new[]
+        {
+            Corpus("common-1", 80, "mentions", "사도 바울 사람"),
+            Corpus("common-2", 79, "mentions", "사도 바울 사람"),
+            Corpus("common-3", 78, "mentions", "사도 바울 사람"),
+            Corpus("common-4", 77, "mentions", "사도 바울 사람"),
+            Corpus("distinctive", 40, "mentions", "바울이라고 하는 사울")
+        };
+
+        var selected = LlmWikiMcpTools.SelectCombinedRerankCandidates(
+            [Memory("memory", 90)],
+            corpus,
+            "사도 바울과 다소 사람 사울은 같은 사람인가?");
+
+        Assert.Contains(selected, candidate => candidate.IsCorpus && candidate.SourceIndex == 4);
+    }
+
+    [Fact]
     public void ReviewedSubstantiveRelationCannotBeDemotedBelowItsHybridRetrievalScore()
     {
         var relation = new LlmWikiMcpTools.CombinedRecallCandidate(
@@ -192,7 +212,11 @@ public sealed class LlmWikiCombinedRecallTests
             null,
             relevance);
 
-    private static KnowledgeChunkRecall Corpus(string chunkId, int relevance, string? relationType = null)
+    private static KnowledgeChunkRecall Corpus(
+        string chunkId,
+        int relevance,
+        string? relationType = null,
+        string text = "evidence")
         => new(
             "test-corpus",
             "1.0.0",
@@ -200,7 +224,7 @@ public sealed class LlmWikiCombinedRecallTests
             "document:test",
             "Test document",
             chunkId,
-            "evidence",
+            text,
             chunkId,
             chunkId,
             relevance,
