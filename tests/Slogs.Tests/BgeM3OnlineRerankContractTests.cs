@@ -99,6 +99,7 @@ public sealed class BgeM3OnlineRerankContractTests
             ?? throw new InvalidOperationException("Corpus lexical query builder returned null."));
 
         Assert.Contains(expectedRoot, result, StringComparison.Ordinal);
+        Assert.Contains($"{expectedRoot}:*", result, StringComparison.Ordinal);
     }
 
     [Theory]

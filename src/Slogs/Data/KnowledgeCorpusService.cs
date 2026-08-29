@@ -1740,6 +1740,7 @@ public sealed class KnowledgeCorpusService(
 
             current = current[..^suffix.Length];
             yield return current;
+            yield return $"{current}:*";
             break;
         }
 
@@ -1750,7 +1751,8 @@ public sealed class KnowledgeCorpusService(
                 continue;
             }
 
-            yield return current[..^suffix.Length];
+            current = current[..^suffix.Length];
+            yield return current;
             break;
         }
 
