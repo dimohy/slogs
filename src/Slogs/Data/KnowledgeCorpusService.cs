@@ -1430,8 +1430,9 @@ public sealed class KnowledgeCorpusService(
             LEFT JOIN "LlmWikiKnowledgeStructureNodes" to_structure
              ON to_structure."CollectionId"=g."CollectionId" AND to_structure."Version"=g."Version"
              AND to_structure."OwnerUserName"=g."OwnerUserName" AND to_structure."NodeId"=g."ToNodeId"
-            ORDER BY CASE WHEN g."RelationType" IN ('contains_passage','contains','part_of') THEN 1 ELSE 0 END,
-                g.depth, g."Confidence" DESC, g."RelationId"
+            ORDER BY g.depth,
+                CASE WHEN g."RelationType" IN ('contains_passage','contains','part_of') THEN 1 ELSE 0 END,
+                g."Confidence" DESC, g."RelationId"
             LIMIT 30;
             """);
         command.Parameters.Add(new NpgsqlParameter("owner", owner));
