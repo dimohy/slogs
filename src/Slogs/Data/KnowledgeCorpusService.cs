@@ -1068,13 +1068,17 @@ public sealed class KnowledgeCorpusService(
                 INNER JOIN visible_relations r ON r."FromNodeId"=g.frontier OR r."ToNodeId"=g.frontier
                 WHERE g.depth<@maxGraphHops
                   AND NOT (CASE WHEN r."FromNodeId"=g.frontier THEN r."ToNodeId" ELSE r."FromNodeId" END=ANY(g.path))
+            ), deduplicated AS (
+                SELECT DISTINCT ON (g."CollectionId",g."Version",g."OwnerUserName",g."RelationId") g.*
+                FROM graph g
+                ORDER BY g."CollectionId",g."Version",g."OwnerUserName",g."RelationId",g.depth
             )
-            SELECT DISTINCT g."CollectionId", g."Version", g."RelationType", g."FromNodeId", g."ToNodeId", g."ClaimClass", g."Confidence", g."EvidenceJson"::text,
+            SELECT g."CollectionId", g."Version", g."RelationType", g."FromNodeId", g."ToNodeId", g."ClaimClass", g."Confidence", g."EvidenceJson"::text,
                 COALESCE(from_entity."CanonicalLabel", from_structure."Label", g."FromNodeId"),
                 COALESCE(from_entity."AliasesJson"::text, '[]'),
                 COALESCE(to_entity."CanonicalLabel", to_structure."Label", g."ToNodeId"),
                 COALESCE(to_entity."AliasesJson"::text, '[]')
-            FROM graph g
+            FROM deduplicated g
             LEFT JOIN "LlmWikiKnowledgeEntities" from_entity
               ON from_entity."CollectionId"=g."CollectionId" AND from_entity."Version"=g."Version"
              AND from_entity."OwnerUserName"=g."OwnerUserName" AND from_entity."EntityId"=g."FromNodeId"
@@ -1085,8 +1089,10 @@ public sealed class KnowledgeCorpusService(
               ON to_entity."CollectionId"=g."CollectionId" AND to_entity."Version"=g."Version"
              AND to_entity."OwnerUserName"=g."OwnerUserName" AND to_entity."EntityId"=g."ToNodeId"
             LEFT JOIN "LlmWikiKnowledgeStructureNodes" to_structure
-              ON to_structure."CollectionId"=g."CollectionId" AND to_structure."Version"=g."Version"
+             ON to_structure."CollectionId"=g."CollectionId" AND to_structure."Version"=g."Version"
              AND to_structure."OwnerUserName"=g."OwnerUserName" AND to_structure."NodeId"=g."ToNodeId"
+            ORDER BY CASE WHEN g."RelationType" IN ('contains_passage','contains','part_of') THEN 1 ELSE 0 END,
+                g.depth, g."Confidence" DESC, g."RelationId"
             LIMIT 30;
             """);
         command.Parameters.Add(new NpgsqlParameter("owner", owner));
