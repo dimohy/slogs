@@ -62,7 +62,7 @@ public sealed class BibleCorpusImportRunner(KnowledgeCorpusService corpus)
             {
                 NextBatchIndex = index + 1,
                 State = isFinal ? "complete" : "in_progress",
-                LastContentHash = result.ContentHash,
+                LastContentHash = result.ContentHash ?? checkpoint.LastContentHash,
                 UpdatedAt = DateTimeOffset.UtcNow
             };
             await WriteCheckpointAsync(path, checkpoint, cancellationToken);

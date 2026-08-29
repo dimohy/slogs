@@ -107,17 +107,26 @@ public sealed class KnowledgeCorpusService(
         await UpsertRelationsAsync(db, storageOwner, collection, relations, cancellationToken);
 
         var counts = await ReadCountsAsync(db, storageOwner, collection.CollectionId, collection.Version, cancellationToken);
-        var contentHash = await ComputeContentHashAsync(db, storageOwner, collection.CollectionId, collection.Version, cancellationToken);
+        string? contentHash = null;
         var status = "staging";
-        if (request.Activate)
+        if (request.Activate || request.RefreshContentHash)
         {
-            await ValidateActivationAsync(db, storageOwner, collection, counts, cancellationToken);
-            await ActivateAsync(db, storageOwner, collection, contentHash, cancellationToken);
-            status = "active";
-        }
-        else
-        {
-            await UpdateContentHashAsync(db, storageOwner, collection, contentHash, cancellationToken);
+            contentHash = await ComputeContentHashAsync(
+                db,
+                storageOwner,
+                collection.CollectionId,
+                collection.Version,
+                cancellationToken);
+            if (request.Activate)
+            {
+                await ValidateActivationAsync(db, storageOwner, collection, counts, cancellationToken);
+                await ActivateAsync(db, storageOwner, collection, contentHash, cancellationToken);
+                status = "active";
+            }
+            else
+            {
+                await UpdateContentHashAsync(db, storageOwner, collection, contentHash, cancellationToken);
+            }
         }
 
         await transaction.CommitAsync(cancellationToken);

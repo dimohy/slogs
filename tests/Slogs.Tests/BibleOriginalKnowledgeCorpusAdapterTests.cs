@@ -114,7 +114,9 @@ public sealed class BibleOriginalKnowledgeCorpusAdapterTests
             value => value.ReviewStatus == "candidate");
         Assert.Equal(66, plan.Batches.SelectMany(value => value.Documents).Count());
         Assert.Equal(plan.Collection.ExpectedChunkCount, plan.Batches.SelectMany(value => value.Chunks).Count());
+        Assert.All(plan.Batches.Take(plan.Batches.Count - 1), value => Assert.False(value.RefreshContentHash));
         Assert.True(plan.Batches[^1].Activate);
+        Assert.True(plan.Batches[^1].RefreshContentHash);
     }
 
     private static BibleOriginalCorpusOptions Options() => new(

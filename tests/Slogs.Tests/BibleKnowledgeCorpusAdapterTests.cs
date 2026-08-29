@@ -42,7 +42,9 @@ public sealed class BibleKnowledgeCorpusAdapterTests
             Assert.Single(first.Batches.SelectMany(value => value.Relations), value => value.RelationId == "edge:acts-13-9:mentions-paul")
                 .Evidence.Single().ChunkIds!.Single());
         Assert.All(first.Batches.Take(first.Batches.Count - 1), value => Assert.False(value.Activate));
+        Assert.All(first.Batches.Take(first.Batches.Count - 1), value => Assert.False(value.RefreshContentHash));
         Assert.True(first.Batches[^1].Activate);
+        Assert.True(first.Batches[^1].RefreshContentHash);
         Assert.All(first.Batches, value =>
         {
             Assert.True(value.Documents.Count <= KnowledgeCorpusBatchLimits.Documents);
@@ -114,6 +116,8 @@ public sealed class BibleKnowledgeCorpusAdapterTests
             Assert.Equal(plan.PassageChunkIds.Count,
                 plan.Batches.SelectMany(value => value.Relations).Count(value => value.RelationType == "contains_passage"));
             Assert.True(plan.Batches[^1].Activate);
+            Assert.All(plan.Batches.Take(plan.Batches.Count - 1), value => Assert.False(value.RefreshContentHash));
+            Assert.True(plan.Batches[^1].RefreshContentHash);
         });
     }
 

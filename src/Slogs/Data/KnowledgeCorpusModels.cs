@@ -107,7 +107,8 @@ public sealed record KnowledgeCorpusIngestRequest(
     IReadOnlyList<KnowledgeEntityInput> Entities,
     IReadOnlyList<KnowledgeRelationInput> Relations,
     IReadOnlyList<KnowledgeAclGrantInput>? Acl = null,
-    bool Activate = false);
+    bool Activate = false,
+    bool RefreshContentHash = true);
 
 public sealed record KnowledgeCorpusIngestResult(
     string CollectionId,
@@ -118,7 +119,7 @@ public sealed record KnowledgeCorpusIngestResult(
     int ChunkCount,
     int EntityCount,
     int RelationCount,
-    string ContentHash);
+    string? ContentHash);
 
 public sealed record KnowledgeRelationRecall(
     string CollectionId,

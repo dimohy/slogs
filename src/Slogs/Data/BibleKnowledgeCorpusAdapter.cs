@@ -490,7 +490,8 @@ public sealed partial class BibleKnowledgeCorpusAdapter(KnowledgeChunkingService
                 Slice(entities, index, KnowledgeCorpusBatchLimits.Entities),
                 Slice(relations, index, KnowledgeCorpusBatchLimits.Relations),
                 index == 0 ? acl : null,
-                index == count - 1));
+                Activate: index == count - 1,
+                RefreshContentHash: index == count - 1));
         }
 
         return result;
