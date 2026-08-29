@@ -82,6 +82,36 @@ public sealed class LlmWikiCombinedRecallTests
         Assert.Equal(5, selected.Count);
     }
 
+    [Fact]
+    public void CombinedRerankingReservesFiveCorpusCandidatesAndThreePersonalMemories()
+    {
+        var memories = Enumerable.Range(1, 6)
+            .Select(index => Memory($"memory-{index}", 100 - index))
+            .ToArray();
+        var corpus = Enumerable.Range(1, 10)
+            .Select(index => Corpus($"corpus-{index}", 50 - index))
+            .ToArray();
+
+        var selected = LlmWikiMcpTools.SelectCombinedRerankCandidates(memories, corpus);
+
+        Assert.Equal(8, selected.Count);
+        Assert.Equal(3, selected.Count(candidate => !candidate.IsCorpus));
+        Assert.Equal(5, selected.Count(candidate => candidate.IsCorpus));
+        Assert.Equal([0, 1, 2], selected.Where(candidate => !candidate.IsCorpus).Select(candidate => candidate.SourceIndex));
+        Assert.Equal([0, 1, 2, 3, 4], selected.Where(candidate => candidate.IsCorpus).Select(candidate => candidate.SourceIndex));
+    }
+
+    [Fact]
+    public void CombinedRerankingFillsUnusedSourceQuotaWithoutExceedingOneBgeBatch()
+    {
+        var selected = LlmWikiMcpTools.SelectCombinedRerankCandidates(
+            [],
+            Enumerable.Range(1, 10).Select(index => Corpus($"corpus-{index}", 50 - index)).ToArray());
+
+        Assert.Equal(8, selected.Count);
+        Assert.All(selected, candidate => Assert.True(candidate.IsCorpus));
+    }
+
     [Theory]
     [InlineData("Acts.13.9 본문", true)]
     [InlineData("사도행전 13장 9절 본문", true)]
