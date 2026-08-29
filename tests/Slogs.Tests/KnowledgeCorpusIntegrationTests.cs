@@ -61,17 +61,32 @@ public sealed class KnowledgeCorpusIntegrationTests
             [new KnowledgeDocumentInput("doc:manual-a", "장비 진단 매뉴얼 A", "manual", 0, "urn:test:equipment-manual#a")],
             [new KnowledgeStructureInput("section:diagnostics", "doc:manual-a", null, "section", "진단", 0, "manual/diagnostics")],
             chunks,
-            [new KnowledgeEntityInput("entity:sensor-wiring", "component", "센서 배선", ["배선"])],
-            [new KnowledgeRelationInput(
-                "relation:wiring-remedy",
-                "entity:sensor-wiring",
-                "recommended_check_for",
-                targetChunk.ChunkId,
-                "source_explicit",
-                "approved",
-                1.0,
-                [new KnowledgeEvidenceInput(collectionId, targetChunk.StartLocator, "source_chunk", [targetChunk.ChunkId])],
-                "deterministic_import")],
+            [
+                new KnowledgeEntityInput("entity:sensor-wiring", "component", "센서 배선", ["배선"]),
+                new KnowledgeEntityInput("entity:inspection-sequence", "procedure", "점검 순서", ["진단 순서"])
+            ],
+            [
+                new KnowledgeRelationInput(
+                    "relation:wiring-remedy",
+                    "entity:sensor-wiring",
+                    "recommended_check_for",
+                    targetChunk.ChunkId,
+                    "source_explicit",
+                    "approved",
+                    1.0,
+                    [new KnowledgeEvidenceInput(collectionId, targetChunk.StartLocator, "source_chunk", [targetChunk.ChunkId])],
+                    "deterministic_import"),
+                new KnowledgeRelationInput(
+                    "relation:sequence-includes-wiring",
+                    "entity:inspection-sequence",
+                    "includes",
+                    "entity:sensor-wiring",
+                    "source_explicit",
+                    "approved",
+                    1.0,
+                    [new KnowledgeEvidenceInput(collectionId, targetChunk.StartLocator, "source_chunk", [targetChunk.ChunkId])],
+                    "deterministic_import")
+            ],
             Activate: true);
 
         try
@@ -79,12 +94,15 @@ public sealed class KnowledgeCorpusIntegrationTests
             var ingested = await corpus.IngestAsync(owner, isAdmin: false, request);
             Assert.Equal("active", ingested.Status);
             Assert.Equal(chunks.Count, ingested.ChunkCount);
-            Assert.Equal(1, ingested.RelationCount);
+            Assert.Equal(2, ingested.RelationCount);
 
             var recalled = await corpus.RecallAsync(owner, "경고가 반복되면 무엇을 점검해야 하나?", limit: 3, maxGraphHops: 2);
             var result = Assert.Single(recalled, item => item.CollectionId == collectionId);
             Assert.Contains("센서 배선", result.Text);
             Assert.Contains(result.Relations, relation => relation.RelationType == "recommended_check_for");
+            Assert.Contains(result.Relations, relation => relation.RelationType == "includes"
+                && relation.FromNodeId == "entity:inspection-sequence"
+                && relation.ToNodeId == "entity:sensor-wiring");
             Assert.Equal("manual/diagnostics/p1", result.StartLocator);
         }
         finally

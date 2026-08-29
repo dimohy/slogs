@@ -1055,12 +1055,19 @@ public sealed class KnowledgeCorpusService(
                     )
                   )
             ), graph AS (
-                SELECT r.*, 1 AS depth, ARRAY[r."FromNodeId",r."ToNodeId"]::text[] AS path FROM visible_relations r
+                SELECT r.*, 1 AS depth,
+                    CASE WHEN r."FromNodeId"=ANY(@startNodes) THEN r."ToNodeId" ELSE r."FromNodeId" END AS frontier,
+                    ARRAY[r."FromNodeId",r."ToNodeId"]::text[] AS path
+                FROM visible_relations r
                 WHERE r."FromNodeId"=ANY(@startNodes) OR r."ToNodeId"=ANY(@startNodes)
                 UNION ALL
-                SELECT r.*, g.depth+1, g.path || CASE WHEN r."FromNodeId"=g."ToNodeId" THEN r."ToNodeId" ELSE r."FromNodeId" END
-                FROM graph g INNER JOIN visible_relations r ON r."FromNodeId"=g."ToNodeId" OR r."ToNodeId"=g."ToNodeId"
-                WHERE g.depth<@maxGraphHops AND NOT (r."FromNodeId"=ANY(g.path) AND r."ToNodeId"=ANY(g.path))
+                SELECT r.*, g.depth+1,
+                    CASE WHEN r."FromNodeId"=g.frontier THEN r."ToNodeId" ELSE r."FromNodeId" END AS frontier,
+                    g.path || CASE WHEN r."FromNodeId"=g.frontier THEN r."ToNodeId" ELSE r."FromNodeId" END
+                FROM graph g
+                INNER JOIN visible_relations r ON r."FromNodeId"=g.frontier OR r."ToNodeId"=g.frontier
+                WHERE g.depth<@maxGraphHops
+                  AND NOT (CASE WHEN r."FromNodeId"=g.frontier THEN r."ToNodeId" ELSE r."FromNodeId" END=ANY(g.path))
             )
             SELECT DISTINCT g."CollectionId", g."Version", g."RelationType", g."FromNodeId", g."ToNodeId", g."ClaimClass", g."Confidence", g."EvidenceJson"::text,
                 COALESCE(from_entity."CanonicalLabel", from_structure."Label", g."FromNodeId"),
