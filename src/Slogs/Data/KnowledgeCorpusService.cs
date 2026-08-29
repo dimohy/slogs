@@ -184,14 +184,14 @@ public sealed class KnowledgeCorpusService(
         var candidateLimit = embeddingService.SupportsFullFunctionReranking
             ? CalculateBgeM3CandidateLimit(safeLimit)
             : safeLimit;
-        var lexicalQuery = BuildLexicalTsQuery(searchText);
+        var lexicalTerms = BuildLexicalTerms(searchText);
         var seeds = await SearchSeedChunksAsync(
             db,
             owner,
             isAdmin,
             scopeKeys,
             ToVectorLiteral(queryEmbedding),
-            lexicalQuery,
+            lexicalTerms,
             candidateLimit,
             cancellationToken);
         if (seeds.Count == 0)
@@ -987,13 +987,13 @@ public sealed class KnowledgeCorpusService(
         bool isAdmin,
         string[] scopeKeys,
         string vectorLiteral,
-        string lexicalQuery,
+        string[] lexicalTerms,
         int limit,
         CancellationToken cancellationToken)
     {
         await using var command = CreateCommand(db,
             """
-            WITH visible AS (
+            WITH visible AS NOT MATERIALIZED (
                 SELECT k.*, c."Domain", d."Title" AS document_title
                 FROM "LlmWikiKnowledgeChunks" k
                 INNER JOIN "LlmWikiKnowledgeCollections" c ON c."CollectionId"=k."CollectionId" AND c."Version"=k."Version" AND c."OwnerUserName"=k."OwnerUserName"
@@ -1020,12 +1020,28 @@ public sealed class KnowledgeCorpusService(
                 FROM visible v
                 ORDER BY v."Embedding" <=> CAST(@embedding AS vector), v."ChunkId"
                 LIMIT @channelLimit
+            ), query_terms AS (
+                SELECT DISTINCT term
+                FROM unnest(@lexicalTerms::text[]) AS term
+            ), visible_count AS (
+                SELECT COUNT(*)::double precision AS total
+                FROM visible
+            ), term_stats AS (
+                SELECT q.term,
+                    LN((vc.total+1)/(COUNT(v."ChunkId")+1))+1 AS inverse_document_frequency
+                FROM query_terms q
+                CROSS JOIN visible_count vc
+                LEFT JOIN visible v
+                  ON v."SearchVector" @@ to_tsquery('simple', q.term)
+                GROUP BY q.term, vc.total
             ), lexical_scored AS (
                 SELECT v."CollectionId", v."Version", v."OwnerUserName", v."ChunkId",
-                    ts_rank_cd(v."SearchVector", CAST(@lexicalQuery AS tsquery)) AS lexical_score,
-                    v."Embedding" <=> CAST(@embedding AS vector) AS vector_distance
+                    SUM(t.inverse_document_frequency)::double precision AS lexical_score,
+                    MIN(v."Embedding" <=> CAST(@embedding AS vector)) AS vector_distance
                 FROM visible v
-                WHERE v."SearchVector" @@ CAST(@lexicalQuery AS tsquery)
+                INNER JOIN term_stats t
+                  ON v."SearchVector" @@ to_tsquery('simple', t.term)
+                GROUP BY v."CollectionId", v."Version", v."OwnerUserName", v."ChunkId"
             ), lexical_ranked AS (
                 SELECT l."CollectionId", l."Version", l."OwnerUserName", l."ChunkId",
                     ROW_NUMBER() OVER (ORDER BY l.lexical_score DESC, l.vector_distance, l."ChunkId") AS lexical_rank,
@@ -1070,7 +1086,7 @@ public sealed class KnowledgeCorpusService(
         command.Parameters.Add(new NpgsqlParameter("model", embeddingService.Model));
         command.Parameters.Add(new NpgsqlParameter("dimensions", embeddingService.Dimensions));
         command.Parameters.Add(new NpgsqlParameter("embedding", vectorLiteral));
-        command.Parameters.Add(new NpgsqlParameter("lexicalQuery", lexicalQuery));
+        command.Parameters.Add(new NpgsqlParameter("lexicalTerms", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = lexicalTerms });
         command.Parameters.Add(new NpgsqlParameter("channelLimit", Math.Max(limit * 20, 100)));
         command.Parameters.Add(new NpgsqlParameter("rrfConstant", ReciprocalRankFusionConstant));
         command.Parameters.Add(new NpgsqlParameter("limit", limit));
@@ -1177,6 +1193,9 @@ public sealed class KnowledgeCorpusService(
         => $"domain: {seed.Domain}\ndocument: {seed.DocumentTitle}\nlocator: {seed.StartLocator}..{seed.EndLocator}\n{seed.Text}";
 
     private static string BuildLexicalTsQuery(string query)
+        => string.Join(" | ", BuildLexicalTerms(query));
+
+    private static string[] BuildLexicalTerms(string query)
     {
         var terms = Regex.Matches(query.Normalize(NormalizationForm.FormKC), @"[\p{L}\p{N}]+")
             .Select(match => match.Value.ToLowerInvariant())
@@ -1188,9 +1207,7 @@ public sealed class KnowledgeCorpusService(
             .Take(48)
             .ToArray();
 
-        return terms.Length == 0
-            ? "slogs_no_lexical_terms"
-            : string.Join(" | ", terms);
+        return terms.Length == 0 ? ["slogsnoqueryterms"] : terms;
     }
 
     private static IEnumerable<string> ExpandLexicalTerm(string term)
