@@ -1322,10 +1322,9 @@ public sealed class KnowledgeCorpusService(
 
         await using var command = CreateCommand(db,
             """
-            WITH RECURSIVE visible_relations AS (
-                SELECT r.* FROM "LlmWikiKnowledgeRelations" r
-                INNER JOIN "LlmWikiKnowledgeCollections" c ON c."CollectionId"=r."CollectionId" AND c."Version"=r."Version" AND c."OwnerUserName"=r."OwnerUserName"
-                WHERE c."Status"='active' AND r."ReviewStatus" IN ('approved','published')
+            WITH RECURSIVE visible_collections AS (
+                SELECT c.* FROM "LlmWikiKnowledgeCollections" c
+                WHERE c."Status"='active'
                   AND (
                     c."Visibility"='public_shared'
                     OR (c."OwnerKind"='system' AND @isAdmin)
@@ -1339,18 +1338,33 @@ public sealed class KnowledgeCorpusService(
                             OR (acl."PrincipalKind"='organization' AND acl."PrincipalKey"=ANY(@scopeKeys)))
                     )
                   )
+            ), seed_relations AS (
+                SELECT r.*
+                FROM visible_collections c
+                INNER JOIN "LlmWikiKnowledgeRelations" r
+                  ON r."CollectionId"=c."CollectionId" AND r."Version"=c."Version" AND r."OwnerUserName"=c."OwnerUserName"
+                WHERE r."ReviewStatus" IN ('approved','published') AND r."FromNodeId"=ANY(@startNodes)
+                UNION ALL
+                SELECT r.*
+                FROM visible_collections c
+                INNER JOIN "LlmWikiKnowledgeRelations" r
+                  ON r."CollectionId"=c."CollectionId" AND r."Version"=c."Version" AND r."OwnerUserName"=c."OwnerUserName"
+                WHERE r."ReviewStatus" IN ('approved','published') AND r."ToNodeId"=ANY(@startNodes)
+                  AND NOT (r."FromNodeId"=ANY(@startNodes))
             ), graph AS (
                 SELECT r.*, 1 AS depth,
                     CASE WHEN r."FromNodeId"=ANY(@startNodes) THEN r."ToNodeId" ELSE r."FromNodeId" END AS frontier,
                     ARRAY[r."FromNodeId",r."ToNodeId"]::text[] AS path
-                FROM visible_relations r
-                WHERE r."FromNodeId"=ANY(@startNodes) OR r."ToNodeId"=ANY(@startNodes)
+                FROM seed_relations r
                 UNION ALL
                 SELECT r.*, g.depth+1,
                     CASE WHEN r."FromNodeId"=g.frontier THEN r."ToNodeId" ELSE r."FromNodeId" END AS frontier,
                     g.path || CASE WHEN r."FromNodeId"=g.frontier THEN r."ToNodeId" ELSE r."FromNodeId" END
                 FROM graph g
-                INNER JOIN visible_relations r ON r."FromNodeId"=g.frontier OR r."ToNodeId"=g.frontier
+                INNER JOIN "LlmWikiKnowledgeRelations" r
+                  ON r."CollectionId"=g."CollectionId" AND r."Version"=g."Version" AND r."OwnerUserName"=g."OwnerUserName"
+                 AND r."ReviewStatus" IN ('approved','published')
+                 AND (r."FromNodeId"=g.frontier OR r."ToNodeId"=g.frontier)
                 WHERE g.depth<@maxGraphHops
                   AND NOT (CASE WHEN r."FromNodeId"=g.frontier THEN r."ToNodeId" ELSE r."FromNodeId" END=ANY(g.path))
             ), deduplicated AS (
