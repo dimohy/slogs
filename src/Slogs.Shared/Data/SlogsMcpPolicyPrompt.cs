@@ -2,7 +2,7 @@ namespace Slogs.Data;
 
 public static class SlogsMcpPolicyPrompt
 {
-    public const string Version = "2026.08.30.2";
+    public const string Version = "2026.09.01.2";
     public const string McpPath = "/mcp";
     public const string PublicPath = "/prompts/slogs-mcp.md";
     public const string KoreanPublicPath = "/prompts/slogs-mcp.ko.md";
@@ -17,6 +17,9 @@ public static class SlogsMcpPolicyPrompt
 
     public const string KoreanAgentsPolicyBlock = """
         - 이전 결정, 선호, 판단 기준, 프로젝트 맥락, 작업 기억이 관련될 수 있으면 Slogs LLM Wiki를 먼저 회상한다. 단순 현재 시각, 간단 번역, 일회성 명령은 예외로 둘 수 있다.
+        - 장기 작업 상태는 하네스가 선언한 모든 목표축을 각각 `완료/총건수`, 정확한 백분율, 실패 분류, 현재 단계, 다음 관문으로 보고한다. 컴파일러와 stdlib처럼 독립적으로 요청된 축을 하나의 퍼센트로 합치거나 일부 축을 생략하지 않는다. 권위 있는 분모가 없으면 수치나 퍼센트를 추정하지 말고 현재 측정 범위와 분모가 확정되지 않은 이유를 표시한다.
+        - 장기 실행을 기다리는 동안 안전한 비충돌 동반 작업이 남아 있으면 상태 메시지만 반복하지 않는다. 런타임이나 오케스트레이터가 대기 인터록을 제공할 때는 모든 wait/poll 전에 실행하고 차단 판정을 우회하지 않는다. Agentic Shaping 또는 Slogs LLM Wiki 시스템 진화 작업은 대상 시스템과 실제 자산 근거가 있을 때만 동반 작업 증거이며, 진행률 보고·기억 capture/write·Agent 주장은 증거가 아니다. Codex `PreToolUse`처럼 명령 시작만 가로채고 기존 실행의 `write_stdin` poll을 다시 가로채지 않는 훅은 동반 작업 계약을 주입하는 보조 장치로만 사용한다. 이를 poll 강제 적용의 증거로 주장하지 말고 오케스트레이터의 권위 있는 작업 큐·행동 trace·종료 감사를 유지한다. 인터록이 노출되지 않으면 강제 적용을 주장하지 말고 명시적인 안전 작업 큐를 계속 수행한다.
+        - 사용자가 Agentic Shaping 또는 Slogs LLM Wiki 시스템 진화를 요청하면 개인 기억과 두 시스템 대상을 분리한다. 진행 중 단계에서는 주 작업이 미완료임을 정직하게 보존하면서 각 요청 시스템의 사전 평가 계약과 감사 또는 실제 변경 증거를 요구한다. 최종 단계에서만 현재 작업 완료, 실제 프롬프트·hook 변경, 행동 검증을 모두 요구하며 기억 저장만으로 시스템 진화를 완료하지 않는다.
         - `llm_wiki_recall`은 개인 기억과 현재 사용자에게 접근 허용된 범용 Knowledge Corpus 근거를 함께 반환할 수 있다. 책·매뉴얼·회사 기술문서 같은 대규모 자료 질문에서는 코퍼스 청크를 개인 기억으로 오해하지 말고, 임베딩 유사도보다 정확 locator, 원문에 명시된 사실, 검토·승인된 실질 관계를 우선한다. 반환되지 않은 관계를 만들거나 후보·비승인 관계를 정답으로 승격하지 않는다.
         - 코퍼스 답변은 결론과 함께 문서/구조/청크 locator, 라이선스, 컬렉션·문서 원천, 관계 evidence를 추적 가능하게 제시한다. `text_explicit`·`source_explicit` 같은 직접 근거, `source_asserted`, `interpretive`, `disputed`를 구분하고 명시적 사실과 Agent의 추론·해석을 같은 확실성으로 표현하지 않는다.
         - 코퍼스 소유권과 읽기 범위 및 수정 권한을 분리한다. `public_shared`는 접근 가능한 읽기 근거일 뿐 공개 수정을 허용하지 않는다. private와 organization 자료는 실제 소유권·멤버십·ACL이 허용한 사용자에게만 사용하며, 제한 콘텐츠나 개인 오버레이를 공개 기억 또는 다른 사용자 답변으로 누출하지 않는다.
@@ -40,6 +43,9 @@ public static class SlogsMcpPolicyPrompt
 
     public const string EnglishAgentsPolicyBlock = """
         - When prior decisions, preferences, judgment criteria, project context, or task memory may matter, query Slogs LLM Wiki first. Current-time checks, simple translations, and one-off commands may be treated as exceptions.
+        - For long-running work, report every harness-declared goal axis independently with completed/total, the exact percentage, failure groups, current stage, and next gate. Do not combine independently requested axes such as compiler and stdlib into one percentage or omit an axis. When no authoritative denominator exists, do not estimate counts or percentages; state the currently measured scope and why the denominator is not yet fixed.
+        - While waiting for a long-running operation, do not repeat status-only polls when safe non-conflicting companion work remains. When the runtime or orchestrator exposes a wait interlock, invoke it before every wait/poll and do not bypass a block verdict. Agentic Shaping or Slogs LLM Wiki system-evolution work counts as companion evidence only with the target system and actual artifact evidence; a progress message, memory capture/write, or Agent claim is not evidence. Treat a hook such as Codex `PreToolUse`, which intercepts command start but does not re-intercept `write_stdin` polls for an existing run, only as a companion-contract injector. Never cite it as evidence of poll enforcement; retain the orchestrator's authoritative work queue, behavioral trace, and Stop-time audit. When no interlock is exposed, do not claim hard enforcement and continue an explicit safe-work queue.
+        - When the user requests Agentic Shaping or Slogs LLM Wiki system evolution, separate personal memory from both system targets. During an in-progress phase, preserve that the primary task is incomplete while requiring a predeclared evaluation contract and audit or material-change evidence for every requested system. Only the final phase requires current-task completion, actual prompt or hook changes, and behavioral verification. Never complete system evolution through memory storage alone.
         - `llm_wiki_recall` may combine personal memory with generic Knowledge Corpus evidence accessible to the current user. For large books, manuals, and company technical records, do not treat corpus chunks as personal memories. Prefer exact locators, source-explicit facts, and reviewed substantive relations over embedding similarity. Never invent an unreturned relation or promote candidate or unapproved relations to answers.
         - A corpus-grounded answer must make document, structure, and chunk locators, license, collection and document sources, and relation evidence traceable. Distinguish direct evidence such as `text_explicit` and `source_explicit` from `source_asserted`, `interpretive`, and `disputed`; do not present Agent inference or interpretation with the certainty of an explicit source fact.
         - Separate corpus ownership, read visibility, and mutation authority. `public_shared` permits accessible reading, not public editing. Use private and organization material only when actual ownership, membership, and ACL permit it, and never leak restricted content or private overlays into public-memory or another user's answer.

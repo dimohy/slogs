@@ -1,5 +1,6 @@
 using Slogs.Data;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Xunit;
 
@@ -10,9 +11,58 @@ public sealed class SlogsMcpPolicyPromptTests
     [Fact]
     public void VersionTextMatchesPromptVersion()
     {
-        Assert.Equal("2026.08.30.2\n", SlogsMcpPolicyPrompt.BuildVersionText());
-        Assert.Contains("Prompt Version: 2026.08.30.2", SlogsMcpPolicyPrompt.BuildKoreanMarkdown());
-        Assert.Contains("Prompt Version: 2026.08.30.2", SlogsMcpPolicyPrompt.BuildEnglishMarkdown());
+        Assert.Equal("2026.09.01.2\n", SlogsMcpPolicyPrompt.BuildVersionText());
+        Assert.Contains("Prompt Version: 2026.09.01.2", SlogsMcpPolicyPrompt.BuildKoreanMarkdown());
+        Assert.Contains("Prompt Version: 2026.09.01.2", SlogsMcpPolicyPrompt.BuildEnglishMarkdown());
+    }
+
+    [Fact]
+    public void AgentPromptsRequireMultiAxisProgressWithoutInventedDenominators()
+    {
+        var koreanPrompt = SlogsMcpPolicyPrompt.BuildKoreanMarkdown();
+        var englishPrompt = SlogsMcpPolicyPrompt.BuildEnglishMarkdown();
+
+        Assert.Contains("모든 목표축", koreanPrompt);
+        Assert.Contains("완료/총건수", koreanPrompt);
+        Assert.Contains("분모가 없으면", koreanPrompt);
+        Assert.Contains("every harness-declared goal axis", englishPrompt);
+        Assert.Contains("no authoritative denominator", englishPrompt);
+    }
+
+    [Fact]
+    public void AgentPromptsSeparateRealCompanionEvidenceFromStatusAndMemory()
+    {
+        var koreanPrompt = SlogsMcpPolicyPrompt.BuildKoreanMarkdown();
+        var englishPrompt = SlogsMcpPolicyPrompt.BuildEnglishMarkdown();
+
+        Assert.Contains("모든 wait/poll 전에", koreanPrompt);
+        Assert.Contains("진행률 보고·기억 capture/write", koreanPrompt);
+        Assert.Contains("before every wait/poll", englishPrompt);
+        Assert.Contains("progress message, memory capture/write", englishPrompt);
+    }
+
+    [Fact]
+    public void AgentPromptsDoNotOverclaimCodexPollHookCoverage()
+    {
+        var koreanPrompt = SlogsMcpPolicyPrompt.BuildKoreanMarkdown();
+        var englishPrompt = SlogsMcpPolicyPrompt.BuildEnglishMarkdown();
+
+        Assert.Contains("`write_stdin` poll을 다시 가로채지 않는", koreanPrompt);
+        Assert.Contains("poll 강제 적용의 증거로 주장하지 말고", koreanPrompt);
+        Assert.Contains("does not re-intercept `write_stdin` polls", englishPrompt);
+        Assert.Contains("Never cite it as evidence of poll enforcement", englishPrompt);
+    }
+
+    [Fact]
+    public void AgentPromptsSeparateInProgressAndFinalSystemEvolution()
+    {
+        var koreanPrompt = SlogsMcpPolicyPrompt.BuildKoreanMarkdown();
+        var englishPrompt = SlogsMcpPolicyPrompt.BuildEnglishMarkdown();
+
+        Assert.Contains("진행 중 단계", koreanPrompt);
+        Assert.Contains("최종 단계에서만", koreanPrompt);
+        Assert.Contains("During an in-progress phase", englishPrompt);
+        Assert.Contains("Only the final phase", englishPrompt);
     }
 
     [Fact]
@@ -43,11 +93,10 @@ public sealed class SlogsMcpPolicyPromptTests
         var lockPath = Path.Combine(
             Path.GetDirectoryName(fixturePath)!,
             "slogs-growing-graph-policy.v1.sha256");
-        var bytes = File.ReadAllBytes(fixturePath);
         var expectedHash = File.ReadAllText(lockPath).Split(' ', StringSplitOptions.RemoveEmptyEntries)[0];
 
-        Assert.Equal(expectedHash, Convert.ToHexString(SHA256.HashData(bytes)));
-        using var document = JsonDocument.Parse(bytes);
+        Assert.Equal(expectedHash, ComputeCanonicalTextSha256(fixturePath));
+        using var document = JsonDocument.Parse(File.ReadAllBytes(fixturePath));
         var root = document.RootElement;
         Assert.Equal(5, root.GetProperty("positiveCases").GetArrayLength());
         Assert.Equal(5, root.GetProperty("negativeCases").GetArrayLength());
@@ -86,11 +135,10 @@ public sealed class SlogsMcpPolicyPromptTests
         var lockPath = Path.Combine(
             Path.GetDirectoryName(fixturePath)!,
             "slogs-knowledge-corpus-policy-latency.v1.sha256");
-        var bytes = File.ReadAllBytes(fixturePath);
         var expectedHash = File.ReadAllText(lockPath).Split(' ', StringSplitOptions.RemoveEmptyEntries)[0];
 
-        Assert.Equal(expectedHash, Convert.ToHexString(SHA256.HashData(bytes)));
-        using var document = JsonDocument.Parse(bytes);
+        Assert.Equal(expectedHash, ComputeCanonicalTextSha256(fixturePath));
+        using var document = JsonDocument.Parse(File.ReadAllBytes(fixturePath));
         var root = document.RootElement;
         Assert.Equal(4, root.GetProperty("policyCases").GetArrayLength());
         Assert.Equal(2, root.GetProperty("runtimeCases").GetArrayLength());
@@ -167,5 +215,11 @@ public sealed class SlogsMcpPolicyPromptTests
         Assert.DoesNotContain("public Wiki", englishPrompt);
         Assert.DoesNotContain("their own wiki", englishPrompt);
         Assert.DoesNotContain("private lookup results", englishPrompt);
+    }
+
+    private static string ComputeCanonicalTextSha256(string path)
+    {
+        var canonicalText = File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal);
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonicalText)));
     }
 }

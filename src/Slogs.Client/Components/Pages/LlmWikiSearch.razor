@@ -1,7 +1,9 @@
 @page "/me/llm-wiki/search"
+@implements IAsyncDisposable
 @inject SlogsAuthState AuthState
 @inject SlogsApiClient ApiClient
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 <PageTitle>의미 검색</PageTitle>
 <SeoHead Title="의미 검색 | slogs" Description="개인 LLM Wiki 기억을 검색하고 Slogs 게시전 로그로 이어 씁니다." NoIndex="true" />
@@ -208,11 +210,12 @@ else
 
     @if (selectedEntry is not null)
     {
-        <div class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/40 p-4 backdrop-blur-sm"
+        <div class="slogs-llm-wiki-modal-overlay fixed inset-0 z-50 grid place-items-center overflow-y-auto p-4"
              style="z-index: 1000;"
              data-llm-wiki-detail-modal="true"
+             data-modal-backdrop-blur="true"
              role="presentation"
-             @onclick="CloseSelectedEntry">
+             @onclick="CloseSelectedEntryAsync">
             <article class="mx-auto flex w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
                      style="max-height: calc(100vh - 2rem);"
                      role="dialog"
@@ -238,11 +241,11 @@ else
                                     @onclick="CreateDraftFromSelectedEntryAsync">
                                 @(isCreatingDraftFromEntry ? "게시전 로그 여는 중..." : "게시전 로그로 이어쓰기")
                             </button>
-                            <button class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
-                                    type="button"
-                                    @onclick="CloseSelectedEntry">
-                                닫기
-                            </button>
+                             <button class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+                                     type="button"
+                                     @onclick="CloseSelectedEntryAsync">
+                                 닫기
+                             </button>
                         </div>
                         <p class="max-w-xs text-right text-xs font-semibold text-slate-500"
                            data-llm-wiki-draft-action-boundary="true">
@@ -250,7 +253,7 @@ else
                         </p>
                     </div>
                 </div>
-                <div class="space-y-4 overflow-y-auto px-5 py-4">
+                <div class="slogs-llm-wiki-modal-scroll space-y-4 overflow-y-auto px-5 py-4" data-modal-scroll-region="true">
                     <div class="rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-sm leading-6 text-teal-900"
                          data-llm-wiki-draft-safety-note="true">
                         <span class="font-bold">소유자 전용 게시전 로그</span>
@@ -354,6 +357,7 @@ else
     private bool isSearching;
     private bool isLoadingMore;
     private bool isCreatingDraftFromEntry;
+    private bool isModalScrollLocked;
     private bool hasMoreResults;
     private string draftMessage = string.Empty;
 
@@ -435,6 +439,7 @@ else
 
         if (reset)
         {
+            await ReleaseModalScrollLockAsync();
             results = [];
             selectedEntry = null;
             hasMoreResults = false;
@@ -481,12 +486,14 @@ else
 
         selectedEntry = await ApiClient.GetLlmWikiEntryAsync(CurrentUser.UserName, result.Id.ToString());
         draftMessage = string.Empty;
+        await AcquireModalScrollLockAsync();
     }
 
-    private void CloseSelectedEntry()
+    private async Task CloseSelectedEntryAsync()
     {
         selectedEntry = null;
         draftMessage = string.Empty;
+        await ReleaseModalScrollLockAsync();
     }
 
     private async Task CreateDraftFromSelectedEntryAsync()
@@ -508,7 +515,49 @@ else
             thumbnailUrl: null,
             isDraft: true);
 
+        await ReleaseModalScrollLockAsync();
         Navigation.NavigateTo($"/edit/{Uri.EscapeDataString(draft.Slug)}");
+    }
+
+    private async Task AcquireModalScrollLockAsync()
+    {
+        if (isModalScrollLocked)
+        {
+            return;
+        }
+
+        await JS.InvokeVoidAsync("slogsModalScrollLock.lock");
+        isModalScrollLocked = true;
+    }
+
+    private async Task ReleaseModalScrollLockAsync()
+    {
+        if (!isModalScrollLocked)
+        {
+            return;
+        }
+
+        await JS.InvokeVoidAsync("slogsModalScrollLock.unlock");
+        isModalScrollLocked = false;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (!isModalScrollLocked)
+        {
+            return;
+        }
+
+        try
+        {
+            await JS.InvokeVoidAsync("slogsModalScrollLock.unlock");
+        }
+        catch (JSDisconnectedException)
+        {
+            // Navigation can dispose the component after the browser context is gone.
+        }
+
+        isModalScrollLocked = false;
     }
 
     private async Task HandleSearchKeyDown(KeyboardEventArgs e)

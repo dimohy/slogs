@@ -65,6 +65,93 @@
 })();
 
 (() => {
+    if (window.slogsModalScrollLock) {
+        return;
+    }
+
+    const lockedClass = "slogs-modal-scroll-locked";
+    let lockDepth = 0;
+    let scrollX = 0;
+    let scrollY = 0;
+    let bodyStyles = null;
+    let htmlOverflow = "";
+
+    const lock = () => {
+        lockDepth += 1;
+        if (lockDepth > 1) {
+            return;
+        }
+
+        const body = document.body;
+        const html = document.documentElement;
+        if (!body || !html) {
+            throw new Error("Modal scroll lock requires document.body and document.documentElement.");
+        }
+
+        scrollX = window.scrollX;
+        scrollY = window.scrollY;
+        htmlOverflow = html.style.overflow;
+        bodyStyles = {
+            position: body.style.position,
+            top: body.style.top,
+            left: body.style.left,
+            right: body.style.right,
+            width: body.style.width,
+            overflow: body.style.overflow,
+            paddingRight: body.style.paddingRight
+        };
+
+        const scrollbarWidth = Math.max(0, window.innerWidth - html.clientWidth);
+        const bodyPaddingRight = Number.parseFloat(window.getComputedStyle(body).paddingRight) || 0;
+
+        html.classList.add(lockedClass);
+        body.classList.add(lockedClass);
+        html.style.overflow = "hidden";
+        body.style.position = "fixed";
+        body.style.top = `${-scrollY}px`;
+        body.style.left = `${-scrollX}px`;
+        body.style.right = "0";
+        body.style.width = "100%";
+        body.style.overflow = "hidden";
+        if (scrollbarWidth > 0) {
+            body.style.paddingRight = `${bodyPaddingRight + scrollbarWidth}px`;
+        }
+    };
+
+    const unlock = () => {
+        if (lockDepth === 0) {
+            return;
+        }
+
+        lockDepth -= 1;
+        if (lockDepth > 0) {
+            return;
+        }
+
+        const body = document.body;
+        const html = document.documentElement;
+        if (!body || !html || !bodyStyles) {
+            throw new Error("Modal scroll lock state was lost before unlock.");
+        }
+
+        html.classList.remove(lockedClass);
+        body.classList.remove(lockedClass);
+        html.style.overflow = htmlOverflow;
+        body.style.position = bodyStyles.position;
+        body.style.top = bodyStyles.top;
+        body.style.left = bodyStyles.left;
+        body.style.right = bodyStyles.right;
+        body.style.width = bodyStyles.width;
+        body.style.overflow = bodyStyles.overflow;
+        body.style.paddingRight = bodyStyles.paddingRight;
+        bodyStyles = null;
+        window.scrollTo(scrollX, scrollY);
+    };
+
+    window.slogsModalScrollLock = { lock, unlock };
+})();
+
+(() => {
     if (window.__slogsCardClickBound) {
         return;
     }

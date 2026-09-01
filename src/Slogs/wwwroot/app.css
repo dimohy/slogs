@@ -422,6 +422,22 @@ img.rounded-full { border-radius: 9999px; }
     }
 }
 
+html.slogs-modal-scroll-locked,
+body.slogs-modal-scroll-locked {
+    overscroll-behavior: none;
+}
+
+.slogs-llm-wiki-modal-overlay {
+    background: rgba(15, 23, 42, 0.52);
+    backdrop-filter: blur(10px) saturate(0.78);
+    -webkit-backdrop-filter: blur(10px) saturate(0.78);
+    overscroll-behavior: contain;
+}
+
+.slogs-llm-wiki-modal-scroll {
+    overscroll-behavior: contain;
+}
+
 .slogs-home-tabs {
     min-height: 2.5rem;
 }

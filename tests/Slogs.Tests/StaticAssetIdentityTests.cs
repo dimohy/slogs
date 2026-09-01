@@ -661,7 +661,29 @@ public sealed class StaticAssetIdentityTests
         Assert.DoesNotContain("기억 저장 근거", llmWikiSearchPage);
     }
 
-    [Fact(Skip = "Static copy snapshot needs rebaseline after natural product language update.")]
+    [Fact]
+    public void LlmWikiDetailModalBlursAndLocksBackgroundScroll()
+    {
+        var llmWikiSearchPage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "LlmWikiSearch.razor"));
+        var appJavaScript = File.ReadAllText(FindRepoFile("src", "Slogs", "wwwroot", "app.js"));
+        var appCss = File.ReadAllText(FindRepoFile("src", "Slogs", "wwwroot", "app.css"));
+
+        Assert.Contains("data-modal-backdrop-blur=\"true\"", llmWikiSearchPage);
+        Assert.Contains("slogs-llm-wiki-modal-overlay", llmWikiSearchPage);
+        Assert.Contains("data-modal-scroll-region=\"true\"", llmWikiSearchPage);
+        Assert.Contains("@onclick=\"CloseSelectedEntryAsync\"", llmWikiSearchPage);
+        Assert.Contains("await AcquireModalScrollLockAsync();", llmWikiSearchPage);
+        Assert.Contains("await ReleaseModalScrollLockAsync();", llmWikiSearchPage);
+        Assert.Contains("@implements IAsyncDisposable", llmWikiSearchPage);
+        Assert.Contains("window.slogsModalScrollLock = { lock, unlock };", appJavaScript);
+        Assert.Contains("body.style.position = \"fixed\";", appJavaScript);
+        Assert.Contains("body.style.top = `${-scrollY}px`;", appJavaScript);
+        Assert.Contains("window.scrollTo(scrollX, scrollY);", appJavaScript);
+        Assert.Contains("backdrop-filter: blur(10px) saturate(0.78);", appCss);
+        Assert.Contains("overscroll-behavior: contain;", appCss);
+    }
+
+    [Fact]
     public void LlmWikiUsageGuideFramesToolNamesAsRecallFlow()
     {
         var llmWikiGuidePage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "LlmWiki.razor"));
@@ -675,29 +697,27 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains(">비공개 기억</div>", navMenu);
         Assert.Contains("기억 연결 가이드", navMenu);
         Assert.Contains("<span>기억 남김</span>", llmWikiGuidePage);
-        Assert.Contains(">기억 원리</p>", llmWikiGuidePage);
-        Assert.Contains("LLM Wiki는 판단 근거를 GraphRAG 기억으로 바꿉니다", llmWikiGuidePage);
-        Assert.Contains("자연어로 남긴 판단 근거는 제목, 태그, 요청, 본문을 함께 기억 정보로 엮습니다.", llmWikiGuidePage);
-        Assert.Contains(">1. 기억 태그 남김</h3>", llmWikiGuidePage);
-        Assert.Contains("하나의 기억 활동으로 남깁니다.", llmWikiGuidePage);
-        Assert.Contains("768차원 기억 벡터로 남고", llmWikiGuidePage);
-        Assert.Contains("graph relation 관계 정보로 이어집니다.", llmWikiGuidePage);
-        Assert.Contains("Slogs LLM Wiki에서 먼저 관련 기억을 검색합니다.", llmWikiGuidePage);
-        Assert.Contains("search</code> 도구는 검색 후보 내용을 압축해 보여 주고", llmWikiGuidePage);
-        Assert.Contains("recall</code> 도구는 답변/구현에 바로 적용할 기억 맥락으로 이어 줍니다.", llmWikiGuidePage);
-        Assert.Contains("낮은 관련도 검색 후보는 제외합니다.", llmWikiGuidePage);
-        Assert.Contains("MCP 검색 응답의 Retrieval Diagnostics로 검색 후보 수, limit, categoryPath, minRelevancePercent, elapsedMs를 살펴 검색 품질을 조율합니다.", llmWikiGuidePage);
-        Assert.Contains("암묵지 기억 후보를 조용히 점검합니다.", llmWikiGuidePage);
-        Assert.Contains("기억으로 남기기 전에는 관련 기억을 먼저 검색하고", llmWikiGuidePage);
-        Assert.Contains("categoryPath</code>를 정해 기억으로 남깁니다.", llmWikiGuidePage);
-        Assert.Contains("기억으로 남기지 않습니다.", llmWikiGuidePage);
-        Assert.Contains("복사한 Agent 지침은 Agent 연결 키 입력과 전역/프로젝트/현재 세션 범위 선택을 안내하고", llmWikiGuidePage);
+        Assert.Contains("data-llm-wiki-user-guide", llmWikiGuidePage);
+        Assert.Contains(">동작과 활용</p>", llmWikiGuidePage);
+        Assert.Contains("Agent가 다음 작업에서 이전 판단을 먼저 꺼내 씁니다", llmWikiGuidePage);
+        Assert.Contains("사용자는 내부 검색 방식을 알 필요 없이, 다음 대화에서 앞선 맥락이 실제로 이어지는지 확인하면 됩니다.", llmWikiGuidePage);
+        Assert.Contains(">1. 기억할 내용 정리</h3>", llmWikiGuidePage);
+        Assert.Contains(">2. 관련될 때 다시 찾기</h3>", llmWikiGuidePage);
+        Assert.Contains(">3. 현재 작업에 적용</h3>", llmWikiGuidePage);
+        Assert.Contains("계획, 코드, 문서, 검증 기준에 실제로 반영합니다.", llmWikiGuidePage);
+        Assert.Contains("이럴 때 활용하세요", llmWikiGuidePage);
+        Assert.Contains("이어 하는 프로젝트:", llmWikiGuidePage);
+        Assert.Contains("반복되는 취향:", llmWikiGuidePage);
+        Assert.Contains("방향 교정:", llmWikiGuidePage);
+        Assert.Contains("결과 재활용:", llmWikiGuidePage);
+        Assert.Contains("공개 전 검토:", llmWikiGuidePage);
+        Assert.Contains("Agent는 이렇게 움직입니다", llmWikiGuidePage);
+        Assert.Contains("확인한 기억을 작업 계획과 실제 산출물에 반영하고", llmWikiGuidePage);
+        Assert.Contains("하나의 최신 맥락으로 정리합니다.", llmWikiGuidePage);
         Assert.Contains("처음 설치할 때만 Agent 연결 키를 요청하고", llmWikiGuidePage);
         Assert.Contains("최초 설치 시 Agent 연결 키와 적용 범위를 묻도록 안내합니다.", llmWikiGuidePage);
         Assert.Contains("Agent recall connection key and scope only during initial installation.", llmWikiGuidePage);
-        Assert.Contains("같은 지침 위치의 지침 블록을 직접 교체하도록 안내합니다.", llmWikiGuidePage);
-        Assert.Contains("언어별 Agent 지침으로 제공합니다.", llmWikiGuidePage);
-        Assert.Contains("연결 키, 비밀번호, 토큰, 일회성 로그, 임시 실행 내역은 기억으로 남기지 않습니다.", llmWikiGuidePage);
+        Assert.Contains("연결 키, 비밀번호, 토큰, 일회성 로그, 임시 실행 내역, 검증되지 않은 추측은 기억으로 남기지 않습니다.", llmWikiGuidePage);
         Assert.Contains("Agent Recall Instructions", llmWikiGuidePage);
         Assert.Contains("언어별 Agent 지침", llmWikiGuidePage);
         Assert.Contains("복사되는 지침은 선택한 언어 하나만 포함합니다.", llmWikiGuidePage);
@@ -707,60 +727,19 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("선택한 지침 복사", llmWikiGuidePage);
         Assert.Contains("한국어 Agent 지침이 복사되었습니다.", llmWikiGuidePage);
         Assert.Contains("English recall instructions copied.", llmWikiGuidePage);
-        Assert.Contains("도구 노출 점검으로 먼저 지연 로딩 여부를 살핍니다.", llmWikiGuidePage);
-        Assert.Contains("Agent의 도구 노출 점검으로 먼저 지연 로딩을 살피도록 안내합니다.", llmWikiGuidePage);
-        Assert.Contains("search</code>로 작은 검색 후보 내용을 잡습니다.", llmWikiGuidePage);
-        Assert.Contains("답변이나 구현에 바로 적용할 기억 맥락은 낮은 limit의", llmWikiGuidePage);
-        Assert.Contains("다시 검색합니다.", llmWikiGuidePage);
 
         Assert.DoesNotContain("LLM Wiki 사용법", navMenu);
         Assert.DoesNotContain("님의 기억을 검색하고 Slogs 로그로 이어 쓰는 방법입니다.", llmWikiGuidePage);
-        Assert.DoesNotContain("Slogs LLM Wiki를 먼저 조회합니다.", llmWikiGuidePage);
-        Assert.DoesNotContain("MCP 응답의 Retrieval Diagnostics", llmWikiGuidePage);
-        Assert.DoesNotContain("낮은 관련도 결과는 제외합니다.", llmWikiGuidePage);
-        Assert.DoesNotContain("MCP 검색 응답의 Retrieval Diagnostics로 결과 수, limit, categoryPath, minRelevancePercent, elapsedMs를 살펴 검색 품질을 조율합니다.", llmWikiGuidePage);
-        Assert.DoesNotContain("MCP 검색 응답의 Retrieval Diagnostics로 결과 수, limit, categoryPath, minRelevancePercent, elapsedMs를 확인해 검색 품질을 평가합니다.", llmWikiGuidePage);
-        Assert.DoesNotContain("저장 전에는 관련 기억을 먼저 찾고", llmWikiGuidePage);
-        Assert.DoesNotContain("암묵지 저장 후보", llmWikiGuidePage);
-        Assert.DoesNotContain("저장 전에는 관련 기억을 먼저 검색하고", llmWikiGuidePage);
-        Assert.DoesNotContain("categoryPath</code>를 정하고 저장합니다.", llmWikiGuidePage);
-        Assert.DoesNotContain("저장하지 않습니다.", llmWikiGuidePage);
-        Assert.DoesNotContain("Slogs LLM Wiki가 비공개 기억을 Agent과 소유자 전용 게시전 로그로 이어 두는 연결면입니다.", llmWikiGuidePage);
-        Assert.DoesNotContain("비공개 기억을 Agent과 Slogs 게시전 로그로 이어 두는 연결면입니다.", llmWikiGuidePage);
-        Assert.DoesNotContain("Slogs LLM Wiki가 비공개 기억을 Agent과 게시전 로그로 이어 쓰는 내용을 확인합니다.", llmWikiGuidePage);
-        Assert.DoesNotContain("기억에서 로그로", llmWikiGuidePage);
-        Assert.DoesNotContain("LLM Wiki는 공개 로그 뒤의 기억 계층입니다", llmWikiGuidePage);
-        Assert.DoesNotContain(">동작 원리</p>", llmWikiGuidePage);
-        Assert.DoesNotContain("LLM Wiki는 기록을 GraphRAG 기억으로 바꿉니다", llmWikiGuidePage);
-        Assert.DoesNotContain("자연어로 남긴 기록은 제목, 태그, 프롬프트, 본문을 함께 인덱싱합니다.", llmWikiGuidePage);
-        Assert.DoesNotContain("자연어로 남긴 판단 태그는 제목, 태그, 프롬프트, 본문을 함께 기억 정보로 엮습니다.", llmWikiGuidePage);
-        Assert.DoesNotContain(">1. 기록</h3>", llmWikiGuidePage);
-        Assert.DoesNotContain("Slogs MCP 키 입력과 전역/프로젝트/현재 세션 범위 선택을 안내하고", llmWikiGuidePage);
-        Assert.DoesNotContain("처음 설치할 때만 Agent가 Slogs MCP 키를 요청하고", llmWikiGuidePage);
-        Assert.DoesNotContain("최초 설치 시 MCP 키와 적용 범위를 묻도록 안내합니다.", llmWikiGuidePage);
-        Assert.DoesNotContain("It asks for the MCP key and scope only during initial installation.", llmWikiGuidePage);
-        Assert.DoesNotContain("같은 지침 위치의 관리 블록을 직접 교체하도록 안내합니다.", llmWikiGuidePage);
-        Assert.DoesNotContain("API 키, 비밀번호, 토큰, 일회성 로그, 임시 실행 내역은 기억으로 남기지 않습니다.", llmWikiGuidePage);
-        Assert.DoesNotContain(">Agent Prompt</p>", llmWikiGuidePage);
-        Assert.DoesNotContain("언어별 완성 프롬프트", llmWikiGuidePage);
-        Assert.DoesNotContain("복사되는 프롬프트는 선택한 언어 하나만 포함합니다.", llmWikiGuidePage);
-        Assert.DoesNotContain(">한국어 프롬프트</p>", llmWikiGuidePage);
-        Assert.DoesNotContain(">English Prompt</p>", llmWikiGuidePage);
-        Assert.DoesNotContain("Copy English</button>", llmWikiGuidePage);
-        Assert.DoesNotContain("선택한 프롬프트 복사", llmWikiGuidePage);
-        Assert.DoesNotContain("한국어 프롬프트가 복사되었습니다.", llmWikiGuidePage);
-        Assert.DoesNotContain("English prompt copied.", llmWikiGuidePage);
-        Assert.DoesNotContain("도구 노출 확인으로 먼저 사용 가능 여부를 확인합니다.", llmWikiGuidePage);
-        Assert.DoesNotContain("도구 노출 확인 기능으로 먼저 지연 로딩을 시도", llmWikiGuidePage);
-        Assert.DoesNotContain("다시 조회합니다.", llmWikiGuidePage);
-        Assert.DoesNotContain("검색 후보 요약 목록", llmWikiGuidePage);
-        Assert.DoesNotContain("초기 목록", llmWikiGuidePage);
-        Assert.DoesNotContain("작은 검색 후보 목록", llmWikiGuidePage);
-        Assert.DoesNotContain("<span>기억 저장</span>", llmWikiGuidePage);
-        Assert.DoesNotContain("Wiki 항목으로 저장합니다.", llmWikiGuidePage);
-        Assert.DoesNotContain("embedding으로 저장", llmWikiGuidePage);
-        Assert.DoesNotContain("graph relation로 저장됩니다.", llmWikiGuidePage);
-        Assert.DoesNotContain("압축 컨텍스트로 구분합니다.", llmWikiGuidePage);
+        Assert.DoesNotContain("GraphRAG", llmWikiGuidePage, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("PostgreSQL", llmWikiGuidePage, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("pgvector", llmWikiGuidePage, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("EmbeddingGemma", llmWikiGuidePage, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("embedding", llmWikiGuidePage, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("graph relation", llmWikiGuidePage, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("기억 벡터", llmWikiGuidePage);
+        Assert.DoesNotContain("Retrieval Diagnostics", llmWikiGuidePage);
+        Assert.DoesNotContain("categoryPath", llmWikiGuidePage);
+        Assert.DoesNotContain("Raw Provenance", llmWikiGuidePage);
     }
 
     [Fact(Skip = "Static copy snapshot needs rebaseline after natural product language update.")]
