@@ -23,5 +23,7 @@
     <None Include="..\Fixtures\slogs-knowledge-corpus-policy-latency.v1.sha256" Link="Fixtures\slogs-knowledge-corpus-policy-latency.v1.sha256" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\Fixtures\slogs-growing-graph-policy.v1.json" Link="Fixtures\slogs-growing-graph-policy.v1.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\Fixtures\slogs-growing-graph-policy.v1.sha256" Link="Fixtures\slogs-growing-graph-policy.v1.sha256" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Fixtures\slogs-summary-recall-quality.v1.json" Link="Fixtures\slogs-summary-recall-quality.v1.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Fixtures\slogs-summary-recall-quality.v1.sha256" Link="Fixtures\slogs-summary-recall-quality.v1.sha256" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -472,7 +472,7 @@ public sealed class KnowledgeCorpusService(
             var relations = safeGraphHops == 0
                 ? []
                 : await ReadRelationsAsync(db, owner, isAdmin, scopeKeys, seed, safeGraphHops, cancellationToken);
-            results.Add(new KnowledgeChunkRecall(
+            var result = new KnowledgeChunkRecall(
                 seed.CollectionId,
                 seed.Version,
                 seed.Domain,
@@ -487,10 +487,83 @@ public sealed class KnowledgeCorpusService(
                 seed.License,
                 seed.CollectionSourceUri,
                 seed.DocumentSourceLocator,
-                seed.OwnerUserName));
+                seed.OwnerUserName);
+            results.Add(exactFastPath ? CompactExactLocatorRecall(searchText, result) : result);
         }
 
         return results;
+    }
+
+    internal static KnowledgeChunkRecall CompactExactLocatorRecall(
+        string query,
+        KnowledgeChunkRecall result)
+    {
+        var coordinates = ExtractLocatorCoordinateSuffixes(query);
+        if (coordinates.Length != 1)
+        {
+            return result;
+        }
+
+        var coordinate = coordinates[0];
+        var matchingRelations = result.Relations
+            .Where(relation => RelationMatchesCoordinate(relation, coordinate))
+            .ToArray();
+        var canonicalLocators = matchingRelations
+            .SelectMany(relation => new[] { relation.FromNodeId, relation.ToNodeId })
+            .Where(node => NodeMatchesCoordinate(node, coordinate))
+            .Select(node => node.StartsWith("passage:", StringComparison.Ordinal)
+                ? node["passage:".Length..]
+                : node)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        var compactLines = result.Text
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(line => TextLineMatchesCoordinate(line, coordinate, canonicalLocators))
+            .ToArray();
+        if (compactLines.Length == 0)
+        {
+            return result;
+        }
+
+        var locator = canonicalLocators.FirstOrDefault() ?? coordinate.TrimStart('.');
+        return result with
+        {
+            Text = string.Join(Environment.NewLine, compactLines),
+            StartLocator = locator,
+            EndLocator = locator,
+            Relations = matchingRelations
+        };
+    }
+
+    private static bool RelationMatchesCoordinate(KnowledgeRelationRecall relation, string coordinate)
+        => NodeMatchesCoordinate(relation.FromNodeId, coordinate) ||
+           NodeMatchesCoordinate(relation.ToNodeId, coordinate) ||
+           relation.Evidence.Any(evidence => NodeMatchesCoordinate(evidence.Locator, coordinate));
+
+    private static bool NodeMatchesCoordinate(string value, string coordinate)
+        => Regex.IsMatch(
+            value,
+            $@"{Regex.Escape(coordinate)}(?![0-9])",
+            RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+
+    private static bool TextLineMatchesCoordinate(
+        string line,
+        string coordinate,
+        IReadOnlyList<string> canonicalLocators)
+    {
+        if (canonicalLocators.Any(locator => Regex.IsMatch(
+                line,
+                $@"(?<![A-Za-z0-9]){Regex.Escape(locator)}(?![0-9])",
+                RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)))
+        {
+            return true;
+        }
+
+        var parts = coordinate.TrimStart('.').Split('.');
+        return parts.Length == 2 && Regex.IsMatch(
+            line,
+            $@"(?<![0-9]){Regex.Escape(parts[0])}\s*(?::|장\s*)\s*{Regex.Escape(parts[1])}(?:\s*절)?(?![0-9])",
+            RegexOptions.CultureInvariant);
     }
 
     private static KnowledgeCollectionInput ValidateCollection(KnowledgeCorpusActor actor, KnowledgeCollectionInput value)

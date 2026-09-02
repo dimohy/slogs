@@ -6,6 +6,18 @@ namespace Slogs.Tests;
 public sealed class LlmWikiCombinedRecallTests
 {
     [Fact]
+    public void RecallDefaultsToTheContextNoiseGate()
+    {
+        var parameter = typeof(LlmWikiMcpTools)
+            .GetMethod(nameof(LlmWikiMcpTools.RecallAsync))!
+            .GetParameters()
+            .Single(value => value.Name == "minRelevancePercent");
+
+        Assert.Equal(LlmWikiMcpTools.ContextMinRelevancePercent, parameter.DefaultValue);
+        Assert.Equal(60, parameter.DefaultValue);
+    }
+
+    [Fact]
     public void CombinedRecallAppliesOneGlobalLimitAcrossMemoryAndCorpus()
     {
         var memories = new[]
@@ -212,14 +224,74 @@ public sealed class LlmWikiCombinedRecallTests
 
     [Theory]
     [InlineData(5, 1, 5)]
-    [InlineData(3, 2, 10)]
-    [InlineData(5, 3, 10)]
+    [InlineData(3, 2, 4)]
+    [InlineData(5, 3, 7)]
     public void RelationalRecallSearchesADeepCandidatePoolWithoutExpandingTheResponseLimit(
         int responseLimit,
         int maxGraphHops,
         int expectedCorpusLimit)
     {
         Assert.Equal(expectedCorpusLimit, LlmWikiMcpTools.CalculateCorpusRecallLimit(responseLimit, maxGraphHops));
+    }
+
+    [Theory]
+    [InlineData("기존에 잘 되던 요약 작업의 품질과 이전 요약 스타일", false)]
+    [InlineData("이전 프로젝트의 요약 형식 선호를 회상해줘", false)]
+    [InlineData("사도행전 13장 9절 본문", true)]
+    [InlineData("장비 매뉴얼의 센서 배선 근거", true)]
+    [InlineData("the source evidence in the operator manual", true)]
+    public void CombinedRecallOnlySearchesKnowledgeCorpusForExplicitCorpusIntent(
+        string query,
+        bool expected)
+    {
+        Assert.Equal(expected, KnowledgeRecallRouting.ShouldSearchKnowledgeCorpus(query));
+    }
+
+    [Fact]
+    public void ExactLocatorRecallReturnsOnlyTheRequestedEvidenceLinesAndRelations()
+    {
+        var result = Corpus(
+            "acts-chunk",
+            100,
+            text: "Acts.13.8 previous line\nActs.13.9 requested line\nActs.13.10 next line") with
+        {
+            StartLocator = "Acts.13.1",
+            EndLocator = "Acts.13.24",
+            Relations =
+            [
+                Relation("passage:Acts.13.8"),
+                Relation("passage:Acts.13.9"),
+                Relation("passage:Acts.13.10")
+            ]
+        };
+
+        var compacted = KnowledgeCorpusService.CompactExactLocatorRecall(
+            "Acts.13.9 본문",
+            result);
+
+        Assert.Equal("Acts.13.9 requested line", compacted.Text);
+        Assert.Equal("Acts.13.9", compacted.StartLocator);
+        Assert.Equal("Acts.13.9", compacted.EndLocator);
+        var relation = Assert.Single(compacted.Relations);
+        Assert.Equal("passage:Acts.13.9", relation.ToNodeId);
+    }
+
+    [Fact]
+    public void KoreanExactLocatorRecallReturnsOnlyTheRequestedVerseLine()
+    {
+        var result = Corpus(
+            "acts-korean-chunk",
+            100,
+            text: "사도행전 13:8 이전 절\n사도행전 13:9 요청 절\n사도행전 13:10 다음 절") with
+        {
+            Relations = [Relation("passage:Acts.13.9")]
+        };
+
+        var compacted = KnowledgeCorpusService.CompactExactLocatorRecall(
+            "사도행전 13장 9절 본문",
+            result);
+
+        Assert.Equal("사도행전 13:9 요청 절", compacted.Text);
     }
 
     private static LlmWikiSearchResult Memory(string title, int relevance)
@@ -264,4 +336,15 @@ public sealed class LlmWikiCombinedRecallTests
                     "source_asserted",
                     1,
                     [])]);
+
+    private static KnowledgeRelationRecall Relation(string toNodeId)
+        => new(
+            "test-corpus",
+            "1.0.0",
+            "contains_passage",
+            "chunk:acts",
+            toNodeId,
+            "source_explicit",
+            1,
+            [new KnowledgeEvidenceInput("test", toNodeId["passage:".Length..], "source_verse", [])]);
 }

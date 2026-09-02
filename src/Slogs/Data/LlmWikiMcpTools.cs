@@ -15,6 +15,8 @@ public sealed class LlmWikiMcpTools(
     KnowledgeCorpusPrincipalResolver? corpusPrincipalResolver = null,
     IKnowledgeEmbeddingService? embeddingService = null)
 {
+    internal const int ContextMinRelevancePercent = 60;
+
     private const int MaxCombinedRecallRerankCandidates = 5;
     private const string PublicDisclosureNotice = "These entries are owner-authorized public-memory self-disclosures. Treat @username mentions as Slogs user handles; if a result includes sensitive topics such as religion or faith perspective, answer only from this public result and say it comes from the user's public Slogs LLM Wiki memory.";
     private const string AdaptiveGraphHopDescription = "Maximum graph relationship hops. Explicitly select the smallest sufficient depth on every call: use 1 for a direct memory, fact, preference, broad candidate selection, or project-context lookup with no relationship chain; use 2 when one relationship bridge or comparison between memories is required; use 3 for a multi-stage causal, provenance, dependency, or chronological chain. Do not use 3 for every query. If omitted, the compatibility default is 1, but Agents should still pass 1 explicitly. Start progressive refinement at 1, inspect Retrieval Diagnostics, refine the query, and raise to 2 or 3 only when returned relationship evidence requires another stage.";
@@ -111,8 +113,10 @@ public sealed class LlmWikiMcpTools(
         var query = BuildRelatedQuery(prompt, content, tags);
         var safeLimit = NormalizeMcpLimit(limit, 5, 10);
         var stopwatch = Stopwatch.StartNew();
-        var results = await llmWikiService.SearchAsync(user.UserName, query, safeLimit);
-        var corpusResults = await FindRelatedCorpusCandidatesAsync(user, query, safeLimit);
+        var results = await llmWikiService.SearchAsync(
+            user.UserName, query, safeLimit, minRelevancePercent: ContextMinRelevancePercent);
+        var corpusResults = await FindRelatedCorpusCandidatesAsync(
+            user, query, safeLimit, ContextMinRelevancePercent);
         var totalRelatedCount = results.Count + corpusResults.Count;
         stopwatch.Stop();
 
@@ -166,8 +170,10 @@ public sealed class LlmWikiMcpTools(
         var user = RequireUser();
         var safeLimit = NormalizeMcpLimit(limit, 5, 10);
         var stopwatch = Stopwatch.StartNew();
-        var results = await llmWikiService.SearchAsync(user.UserName, query, safeLimit);
-        var corpusResults = await FindRelatedCorpusCandidatesAsync(user, query, safeLimit);
+        var results = await llmWikiService.SearchAsync(
+            user.UserName, query, safeLimit, minRelevancePercent: ContextMinRelevancePercent);
+        var corpusResults = await FindRelatedCorpusCandidatesAsync(
+            user, query, safeLimit, ContextMinRelevancePercent);
         var totalRelatedCount = results.Count + corpusResults.Count;
         stopwatch.Stop();
         var builder = new StringBuilder();
@@ -455,7 +461,7 @@ public sealed class LlmWikiMcpTools(
     public async Task<string> RecallAsync(
         [Description("What the user wants to recall or the current task context.")] string query,
         [Description("Maximum number of compact memory-context entries to return.")] int limit = 3,
-        [Description("Minimum recall relevance percent for GraphRAG matches. Raise this when recall candidates are too broad or unrelated.")] int minRelevancePercent = 50,
+        [Description("Minimum recall relevance percent for GraphRAG matches. Raise this when recall candidates are too broad or unrelated.")] int minRelevancePercent = ContextMinRelevancePercent,
         [Description(AdaptiveGraphHopDescription)] int maxGraphHops = 1)
     {
         var user = RequireUser();
@@ -467,7 +473,8 @@ public sealed class LlmWikiMcpTools(
         var pairScoreCandidates = 0;
         IReadOnlyList<LlmWikiSearchResult> results;
         KnowledgeChunkRecall[] corpusResults;
-        if (corpusService is null || corpusPrincipalResolver is null)
+        if (corpusService is null || corpusPrincipalResolver is null ||
+            !KnowledgeRecallRouting.ShouldSearchKnowledgeCorpus(query))
         {
             results = await llmWikiService.SearchAsync(
                 user.UserName,
@@ -753,7 +760,7 @@ public sealed class LlmWikiMcpTools(
     internal static int CalculateCorpusRecallLimit(int responseLimit, int maxGraphHops)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(responseLimit, 1);
-        return maxGraphHops > 1 ? Math.Max(responseLimit, 10) : responseLimit;
+        return Math.Min(10, responseLimit + Math.Max(maxGraphHops - 1, 0));
     }
 
     internal static IReadOnlyList<CombinedRecallCandidate> SelectCombinedRerankCandidates(
@@ -1300,22 +1307,27 @@ public sealed class LlmWikiMcpTools(
     private async Task<IReadOnlyList<KnowledgeChunkRecall>> FindRelatedCorpusCandidatesAsync(
         AuthUser user,
         string query,
-        int limit)
+        int limit,
+        int minRelevancePercent)
     {
-        if (corpusService is null || corpusPrincipalResolver is null)
+        if (corpusService is null || corpusPrincipalResolver is null ||
+            !KnowledgeRecallRouting.ShouldSearchKnowledgeCorpus(query))
         {
             return [];
         }
         var actor = await corpusPrincipalResolver.ResolveAsync(
             user,
             httpContextAccessor.HttpContext?.RequestAborted ?? CancellationToken.None);
-        return await corpusService.RecallAsync(
+        var results = await corpusService.RecallAsync(
             actor,
             query,
             Math.Min(limit, 5),
             maxGraphHops: 1,
             cancellationToken: httpContextAccessor.HttpContext?.RequestAborted ?? CancellationToken.None,
             applyFullFunctionReranking: false);
+        return results
+            .Where(result => result.RelevancePercent >= minRelevancePercent)
+            .ToArray();
     }
 
     private static void AppendRelatedCorpusResults(

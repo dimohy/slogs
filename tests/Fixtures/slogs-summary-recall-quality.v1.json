@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "suite": "slogs-summary-recall-quality",
+  "frozenBeforeImplementation": true,
+  "cases": [
+    {
+      "id": "summary-style-personal-memory-only",
+      "query": "기존에 잘 되던 요약 작업의 품질과 이전 요약 스타일",
+      "maxGraphHops": 1,
+      "expected": ["personal-memory candidates only", "pairScoreCalls=0"],
+      "forbidden": ["knowledge corpus chunk", "unrelated Bible evidence"]
+    },
+    {
+      "id": "exact-passage-minimal-evidence",
+      "query": "사도행전 13장 9절 본문",
+      "maxGraphHops": 1,
+      "expected": ["Acts.13.9", "two authorized translations may coexist"],
+      "forbidden": ["Acts.13.8 text", "Acts.13.10 text", "chapter-sized chunk body"]
+    },
+    {
+      "id": "one-relation-bridge",
+      "query": "갈라디아서 3장 6절이 직접 인용하는 구약 본문 근거",
+      "maxGraphHops": 2,
+      "expected": ["reviewed direct_quote evidence", "bounded candidate pool"],
+      "forbidden": ["unreviewed relation promoted", "more than one pair-score call"]
+    },
+    {
+      "id": "negative-control-ordinary-memory",
+      "query": "이전 프로젝트의 요약 형식 선호를 회상해줘",
+      "maxGraphHops": 1,
+      "expected": ["personal-memory recall"],
+      "forbidden": ["policy mutation", "knowledge corpus retrieval"]
+    }
+  ],
+  "acceptance": {
+    "allCasesMustPass": true,
+    "forbiddenBehaviorCount": 0,
+    "exactLocatorExtraneousTextLines": 0,
+    "oneHopPairScoreCalls": 0,
+    "maxPairScoreCalls": 1,
+    "warmOneHopTargetMs": 1000,
+    "relationalCandidatePoolFormula": "responseLimit + maxGraphHops - 1, capped at 10"
+  }
+}

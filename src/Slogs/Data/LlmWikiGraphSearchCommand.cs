@@ -39,10 +39,16 @@ public static class LlmWikiGraphSearchCommand
             query_graph AS (
                 SELECT
                     nodes."EntryId" AS "Id",
-                    SUM(nodes."Weight") AS graph_score
+                    SUM(
+                        nodes."Weight"
+                        / LN(2.0 + COALESCE(frequency."EntryCount", 1))
+                    ) AS graph_score
                 FROM "LlmWikiEntryGraphNodes" AS nodes
                 INNER JOIN filtered_entries AS e
                     ON e."Id" = nodes."EntryId"
+                LEFT JOIN "LlmWikiGraphNodeStatistics" AS frequency
+                    ON frequency."OwnerUserName" = nodes."OwnerUserName"
+                   AND frequency."NodeKey" = nodes."NodeKey"
                 WHERE nodes."OwnerUserName" = @owner
                   AND nodes."NodeKey" = ANY(@queryNodeKeys)
                 GROUP BY nodes."EntryId"
@@ -64,12 +70,16 @@ public static class LlmWikiGraphSearchCommand
                                 WHEN 'content-term' THEN 0.14
                                 ELSE 0.0
                             END
+                            / LN(2.0 + COALESCE(frequency."EntryCount", 1))
                         ),
                         1.15
                     ) AS lexical_score
                 FROM "LlmWikiEntryGraphNodes" AS nodes
                 INNER JOIN filtered_entries AS e
                     ON e."Id" = nodes."EntryId"
+                LEFT JOIN "LlmWikiGraphNodeStatistics" AS frequency
+                    ON frequency."OwnerUserName" = nodes."OwnerUserName"
+                   AND frequency."NodeKey" = nodes."NodeKey"
                 WHERE nodes."OwnerUserName" = @owner
                   AND nodes."NodeKey" = ANY(@queryNodeKeys)
                 GROUP BY nodes."EntryId"
@@ -385,7 +395,15 @@ public static class LlmWikiGraphSearchCommand
                     ranked.graph_depth,
                     ranked.expanded_graph_score + ranked.multi_hop_graph_score AS graph_score,
                     COALESCE(ranked.semantic_path, '') AS semantic_path,
-                    ROUND(LEAST(GREATEST(ranked.relation_rank_score / 1.60, 0), 1) * 100)::integer AS relevance_percent
+                    ROUND(
+                        LEAST(
+                            GREATEST(
+                                CASE WHEN @maxGraphHops = 1
+                                    THEN ranked.base_rank_score / 2.40
+                                    ELSE ranked.relation_rank_score / 7.60
+                                END,
+                                0),
+                            1) * 100)::integer AS relevance_percent
                 FROM ranked
             ),
             eligible AS (
