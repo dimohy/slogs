@@ -11,9 +11,36 @@ public sealed class SlogsMcpPolicyPromptTests
     [Fact]
     public void VersionTextMatchesPromptVersion()
     {
-        Assert.Equal("2026.09.01.2\n", SlogsMcpPolicyPrompt.BuildVersionText());
-        Assert.Contains("Prompt Version: 2026.09.01.2", SlogsMcpPolicyPrompt.BuildKoreanMarkdown());
-        Assert.Contains("Prompt Version: 2026.09.01.2", SlogsMcpPolicyPrompt.BuildEnglishMarkdown());
+        Assert.Equal("2026.09.04.2\n", SlogsMcpPolicyPrompt.BuildVersionText());
+        Assert.Contains("Prompt Version: 2026.09.04.2", SlogsMcpPolicyPrompt.BuildKoreanMarkdown());
+        Assert.Contains("Prompt Version: 2026.09.04.2", SlogsMcpPolicyPrompt.BuildEnglishMarkdown());
+    }
+
+    [Fact]
+    public void SourceSeedExactlyMatchesAuthoritativeLivePromptSnapshots()
+    {
+        Assert.Equal(SlogsMcpPolicyPrompt.LiveKoreanPromptSha256,
+            ComputeCanonicalContentSha256(SlogsMcpPolicyPrompt.BuildKoreanMarkdown()));
+        Assert.Equal(SlogsMcpPolicyPrompt.LiveEnglishPromptSha256,
+            ComputeCanonicalContentSha256(SlogsMcpPolicyPrompt.BuildEnglishMarkdown()));
+    }
+
+    [Fact]
+    public void AgentPromptsDefineValidatedCandidateDiscoveryAndFirstUseChoice()
+    {
+        var koreanPrompt = SlogsMcpPolicyPrompt.BuildKoreanMarkdown();
+        var englishPrompt = SlogsMcpPolicyPrompt.BuildEnglishMarkdown();
+
+        Assert.Contains("`cross-project` 또는 `general-method`", koreanPrompt);
+        Assert.Contains("`validated-candidate`로 자동 등록", koreanPrompt);
+        Assert.Contains("공개 활성화나 사용자 적용이 아니며", koreanPrompt);
+        Assert.Contains("현재 프로젝트에만 적용, 전역 적용, 사용하지 않음", koreanPrompt);
+        Assert.Contains("검증된 호환 최신판", koreanPrompt);
+        Assert.Contains("`cross-project` and `general-method`", englishPrompt);
+        Assert.Contains("automatically submit the package", englishPrompt);
+        Assert.Contains("neither public activation nor user application", englishPrompt);
+        Assert.Contains("project scope, global scope, or no use", englishPrompt);
+        Assert.Contains("verified compatible latest release", englishPrompt);
     }
 
     [Fact]
@@ -36,9 +63,13 @@ public sealed class SlogsMcpPolicyPromptTests
         var englishPrompt = SlogsMcpPolicyPrompt.BuildEnglishMarkdown();
 
         Assert.Contains("모든 wait/poll 전에", koreanPrompt);
+        Assert.Contains("첫 poll을 포함한", koreanPrompt);
         Assert.Contains("진행률 보고·기억 capture/write", koreanPrompt);
         Assert.Contains("before every wait/poll", englishPrompt);
+        Assert.Contains("including the first poll", englishPrompt);
         Assert.Contains("progress message, memory capture/write", englishPrompt);
+        Assert.DoesNotContain("orientation poll", englishPrompt, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("첫 poll은 허용", koreanPrompt, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -151,7 +182,7 @@ public sealed class SlogsMcpPolicyPromptTests
     {
         Assert.Contains("`dimohy`", SlogsMcpPolicyPrompt.BuildKoreanMarkdown());
         Assert.Contains("명시적으로 요청한 경우에만 `llm_wiki_update_policy_prompt`", SlogsMcpPolicyPrompt.BuildKoreanMarkdown());
-        Assert.Contains("Never infer prompt-editing intent", SlogsMcpPolicyPrompt.BuildEnglishMarkdown());
+        Assert.Contains("only when authenticated user dimohy explicitly requests", SlogsMcpPolicyPrompt.BuildEnglishMarkdown());
     }
 
     [Fact]
@@ -163,7 +194,7 @@ public sealed class SlogsMcpPolicyPromptTests
         Assert.Contains("의도 보정 신호", koreanPrompt);
         Assert.Contains("원치 않았던 전개", koreanPrompt);
         Assert.Contains("intent-correction signal", englishPrompt);
-        Assert.Contains("unwanted development", englishPrompt);
+        Assert.Contains("unwanted path and cause", englishPrompt);
     }
 
     [Fact]
@@ -175,9 +206,9 @@ public sealed class SlogsMcpPolicyPromptTests
         Assert.Contains("같은 지침 위치의 기존 `SLOGS_MCP_PROMPT` 지침 블록을 즉시 교체", koreanPrompt);
         Assert.Contains("보고만 하고 멈추지 않는다", koreanPrompt);
         Assert.Contains("별도 동기화 스크립트", koreanPrompt);
-        Assert.Contains("immediately replace the previous `SLOGS_MCP_PROMPT` instruction block", englishPrompt);
-        Assert.Contains("Do not stop after merely reporting", englishPrompt);
-        Assert.Contains("separate sync script", englishPrompt);
+        Assert.Contains("immediately replace the existing block while preserving scope", englishPrompt);
+        Assert.Contains("Do not implement background or scheduled synchronization", englishPrompt);
+        Assert.Contains("do not accumulate duplicate blocks", englishPrompt);
         Assert.DoesNotContain("관리 블록", koreanPrompt);
         Assert.DoesNotContain("managed block", englishPrompt);
     }
@@ -190,8 +221,8 @@ public sealed class SlogsMcpPolicyPromptTests
 
         Assert.Contains("공개 지식 로그", koreanPrompt);
         Assert.Contains("공개 공유", koreanPrompt);
-        Assert.Contains("public knowledge-log", englishPrompt);
-        Assert.Contains("public sharing", englishPrompt);
+        Assert.Contains("owner-only pre-publish drafts", englishPrompt);
+        Assert.Contains("publish only when explicitly requested", englishPrompt);
         Assert.DoesNotContain("블로그 글", koreanPrompt);
         Assert.DoesNotContain("post (blog)", englishPrompt);
     }
@@ -206,8 +237,8 @@ public sealed class SlogsMcpPolicyPromptTests
         Assert.Contains("공개 기억 회상", koreanPrompt);
         Assert.Contains("공개된 기억이 없다고 답한다", koreanPrompt);
         Assert.Contains("public memory", englishPrompt);
-        Assert.Contains("public-memory recall questions", englishPrompt);
-        Assert.Contains("LLM Wiki memories are private by default", englishPrompt);
+        Assert.Contains("Answer public-memory questions only from public tools", englishPrompt);
+        Assert.Contains("LLM Wiki memory is private by default", englishPrompt);
 
         Assert.DoesNotContain("공개 기억 조회", koreanPrompt);
         Assert.DoesNotContain("공개 Wiki", koreanPrompt);
@@ -220,6 +251,12 @@ public sealed class SlogsMcpPolicyPromptTests
     private static string ComputeCanonicalTextSha256(string path)
     {
         var canonicalText = File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal);
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonicalText)));
+    }
+
+    private static string ComputeCanonicalContentSha256(string text)
+    {
+        var canonicalText = text.Replace("\r\n", "\n", StringComparison.Ordinal);
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonicalText)));
     }
 }

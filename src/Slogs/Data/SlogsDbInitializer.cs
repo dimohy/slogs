@@ -57,6 +57,61 @@ public static class SlogsDbInitializer
             SlogsMcpPolicyPrompt.BuildEnglishMarkdown(),
             DateTimeOffset.UtcNow);
         await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "SkillRegistryVersions" (
+                "Id" uuid PRIMARY KEY,
+                "Slug" character varying(64) NOT NULL,
+                "Version" character varying(32) NOT NULL,
+                "VersionMajor" integer NOT NULL,
+                "VersionMinor" integer NOT NULL,
+                "VersionPatch" integer NOT NULL,
+                "Description" character varying(500) NOT NULL,
+                "ContentHash" character varying(64) NOT NULL,
+                "PackageJson" jsonb NOT NULL,
+                "CandidateEvidenceJson" jsonb NOT NULL,
+                "ValidationReportJson" jsonb NOT NULL,
+                "ValidationReportHash" character varying(64) NOT NULL,
+                "EvaluationPayloadJson" jsonb NOT NULL,
+                "ReviewEvidenceJson" jsonb NULL,
+                "Status" character varying(32) NOT NULL,
+                "SubmittedBy" character varying(80) NOT NULL,
+                "ValidatedBy" character varying(80) NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                CONSTRAINT "CK_SkillRegistryVersions_Status" CHECK ("Status" IN ('validated-candidate', 'validated')),
+                CONSTRAINT "UX_SkillRegistryVersions_Slug_Version" UNIQUE ("Slug", "Version"),
+                CONSTRAINT "UX_SkillRegistryVersions_ContentHash" UNIQUE ("ContentHash")
+            );
+            CREATE INDEX IF NOT EXISTS "IX_SkillRegistryVersions_Latest"
+            ON "SkillRegistryVersions" ("Slug", "VersionMajor" DESC, "VersionMinor" DESC, "VersionPatch" DESC);
+
+            CREATE TABLE IF NOT EXISTS "SkillRegistrySelections" (
+                "Id" uuid PRIMARY KEY,
+                "OwnerUserName" character varying(80) NOT NULL,
+                "SkillSlug" character varying(64) NOT NULL,
+                "ScopeKind" character varying(16) NOT NULL,
+                "ProjectKey" character varying(300) NULL,
+                "ProjectKeyKey" character varying(300) GENERATED ALWAYS AS (COALESCE("ProjectKey", '')) STORED,
+                "ChoicePrompted" boolean NOT NULL,
+                "AutoUpdate" boolean NOT NULL DEFAULT TRUE,
+                "PinnedVersion" character varying(32) NULL,
+                "DecisionEvidence" text NOT NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "UpdatedAt" timestamp with time zone NOT NULL,
+                CONSTRAINT "CK_SkillRegistrySelections_ScopeKind" CHECK ("ScopeKind" IN ('project', 'global', 'disabled')),
+                CONSTRAINT "CK_SkillRegistrySelections_ProjectScope" CHECK ("ScopeKind" <> 'project' OR "ProjectKey" IS NOT NULL),
+                CONSTRAINT "FK_SkillRegistrySelections_Users_OwnerUserName"
+                    FOREIGN KEY ("OwnerUserName") REFERENCES "Users" ("UserName") ON DELETE CASCADE,
+                CONSTRAINT "UX_SkillRegistrySelections_Scope"
+                    UNIQUE ("OwnerUserName", "SkillSlug", "ScopeKind", "ProjectKeyKey")
+            );
+            CREATE INDEX IF NOT EXISTS "IX_SkillRegistrySelections_Resolve"
+            ON "SkillRegistrySelections" ("OwnerUserName", "SkillSlug", "ProjectKeyKey");
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE \"SkillRegistryVersions\" ADD COLUMN IF NOT EXISTS \"EvaluationPayloadJson\" jsonb NOT NULL DEFAULT '{{}}'::jsonb;");
+        await db.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE \"SkillRegistryVersions\" ADD COLUMN IF NOT EXISTS \"ReviewEvidenceJson\" jsonb NULL;");
+        await db.Database.ExecuteSqlRawAsync(
             "ALTER TABLE \"Posts\" ADD COLUMN IF NOT EXISTS \"ThumbnailUrl\" character varying(500) NOT NULL DEFAULT '';");
         await db.Database.ExecuteSqlRawAsync(
             "ALTER TABLE \"Posts\" ADD COLUMN IF NOT EXISTS \"IsDraft\" boolean NOT NULL DEFAULT FALSE;");

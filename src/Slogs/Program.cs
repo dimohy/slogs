@@ -135,6 +135,7 @@ builder.Services.AddScoped<IKnowledgeEmbeddingService>(provider => provider.GetR
 builder.Services.AddScoped<BgeM3ShadowIndexMigration>();
 builder.Services.AddScoped<LlmWikiService>();
 builder.Services.AddScoped<SlogsMcpPolicyPromptService>();
+builder.Services.AddScoped<SkillRegistryService>();
 builder.Services.AddScoped<KnowledgeCorpusService>();
 builder.Services.AddSingleton<KnowledgeChunkingService>();
 builder.Services.AddSingleton<BibleKnowledgeCorpusAdapter>();
@@ -152,6 +153,7 @@ builder.Services.AddScoped<SlogsAuthState>();
 builder.Services.AddMcpServer()
     .WithHttpTransport(options => options.Stateless = true)
     .WithTools<LlmWikiMcpTools>()
+    .WithTools<SkillRegistryMcpTools>()
     .WithTools<SlogsPostMcpTools>()
     .WithTools<KnowledgeCorpusMcpTools>()
     .WithTools<OrganizationWikiMcpTools>();
