@@ -10,6 +10,8 @@ public static partial class SkillRegistryContract
 {
     public const int MaxPackageBytes = 1_000_000;
     public const int MaxSearchTerms = 8;
+    public const int MaxSearchAliases = 20;
+    public const int MaxSearchAliasLength = 120;
 
     private static readonly HashSet<string> SearchIntentWords = new(StringComparer.Ordinal)
     {
@@ -20,7 +22,8 @@ public static partial class SkillRegistryContract
     };
     private static readonly HashSet<string> BroadSingleSearchWords = new(StringComparer.Ordinal)
     {
-        "software", "소프트웨어"
+        "check", "gate", "software", "terminology", "validation",
+        "검사", "검증", "단계", "문서", "소프트웨어", "용어"
     };
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
@@ -38,7 +41,8 @@ public static partial class SkillRegistryContract
         string visibility,
         string provenanceJson,
         string verifiedPlatformsJson,
-        string? supportingFilesJson)
+        string? supportingFilesJson,
+        string? searchAliasesJson = null)
     {
         var normalizedSlug = slug.Trim().ToLowerInvariant();
         if (!SlugRegex().IsMatch(normalizedSlug))
@@ -116,6 +120,7 @@ public static partial class SkillRegistryContract
             throw new InvalidOperationException("플랫폼은 실제 평가 locator와 SHA-256이 있는 windows/linux/macos 항목만 선언할 수 있습니다.");
         }
 
+        var searchAliases = NormalizeSearchAliases(searchAliasesJson);
         var package = new SkillPackagePayload(
             1,
             $"dev.slogs.skills.{normalizedSlug}",
@@ -129,7 +134,8 @@ public static partial class SkillRegistryContract
             new(["project", "global", "disabled"], "ask", "verified-compatible-latest"),
             new(false, false),
             provenance,
-            files);
+            files,
+            searchAliases);
         var packageJson = JsonSerializer.Serialize(package, JsonOptions);
         if (Encoding.UTF8.GetByteCount(packageJson) > MaxPackageBytes)
         {
@@ -257,12 +263,7 @@ public static partial class SkillRegistryContract
 
     public static IReadOnlyList<string> TokenizeSearchQuery(string query)
     {
-        var terms = SearchTermRegex().Matches(query.ToLowerInvariant()).Cast<Match>()
-            .Select(match => match.Value)
-            .Where(term => term.Length >= 2 && !SearchIntentWords.Contains(term))
-            .Distinct(StringComparer.Ordinal)
-            .Take(MaxSearchTerms + 1)
-            .ToArray();
+        var terms = TokenizeSearchText(query, MaxSearchTerms + 1);
         if (terms.Length > MaxSearchTerms)
         {
             throw new InvalidOperationException($"스킬 검색어는 유효 토큰 {MaxSearchTerms}개 이하여야 합니다.");
@@ -272,6 +273,59 @@ public static partial class SkillRegistryContract
             return [];
         }
         return terms;
+    }
+
+    public static IReadOnlyList<string>? NormalizeSearchAliases(string? searchAliasesJson)
+    {
+        if (string.IsNullOrWhiteSpace(searchAliasesJson))
+        {
+            return null;
+        }
+
+        string?[] aliases;
+        try
+        {
+            aliases = JsonSerializer.Deserialize<string?[]>(searchAliasesJson, JsonOptions)
+                ?? throw new InvalidOperationException("searchAliasesJson이 비어 있습니다.");
+        }
+        catch (JsonException exception)
+        {
+            throw new InvalidOperationException($"searchAliasesJson 형식이 잘못되었습니다: {exception.Message}", exception);
+        }
+
+        if (aliases.Length is < 1 or > MaxSearchAliases)
+        {
+            throw new InvalidOperationException($"searchAliasesJson을 제공하면 검색 별칭은 1~{MaxSearchAliases}개여야 합니다.");
+        }
+
+        var normalized = new List<string>(aliases.Length);
+        foreach (var alias in aliases)
+        {
+            if (alias is null || alias.Length > MaxSearchAliasLength)
+            {
+                throw new InvalidOperationException($"검색 별칭은 비어 있지 않은 {MaxSearchAliasLength}자 이하 문자열이어야 합니다.");
+            }
+
+            var terms = TokenizeSearchText(alias, MaxSearchTerms + 1);
+            if (terms.Length is < 2 or > MaxSearchTerms
+                || terms.All(BroadSingleSearchWords.Contains))
+            {
+                throw new InvalidOperationException(
+                    $"검색 별칭은 2~{MaxSearchTerms}개의 유효 토큰과 하나 이상의 구체적인 식별 토큰을 포함해야 합니다.");
+            }
+
+            normalized.Add(string.Join(' ', terms));
+        }
+
+        var duplicate = normalized.GroupBy(value => value, StringComparer.Ordinal)
+            .FirstOrDefault(group => group.Count() > 1);
+        if (duplicate is not null)
+        {
+            throw new InvalidOperationException($"정규화 후 중복되는 검색 별칭이 있습니다: {duplicate.Key}");
+        }
+
+        normalized.Sort(StringComparer.Ordinal);
+        return normalized;
     }
 
     public static bool CanReleasePackage(SkillSelection? selection)
@@ -371,6 +425,14 @@ public static partial class SkillRegistryContract
         => Uri.TryCreate(locator, UriKind.Absolute, out var uri)
            && uri.Scheme is "artifact" or "file" or "https" or "urn";
 
+    private static string[] TokenizeSearchText(string text, int limit)
+        => SearchTermRegex().Matches(text.Normalize(NormalizationForm.FormKC).ToLowerInvariant()).Cast<Match>()
+            .Select(match => match.Value)
+            .Where(term => term.Length >= 2 && !SearchIntentWords.Contains(term))
+            .Distinct(StringComparer.Ordinal)
+            .Take(limit)
+            .ToArray();
+
     private static ParsedVersion ParseVersion(string version)
     {
         var match = VersionRegex().Match(version.Trim());
@@ -420,7 +482,9 @@ public sealed record SkillPackagePayload(
     SkillPackageSelectionPolicy Selection,
     SkillPackagePrivacy Privacy,
     SkillPackageProvenance Provenance,
-    IReadOnlyList<SkillPackageFile> Files);
+    IReadOnlyList<SkillPackageFile> Files,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    IReadOnlyList<string>? SearchAliases);
 
 public sealed record SkillCompatibility(
     int CodexSkill,

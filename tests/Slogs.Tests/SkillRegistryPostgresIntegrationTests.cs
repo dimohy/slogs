@@ -35,7 +35,8 @@ public sealed class SkillRegistryPostgresIntegrationTests
             });
             await db.SaveChangesAsync();
         }
-        const string markdown = "---\nname: integration-skill\ndescription: Integration test skill package.\n---\n\nTest.\n";
+        const string markdown = "---\nname: integration-skill\ndescription: Integration test skill package.\n---\n\nPACKAGE-BODY-SECRET\n";
+        const string searchAliases = "[\"한국어 용어\",\"한국어 소프트웨어 용어\",\"Korean terminology\"]";
         const string provenance = """
             {"sourceType":"original","sourceLocator":"artifact://integration/source","sourceSha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","licenseVerified":true,"licenseEvidenceLocator":"artifact://integration/license","licenseEvidenceSha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
             """;
@@ -52,13 +53,14 @@ public sealed class SkillRegistryPostgresIntegrationTests
 
         var firstPrepared = await registry.PrepareAsync(
             slug, "1.0.0", "Korean software terminology integration behavior skill.", markdown,
-            "Apache-2.0", "registry-candidate", provenance, platforms, null);
+            "Apache-2.0", "registry-candidate", provenance, platforms, null, searchAliases);
         var candidate = await registry.SubmitCandidateAsync(
             "dimohy", slug, "1.0.0", "Korean software terminology integration behavior skill.", markdown,
             "Apache-2.0", "registry-candidate", provenance, platforms, null,
-            candidateEvidence, validation, evaluationPayload, firstPrepared.ContentHash);
+            candidateEvidence, validation, evaluationPayload, firstPrepared.ContentHash, searchAliases);
         Assert.Equal("validated-candidate", candidate.Status);
         Assert.Empty(await registry.SearchAsync(slug, 5));
+        Assert.DoesNotContain(await registry.SearchAsync("한국어 용어", 5), result => result.Slug == slug);
         Assert.True((await registry.ResolveAsync(owner, slug, "project/integration")).FirstUseDecisionRequired);
 
         var validated = await registry.ValidateCandidateAsync(
@@ -75,11 +77,11 @@ public sealed class SkillRegistryPostgresIntegrationTests
 
         var secondPrepared = await registry.PrepareAsync(
             slug, "1.1.0", "Korean software terminology integration behavior skill updated.", markdown + "Updated.\n",
-            "Apache-2.0", "registry-candidate", provenance, platforms, null);
+            "Apache-2.0", "registry-candidate", provenance, platforms, null, searchAliases);
         var secondCandidate = await registry.SubmitCandidateAsync(
             "dimohy", slug, "1.1.0", "Korean software terminology integration behavior skill updated.", markdown + "Updated.\n",
             "Apache-2.0", "registry-candidate", provenance, platforms, null,
-            candidateEvidence, validation, evaluationPayload, secondPrepared.ContentHash);
+            candidateEvidence, validation, evaluationPayload, secondPrepared.ContentHash, searchAliases);
         await registry.ValidateCandidateAsync(
             "dimohy", secondCandidate.Id, secondCandidate.ContentHash, secondCandidate.ValidationReportHash,
             ReviewEvidence(secondCandidate));
@@ -92,6 +94,16 @@ public sealed class SkillRegistryPostgresIntegrationTests
         var productionRegressionSearch = await registry.SearchAsync("korean software terminology", 5);
         Assert.Contains(productionRegressionSearch, result => result.Slug == slug && result.Version == "1.1.0");
         Assert.All(productionRegressionSearch, result => Assert.Equal("1.1.0", result.Version));
+        var koreanSearch = await registry.SearchAsync("한국어 용어", 5);
+        Assert.Contains(koreanSearch, result => result.Slug == slug && result.Version == "1.1.0");
+        var longKoreanSearch = await registry.SearchAsync("한국어 소프트웨어 용어 gate 검증 단계 기술 문서", 5);
+        Assert.Contains(longKoreanSearch, result => result.Slug == slug && result.Version == "1.1.0");
+        Assert.Single(await registry.SearchAsync(slug, 5));
+        Assert.Empty(await registry.SearchAsync("현관문 door gate", 5));
+        Assert.Empty(await registry.SearchAsync("공항 탑승구 gate", 5));
+        Assert.Empty(await registry.SearchAsync("gate", 5));
+        Assert.Empty(await registry.SearchAsync("검증", 5));
+        Assert.Empty(await registry.SearchAsync("문서", 5));
         Assert.Empty(await registry.SearchAsync("integration unrelated", 5));
         Assert.Empty(await registry.SearchAsync("skill", 5));
         Assert.Empty(await registry.SearchAsync("", 5));

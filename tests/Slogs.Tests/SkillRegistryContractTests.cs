@@ -41,6 +41,7 @@ public sealed class SkillRegistryContractTests
         Assert.Equal("registry-candidate", first.Payload.Visibility);
         Assert.Equal(["windows"], first.Payload.Compatibility.Platforms);
         Assert.Equal(["SKILL.md", "references/terms.md"], first.Payload.Files.Select(file => file.Path));
+        Assert.Null(first.Payload.SearchAliases);
     }
 
     [Theory]
@@ -136,7 +137,61 @@ public sealed class SkillRegistryContractTests
         Assert.Equal(["korean", "software", "terminology"],
             SkillRegistryContract.TokenizeSearchQuery("Please find a skill for Korean software terminology"));
         Assert.Empty(SkillRegistryContract.TokenizeSearchQuery("software"));
+        Assert.Empty(SkillRegistryContract.TokenizeSearchQuery("gate"));
+        Assert.Empty(SkillRegistryContract.TokenizeSearchQuery("검증"));
+        Assert.Empty(SkillRegistryContract.TokenizeSearchQuery("문서"));
         Assert.Empty(SkillRegistryContract.TokenizeSearchQuery("  --  "));
+    }
+
+    [Fact]
+    public void SearchAliasesAreCanonicalContentHashedAndOrderIndependent()
+    {
+        var first = SkillRegistryContract.Prepare(
+            "korean-software-terminology", "1.2.3", "Natural Korean terminology selection.", SkillMarkdown,
+            "Apache-2.0", "registry-candidate", Provenance, WindowsEvidence, null,
+            "[\"한국어 소프트웨어 용어\",\"Korean terminology\"]");
+        var reordered = SkillRegistryContract.Prepare(
+            "korean-software-terminology", "1.2.3", "Natural Korean terminology selection.", SkillMarkdown,
+            "Apache-2.0", "registry-candidate", Provenance, WindowsEvidence, null,
+            "[\"korean TERMINOLOGY\",\"한국어   소프트웨어 용어\"]");
+        var withoutAliases = SkillRegistryContract.Prepare(
+            "korean-software-terminology", "1.2.3", "Natural Korean terminology selection.", SkillMarkdown,
+            "Apache-2.0", "registry-candidate", Provenance, WindowsEvidence, null);
+
+        Assert.Equal(["korean terminology", "한국어 소프트웨어 용어"], first.Payload.SearchAliases);
+        Assert.Equal(first.ContentHash, reordered.ContentHash);
+        Assert.NotEqual(first.ContentHash, withoutAliases.ContentHash);
+        Assert.Contains("\"searchAliases\"", first.PackageJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"searchAliases\"", withoutAliases.PackageJson, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("null")]
+    [InlineData("{}")]
+    [InlineData("[]")]
+    [InlineData("[null]")]
+    [InlineData("[\"gate\"]")]
+    [InlineData("[\"검증 문서\"]")]
+    [InlineData("[\"한국어 용어\",\"한국어   용어\"]")]
+    public void SearchAliasesRejectMalformedBroadOrDuplicateValues(string aliasesJson)
+        => Assert.Throws<InvalidOperationException>(() => SkillRegistryContract.Prepare(
+            "safe-skill", "1.0.0", "A sufficiently specific skill description.", SkillMarkdown,
+            "Apache-2.0", "registry-candidate", Provenance, WindowsEvidence, null, aliasesJson));
+
+    [Fact]
+    public void SearchMcpFormattingNeverLeaksPackageBody()
+    {
+        var result = new RegisteredSkillVersion(
+            Guid.NewGuid(), "korean-software-terminology", "1.1.0", "Natural Korean terminology.",
+            new('a', 64), "{\"files\":[{\"content\":\"PACKAGE-BODY-SECRET\"}]}", "{}", new('b', 64), "{}", "{}", null,
+            "validated", "submitter", "reviewer", DateTimeOffset.UtcNow);
+
+        var output = SkillRegistryMcpTools.FormatSearchResults([result]);
+
+        Assert.Contains("korean-software-terminology 1.1.0", output, StringComparison.Ordinal);
+        Assert.Contains(result.ContentHash, output, StringComparison.Ordinal);
+        Assert.DoesNotContain("PACKAGE-BODY-SECRET", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"files\"", output, StringComparison.Ordinal);
     }
 
     [Fact]

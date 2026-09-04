@@ -20,11 +20,13 @@ public sealed class SkillRegistryMcpTools(
         [Description("Must be registry-candidate. Public release is a separate authorized operation.")] string visibility,
         [Description("JSON provenance with sourceType, sourceLocator/sourceSha256, licenseVerified, and license evidence locator/hash.")] string provenanceJson,
         [Description("JSON array of actually tested platforms with suiteId and evidence locator/hash. Untested platforms must be omitted.")] string verifiedPlatformsJson,
-        [Description("Optional JSON array of {path, content} supporting text files.")] string? supportingFilesJson = null)
+        [Description("Optional JSON array of {path, content} supporting text files.")] string? supportingFilesJson = null,
+        [Description("Optional JSON array of precise 2-8 token multilingual discovery aliases. Each alias must include a specific identifying token; aliases are canonicalized and content-hashed into the immutable package.")] string? searchAliasesJson = null)
     {
         RequireUser();
         var prepared = await skillRegistryService.PrepareAsync(
-            slug, version, description, skillMarkdown, license, visibility, provenanceJson, verifiedPlatformsJson, supportingFilesJson);
+            slug, version, description, skillMarkdown, license, visibility, provenanceJson, verifiedPlatformsJson,
+            supportingFilesJson, searchAliasesJson);
         return $"# Prepared Skill Package\n\n- id: {prepared.Payload.Id}\n- slug: {prepared.Payload.Name}\n- version: {prepared.Payload.Version}\n- contentHash: {prepared.ContentHash}\n- files: {prepared.Payload.Files.Count}\n\nNo package was stored. Run frozen behavioral evaluation, then call `skill_registry_submit_candidate` with this exact content hash and machine-readable generalization, privacy, and evaluation evidence.";
     }
 
@@ -43,12 +45,14 @@ public sealed class SkillRegistryMcpTools(
         string validationReportJson,
         [Description("Canonical evaluation output JSON. The server recomputes SHA-256 and requires validationReportJson.outputSha256 to match.")] string evaluationPayloadJson,
         string expectedContentHash,
-        string? supportingFilesJson = null)
+        string? supportingFilesJson = null,
+        [Description("Optional JSON array of precise 2-8 token multilingual discovery aliases. Must exactly match the aliases used by prepare because they are part of the package hash.")] string? searchAliasesJson = null)
     {
         var user = RequireUser();
         var package = await skillRegistryService.SubmitCandidateAsync(
             user.UserName, slug, version, description, skillMarkdown, license, visibility, provenanceJson, verifiedPlatformsJson,
-            supportingFilesJson, candidateEvidenceJson, validationReportJson, evaluationPayloadJson, expectedContentHash);
+            supportingFilesJson, candidateEvidenceJson, validationReportJson, evaluationPayloadJson, expectedContentHash,
+            searchAliasesJson);
         return $"# Stored Skill Candidate\n\n- registry: slogs-skill-registry\n- status: {package.Status}\n- candidateId: {package.Id}\n- slug: {package.Slug}\n- version: {package.Version}\n- contentHash: {package.ContentHash}\n- validationReportHash: {package.ValidationReportHash}\n- submittedBy: @{package.SubmittedBy}\n\nThe candidate is stored but not active or available for resolution.";
     }
 
@@ -67,11 +71,16 @@ public sealed class SkillRegistryMcpTools(
     }
 
     [McpServerTool(Name = "skill_registry_search")]
-    [Description("Search latest validated shared skills by slug or trigger description. Returns metadata only; use resolve after the user's first-use scope choice.")]
+    [Description("Search latest validated shared skills by exact slug, trigger description, or a precise content-hashed multilingual search alias. Returns metadata only; use resolve after the user's first-use scope choice.")]
     public async Task<string> SearchAsync(string query, int limit = 5)
     {
         RequireUser();
         var results = await skillRegistryService.SearchAsync(query, limit);
+        return FormatSearchResults(results);
+    }
+
+    internal static string FormatSearchResults(IReadOnlyList<RegisteredSkillVersion> results)
+    {
         var builder = new StringBuilder("# Validated Skill Candidates\n");
         foreach (var result in results)
         {

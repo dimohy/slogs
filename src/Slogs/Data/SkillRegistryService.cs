@@ -15,9 +15,11 @@ public sealed class SkillRegistryService(IDbContextFactory<SlogsDbContext> dbFac
         string visibility,
         string provenanceJson,
         string verifiedPlatformsJson,
-        string? supportingFilesJson)
+        string? supportingFilesJson,
+        string? searchAliasesJson = null)
         => await Task.FromResult(SkillRegistryContract.Prepare(
-            slug, version, description, skillMarkdown, license, visibility, provenanceJson, verifiedPlatformsJson, supportingFilesJson));
+            slug, version, description, skillMarkdown, license, visibility, provenanceJson, verifiedPlatformsJson,
+            supportingFilesJson, searchAliasesJson));
 
     public async Task<RegisteredSkillVersion> SubmitCandidateAsync(
         string actor,
@@ -35,9 +37,32 @@ public sealed class SkillRegistryService(IDbContextFactory<SlogsDbContext> dbFac
         string evaluationPayloadJson,
         string expectedContentHash,
         CancellationToken cancellationToken = default)
+        => await SubmitCandidateAsync(
+            actor, slug, version, description, skillMarkdown, license, visibility, provenanceJson, verifiedPlatformsJson,
+            supportingFilesJson, candidateEvidenceJson, validationReportJson, evaluationPayloadJson, expectedContentHash,
+            searchAliasesJson: null, cancellationToken);
+
+    public async Task<RegisteredSkillVersion> SubmitCandidateAsync(
+        string actor,
+        string slug,
+        string version,
+        string description,
+        string skillMarkdown,
+        string license,
+        string visibility,
+        string provenanceJson,
+        string verifiedPlatformsJson,
+        string? supportingFilesJson,
+        string candidateEvidenceJson,
+        string validationReportJson,
+        string evaluationPayloadJson,
+        string expectedContentHash,
+        string? searchAliasesJson,
+        CancellationToken cancellationToken = default)
     {
         var prepared = SkillRegistryContract.Prepare(
-            slug, version, description, skillMarkdown, license, visibility, provenanceJson, verifiedPlatformsJson, supportingFilesJson);
+            slug, version, description, skillMarkdown, license, visibility, provenanceJson, verifiedPlatformsJson,
+            supportingFilesJson, searchAliasesJson);
         SkillRegistryContract.ValidateCandidateEvidence(candidateEvidenceJson);
         var validation = SkillRegistryContract.ValidateEvidence(validationReportJson, evaluationPayloadJson);
         if (!string.Equals(prepared.ContentHash, expectedContentHash.Trim(), StringComparison.OrdinalIgnoreCase))
@@ -163,22 +188,60 @@ public sealed class SkillRegistryService(IDbContextFactory<SlogsDbContext> dbFac
         await db.Database.OpenConnectionAsync(cancellationToken);
         await using var command = db.Database.GetDbConnection().CreateCommand();
         command.CommandText = """
-            SELECT DISTINCT ON ("Slug")
+            WITH latest AS (
+                SELECT DISTINCT ON ("Slug") *
+                FROM "SkillRegistryVersions"
+                WHERE "Status" = 'validated'
+                ORDER BY "Slug", "VersionMajor" DESC, "VersionMinor" DESC, "VersionPatch" DESC
+            ), matches AS (
+                SELECT latest.*,
+                    CASE
+                        WHEN lower("Slug") = @normalizedQuery THEN 3
+                        WHEN NOT EXISTS (
+                            SELECT 1
+                            FROM unnest(CAST(@terms AS text[])) AS requested("Term")
+                            WHERE (' ' || regexp_replace(lower("Slug" || ' ' || "Description"), '[^[:alnum:]]+', ' ', 'g') || ' ')
+                                  NOT LIKE '% ' || requested."Term" || ' %'
+                        ) THEN 2
+                        ELSE 1
+                    END AS "MatchRank",
+                    COALESCE((
+                        SELECT MAX(cardinality(regexp_split_to_array(alias."Value", ' +')))
+                        FROM jsonb_array_elements_text(COALESCE("PackageJson" -> 'searchAliases', '[]'::jsonb)) AS alias("Value")
+                        WHERE NOT EXISTS (
+                            SELECT 1
+                            FROM unnest(regexp_split_to_array(alias."Value", ' +')) AS aliasTerm("Term")
+                            WHERE aliasTerm."Term" <> ALL(CAST(@terms AS text[]))
+                        )
+                    ), 0) AS "AliasSpecificity"
+                FROM latest
+                WHERE lower("Slug") = @normalizedQuery
+                   OR NOT EXISTS (
+                       SELECT 1
+                       FROM unnest(CAST(@terms AS text[])) AS requested("Term")
+                       WHERE (' ' || regexp_replace(lower("Slug" || ' ' || "Description"), '[^[:alnum:]]+', ' ', 'g') || ' ')
+                             NOT LIKE '% ' || requested."Term" || ' %'
+                   )
+                   OR EXISTS (
+                       SELECT 1
+                       FROM jsonb_array_elements_text(COALESCE("PackageJson" -> 'searchAliases', '[]'::jsonb)) AS alias("Value")
+                       WHERE NOT EXISTS (
+                           SELECT 1
+                           FROM unnest(regexp_split_to_array(alias."Value", ' +')) AS aliasTerm("Term")
+                           WHERE aliasTerm."Term" <> ALL(CAST(@terms AS text[]))
+                       )
+                   )
+            )
+            SELECT
                 "Id", "Slug", "Version", "Description", "ContentHash", "PackageJson"::text,
                 "ValidationReportJson"::text, "ValidationReportHash", "EvaluationPayloadJson"::text,
                 "CandidateEvidenceJson"::text, "ReviewEvidenceJson"::text, "Status", "SubmittedBy", "ValidatedBy", "CreatedAt"
-            FROM "SkillRegistryVersions"
-            WHERE "Status" = 'validated'
-              AND NOT EXISTS (
-                  SELECT 1
-                  FROM unnest(CAST(@terms AS text[])) AS requested("Term")
-                  WHERE (' ' || regexp_replace(lower("Slug" || ' ' || "Description"), '[^[:alnum:]]+', ' ', 'g') || ' ')
-                        NOT LIKE '% ' || requested."Term" || ' %'
-              )
-            ORDER BY "Slug", "VersionMajor" DESC, "VersionMinor" DESC, "VersionPatch" DESC
+            FROM matches
+            ORDER BY "MatchRank" DESC, "AliasSpecificity" DESC, "Slug"
             LIMIT @limit;
             """;
         AddParameter(command, "terms", terms.ToArray());
+        AddParameter(command, "normalizedQuery", query.Trim().ToLowerInvariant());
         AddParameter(command, "limit", safeLimit);
         return await ReadManyAsync(command, cancellationToken);
     }
