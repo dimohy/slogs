@@ -154,7 +154,11 @@ public sealed class SkillRegistryService(IDbContextFactory<SlogsDbContext> dbFac
         CancellationToken cancellationToken = default)
     {
         var safeLimit = Math.Clamp(limit, 1, 20);
-        var terms = query.Split(' ', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        var terms = SkillRegistryContract.TokenizeSearchQuery(query);
+        if (terms.Count == 0)
+        {
+            return [];
+        }
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
         await db.Database.OpenConnectionAsync(cancellationToken);
         await using var command = db.Database.GetDbConnection().CreateCommand();
@@ -164,13 +168,17 @@ public sealed class SkillRegistryService(IDbContextFactory<SlogsDbContext> dbFac
                 "ValidationReportJson"::text, "ValidationReportHash", "EvaluationPayloadJson"::text,
                 "CandidateEvidenceJson"::text, "ReviewEvidenceJson"::text, "Status", "SubmittedBy", "ValidatedBy", "CreatedAt"
             FROM "SkillRegistryVersions"
-            WHERE "Status" = 'validated' AND (@query = ''
-               OR "Slug" ILIKE '%' || @query || '%'
-               OR "Description" ILIKE '%' || @query || '%')
+            WHERE "Status" = 'validated'
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM unnest(CAST(@terms AS text[])) AS requested("Term")
+                  WHERE (' ' || regexp_replace(lower("Slug" || ' ' || "Description"), '[^[:alnum:]]+', ' ', 'g') || ' ')
+                        NOT LIKE '% ' || requested."Term" || ' %'
+              )
             ORDER BY "Slug", "VersionMajor" DESC, "VersionMinor" DESC, "VersionPatch" DESC
             LIMIT @limit;
             """;
-        AddParameter(command, "query", string.Join(' ', terms));
+        AddParameter(command, "terms", terms.ToArray());
         AddParameter(command, "limit", safeLimit);
         return await ReadManyAsync(command, cancellationToken);
     }

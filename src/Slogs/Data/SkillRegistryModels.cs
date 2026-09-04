@@ -9,6 +9,19 @@ namespace Slogs.Data;
 public static partial class SkillRegistryContract
 {
     public const int MaxPackageBytes = 1_000_000;
+    public const int MaxSearchTerms = 8;
+
+    private static readonly HashSet<string> SearchIntentWords = new(StringComparer.Ordinal)
+    {
+        "a", "an", "and", "are", "as", "at", "be", "by", "can", "do", "find", "for", "from", "how", "i",
+        "in", "is", "it", "me", "my", "of", "on", "or", "please", "relevant", "skill", "skills", "the", "this",
+        "to", "tool", "tools", "use", "using", "want", "with", "you", "관련", "도구", "사용", "사용할", "스킬",
+        "찾아", "찾아줘", "필요", "위한", "있는"
+    };
+    private static readonly HashSet<string> BroadSingleSearchWords = new(StringComparer.Ordinal)
+    {
+        "software", "소프트웨어"
+    };
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -242,6 +255,25 @@ public static partial class SkillRegistryContract
             : throw new InvalidOperationException("choice는 project, global, disabled 중 하나여야 합니다.");
     }
 
+    public static IReadOnlyList<string> TokenizeSearchQuery(string query)
+    {
+        var terms = SearchTermRegex().Matches(query.ToLowerInvariant()).Cast<Match>()
+            .Select(match => match.Value)
+            .Where(term => term.Length >= 2 && !SearchIntentWords.Contains(term))
+            .Distinct(StringComparer.Ordinal)
+            .Take(MaxSearchTerms + 1)
+            .ToArray();
+        if (terms.Length > MaxSearchTerms)
+        {
+            throw new InvalidOperationException($"스킬 검색어는 유효 토큰 {MaxSearchTerms}개 이하여야 합니다.");
+        }
+        if (terms.Length == 1 && BroadSingleSearchWords.Contains(terms[0]))
+        {
+            return [];
+        }
+        return terms;
+    }
+
     public static bool CanReleasePackage(SkillSelection? selection)
         => selection is not null && !string.Equals(selection.ScopeKind, "disabled", StringComparison.Ordinal);
 
@@ -364,6 +396,9 @@ public static partial class SkillRegistryContract
 
     [GeneratedRegex("^[A-Za-z0-9][A-Za-z0-9.+-]{0,63}$")]
     private static partial Regex SpdxLicenseRegex();
+
+    [GeneratedRegex("[\\p{L}\\p{Nd}]+")]
+    private static partial Regex SearchTermRegex();
 
     private sealed record ParsedVersion(string Normalized, int Major, int Minor, int Patch);
 }

@@ -131,6 +131,20 @@ public sealed class SkillRegistryContractTests
         => Assert.Throws<InvalidOperationException>(() => SkillRegistryContract.NormalizeChoice("apply"));
 
     [Fact]
+    public void SearchTermsAreOrderIndependentContentTokens()
+    {
+        Assert.Equal(["korean", "software", "terminology"],
+            SkillRegistryContract.TokenizeSearchQuery("Please find a skill for Korean software terminology"));
+        Assert.Empty(SkillRegistryContract.TokenizeSearchQuery("software"));
+        Assert.Empty(SkillRegistryContract.TokenizeSearchQuery("  --  "));
+    }
+
+    [Fact]
+    public void SearchTermsRejectUnboundedQueries()
+        => Assert.Throws<InvalidOperationException>(() => SkillRegistryContract.TokenizeSearchQuery(
+            "one two three four five six seven eight nine"));
+
+    [Fact]
     public void PackageContentIsFailClosedBeforeChoiceAndWhenDisabled()
     {
         Assert.False(SkillRegistryContract.CanReleasePackage(null));

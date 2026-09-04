@@ -23,6 +23,18 @@ public sealed class SkillRegistrySqlContractTests
         Assert.DoesNotContain("DEFAULT '{}'::jsonb", source, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void SearchUsesParameterizedAllTermMatchingAndLatestValidatedVersion()
+    {
+        var source = File.ReadAllText(FindRepoFile("src", "Slogs", "Data", "SkillRegistryService.cs"));
+
+        Assert.Contains("unnest(CAST(@terms AS text[]))", source, StringComparison.Ordinal);
+        Assert.Contains("NOT LIKE '% ' || requested.\"Term\" || ' %'", source, StringComparison.Ordinal);
+        Assert.Contains("\"Status\" = 'validated'", source, StringComparison.Ordinal);
+        Assert.Contains("\"VersionMajor\" DESC, \"VersionMinor\" DESC, \"VersionPatch\" DESC", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("ILIKE '%' || @query", source, StringComparison.Ordinal);
+    }
+
     private static string FindRepoFile(params string[] pathParts)
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);

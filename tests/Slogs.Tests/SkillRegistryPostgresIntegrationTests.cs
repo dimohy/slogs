@@ -51,10 +51,10 @@ public sealed class SkillRegistryPostgresIntegrationTests
         const string evaluationPayload = "{\"runId\":\"eval-1\",\"cases\":[{\"id\":\"n\",\"passed\":true}]}";
 
         var firstPrepared = await registry.PrepareAsync(
-            slug, "1.0.0", "Integration registry behavior skill.", markdown,
+            slug, "1.0.0", "Korean software terminology integration behavior skill.", markdown,
             "Apache-2.0", "registry-candidate", provenance, platforms, null);
         var candidate = await registry.SubmitCandidateAsync(
-            "dimohy", slug, "1.0.0", "Integration registry behavior skill.", markdown,
+            "dimohy", slug, "1.0.0", "Korean software terminology integration behavior skill.", markdown,
             "Apache-2.0", "registry-candidate", provenance, platforms, null,
             candidateEvidence, validation, evaluationPayload, firstPrepared.ContentHash);
         Assert.Equal("validated-candidate", candidate.Status);
@@ -74,10 +74,10 @@ public sealed class SkillRegistryPostgresIntegrationTests
         Assert.Equal("1.0.0", firstResolution.Package?.Version);
 
         var secondPrepared = await registry.PrepareAsync(
-            slug, "1.1.0", "Integration registry behavior skill updated.", markdown + "Updated.\n",
+            slug, "1.1.0", "Korean software terminology integration behavior skill updated.", markdown + "Updated.\n",
             "Apache-2.0", "registry-candidate", provenance, platforms, null);
         var secondCandidate = await registry.SubmitCandidateAsync(
-            "dimohy", slug, "1.1.0", "Integration registry behavior skill updated.", markdown + "Updated.\n",
+            "dimohy", slug, "1.1.0", "Korean software terminology integration behavior skill updated.", markdown + "Updated.\n",
             "Apache-2.0", "registry-candidate", provenance, platforms, null,
             candidateEvidence, validation, evaluationPayload, secondPrepared.ContentHash);
         await registry.ValidateCandidateAsync(
@@ -86,6 +86,15 @@ public sealed class SkillRegistryPostgresIntegrationTests
         var latestResolution = await registry.ResolveAsync(owner, slug, "project/integration");
         Assert.Equal("1.1.0", latestResolution.LatestValidatedVersion);
         Assert.Equal("1.1.0", latestResolution.Package?.Version);
+        var naturalSearch = await registry.SearchAsync("Please find integration behavior skill", 5);
+        Assert.Contains(naturalSearch, result => result.Slug == slug && result.Version == "1.1.0");
+        Assert.All(naturalSearch, result => Assert.Equal("1.1.0", result.Version));
+        var productionRegressionSearch = await registry.SearchAsync("korean software terminology", 5);
+        Assert.Contains(productionRegressionSearch, result => result.Slug == slug && result.Version == "1.1.0");
+        Assert.All(productionRegressionSearch, result => Assert.Equal("1.1.0", result.Version));
+        Assert.Empty(await registry.SearchAsync("integration unrelated", 5));
+        Assert.Empty(await registry.SearchAsync("skill", 5));
+        Assert.Empty(await registry.SearchAsync("", 5));
 
         await registry.ChooseAsync(
             owner, slug, "disabled", "project/integration", true,
