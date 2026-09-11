@@ -156,7 +156,8 @@ builder.Services.AddMcpServer()
     .WithTools<SkillRegistryMcpTools>()
     .WithTools<SlogsPostMcpTools>()
     .WithTools<KnowledgeCorpusMcpTools>()
-    .WithTools<OrganizationWikiMcpTools>();
+    .WithTools<OrganizationWikiMcpTools>()
+    .WithTools<OrganizationCorpusMcpTools>();
 builder.Services.AddHttpClient<SlogsApiClient>((serviceProvider, httpClient) =>
 {
     var request = serviceProvider.GetRequiredService<IHttpContextAccessor>().HttpContext?.Request;

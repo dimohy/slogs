@@ -65,6 +65,8 @@ $archivePath = Join-Path $publishRoot "slogs-$releaseId-$RuntimeIdentifier.tar.g
 $continuityBaselinePath = Join-Path $repoRoot "artifacts\server-continuity-baseline-$releaseId.json"
 $continuityResultPath = Join-Path $repoRoot "artifacts\server-continuity-after-$releaseId.json"
 $continuityScript = Join-Path $PSScriptRoot "Test-SlogsServerContinuity.ps1"
+$mcpContractScript = Join-Path $PSScriptRoot "Test-SlogsPublishedMcpContract.ps1"
+$mcpContractResultPath = Join-Path $repoRoot "artifacts\mcp-release-contract-$releaseId.json"
 $remote = "$RemoteUser@$RemoteHost"
 $enableWasmAot = $WasmAot.IsPresent
 
@@ -127,6 +129,10 @@ if (-not $SkipPublish) {
     Write-Host "Publishing Slogs: runtime=$RuntimeIdentifier, configuration=$Configuration, wasmAot=$enableWasmAot, nativeAot=$($NativeAot.IsPresent)"
     Invoke-Native $dotnet @publishArguments
 }
+
+# Fail before packaging or switching production when a required MCP tool was
+# dropped from source registration or from the published server assembly.
+& $mcpContractScript -PublishDirectory $publishDir -SourceRoot $repoRoot -ResultPath $mcpContractResultPath | Out-Null
 
 if (Test-Path $archivePath) {
     Remove-Item -Force $archivePath

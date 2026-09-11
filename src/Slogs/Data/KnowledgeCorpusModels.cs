@@ -133,7 +133,11 @@ public sealed record KnowledgeRelationRecall(
     string? FromLabel = null,
     IReadOnlyList<string>? FromAliases = null,
     string? ToLabel = null,
-    IReadOnlyList<string>? ToAliases = null);
+    IReadOnlyList<string>? ToAliases = null,
+    int GraphDepth = 1,
+    string ReviewStatus = "approved",
+    IReadOnlyList<string>? SemanticPath = null,
+    string RelationId = "");
 
 public sealed record KnowledgeChunkRecall(
     string CollectionId,
@@ -150,7 +154,22 @@ public sealed record KnowledgeChunkRecall(
     string License = "",
     string CollectionSourceUri = "",
     string DocumentSourceLocator = "",
-    string StorageOwnerUserName = "");
+    string StorageOwnerUserName = "",
+    int GraphDepth = 1,
+    IReadOnlyList<string>? SemanticPath = null);
+
+public sealed record OrganizationCorpusStatus(
+    Guid OrganizationId, string CollectionId, string Version, string Status,
+    string ContentHash, int DocumentCount, int ChunkCount, int RelationCount);
+
+public sealed record OrganizationCorpusRecallDiagnostics(
+    int MaxGraphHops, string RetrievalProfile, int PairScoreCalls, int PairScoreCandidates,
+    int SeedCount, int ReturnedChunks, long ElapsedMs);
+
+public sealed record OrganizationCorpusRecall(
+    Guid OrganizationId, string CollectionId, string Version, string Status,
+    string ContentHash, IReadOnlyList<KnowledgeChunkRecall> Chunks,
+    OrganizationCorpusRecallDiagnostics Diagnostics);
 
 public sealed record LlmWikiKnowledgeLink(
     Guid AnchorEntryId,

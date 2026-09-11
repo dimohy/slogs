@@ -9,7 +9,7 @@ using NpgsqlTypes;
 
 namespace Slogs.Data;
 
-public sealed class KnowledgeCorpusService(
+public sealed partial class KnowledgeCorpusService(
     IDbContextFactory<SlogsDbContext> dbFactory,
     IKnowledgeEmbeddingService embeddingService)
 {
@@ -350,7 +350,9 @@ public sealed class KnowledgeCorpusService(
         int limit,
         int maxGraphHops,
         bool applyFullFunctionReranking,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        OrganizationCorpusScope? organizationScope = null,
+        RecallExecution? execution = null)
     {
         var owner = Normalize(ownerUserName, 80, "ownerUserName");
         var searchText = Normalize(query, 2_000, "query");
@@ -367,7 +369,12 @@ public sealed class KnowledgeCorpusService(
         await EnsureConnectionOpenAsync(db, cancellationToken);
         var exactFastPath = false;
         IReadOnlyList<SeedChunk> seeds = [];
-        if (safeGraphHops <= 1 && HasSingleExplicitLocatorQuery(searchText))
+        if (organizationScope?.AnchorChunkId is not null)
+        {
+            seeds = await ReadOrganizationAnchorAsync(db, organizationScope, cancellationToken);
+            exactFastPath = safeGraphHops <= 1;
+        }
+        else if (safeGraphHops <= 1 && HasSingleExplicitLocatorQuery(searchText))
         {
             seeds = await SearchExactLocatorChunksAsync(
                 db,
@@ -379,11 +386,12 @@ public sealed class KnowledgeCorpusService(
                 hierarchicalReference?.Verse ?? -1,
                 exactLocatorAliases,
                 safeLimit,
-                cancellationToken);
+                cancellationToken,
+                organizationScope);
             exactFastPath = seeds.Count > 0;
         }
 
-        if (!exactFastPath)
+        if (!exactFastPath && seeds.Count == 0)
         {
             var queryEmbedding = await embeddingService.EmbedQueryAsync(searchText, cancellationToken);
             var useFullFunctionReranking = KnowledgeRecallRouting.ShouldUseFullFunctionReranking(
@@ -405,7 +413,8 @@ public sealed class KnowledgeCorpusService(
                 hierarchicalReference?.Verse ?? -1,
                 exactLocatorAliases,
                 candidateLimit,
-                cancellationToken);
+                cancellationToken,
+                organizationScope);
         }
         if (seeds.Count == 0)
         {
@@ -418,6 +427,11 @@ public sealed class KnowledgeCorpusService(
                 embeddingService.SupportsFullFunctionReranking))
         {
             var rerankCount = Math.Min(seeds.Count, MaxBgeM3OnlineRerankCandidates);
+            if (execution is not null)
+            {
+                execution.PairScoreCalls++;
+                execution.PairScoreCandidates += rerankCount;
+            }
             var scores = await embeddingService.ScorePairsAsync(
                 searchText,
                 seeds.Take(rerankCount).Select(BuildRerankPassage).ToArray(),
@@ -450,7 +464,7 @@ public sealed class KnowledgeCorpusService(
         }
 
         var coordinateSuffixes = ExtractLocatorCoordinateSuffixes(searchText);
-        if (coordinateSuffixes.Length > 0)
+        if (coordinateSuffixes.Length > 0 && organizationScope is null)
         {
             var expandedSeeds = await ExpandSeedsAcrossSharedPassagesAsync(
                 db, owner, isAdmin, scopeKeys, seeds, coordinateSuffixes, safeLimit, cancellationToken);
@@ -469,9 +483,10 @@ public sealed class KnowledgeCorpusService(
         var results = new List<KnowledgeChunkRecall>(seeds.Count);
         foreach (var seed in seeds)
         {
-            var relations = safeGraphHops == 0
+            var relationHops = organizationScope is null ? safeGraphHops : Math.Max(0, safeGraphHops - 1);
+            var relations = relationHops == 0
                 ? []
-                : await ReadRelationsAsync(db, owner, isAdmin, scopeKeys, seed, safeGraphHops, cancellationToken);
+                : await ReadRelationsAsync(db, owner, isAdmin, scopeKeys, seed, relationHops, cancellationToken, organizationScope);
             var result = new KnowledgeChunkRecall(
                 seed.CollectionId,
                 seed.Version,
@@ -488,7 +503,7 @@ public sealed class KnowledgeCorpusService(
                 seed.CollectionSourceUri,
                 seed.DocumentSourceLocator,
                 seed.OwnerUserName);
-            results.Add(exactFastPath ? CompactExactLocatorRecall(searchText, result) : result);
+            results.Add(exactFastPath && organizationScope is null ? CompactExactLocatorRecall(searchText, result) : result);
         }
 
         return results;
@@ -1304,7 +1319,8 @@ public sealed class KnowledgeCorpusService(
         int referenceVerse,
         string[] exactLocatorAliases,
         int limit,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        OrganizationCorpusScope? organizationScope = null)
     {
         await using var command = CreateCommand(db,
             """
@@ -1316,6 +1332,8 @@ public sealed class KnowledgeCorpusService(
                 INNER JOIN "LlmWikiKnowledgeCollections" c ON c."CollectionId"=k."CollectionId" AND c."Version"=k."Version" AND c."OwnerUserName"=k."OwnerUserName"
                 INNER JOIN "LlmWikiKnowledgeDocuments" d ON d."CollectionId"=k."CollectionId" AND d."Version"=k."Version" AND d."OwnerUserName"=k."OwnerUserName" AND d."DocumentId"=k."DocumentId"
                 WHERE c."Status"='active'
+                  AND (@collectionFilter='' OR (c."CollectionId"=@collectionFilter
+                    AND c."Version"=@versionFilter AND c."OwnerKind"='organization' AND c."OwnerKey"=@organizationFilter))
                   AND (
                     c."Visibility"='public_shared'
                     OR (c."OwnerKind"='system' AND @isAdmin)
@@ -1434,6 +1452,7 @@ public sealed class KnowledgeCorpusService(
                 v."ChunkId"
             LIMIT @limit;
             """);
+        AddOrganizationScopeParameters(command, organizationScope);
         command.Parameters.Add(new NpgsqlParameter("owner", owner));
         command.Parameters.Add(new NpgsqlParameter("isAdmin", isAdmin));
         command.Parameters.Add(new NpgsqlParameter("scopeKeys", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = scopeKeys });
@@ -1472,7 +1491,8 @@ public sealed class KnowledgeCorpusService(
         int referenceVerse,
         string[] exactLocatorAliases,
         int limit,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        OrganizationCorpusScope? organizationScope = null)
     {
         await using var command = CreateCommand(db,
             """
@@ -1484,6 +1504,8 @@ public sealed class KnowledgeCorpusService(
             INNER JOIN "LlmWikiKnowledgeDocuments" d
               ON d."CollectionId"=k."CollectionId" AND d."Version"=k."Version" AND d."OwnerUserName"=k."OwnerUserName" AND d."DocumentId"=k."DocumentId"
             WHERE c."Status"='active'
+                  AND (@collectionFilter='' OR (c."CollectionId"=@collectionFilter
+                    AND c."Version"=@versionFilter AND c."OwnerKind"='organization' AND c."OwnerKey"=@organizationFilter))
               AND (
                 c."Visibility"='public_shared'
                 OR (c."OwnerKind"='system' AND @isAdmin)
@@ -1520,6 +1542,7 @@ public sealed class KnowledgeCorpusService(
             ORDER BY k."CollectionId", k."Version", k."ChunkId"
             LIMIT @limit;
             """);
+        AddOrganizationScopeParameters(command, organizationScope);
         command.Parameters.Add(new NpgsqlParameter("owner", owner));
         command.Parameters.Add(new NpgsqlParameter("isAdmin", isAdmin));
         command.Parameters.Add(new NpgsqlParameter("scopeKeys", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = scopeKeys });
@@ -1541,12 +1564,12 @@ public sealed class KnowledgeCorpusService(
         return results;
     }
 
-    private static async Task<IReadOnlyList<KnowledgeRelationRecall>> ReadRelationsAsync(SlogsDbContext db, string owner, bool isAdmin, string[] scopeKeys, SeedChunk seed, int maxGraphHops, CancellationToken cancellationToken)
+    private static async Task<IReadOnlyList<KnowledgeRelationRecall>> ReadRelationsAsync(SlogsDbContext db, string owner, bool isAdmin, string[] scopeKeys, SeedChunk seed, int maxGraphHops, CancellationToken cancellationToken, OrganizationCorpusScope? organizationScope = null)
     {
         var startNodes = new[] { seed.ChunkId, seed.StructureNodeId, seed.DocumentId }.Where(value => value is not null).Cast<string>().ToArray();
         if (maxGraphHops <= 1)
         {
-            return await ReadDirectRelationsAsync(db, owner, isAdmin, scopeKeys, startNodes, cancellationToken);
+            return await ReadDirectRelationsAsync(db, owner, isAdmin, scopeKeys, startNodes, cancellationToken, organizationScope);
         }
 
         await using var command = CreateCommand(db,
@@ -1554,6 +1577,8 @@ public sealed class KnowledgeCorpusService(
             WITH RECURSIVE visible_collections AS (
                 SELECT c.* FROM "LlmWikiKnowledgeCollections" c
                 WHERE c."Status"='active'
+                  AND (@collectionFilter='' OR (c."CollectionId"=@collectionFilter
+                    AND c."Version"=@versionFilter AND c."OwnerKind"='organization' AND c."OwnerKey"=@organizationFilter))
                   AND (
                     c."Visibility"='public_shared'
                     OR (c."OwnerKind"='system' AND @isAdmin)
@@ -1583,7 +1608,8 @@ public sealed class KnowledgeCorpusService(
             ), graph AS (
                 SELECT r.*, 1 AS depth,
                     CASE WHEN r."FromNodeId"=ANY(@startNodes) THEN r."ToNodeId" ELSE r."FromNodeId" END AS frontier,
-                    ARRAY[r."FromNodeId",r."ToNodeId"]::text[] AS path
+                    CASE WHEN r."FromNodeId"=ANY(@startNodes) THEN ARRAY[r."FromNodeId",r."ToNodeId"]
+                         ELSE ARRAY[r."ToNodeId",r."FromNodeId"] END::text[] AS path
                 FROM seed_relations r
                 UNION ALL
                 SELECT r.*, g.depth+1,
@@ -1618,7 +1644,7 @@ public sealed class KnowledgeCorpusService(
                 COALESCE(from_entity."CanonicalLabel", from_structure."Label", g."FromNodeId"),
                 COALESCE(from_entity."AliasesJson"::text, '[]'),
                 COALESCE(to_entity."CanonicalLabel", to_structure."Label", g."ToNodeId"),
-                COALESCE(to_entity."AliasesJson"::text, '[]')
+                COALESCE(to_entity."AliasesJson"::text, '[]'), g.depth, g."ReviewStatus", g.path, g."RelationId"
             FROM deduplicated g
             LEFT JOIN "LlmWikiKnowledgeEntities" from_entity
               ON from_entity."CollectionId"=g."CollectionId" AND from_entity."Version"=g."Version"
@@ -1637,6 +1663,7 @@ public sealed class KnowledgeCorpusService(
                 g."Confidence" DESC, g."RelationId"
             LIMIT 30;
             """);
+        AddOrganizationScopeParameters(command, organizationScope);
         command.Parameters.Add(new NpgsqlParameter("owner", owner));
         command.Parameters.Add(new NpgsqlParameter("isAdmin", isAdmin));
         command.Parameters.Add(new NpgsqlParameter("scopeKeys", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = scopeKeys });
@@ -1651,7 +1678,8 @@ public sealed class KnowledgeCorpusService(
         bool isAdmin,
         string[] scopeKeys,
         string[] startNodes,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        OrganizationCorpusScope? organizationScope = null)
     {
         await using var command = CreateCommand(db,
             """
@@ -1659,6 +1687,8 @@ public sealed class KnowledgeCorpusService(
                 SELECT c.*
                 FROM "LlmWikiKnowledgeCollections" c
                 WHERE c."Status"='active'
+                  AND (@collectionFilter='' OR (c."CollectionId"=@collectionFilter
+                    AND c."Version"=@versionFilter AND c."OwnerKind"='organization' AND c."OwnerKey"=@organizationFilter))
                   AND (
                     c."Visibility"='public_shared'
                     OR (c."OwnerKind"='system' AND @isAdmin)
@@ -1673,13 +1703,17 @@ public sealed class KnowledgeCorpusService(
                     )
                   )
             ), graph AS (
-                SELECT r.*, 1 AS depth
+                SELECT r.*, 1 AS depth,
+                    CASE WHEN r."FromNodeId"=ANY(@startNodes) THEN ARRAY[r."FromNodeId",r."ToNodeId"]
+                         ELSE ARRAY[r."ToNodeId",r."FromNodeId"] END::text[] AS path
                 FROM visible_collections c
                 INNER JOIN "LlmWikiKnowledgeRelations" r
                   ON r."CollectionId"=c."CollectionId" AND r."Version"=c."Version" AND r."OwnerUserName"=c."OwnerUserName"
                 WHERE r."ReviewStatus" IN ('approved','published') AND r."FromNodeId"=ANY(@startNodes)
                 UNION ALL
-                SELECT r.*, 1 AS depth
+                SELECT r.*, 1 AS depth,
+                    CASE WHEN r."FromNodeId"=ANY(@startNodes) THEN ARRAY[r."FromNodeId",r."ToNodeId"]
+                         ELSE ARRAY[r."ToNodeId",r."FromNodeId"] END::text[] AS path
                 FROM visible_collections c
                 INNER JOIN "LlmWikiKnowledgeRelations" r
                   ON r."CollectionId"=c."CollectionId" AND r."Version"=c."Version" AND r."OwnerUserName"=c."OwnerUserName"
@@ -1690,7 +1724,7 @@ public sealed class KnowledgeCorpusService(
                 COALESCE(from_entity."CanonicalLabel", from_structure."Label", g."FromNodeId"),
                 COALESCE(from_entity."AliasesJson"::text, '[]'),
                 COALESCE(to_entity."CanonicalLabel", to_structure."Label", g."ToNodeId"),
-                COALESCE(to_entity."AliasesJson"::text, '[]')
+                COALESCE(to_entity."AliasesJson"::text, '[]'), g.depth, g."ReviewStatus", g.path, g."RelationId"
             FROM graph g
             LEFT JOIN "LlmWikiKnowledgeEntities" from_entity
               ON from_entity."CollectionId"=g."CollectionId" AND from_entity."Version"=g."Version"
@@ -1708,6 +1742,7 @@ public sealed class KnowledgeCorpusService(
                 g."Confidence" DESC, g."RelationId"
             LIMIT 30;
             """);
+        AddOrganizationScopeParameters(command, organizationScope);
         command.Parameters.Add(new NpgsqlParameter("owner", owner));
         command.Parameters.Add(new NpgsqlParameter("isAdmin", isAdmin));
         command.Parameters.Add(new NpgsqlParameter("scopeKeys", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = scopeKeys });
@@ -1727,7 +1762,8 @@ public sealed class KnowledgeCorpusService(
                 reader.GetString(8),
                 JsonSerializer.Deserialize<string[]>(reader.GetString(9)) ?? [],
                 reader.GetString(10),
-                JsonSerializer.Deserialize<string[]>(reader.GetString(11)) ?? []));
+                JsonSerializer.Deserialize<string[]>(reader.GetString(11)) ?? [],
+                reader.GetInt32(12), reader.GetString(13), reader.GetFieldValue<string[]>(14), reader.GetString(15)));
         }
 
         return results;
@@ -1815,6 +1851,12 @@ public sealed class KnowledgeCorpusService(
 
         return results;
     }
+
+    public static string ComputeChunkContentHash(KnowledgeCollectionInput collection, KnowledgeChunkInput chunk)
+        => Sha256(BuildChunkSearchText(collection, NormalizeChunkInput(chunk)));
+
+    public static KnowledgeChunkInput NormalizeChunkInput(KnowledgeChunkInput chunk)
+        => ValidateChunks([chunk])[0];
 
     private static string BuildChunkSearchText(KnowledgeCollectionInput collection, KnowledgeChunkInput chunk)
         => $"collection: {collection.Title}\ndomain: {collection.Domain}\ndocument: {chunk.DocumentId}\nlocator: {chunk.StartLocator}..{chunk.EndLocator}\naliases: {string.Join(", ", chunk.SearchAliases ?? [])}\n{chunk.Text}";

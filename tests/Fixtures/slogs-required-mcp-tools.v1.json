@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0.0",
+  "requiredToolTypes": [
+    {
+      "typeName": "OrganizationCorpusMcpTools",
+      "tools": [
+        "org_wiki_corpus_status",
+        "org_wiki_corpus_recall"
+      ]
+    }
+  ]
+}
