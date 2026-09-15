@@ -106,6 +106,29 @@ public static class SlogsDbInitializer
             );
             CREATE INDEX IF NOT EXISTS "IX_SkillRegistrySelections_Resolve"
             ON "SkillRegistrySelections" ("OwnerUserName", "SkillSlug", "ProjectKeyKey");
+
+            CREATE TABLE IF NOT EXISTS "ExternalSkillSources" (
+                "Slug" character varying(64) PRIMARY KEY,
+                "SourceUrl" character varying(500) NOT NULL,
+                "RepositoryOwner" character varying(100) NOT NULL,
+                "RepositoryName" character varying(100) NOT NULL,
+                "TrackingRef" character varying(200) NOT NULL,
+                "EntrypointPath" character varying(500) NOT NULL,
+                "Description" character varying(500) NOT NULL,
+                "License" character varying(64) NOT NULL,
+                "SearchAliasesJson" jsonb NOT NULL,
+                "RegisteredBy" character varying(80) NOT NULL,
+                "LastResolvedRevision" character varying(64) NULL,
+                "LastResolvedContent" text NULL,
+                "LastResolvedContentHash" character varying(64) NULL,
+                "LastCheckedAt" timestamp with time zone NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "UpdatedAt" timestamp with time zone NOT NULL,
+                CONSTRAINT "FK_ExternalSkillSources_Users_RegisteredBy"
+                    FOREIGN KEY ("RegisteredBy") REFERENCES "Users" ("UserName") ON DELETE RESTRICT,
+                CONSTRAINT "UX_ExternalSkillSources_Source"
+                    UNIQUE ("SourceUrl", "EntrypointPath")
+            );
             """);
         await db.Database.ExecuteSqlRawAsync(
             "ALTER TABLE \"SkillRegistryVersions\" ADD COLUMN IF NOT EXISTS \"EvaluationPayloadJson\" jsonb NOT NULL DEFAULT '{{}}'::jsonb;");

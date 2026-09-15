@@ -7,6 +7,15 @@
         "org_wiki_corpus_status",
         "org_wiki_corpus_recall"
       ]
+    },
+    {
+      "typeName": "SkillRegistryMcpTools",
+      "tools": [
+        "skill_registry_search",
+        "skill_registry_register_external",
+        "skill_registry_resolve",
+        "skill_registry_read_external_file"
+      ]
     }
   ]
 }

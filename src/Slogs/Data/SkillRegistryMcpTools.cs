@@ -7,8 +7,29 @@ namespace Slogs.Data;
 [McpServerToolType]
 public sealed class SkillRegistryMcpTools(
     IHttpContextAccessor httpContextAccessor,
-    SkillRegistryService skillRegistryService)
+    SkillRegistryService skillRegistryService,
+    ExternalSkillRegistryService externalSkillRegistryService)
 {
+    [McpServerTool(Name = "skill_registry_register_external")]
+    [Description("Register an explicitly authorized GitHub repository as the canonical source of an external skill and select it globally. Every resolution checks the tracked ref upstream before a cache may be reused.")]
+    public async Task<string> RegisterExternalAsync(
+        string slug,
+        [Description("Canonical GitHub repository root URL.")] string sourceUrl,
+        [Description("Branch or tag checked for the newest compatible commit on every resolution.")] string trackingRef,
+        [Description("Repository-relative SKILL.md path.")] string entrypointPath,
+        string description,
+        [Description("Verified SPDX license identifier.")] string license,
+        [Description("JSON array of precise multilingual trigger aliases.")] string searchAliasesJson,
+        [Description("Non-sensitive evidence of the user's explicit global-selection request.")] string decisionEvidence)
+    {
+        var user = RequireUser();
+        var result = await externalSkillRegistryService.RegisterGlobalAsync(
+            user.UserName, slug, sourceUrl, trackingRef, entrypointPath, description, license,
+            searchAliasesJson, decisionEvidence);
+        var snapshot = result.Snapshot!;
+        return $"# External Skill Registered\n\n- slug: {result.SkillSlug}\n- canonicalSource: {result.Source.SourceUrl}\n- trackingRef: {result.Source.TrackingRef}\n- resolvedRevision: {snapshot.Revision}\n- resolvedContentHash: {snapshot.ContentHash}\n- sourceChecked: true\n- scope: global\n- updatePolicy: upstream-latest-compatible-on-every-resolution\n- cachePolicy: reuse-only-after-upstream-revision-check";
+    }
+
     [McpServerTool(Name = "skill_registry_prepare")]
     [Description("Validate and canonicalize a discovered Codex skill package before publication, and return its SHA-256 content hash. This does not store anything.")]
     public async Task<string> PrepareAsync(
@@ -76,10 +97,13 @@ public sealed class SkillRegistryMcpTools(
     {
         RequireUser();
         var results = await skillRegistryService.SearchAsync(query, limit);
-        return FormatSearchResults(results);
+        var externalResults = await externalSkillRegistryService.SearchAsync(query, limit);
+        return FormatSearchResults(results, externalResults);
     }
 
-    internal static string FormatSearchResults(IReadOnlyList<RegisteredSkillVersion> results)
+    internal static string FormatSearchResults(
+        IReadOnlyList<RegisteredSkillVersion> results,
+        IReadOnlyList<ExternalSkillSearchResult>? externalResults = null)
     {
         var builder = new StringBuilder("# Validated Skill Candidates\n");
         foreach (var result in results)
@@ -88,7 +112,16 @@ public sealed class SkillRegistryMcpTools(
                 .AppendLine(result.Description)
                 .AppendLine($"- contentHash: {result.ContentHash}");
         }
-        if (results.Count == 0)
+        foreach (var result in externalResults ?? [])
+        {
+            builder.AppendLine().AppendLine($"## {result.Slug} (external canonical source)")
+                .AppendLine(result.Description)
+                .AppendLine($"- source: {result.SourceUrl}")
+                .AppendLine($"- trackingRef: {result.TrackingRef}")
+                .AppendLine($"- entrypoint: {result.EntrypointPath}")
+                .AppendLine($"- license: {result.License}");
+        }
+        if (results.Count == 0 && (externalResults?.Count ?? 0) == 0)
         {
             builder.AppendLine().AppendLine("No matching validated skill was found.");
         }
@@ -117,6 +150,20 @@ public sealed class SkillRegistryMcpTools(
     public async Task<string> ResolveAsync(string skillSlug, string? projectKey = null)
     {
         var user = RequireUser();
+        var external = await externalSkillRegistryService.ResolveAsync(user.UserName, skillSlug, projectKey);
+        if (external is not null)
+        {
+            if (external.FirstUseDecisionRequired)
+            {
+                return $"# Skill First-Use Decision Required\n\nNo skill content was returned or applied. Ask the user to choose `project`, `global`, or `disabled` for `{external.SkillSlug}`.";
+            }
+            if (external.Disabled)
+            {
+                return $"# Skill Disabled\n\n`{external.SkillSlug}` is disabled for the selected scope. No skill content was returned or applied.";
+            }
+            var snapshot = external.Snapshot!;
+            return $"# Resolved External Skill\n\n- slug: {external.SkillSlug}\n- canonicalSource: {external.Source.SourceUrl}\n- trackingRef: {external.Source.TrackingRef}\n- resolvedRevision: {snapshot.Revision}\n- resolvedContentHash: {snapshot.ContentHash}\n- contentOrigin: {snapshot.ContentOrigin}\n- sourceCheckedAt: {snapshot.CheckedAt:O}\n- scope: {external.ScopeKind}\n- projectKey: {external.ProjectKey ?? "(all projects)"}\n- consistency: read supporting files with `skill_registry_read_external_file` and this exact revision\n\n```markdown\n{snapshot.Content}\n```";
+        }
         var resolution = await skillRegistryService.ResolveAsync(user.UserName, skillSlug, projectKey);
         if (resolution.FirstUseDecisionRequired)
         {
@@ -128,6 +175,15 @@ public sealed class SkillRegistryMcpTools(
         }
 
         return $"# Resolved Validated Skill\n\n- registry: slogs-skill-registry\n- status: validated\n- slug: {resolution.Package.Slug}\n- latestValidatedVersion: {resolution.LatestValidatedVersion}\n- resolvedVersion: {resolution.Package.Version}\n- resolvedContentHash: {resolution.Package.ContentHash}\n- contentReleased: true\n- scope: {resolution.ScopeKind}\n- projectKey: {resolution.ProjectKey ?? "(all projects)"}\n- registryEvidence: immutable version and SHA-256 package hash\n\n```json\n{resolution.Package.PackageJson}\n```";
+    }
+
+    [McpServerTool(Name = "skill_registry_read_external_file")]
+    [Description("Read a supporting file from a registered external skill at the exact commit returned by resolve, preventing mixed-revision instructions.")]
+    public async Task<string> ReadExternalFileAsync(string skillSlug, string revision, string path)
+    {
+        RequireUser();
+        var content = await externalSkillRegistryService.ReadFileAsync(skillSlug, revision, path);
+        return $"# External Skill File\n\n- skill: {skillSlug}\n- revision: {revision}\n- path: {path}\n\n```text\n{content}\n```";
     }
 
     private AuthUser RequireUser()

@@ -136,6 +136,13 @@ builder.Services.AddScoped<BgeM3ShadowIndexMigration>();
 builder.Services.AddScoped<LlmWikiService>();
 builder.Services.AddScoped<SlogsMcpPolicyPromptService>();
 builder.Services.AddScoped<SkillRegistryService>();
+builder.Services.AddHttpClient<GitHubExternalSkillClient>(httpClient =>
+{
+    httpClient.Timeout = TimeSpan.FromSeconds(20);
+    httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Slogs-SkillRegistry/1.0");
+    httpClient.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+});
+builder.Services.AddScoped<ExternalSkillRegistryService>();
 builder.Services.AddScoped<KnowledgeCorpusService>();
 builder.Services.AddSingleton<KnowledgeChunkingService>();
 builder.Services.AddSingleton<BibleKnowledgeCorpusAdapter>();
