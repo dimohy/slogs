@@ -1,9 +1,9 @@
 ---
 name: diagram-design-slogs-overlay
 description: Apply Slogs-validated connector routing and nested-module readability corrections after resolving the external diagram-design skill.
-license: MIT
+license: Apache-2.0
 metadata:
-  version: "1.0.0"
+  version: "1.0.1"
   overlays: "diagram-design"
 ---
 
@@ -51,4 +51,3 @@ The verifier rejects missing boundary endpoints, duplicate geometry, off-center 
 ## Final visual gate
 
 After the verifier passes, render at the requested size and inspect every arrowhead at 100% scale. Machine geometry is necessary but does not replace the rendered review.
-
