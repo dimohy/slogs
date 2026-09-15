@@ -123,6 +123,26 @@ public sealed class LlmWikiGrowingGraphTests
                 $"""SELECT COUNT(*)::integer AS "Value" FROM "LlmWikiEntrySemanticRelations" WHERE "AnchorEntryId"={stored.Id} AND "State"='active'""").SingleAsync());
             Assert.Equal(1, await db.Database.SqlQuery<int>(
                 $"""SELECT COUNT(*)::integer AS "Value" FROM "LlmWikiEntryEmbeddings" WHERE "EntryId"={stored.Id} AND "Model"='bge-m3' AND "Dimensions"=1024""").SingleAsync());
+            Assert.Equal(0, await db.Database.SqlQuery<int>(
+                $"""
+                SELECT COUNT(*)::integer AS "Value"
+                FROM (
+                    SELECT "FromEntryId"
+                    FROM "LlmWikiGraphEdges"
+                    WHERE "OwnerUserName"='owner'
+                    GROUP BY "FromEntryId"
+                    HAVING COUNT(*) > 4
+                ) AS over_limit
+                """).SingleAsync());
+            Assert.True(await db.Database.SqlQuery<bool>(
+                $"""
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM "LlmWikiGraphEdges"
+                    WHERE "OwnerUserName"='owner'
+                      AND "FromEntryId"={stored.Id}
+                ) AS "Value"
+                """).SingleAsync());
             var unchanged = await db.Database.SqlQuery<DateTime>(
                 $"""SELECT "UpdatedAt" AS "Value" FROM "LlmWikiGraphEdges" WHERE "OwnerUserName"='owner' AND "FromEntryId"={sentinelA.Id} AND "ToEntryId"={sentinelB.Id}""").SingleAsync();
             Assert.InRange(Math.Abs((sentinelUpdatedAt - unchanged).TotalMilliseconds), 0, 0.01);

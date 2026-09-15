@@ -118,10 +118,6 @@ public static class SlogsDbInitializer
                 "License" character varying(64) NOT NULL,
                 "SearchAliasesJson" jsonb NOT NULL,
                 "RegisteredBy" character varying(80) NOT NULL,
-                "LastResolvedRevision" character varying(64) NULL,
-                "LastResolvedContent" text NULL,
-                "LastResolvedContentHash" character varying(64) NULL,
-                "LastCheckedAt" timestamp with time zone NULL,
                 "CreatedAt" timestamp with time zone NOT NULL,
                 "UpdatedAt" timestamp with time zone NOT NULL,
                 CONSTRAINT "FK_ExternalSkillSources_Users_RegisteredBy"
@@ -134,6 +130,13 @@ public static class SlogsDbInitializer
             "ALTER TABLE \"SkillRegistryVersions\" ADD COLUMN IF NOT EXISTS \"EvaluationPayloadJson\" jsonb NOT NULL DEFAULT '{{}}'::jsonb;");
         await db.Database.ExecuteSqlRawAsync(
             "ALTER TABLE \"SkillRegistryVersions\" ADD COLUMN IF NOT EXISTS \"ReviewEvidenceJson\" jsonb NULL;");
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE "ExternalSkillSources" DROP COLUMN IF EXISTS "LastResolvedRevision";
+            ALTER TABLE "ExternalSkillSources" DROP COLUMN IF EXISTS "LastResolvedContent";
+            ALTER TABLE "ExternalSkillSources" DROP COLUMN IF EXISTS "LastResolvedContentHash";
+            ALTER TABLE "ExternalSkillSources" DROP COLUMN IF EXISTS "LastCheckedAt";
+            """);
         await db.Database.ExecuteSqlRawAsync(
             "ALTER TABLE \"Posts\" ADD COLUMN IF NOT EXISTS \"ThumbnailUrl\" character varying(500) NOT NULL DEFAULT '';");
         await db.Database.ExecuteSqlRawAsync(

@@ -193,4 +193,24 @@ public sealed class BgeM3OnlineRerankContractTests
             < document.IndexOf(new string('가', 100), StringComparison.Ordinal));
         Assert.DoesNotContain(new string('나', 1_000), document, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void DenseEmbeddingDocumentKeepsDerivedSummaryBeforeLongSourceText()
+    {
+        var entry = new LlmWikiEntryRecord
+        {
+            Title = "긴 기억 검색",
+            CategoryPath = "slogs/llm-wiki/performance",
+            TagsJson = JsonSerializer.Serialize(new[] { "bge-m3" }),
+            SourcePrompt = new string('가', 5_000),
+            Content = "핵심 결론은 길이 제한 안에 보존되어야 한다. " + new string('나', 5_000)
+        };
+
+        var document = LlmWikiService.BuildBgeM3SourceDocument(entry).Text;
+
+        Assert.Contains("summary: 핵심 결론은 길이 제한 안에 보존되어야 한다.", document, StringComparison.Ordinal);
+        Assert.True(
+            document.IndexOf("summary:", StringComparison.Ordinal)
+            < document.IndexOf(new string('가', 100), StringComparison.Ordinal));
+    }
 }

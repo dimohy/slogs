@@ -152,12 +152,26 @@ else
                         </div>
                     }
 
-                    <div class="mt-5 grid gap-3">
-                        <input class="rounded-xl border border-slate-300 px-3 py-2 text-sm" @bind="newClientId" @bind:event="oninput" placeholder="client-id" />
-                        <input class="rounded-xl border border-slate-300 px-3 py-2 text-sm" @bind="newClientDisplayName" @bind:event="oninput" placeholder="연결 앱 이름" />
-                        <input class="rounded-xl border border-slate-300 px-3 py-2 text-sm" @bind="newClientRedirectUri" @bind:event="oninput" placeholder="https://app.example.com/signin-oidc" />
-                        <input class="rounded-xl border border-slate-300 px-3 py-2 text-sm" @bind="newClientScopes" @bind:event="oninput" placeholder="org_wiki.read, org_wiki.propose" />
-                        <button class="rounded-xl bg-indigo-700 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300"
+                    <div class="mt-5 max-w-5xl">
+                        <div class="grid min-w-0 gap-4 md:grid-cols-2">
+                            <label class="grid min-w-0 gap-1.5 text-sm font-bold text-slate-800">
+                                클라이언트 ID
+                                <input class="min-w-0 rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal" @bind="newClientId" @bind:event="oninput" placeholder="client-id" />
+                            </label>
+                            <label class="grid min-w-0 gap-1.5 text-sm font-bold text-slate-800">
+                                연결 앱 이름
+                                <input class="min-w-0 rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal" @bind="newClientDisplayName" @bind:event="oninput" placeholder="예: 사내 지식 포털" />
+                            </label>
+                            <label class="grid min-w-0 gap-1.5 text-sm font-bold text-slate-800 md:col-span-2">
+                                리디렉션 URI
+                                <input class="min-w-0 rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal" @bind="newClientRedirectUri" @bind:event="oninput" placeholder="https://app.example.com/signin-oidc" />
+                            </label>
+                            <label class="grid min-w-0 gap-1.5 text-sm font-bold text-slate-800 md:col-span-2">
+                                허용 범위
+                                <input class="min-w-0 rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal" @bind="newClientScopes" @bind:event="oninput" placeholder="org_wiki.read, org_wiki.propose" />
+                            </label>
+                        </div>
+                        <button class="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white disabled:bg-slate-300 sm:w-auto"
                                 disabled="@isBusy" @onclick="CreateOidcClientAsync">연결 앱 등록</button>
                     </div>
 

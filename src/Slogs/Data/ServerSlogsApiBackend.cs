@@ -5,6 +5,7 @@ public sealed class ServerSlogsApiBackend(
     AuthService authService,
     LlmWikiService llmWikiService,
     SlogsMcpPolicyPromptService mcpPolicyPromptService,
+    SkillRegistryService skillRegistryService,
     ObsidianVaultService obsidianVaultService,
     ObsidianStorageQuotaService obsidianStorageQuotaService,
     IHttpContextAccessor httpContextAccessor) : ISlogsApiBackend
@@ -82,6 +83,9 @@ public sealed class ServerSlogsApiBackend(
 
     public Task<IReadOnlyList<string>> GetSeriesAsync(int topCount)
         => blogService.GetSeriesAsync(topCount);
+
+    public Task<IReadOnlyList<PublicSkillSummary>> GetPublicSkillsAsync(string? query, int limit)
+        => skillRegistryService.ListValidatedAsync(query, limit);
 
     public Task<IReadOnlyList<BlogPost>> GetBySeriesAsync(string series)
         => blogService.GetBySeriesAsync(series);

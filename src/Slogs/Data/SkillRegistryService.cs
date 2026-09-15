@@ -246,6 +246,48 @@ public sealed class SkillRegistryService(IDbContextFactory<SlogsDbContext> dbFac
         return await ReadManyAsync(command, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<PublicSkillSummary>> ListValidatedAsync(
+        string? query,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var safeLimit = Math.Clamp(limit, 1, 50);
+        var normalizedQuery = query?.Trim();
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        await db.Database.OpenConnectionAsync(cancellationToken);
+        await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.CommandText = """
+            WITH latest AS (
+                SELECT DISTINCT ON ("Slug")
+                    "Slug", "Version", "Description", "ContentHash"
+                FROM "SkillRegistryVersions"
+                WHERE "Status" = 'validated'
+                ORDER BY "Slug", "VersionMajor" DESC, "VersionMinor" DESC, "VersionPatch" DESC
+            )
+            SELECT "Slug", "Version", "Description", "ContentHash"
+            FROM latest
+            WHERE @query = ''
+               OR lower("Slug") LIKE '%' || lower(@query) || '%'
+               OR lower("Description") LIKE '%' || lower(@query) || '%'
+            ORDER BY "Slug"
+            LIMIT @limit;
+            """;
+        AddParameter(command, "query", normalizedQuery ?? string.Empty);
+        AddParameter(command, "limit", safeLimit);
+
+        var results = new List<PublicSkillSummary>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            results.Add(new PublicSkillSummary(
+                reader.GetString(0),
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.GetString(3)));
+        }
+        return results;
+    }
+
     public async Task<SkillSelection> ChooseAsync(
         string owner,
         string skillSlug,

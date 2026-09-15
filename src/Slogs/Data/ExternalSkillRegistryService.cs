@@ -46,12 +46,10 @@ public sealed class ExternalSkillRegistryService(
             command.CommandText = """
                 INSERT INTO "ExternalSkillSources"
                     ("Slug", "SourceUrl", "RepositoryOwner", "RepositoryName", "TrackingRef", "EntrypointPath",
-                     "Description", "License", "SearchAliasesJson", "RegisteredBy", "LastResolvedRevision",
-                     "LastResolvedContent", "LastResolvedContentHash", "LastCheckedAt", "CreatedAt", "UpdatedAt")
+                     "Description", "License", "SearchAliasesJson", "RegisteredBy", "CreatedAt", "UpdatedAt")
                 VALUES
                     (@slug, @sourceUrl, @repositoryOwner, @repositoryName, @trackingRef, @entrypointPath,
-                     @description, @license, CAST(@aliases AS jsonb), @actor, @revision,
-                     @content, @contentHash, @now, @now, @now)
+                     @description, @license, CAST(@aliases AS jsonb), @actor, @now, @now)
                 ON CONFLICT ("Slug") DO UPDATE SET
                     "SourceUrl" = EXCLUDED."SourceUrl",
                     "RepositoryOwner" = EXCLUDED."RepositoryOwner",
@@ -62,10 +60,6 @@ public sealed class ExternalSkillRegistryService(
                     "License" = EXCLUDED."License",
                     "SearchAliasesJson" = EXCLUDED."SearchAliasesJson",
                     "RegisteredBy" = EXCLUDED."RegisteredBy",
-                    "LastResolvedRevision" = EXCLUDED."LastResolvedRevision",
-                    "LastResolvedContent" = EXCLUDED."LastResolvedContent",
-                    "LastResolvedContentHash" = EXCLUDED."LastResolvedContentHash",
-                    "LastCheckedAt" = EXCLUDED."LastCheckedAt",
                     "UpdatedAt" = EXCLUDED."UpdatedAt";
                 """;
             AddParameter(command, "slug", descriptor.Slug);
@@ -78,9 +72,6 @@ public sealed class ExternalSkillRegistryService(
             AddParameter(command, "license", descriptor.License);
             AddParameter(command, "aliases", descriptor.SearchAliasesJson);
             AddParameter(command, "actor", actor.ToLowerInvariant());
-            AddParameter(command, "revision", revision);
-            AddParameter(command, "content", content);
-            AddParameter(command, "contentHash", contentHash);
             AddParameter(command, "now", now);
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
@@ -114,7 +105,8 @@ public sealed class ExternalSkillRegistryService(
         }
         await transaction.CommitAsync(cancellationToken);
         return new(false, false, descriptor.Slug, "global", null, descriptor,
-            new(revision, content, contentHash, "upstream-verified", now));
+            new(revision, content, contentHash, "upstream-live", now),
+            await ReadValidatedOverlayAsync(db, descriptor.Slug, cancellationToken));
     }
 
     public async Task<ExternalSkillResolution?> ResolveAsync(
@@ -137,52 +129,21 @@ public sealed class ExternalSkillRegistryService(
         var selection = await ReadSelectionAsync(db, owner, slug, normalizedProject, cancellationToken);
         if (selection is null)
         {
-            return new(true, false, slug, null, normalizedProject, source.Descriptor, null);
+            return new(true, false, slug, null, normalizedProject, source.Descriptor, null, null);
         }
         if (!SkillRegistryContract.CanReleasePackage(selection))
         {
-            return new(false, true, slug, "disabled", selection.ProjectKey, source.Descriptor, null);
+            return new(false, true, slug, "disabled", selection.ProjectKey, source.Descriptor, null, null);
         }
 
         var revision = await sourceClient.GetLatestRevisionAsync(source.Descriptor, cancellationToken);
-        string content;
-        string contentHash;
-        string origin;
-        if (string.Equals(source.LastResolvedRevision, revision, StringComparison.OrdinalIgnoreCase)
-            && source.LastResolvedContent is not null
-            && source.LastResolvedContentHash is not null)
-        {
-            content = source.LastResolvedContent;
-            contentHash = ExternalSkillSourceContract.ValidateEntrypoint(slug, content);
-            if (!string.Equals(contentHash, source.LastResolvedContentHash, StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidOperationException("외부 스킬 캐시 해시가 일치하지 않습니다.");
-            }
-            origin = "cache-current-after-upstream-check";
-        }
-        else
-        {
-            content = await sourceClient.ReadFileAsync(source.Descriptor, revision, source.Descriptor.EntrypointPath, cancellationToken);
-            contentHash = ExternalSkillSourceContract.ValidateEntrypoint(slug, content);
-            origin = "upstream-refreshed";
-        }
-
+        var content = await sourceClient.ReadFileAsync(
+            source.Descriptor, revision, source.Descriptor.EntrypointPath, cancellationToken);
+        var contentHash = ExternalSkillSourceContract.ValidateEntrypoint(slug, content);
         var checkedAt = DateTimeOffset.UtcNow;
-        await using var update = db.Database.GetDbConnection().CreateCommand();
-        update.CommandText = """
-            UPDATE "ExternalSkillSources"
-            SET "LastResolvedRevision" = @revision, "LastResolvedContent" = @content,
-                "LastResolvedContentHash" = @contentHash, "LastCheckedAt" = @checkedAt, "UpdatedAt" = @checkedAt
-            WHERE "Slug" = @slug;
-            """;
-        AddParameter(update, "revision", revision);
-        AddParameter(update, "content", content);
-        AddParameter(update, "contentHash", contentHash);
-        AddParameter(update, "checkedAt", checkedAt);
-        AddParameter(update, "slug", slug);
-        await update.ExecuteNonQueryAsync(cancellationToken);
         return new(false, false, slug, selection.ScopeKind, selection.ProjectKey, source.Descriptor,
-            new(revision, content, contentHash, origin, checkedAt));
+            new(revision, content, contentHash, "upstream-live", checkedAt),
+            await ReadValidatedOverlayAsync(db, slug, cancellationToken));
     }
 
     public async Task<string> ReadFileAsync(
@@ -240,8 +201,7 @@ public sealed class ExternalSkillRegistryService(
         await using var command = db.Database.GetDbConnection().CreateCommand();
         command.CommandText = """
             SELECT "Slug", "SourceUrl", "RepositoryOwner", "RepositoryName", "TrackingRef", "EntrypointPath",
-                   "Description", "License", "SearchAliasesJson"::text, "RegisteredBy", "LastResolvedRevision",
-                   "LastResolvedContent", "LastResolvedContentHash", "LastCheckedAt", "CreatedAt", "UpdatedAt"
+                   "Description", "License", "SearchAliasesJson"::text, "RegisteredBy", "CreatedAt", "UpdatedAt"
             FROM "ExternalSkillSources" WHERE "Slug" = @slug;
             """;
         AddParameter(command, "slug", slug);
@@ -253,10 +213,37 @@ public sealed class ExternalSkillRegistryService(
         var descriptor = new ExternalSkillSourceDescriptor(
             reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetString(4),
             reader.GetString(5), reader.GetString(6), reader.GetString(7), reader.GetString(8));
-        return new(descriptor, reader.GetString(9), reader.IsDBNull(10) ? null : reader.GetString(10),
-            reader.IsDBNull(11) ? null : reader.GetString(11), reader.IsDBNull(12) ? null : reader.GetString(12),
-            reader.IsDBNull(13) ? null : reader.GetFieldValue<DateTimeOffset>(13),
-            reader.GetFieldValue<DateTimeOffset>(14), reader.GetFieldValue<DateTimeOffset>(15));
+        return new(descriptor, reader.GetString(9),
+            reader.GetFieldValue<DateTimeOffset>(10), reader.GetFieldValue<DateTimeOffset>(11));
+    }
+
+    private static async Task<RegisteredSkillVersion?> ReadValidatedOverlayAsync(
+        SlogsDbContext db,
+        string externalSlug,
+        CancellationToken cancellationToken)
+    {
+        await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.CommandText = """
+            SELECT "Id", "Slug", "Version", "Description", "ContentHash", "PackageJson"::text,
+                   "ValidationReportJson"::text, "ValidationReportHash", "EvaluationPayloadJson"::text,
+                   "CandidateEvidenceJson"::text, "ReviewEvidenceJson"::text, "Status", "SubmittedBy",
+                   "ValidatedBy", "CreatedAt"
+            FROM "SkillRegistryVersions"
+            WHERE "Slug" = @overlaySlug AND "Status" = 'validated'
+            ORDER BY "VersionMajor" DESC, "VersionMinor" DESC, "VersionPatch" DESC
+            LIMIT 1;
+            """;
+        AddParameter(command, "overlaySlug", $"{externalSlug}-slogs-overlay");
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+        return new(
+            reader.GetGuid(0), reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetString(4),
+            reader.GetString(5), reader.GetString(6), reader.GetString(7), reader.GetString(8), reader.GetString(9),
+            reader.IsDBNull(10) ? null : reader.GetString(10), reader.GetString(11), reader.GetString(12),
+            reader.IsDBNull(13) ? null : reader.GetString(13), reader.GetFieldValue<DateTimeOffset>(14));
     }
 
     private static async Task<SkillSelection?> ReadSelectionAsync(

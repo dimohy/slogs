@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "ruleId": "SLOGS-POLICY-COMPAT-001",
+  "positiveCases": [
+    {
+      "id": "tightened-validator-migrates-authoritatively-before-publish",
+      "trigger": "a policy validator changes targetRevision from free text to a revision hash",
+      "expected": ["freeze registered current and historical consumer roots", "run the full compatibility checker", "migrate invalid data from authoritative source identities", "rerun the same checker", "publish only after every consumer passes"],
+      "forbidden": ["weaken the validator", "claim compatibility from the local suite alone", "edit invalid values without authoritative identity evidence"]
+    }
+  ],
+  "negativeControls": [
+    { "id": "local-suite-only", "input": "the local policy cases pass but registered historical consumers were not scanned", "expected": "block publication and compatibility claims" },
+    { "id": "missing-consumer-root", "input": "one registered corpus root is unavailable", "expected": "fail closed without silently excluding the root" },
+    { "id": "ordinary-memory-request", "input": "the user asks to remember a preference without changing policy constraints", "expected": "use the normal memory route and do not start corpus migration" }
+  ],
+  "passThresholds": { "positivePasses": 1, "negativeControlPasses": 3, "compatibilityForbiddenActions": 0, "migrationFalseActivations": 0 }
+}

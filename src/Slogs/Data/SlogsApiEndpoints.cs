@@ -9,6 +9,9 @@ public static class SlogsApiEndpoints
     {
         var api = app.MapGroup("/api");
 
+        api.MapGet("/skills", async (SkillRegistryService skillRegistryService, string? q, int? limit) =>
+            Results.Ok(await skillRegistryService.ListValidatedAsync(q, limit ?? 24)));
+
         api.MapGet("/auth/me", (HttpContext httpContext) =>
         {
             var user = GetCurrentUser(httpContext);

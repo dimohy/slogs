@@ -687,15 +687,27 @@ public sealed class StaticAssetIdentityTests
     public void LlmWikiUsageGuideFramesToolNamesAsRecallFlow()
     {
         var llmWikiGuidePage = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "LlmWiki.razor"));
+        var legacyRoute = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Pages", "LlmWikiLegacy.razor"));
         var navMenu = File.ReadAllText(FindRepoFile("src", "Slogs.Client", "Components", "Layout", "NavMenu.razor"));
 
-        Assert.Contains("LLM Wiki 기억 연결", llmWikiGuidePage);
-        Assert.Contains("Slogs LLM Wiki가 비공개 기억을 Agent와 소유자 전용 게시전 로그로 이어 두는 연결 화면입니다.", llmWikiGuidePage);
-        Assert.Contains("비공개 기억을 Agent와 Slogs 게시전 로그로 이어 두는 연결 화면입니다.", llmWikiGuidePage);
-        Assert.Contains("기억에서 공개로", llmWikiGuidePage);
+        Assert.Contains("@page \"/llm-wiki\"", llmWikiGuidePage);
+        Assert.Contains("data-llm-wiki-public-guide=\"true\"", llmWikiGuidePage);
+        Assert.DoesNotContain("NoIndex=\"true\"", llmWikiGuidePage);
+        Assert.Contains("대화가 끝나도,", llmWikiGuidePage);
+        Assert.Contains("판단은 이어집니다.", llmWikiGuidePage);
+        Assert.Contains("3분 만에 연결하기", llmWikiGuidePage);
+        Assert.Contains("data-llm-wiki-quick-start=\"true\"", llmWikiGuidePage);
+        Assert.Contains("1 · 연결 키 만들기", llmWikiGuidePage);
+        Assert.Contains("2 · Agent 지침 복사", llmWikiGuidePage);
+        Assert.Contains("3 · 자연스럽게 말하기", llmWikiGuidePage);
+        Assert.Contains("기억에서 결과로", llmWikiGuidePage);
         Assert.Contains("LLM Wiki는 공개 로그 뒤의 기억 계층입니다", llmWikiGuidePage);
         Assert.Contains(">비공개 기억</div>", navMenu);
-        Assert.Contains("기억 연결 가이드", navMenu);
+        Assert.Contains("href=\"/llm-wiki\"", navMenu);
+        Assert.Contains("LLM Wiki · MCP", navMenu);
+        Assert.Contains("내 기억 검색", navMenu);
+        Assert.Contains("@page \"/me/llm-wiki\"", legacyRoute);
+        Assert.Contains("\"/llm-wiki\"", legacyRoute);
         Assert.Contains("<span>기억 남김</span>", llmWikiGuidePage);
         Assert.Contains("data-llm-wiki-user-guide", llmWikiGuidePage);
         Assert.Contains(">동작과 활용</p>", llmWikiGuidePage);
@@ -728,7 +740,7 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("한국어 Agent 지침이 복사되었습니다.", llmWikiGuidePage);
         Assert.Contains("English recall instructions copied.", llmWikiGuidePage);
 
-        Assert.DoesNotContain("LLM Wiki 사용법", navMenu);
+        Assert.DoesNotContain("기억 연결 가이드", navMenu);
         Assert.DoesNotContain("님의 기억을 검색하고 Slogs 로그로 이어 쓰는 방법입니다.", llmWikiGuidePage);
         Assert.DoesNotContain("GraphRAG", llmWikiGuidePage, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("PostgreSQL", llmWikiGuidePage, StringComparison.OrdinalIgnoreCase);
@@ -2145,7 +2157,8 @@ public sealed class StaticAssetIdentityTests
         Assert.Contains("저장한 로그를 바꾸려면 지식 로그 홈으로 돌아가야 합니다.", bookmarksPage);
         Assert.Contains("공감한 로그를 다시 따라가려면 지식 로그 홈으로 돌아가야 합니다.", likesPage);
         Assert.Contains("공감한 로그를 바꾸려면 지식 로그 홈으로 돌아가야 합니다.", likesPage);
-        Assert.Contains("비공개 기억 연결 화면을 열려면 지식 로그 홈으로 돌아가야 합니다.", llmWikiPage);
+        Assert.Contains("data-llm-wiki-public-guide=\"true\"", llmWikiPage);
+        Assert.DoesNotContain("Navigation.NavigateTo(GetLoginHref())", llmWikiPage);
         Assert.Contains("비공개 기억을 검색하려면 지식 로그 홈으로 돌아가야 합니다.", llmWikiSearchPage);
         Assert.Contains("슬로거 홈 정체성과 연결 권한을 보려면 지식 로그 홈으로 돌아가야 합니다.", settingsPage);
         Assert.Contains("관리자 화면으로 가려면 지식 로그 홈으로 돌아가야 합니다.", adminUsersPage);
@@ -2161,7 +2174,6 @@ public sealed class StaticAssetIdentityTests
             profilePage,
             bookmarksPage,
             likesPage,
-            llmWikiPage,
             llmWikiSearchPage,
             settingsPage,
             adminUsersPage,

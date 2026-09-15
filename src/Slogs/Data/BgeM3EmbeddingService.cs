@@ -9,6 +9,7 @@ public sealed class BgeM3EmbeddingService(HttpClient httpClient, IConfiguration 
 {
     private const string RequestTimeoutSecondsKey = "BgeM3:RequestTimeoutSeconds";
     private const string RerankMaxPassageTokensKey = "BgeM3:RerankMaxPassageTokens";
+    private const string DocumentMaxTokensKey = "BgeM3:DocumentMaxTokens";
     private const string DefaultBaseUrl = "http://localhost:8082";
     private const string RequiredModel = "BAAI/bge-m3";
     private const string RequiredRevision = "5617a9f61b028005a4858fdac845db406aefb181";
@@ -29,19 +30,24 @@ public sealed class BgeM3EmbeddingService(HttpClient httpClient, IConfiguration 
     }
 
     public Task<IReadOnlyList<float>> EmbedQueryAsync(string query, CancellationToken cancellationToken)
-        => EmbedAsync(query, latencySensitive: true, cancellationToken);
+        => EmbedAsync(query, latencySensitive: true, maxLength: 512, cancellationToken);
 
     public Task<IReadOnlyList<float>> EmbedDocumentAsync(string document, CancellationToken cancellationToken)
-        => EmbedAsync(document, latencySensitive: false, cancellationToken);
+        => EmbedAsync(document, latencySensitive: false, GetDocumentMaxTokens(), cancellationToken);
 
     public async Task<IReadOnlyList<IReadOnlyList<float>>> EmbedDocumentsAsync(
         IReadOnlyList<string> documents,
         CancellationToken cancellationToken)
-        => await EmbedDocumentsCoreAsync(documents, latencySensitive: false, cancellationToken);
+        => await EmbedDocumentsCoreAsync(
+            documents,
+            latencySensitive: false,
+            GetDocumentMaxTokens(),
+            cancellationToken);
 
     private async Task<IReadOnlyList<IReadOnlyList<float>>> EmbedDocumentsCoreAsync(
         IReadOnlyList<string> documents,
         bool latencySensitive,
+        int maxLength,
         CancellationToken cancellationToken)
     {
         if (documents.Count is < 1 or > 256)
@@ -50,7 +56,7 @@ public sealed class BgeM3EmbeddingService(HttpClient httpClient, IConfiguration 
         }
         var result = await PostAsync(
             "encode",
-            new BgeM3EncodeRequest(documents, true, false, false, 8192, latencySensitive),
+            new BgeM3EncodeRequest(documents, true, false, false, maxLength, latencySensitive),
             BgeM3JsonSerializerContext.Default.BgeM3EncodeRequest,
             BgeM3JsonSerializerContext.Default.BgeM3EncodeResponse,
             cancellationToken);
@@ -115,9 +121,10 @@ public sealed class BgeM3EmbeddingService(HttpClient httpClient, IConfiguration 
     private async Task<IReadOnlyList<float>> EmbedAsync(
         string text,
         bool latencySensitive,
+        int maxLength,
         CancellationToken cancellationToken)
     {
-        var result = await EmbedDocumentsCoreAsync([text], latencySensitive, cancellationToken);
+        var result = await EmbedDocumentsCoreAsync([text], latencySensitive, maxLength, cancellationToken);
         return result[0];
     }
 
@@ -155,6 +162,17 @@ public sealed class BgeM3EmbeddingService(HttpClient httpClient, IConfiguration 
         {
             throw new InvalidOperationException(
                 $"{RerankMaxPassageTokensKey} must be explicitly configured between 256 and 8192 tokens.");
+        }
+        return tokens;
+    }
+
+    private int GetDocumentMaxTokens()
+    {
+        var configured = configuration[DocumentMaxTokensKey];
+        if (!int.TryParse(configured, out var tokens) || tokens is < 512 or > 4096)
+        {
+            throw new InvalidOperationException(
+                $"{DocumentMaxTokensKey} must be explicitly configured between 512 and 4096 tokens.");
         }
         return tokens;
     }

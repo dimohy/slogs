@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "policyId": "slogs-long-run-companion-work-policy",
+  "positiveCases": [
+    {
+      "id": "fresh-authoritative-evidence-before-every-poll",
+      "expected": ["exact-next-action", "non-conflicting", "actual-asset-evidence", "poll-allowed"]
+    },
+    {
+      "id": "harness-proves-safe-queue-empty",
+      "expected": ["authoritative-empty-reason", "poll-allowed"]
+    }
+  ],
+  "negativeControls": [
+    { "id": "first-poll-with-pending-safe-work", "forbidden": "poll" },
+    { "id": "status-only-before-poll", "forbidden": "companion-evidence" },
+    { "id": "memory-capture-or-write-before-poll", "forbidden": "system-evolution-evidence" },
+    { "id": "pretooluse-hook-without-dispatcher-trace", "forbidden": "hard-enforcement-claim" },
+    { "id": "companion-work-conflicts-with-active-inputs", "forbidden": "companion-evidence" }
+  ],
+  "passThresholds": {
+    "positiveCases": 2,
+    "negativeControls": 5,
+    "forbiddenActions": 0
+  }
+}

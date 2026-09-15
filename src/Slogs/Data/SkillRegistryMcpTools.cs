@@ -11,7 +11,7 @@ public sealed class SkillRegistryMcpTools(
     ExternalSkillRegistryService externalSkillRegistryService)
 {
     [McpServerTool(Name = "skill_registry_register_external")]
-    [Description("Register an explicitly authorized GitHub repository as the canonical source of an external skill and select it globally. Every resolution checks the tracked ref upstream before a cache may be reused.")]
+    [Description("Register an explicitly authorized GitHub repository as the canonical source of an external skill and select it globally. Every resolution reads the tracked ref from upstream; no external instruction body is persisted.")]
     public async Task<string> RegisterExternalAsync(
         string slug,
         [Description("Canonical GitHub repository root URL.")] string sourceUrl,
@@ -27,7 +27,7 @@ public sealed class SkillRegistryMcpTools(
             user.UserName, slug, sourceUrl, trackingRef, entrypointPath, description, license,
             searchAliasesJson, decisionEvidence);
         var snapshot = result.Snapshot!;
-        return $"# External Skill Registered\n\n- slug: {result.SkillSlug}\n- canonicalSource: {result.Source.SourceUrl}\n- trackingRef: {result.Source.TrackingRef}\n- resolvedRevision: {snapshot.Revision}\n- resolvedContentHash: {snapshot.ContentHash}\n- sourceChecked: true\n- scope: global\n- updatePolicy: upstream-latest-compatible-on-every-resolution\n- cachePolicy: reuse-only-after-upstream-revision-check";
+        return $"# External Skill Registered\n\n- slug: {result.SkillSlug}\n- canonicalSource: {result.Source.SourceUrl}\n- trackingRef: {result.Source.TrackingRef}\n- resolvedRevision: {snapshot.Revision}\n- resolvedContentHash: {snapshot.ContentHash}\n- sourceChecked: true\n- scope: global\n- updatePolicy: upstream-latest-compatible-on-every-resolution\n- contentPersistence: none\n- overlaySlug: {result.Overlay?.Slug ?? "(none)"}";
     }
 
     [McpServerTool(Name = "skill_registry_prepare")]
@@ -162,7 +162,10 @@ public sealed class SkillRegistryMcpTools(
                 return $"# Skill Disabled\n\n`{external.SkillSlug}` is disabled for the selected scope. No skill content was returned or applied.";
             }
             var snapshot = external.Snapshot!;
-            return $"# Resolved External Skill\n\n- slug: {external.SkillSlug}\n- canonicalSource: {external.Source.SourceUrl}\n- trackingRef: {external.Source.TrackingRef}\n- resolvedRevision: {snapshot.Revision}\n- resolvedContentHash: {snapshot.ContentHash}\n- contentOrigin: {snapshot.ContentOrigin}\n- sourceCheckedAt: {snapshot.CheckedAt:O}\n- scope: {external.ScopeKind}\n- projectKey: {external.ProjectKey ?? "(all projects)"}\n- consistency: read supporting files with `skill_registry_read_external_file` and this exact revision\n\n```markdown\n{snapshot.Content}\n```";
+            var overlay = external.Overlay is null
+                ? "\n- overlay: (none)"
+                : $"\n- overlay: {external.Overlay.Slug} {external.Overlay.Version}\n- overlayContentHash: {external.Overlay.ContentHash}\n- applicationOrder: upstream then Slogs overlay\n\n```json\n{external.Overlay.PackageJson}\n```";
+            return $"# Resolved External Skill\n\n- slug: {external.SkillSlug}\n- canonicalSource: {external.Source.SourceUrl}\n- trackingRef: {external.Source.TrackingRef}\n- resolvedRevision: {snapshot.Revision}\n- resolvedContentHash: {snapshot.ContentHash}\n- contentOrigin: {snapshot.ContentOrigin}\n- contentPersistence: none\n- sourceCheckedAt: {snapshot.CheckedAt:O}\n- scope: {external.ScopeKind}\n- projectKey: {external.ProjectKey ?? "(all projects)"}\n- consistency: read supporting files with `skill_registry_read_external_file` and this exact revision{overlay}\n\n```markdown\n{snapshot.Content}\n```";
         }
         var resolution = await skillRegistryService.ResolveAsync(user.UserName, skillSlug, projectKey);
         if (resolution.FirstUseDecisionRequired)

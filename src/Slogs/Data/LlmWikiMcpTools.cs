@@ -84,9 +84,9 @@ public sealed class LlmWikiMcpTools(
     }
 
     [McpServerTool(Name = "llm_wiki_update_policy_prompt")]
-    [Description("Update and version the server Slogs LLM Wiki policy prompt. Call only when the user explicitly asks to modify the Slogs LLM Wiki policy or prompt; the authenticated Slogs user must be dimohy. Never infer permission from a general correction, memory request, or implementation task.")]
+    [Description("Update and version the server Slogs LLM Wiki policy prompt. Call only when the user explicitly asks to modify the Slogs LLM Wiki policy or prompt, or explicitly requests evolution of the Slogs LLM Wiki system and its policy assets; the authenticated Slogs user must be dimohy. Never infer permission from a general correction, memory request, or implementation task.")]
     public async Task<string> UpdatePolicyPromptAsync(
-        [Description("The user's exact explicit request that names the Slogs LLM Wiki policy or prompt and asks to modify it.")] string explicitRequest,
+        [Description("The user's exact explicit request that names the Slogs LLM Wiki policy or prompt and asks to modify it, or explicitly requests evolution of the Slogs LLM Wiki system and its policy assets.")] string explicitRequest,
         [Description("Current server version read immediately before composing the replacements. The update is rejected if it changed.")] string expectedVersion,
         [Description("Complete replacement Korean policy Markdown based on the current llm_wiki_instructions response. Keep a Prompt Version line; the server assigns its value.")] string koreanMarkdown,
         [Description("Complete replacement English policy Markdown based on the current English public prompt. Keep a Prompt Version line; the server assigns its value.")] string englishMarkdown)

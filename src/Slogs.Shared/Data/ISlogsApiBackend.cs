@@ -25,6 +25,7 @@ public interface ISlogsApiBackend
     Task<IReadOnlyList<(string Series, int Count, int LikeCount)>> GetPopularSeriesAsync(int topCount);
     Task<IReadOnlyList<(string Series, int Count, int LikeCount)>> GetSeriesByAuthorAsync(string author, int topCount);
     Task<IReadOnlyList<string>> GetSeriesAsync(int topCount);
+    Task<IReadOnlyList<PublicSkillSummary>> GetPublicSkillsAsync(string? query, int limit);
     Task<IReadOnlyList<BlogPost>> GetBySeriesAsync(string series);
     Task<BlogPost> CreatePostAsync(string title, string author, string summary, string body, string tags, string? series, string? thumbnailUrl = null, bool isDraft = false, string? slug = null);
     Task<bool> ToggleLikeAsync(string slug, string userName);

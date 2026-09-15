@@ -158,6 +158,11 @@ public sealed class SlogsApiClient
     public async Task<IReadOnlyList<string>> GetSeriesAsync(int topCount)
         => backend is not null ? await backend.GetSeriesAsync(topCount) : await GetJsonAsync<List<string>>($"api/series/names?topCount={topCount}") ?? [];
 
+    public async Task<IReadOnlyList<PublicSkillSummary>> GetPublicSkillsAsync(string? query = null, int limit = 24)
+        => backend is not null
+            ? await backend.GetPublicSkillsAsync(query, limit)
+            : await GetJsonAsync<List<PublicSkillSummary>>($"api/skills?q={Escape(query)}&limit={limit}") ?? [];
+
     public async Task<IReadOnlyList<BlogPost>> GetBySeriesAsync(string series)
         => backend is not null ? await backend.GetBySeriesAsync(series) : await GetJsonAsync<List<BlogPost>>($"api/series/{EscapePath(series)}/posts") ?? [];
 

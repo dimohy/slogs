@@ -13,7 +13,11 @@ public sealed class SlogsMcpPolicyPromptServiceTests
     [InlineData("Update the Slogs LLM Wiki prompt to search first", true)]
     [InlineData("Apply this interlock rule to the Slogs LLM Wiki prompt", true)]
     [InlineData("Update the Slogs LLM Wiki policy to choose graph depth", true)]
+    [InlineData("Agentic Shaping과 Slogs LLM Wiki 시스템 진화까지 지금 요청하며 진행 중 durable 신호에 따라 계속 진화해줘", true)]
+    [InlineData("Slogs LLM Wiki 시스템을 계속 진화시켜줘", true)]
+    [InlineData("Continue evolving the Slogs LLM Wiki system during this active goal", true)]
     [InlineData("Slogs LLM Wiki 정책이 어떻게 동작해?", false)]
+    [InlineData("Slogs LLM Wiki 시스템이 어떻게 동작해?", false)]
     [InlineData("앞으로 이 정정을 기억해줘", false)]
     [InlineData("LLM Wiki 구현을 수정해줘", false)]
     public void ExplicitRequestMustNamePolicyOrPromptAndChange(string request, bool expected)

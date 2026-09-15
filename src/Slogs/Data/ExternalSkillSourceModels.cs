@@ -151,10 +151,6 @@ public sealed record ExternalSkillSourceDescriptor(
 public sealed record ExternalSkillSource(
     ExternalSkillSourceDescriptor Descriptor,
     string RegisteredBy,
-    string? LastResolvedRevision,
-    string? LastResolvedContent,
-    string? LastResolvedContentHash,
-    DateTimeOffset? LastCheckedAt,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 
@@ -172,7 +168,8 @@ public sealed record ExternalSkillResolution(
     string? ScopeKind,
     string? ProjectKey,
     ExternalSkillSourceDescriptor Source,
-    ExternalSkillSnapshot? Snapshot);
+    ExternalSkillSnapshot? Snapshot,
+    RegisteredSkillVersion? Overlay);
 
 public sealed record ExternalSkillSearchResult(
     string Slug,

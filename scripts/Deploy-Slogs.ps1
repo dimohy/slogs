@@ -300,6 +300,7 @@ services:
       DataProtection__CertificatePath: /certificates/data-protection.pfx
       DataProtection__CertificatePassword: ${OIDC_CERT_PASSWORD}
       BgeM3__BaseUrl: http://bge-m3:8080
+      BgeM3__DocumentMaxTokens: 2048
       EmbeddingGemma__Endpoint: http://embeddinggemma:11434/api/embed
       Slogs__PublicBaseUrl: https://__DOMAIN__
     ports:

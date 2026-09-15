@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "policyId": "slogs-cancellation-terminal-policy",
+  "positiveCases": [
+    {
+      "id": "supervisor-marker-cancellation",
+      "expected": ["all-descendants-terminated", "zero-orphans", "nonzero-exit", "cancelled-status", "exact-cancellation-id", "structured-record"]
+    },
+    {
+      "id": "natural-success-zero-orphans",
+      "expected": ["all-descendants-terminated", "zero-orphans", "zero-exit", "passed-status", "empty-failure-ids", "empty-orphan-process-ids", "structured-record"]
+    }
+  ],
+  "negativeControls": [
+    { "id": "raw-kill-without-record", "forbidden": "completion" },
+    { "id": "marker-with-surviving-child", "forbidden": "completion" },
+    { "id": "ordinary-natural-exit", "forbidden": "invented-cancellation" },
+    { "id": "natural-success-record-with-orphan", "forbidden": "successful-completion" }
+  ],
+  "passThresholds": {
+    "positiveCases": 2,
+    "negativeControls": 4,
+    "forbiddenActions": 0
+  }
+}

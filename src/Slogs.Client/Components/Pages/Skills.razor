@@ -1,0 +1,227 @@
+@page "/skills"
+@inject SlogsAuthState AuthState
+@inject SlogsApiClient ApiClient
+@inject NavigationManager Navigation
+
+<PageTitle>Slogs Skills 시작하기</PageTitle>
+<SeoHead Title="Slogs Skills 시작하기 | slogs" Description="검증된 작업법을 Agent가 찾아 사용 전 범위를 묻고, 선택한 범위에서 안전하게 다시 적용하는 방법을 안내합니다." />
+
+<section class="space-y-5" data-slogs-skills-public-guide="true">
+    <section class="slogs-product-intro overflow-hidden rounded-2xl border border-slate-200 bg-white px-5 py-7 shadow-sm sm:px-8 sm:py-9">
+        <div class="grid gap-8 xl:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)] xl:items-end">
+            <div>
+                <p class="slogs-product-intro__eyebrow text-xs font-black uppercase tracking-[0.16em]">Slogs Skills</p>
+                <h1 class="mt-3 max-w-3xl text-3xl font-black leading-tight tracking-tight text-slate-950 sm:text-4xl">잘 해낸 방법을,<br />다음에도 그대로.</h1>
+                <p class="mt-4 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
+                    반복해서 쓸 수 있는 작업법을 검증된 패키지로 보관합니다. Agent는 필요한 순간 관련 Skills를 찾고, 처음 사용할 때 적용 범위를 물은 뒤 선택한 곳에서만 사용합니다.
+                </p>
+                <div class="mt-6 flex flex-wrap gap-2">
+                    <a class="inline-flex min-w-max items-center rounded-full bg-slate-900 px-4 py-2 text-sm font-black text-white transition hover:bg-slate-800"
+                       href="/skills#catalog">Skills 목록 보기</a>
+                    <a class="inline-flex min-w-max items-center rounded-full border border-slate-300 px-4 py-2 text-sm font-bold text-slate-800 transition hover:bg-slate-100"
+                       href="/skills#start">사용 흐름 보기</a>
+                    <a class="inline-flex min-w-max items-center rounded-full border border-slate-300 px-4 py-2 text-sm font-bold text-slate-800 transition hover:bg-slate-100"
+                       href="/llm-wiki">LLM Wiki · MCP 연결</a>
+                </div>
+            </div>
+            <div class="slogs-product-steps text-sm" aria-label="Slogs Skills 적용 흐름">
+                <div><span>01</span> 지금 필요한 작업법을 Agent가 찾습니다.</div>
+                <div><span>02</span> 첫 사용 때 적용 범위를 직접 고릅니다.</div>
+                <div><span>03</span> 검증된 같은 방법을 다음 작업에도 적용합니다.</div>
+            </div>
+        </div>
+    </section>
+
+    <section id="catalog" class="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" data-slogs-skills-catalog="true">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+                <p class="text-xs font-black uppercase tracking-wide text-slate-700">검증된 Skills 목록</p>
+                <h2 class="mt-1 text-xl font-black text-slate-950">지금 사용할 수 있는 작업법</h2>
+                <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">후보 단계는 제외하고, 실행 검증을 통과한 각 Skill의 최신 버전만 보여 줍니다. 목록은 로그인하지 않아도 확인할 수 있습니다.</p>
+            </div>
+            <form class="flex w-full min-w-0 gap-2 lg:max-w-md" @onsubmit="SearchSkillsAsync" @onsubmit:preventDefault>
+                <label class="sr-only" for="skill-search">Skills 검색</label>
+                <input id="skill-search" class="min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-2.5 text-sm" @bind="skillQuery" @bind:event="oninput" placeholder="이름이나 설명으로 검색" />
+                <button class="shrink-0 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-black text-white disabled:bg-slate-400" type="submit" disabled="@isSearching">검색</button>
+            </form>
+        </div>
+
+        <div class="mt-5 flex items-center justify-between border-t border-slate-200 pt-4 text-sm">
+            <strong class="text-slate-950">@SkillsCountLabel</strong>
+            @if (!string.IsNullOrWhiteSpace(appliedQuery))
+            {
+                <button class="font-bold text-slate-700 underline underline-offset-4" type="button" @onclick="ClearSkillSearchAsync">전체 보기</button>
+            }
+        </div>
+
+        @if (isSearching && publicSkills.Count == 0)
+        {
+            <p class="mt-4 rounded-2xl bg-slate-50 p-5 text-sm text-slate-700" role="status">Skills 목록을 불러오는 중입니다.</p>
+        }
+        else if (publicSkills.Count == 0)
+        {
+            <p class="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm leading-6 text-slate-700" role="status">
+                @(!string.IsNullOrWhiteSpace(appliedQuery) ? "검색어와 일치하는 검증된 Skill이 없습니다." : "아직 공개된 검증 Skill이 없습니다.")
+            </p>
+        }
+        else
+        {
+            <div class="mt-4 grid gap-3 xl:grid-cols-2" aria-live="polite">
+                @foreach (var skill in publicSkills)
+                {
+                    <article class="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4" data-slogs-skill-slug="@skill.Slug">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h3 class="break-words text-base font-black text-slate-950">@skill.Slug</h3>
+                            <span class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-black text-emerald-900">검증됨</span>
+                            <span class="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-xs font-bold text-slate-700">v@(skill.Version)</span>
+                        </div>
+                        <p class="mt-3 break-words text-sm leading-6 text-slate-700">@skill.Description</p>
+                        <p class="mt-4 truncate border-t border-slate-200 pt-3 font-mono text-xs text-slate-600" title="@skill.ContentHash">SHA-256 @ShortHash(skill.ContentHash)</p>
+                    </article>
+                }
+            </div>
+        }
+    </section>
+
+    <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" data-slogs-skills-relationship="true">
+        <p class="text-xs font-black uppercase tracking-wide text-slate-500">둘의 역할</p>
+        <h2 class="mt-1 text-lg font-black text-slate-950">기억과 작업법을 나눠 두면 더 정확해집니다</h2>
+        <div class="mt-4 grid gap-3 lg:grid-cols-2">
+            <a class="slogs-product-split-card group rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-slate-300" href="/llm-wiki">
+                <p class="slogs-product-intro__eyebrow text-xs font-black">Slogs LLM Wiki</p>
+                <h3 class="mt-1 text-base font-black text-slate-950">무엇을 중요하게 보는지 기억</h3>
+                <p class="mt-2 text-sm leading-6 text-slate-700">프로젝트 결정, 사용자의 취향, 교정 방향, 다시 시작할 맥락처럼 사람과 작업에 고유한 내용을 비공개로 이어 갑니다.</p>
+                <span class="mt-3 inline-block text-sm font-bold text-slate-900 underline underline-offset-4">LLM Wiki 안내 보기</span>
+            </a>
+            <div class="slogs-product-split-card rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p class="slogs-product-intro__eyebrow text-xs font-black">Slogs Skills</p>
+                <h3 class="mt-1 text-base font-black text-slate-950">어떻게 해낼지 재사용</h3>
+                <p class="mt-2 text-sm leading-6 text-slate-700">여러 작업에서 다시 쓸 수 있게 일반화하고, 실제 실행과 안전 기준을 통과한 작업법만 선택 가능한 버전으로 제공합니다.</p>
+                <span class="mt-3 inline-block text-sm font-bold text-slate-900">개인 기억을 Skills로 자동 공개하지 않습니다.</span>
+            </div>
+        </div>
+    </section>
+
+    <section id="start" class="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" data-slogs-skills-first-use="true">
+        <p class="text-xs font-black uppercase tracking-wide text-slate-500">처음 한 번만 선택</p>
+        <h2 class="mt-1 text-lg font-black text-slate-950">Agent가 찾고, 사용자가 범위를 정합니다</h2>
+        <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Slogs MCP가 연결되어 있으면 별도 설치 키는 필요하지 않습니다. “이 작업에 쓸 만한 Slogs Skills를 찾아줘”라고 말하면 Agent가 검증된 후보를 찾습니다. 처음 적용할 때 아래 세 선택지를 반드시 먼저 보여 줍니다.</p>
+
+        <div class="mt-5 grid gap-3 lg:grid-cols-3" aria-label="Slogs Skills 적용 범위 선택지">
+            <div class="slogs-product-choice slogs-product-choice--recommended rounded-2xl border border-slate-300 bg-slate-50 p-4">
+                <p class="slogs-product-intro__eyebrow text-xs font-black">권장 · 좁은 범위</p>
+                <h3 class="mt-1 text-base font-black text-slate-950">현재 프로젝트에만</h3>
+                <p class="mt-2 text-sm leading-6 text-slate-700">지금 작업 중인 프로젝트에서만 사용합니다. 다른 프로젝트에는 영향을 주지 않아 처음 시험하기 좋습니다.</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p class="text-xs font-black text-slate-700">반복 사용</p>
+                <h3 class="mt-1 text-base font-black text-slate-950">모든 프로젝트에서</h3>
+                <p class="mt-2 text-sm leading-6 text-slate-700">여러 프로젝트에서 같은 작업법을 계속 씁니다. 범용성이 확인된 뒤 선택하는 편이 안전합니다.</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p class="text-xs font-black text-slate-700">적용하지 않기</p>
+                <h3 class="mt-1 text-base font-black text-slate-950">사용하지 않음</h3>
+                <p class="mt-2 text-sm leading-6 text-slate-700">후보는 볼 수 있지만 작업에는 적용하지 않습니다. Agent가 임의로 내용을 가져와 실행하지 않습니다.</p>
+            </div>
+        </div>
+
+        <div class="slogs-product-example mt-5 rounded-2xl p-4 text-white sm:p-5">
+            <p class="text-xs font-black uppercase tracking-wide text-white">Agent에게 이렇게 말해 보세요</p>
+            <div class="mt-3 grid gap-2 text-sm leading-6 sm:grid-cols-2">
+                <p class="rounded-xl border border-white/20 bg-white/5 p-3">“이 문서를 만드는 데 쓸 만한 Slogs Skills를 찾아줘.”</p>
+                <p class="rounded-xl border border-white/20 bg-white/5 p-3">“이 Skill은 이 프로젝트에서만 사용해줘.”</p>
+            </div>
+            @if (CurrentUser is null)
+            {
+                <a class="slogs-product-example__cta mt-4 inline-flex min-w-max rounded-full px-4 py-2 text-sm font-black transition"
+                   href="@GetLoginHref()">로그인하고 MCP 연결하기</a>
+            }
+            else
+            {
+                <a class="slogs-product-example__cta mt-4 inline-flex min-w-max rounded-full px-4 py-2 text-sm font-black transition"
+                   href="/me/settings">연결 키 확인하기</a>
+            }
+        </div>
+    </section>
+
+    <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" data-slogs-skills-trust="true">
+        <p class="text-xs font-black uppercase tracking-wide text-slate-500">검증과 업데이트</p>
+        <h2 class="mt-1 text-lg font-black text-slate-950">후보가 바로 사용 가능한 Skill이 되지는 않습니다</h2>
+        <div class="mt-4 grid gap-5 lg:grid-cols-3">
+            <div>
+                <h3 class="text-sm font-black text-slate-950">실행 근거 확인</h3>
+                <p class="mt-2 text-sm leading-6 text-slate-600">정상 사례와 경계 사례, 잘못 발동하거나 권한을 넓히는 경우까지 고정된 평가로 확인합니다.</p>
+            </div>
+            <div>
+                <h3 class="text-sm font-black text-slate-950">바뀌지 않는 버전</h3>
+                <p class="mt-2 text-sm leading-6 text-slate-600">검증된 각 버전은 내용 해시로 식별합니다. 같은 버전을 몰래 바꾸지 않고 변경은 새 버전으로 냅니다.</p>
+            </div>
+            <div>
+                <h3 class="text-sm font-black text-slate-950">선택 범위 안에서 갱신</h3>
+                <p class="mt-2 text-sm leading-6 text-slate-600">자동 최신판을 선택했다면 검증된 호환 버전만 해시와 실행 환경을 확인한 뒤 사용합니다. 실패하면 기존 검증판을 유지합니다.</p>
+            </div>
+        </div>
+        <p class="mt-5 border-t border-slate-200 pt-4 text-sm leading-6 text-slate-600">개인 기억, 특정 프로젝트만의 규칙, 자격 증명, 평가에 실패한 방법은 공유 Skills로 승격하지 않습니다. 후보 등록과 공개 활성화도 서로 다른 단계입니다.</p>
+    </section>
+</section>
+
+@code {
+    private AuthUser? CurrentUser => AuthState.CurrentUser;
+    private List<PublicSkillSummary> publicSkills = [];
+    private string skillQuery = string.Empty;
+    private string appliedQuery = string.Empty;
+    private bool isSearching;
+
+    [PersistentState]
+    public List<PublicSkillSummary>? PrerenderedSkills { get; set; }
+
+    private string SkillsCountLabel => !string.IsNullOrWhiteSpace(appliedQuery)
+        ? $"검색 결과 {publicSkills.Count}개"
+        : $"검증된 Skill {publicSkills.Count}개";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authTask = AuthState.EnsureInitializedAsync();
+        if (PrerenderedSkills is null)
+        {
+            PrerenderedSkills = (await ApiClient.GetPublicSkillsAsync(limit: 24)).ToList();
+        }
+        publicSkills = PrerenderedSkills.ToList();
+        await authTask;
+    }
+
+    private async Task SearchSkillsAsync()
+    {
+        isSearching = true;
+        try
+        {
+            appliedQuery = skillQuery.Trim();
+            publicSkills = (await ApiClient.GetPublicSkillsAsync(appliedQuery, 24)).ToList();
+        }
+        finally
+        {
+            isSearching = false;
+        }
+    }
+
+    private async Task ClearSkillSearchAsync()
+    {
+        skillQuery = string.Empty;
+        appliedQuery = string.Empty;
+        isSearching = true;
+        try
+        {
+            publicSkills = (await ApiClient.GetPublicSkillsAsync(limit: 24)).ToList();
+        }
+        finally
+        {
+            isSearching = false;
+        }
+    }
+
+    private static string ShortHash(string hash)
+        => hash.Length > 12 ? hash[..12] : hash;
+
+    private string GetLoginHref()
+        => $"/login?returnUrl={Uri.EscapeDataString("/skills")}";
+}

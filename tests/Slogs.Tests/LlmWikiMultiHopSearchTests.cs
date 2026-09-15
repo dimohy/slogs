@@ -112,7 +112,9 @@ public sealed class LlmWikiMultiHopSearchTests
         var result = results.SingleOrDefault(x => x.Slug == slug);
         if (expected == 0)
         {
-            Assert.True(result is null || result.GraphDepth == 0);
+            Assert.True(
+                result is null || result.GraphDepth == 0,
+                $"Expected '{slug}' to be absent or depth 0, but got depth {result?.GraphDepth} via '{result?.SemanticPath}'.");
             return;
         }
 
@@ -195,6 +197,16 @@ public sealed class LlmWikiMultiHopSearchTests
                 "Confidence" double precision NOT NULL,
                 "State" character varying(24) NOT NULL
             );
+            CREATE TABLE "LlmWikiEntrySemanticRelations" (
+                "Id" uuid PRIMARY KEY,
+                "OwnerUserName" character varying(80) NOT NULL,
+                "AnchorEntryId" uuid NOT NULL,
+                "RelatedEntryId" uuid NOT NULL,
+                "RelationType" character varying(40) NOT NULL,
+                "Direction" character varying(16) NOT NULL,
+                "Confidence" double precision NOT NULL,
+                "State" character varying(24) NOT NULL
+            );
             CREATE TABLE "LlmWikiMcpAudits" (
                 "Id" uuid PRIMARY KEY,
                 "OwnerUserName" character varying(80) NOT NULL,
@@ -266,7 +278,7 @@ public sealed class LlmWikiMultiHopSearchTests
         var otherVector = VectorLiteral(0, 1);
         const string model = "embeddinggemma";
         const string contentHash = "test";
-        const string indexVersion = "2026-06-27-public-sharing-v1";
+        var indexVersion = LlmWikiService.SearchIndexVersion;
         foreach (var entry in entries)
         {
             var vector = entry.Slug == "seed"
@@ -286,12 +298,8 @@ public sealed class LlmWikiMultiHopSearchTests
         await InsertNodeAsync(db, entries[0], "bridge-1");
         await InsertNodeAsync(db, entries[1], "bridge-1");
         await InsertNodeAsync(db, entries[1], "prompt-term:seedalpha");
-        await InsertNodeAsync(db, entries[1], "bridge-2");
-        await InsertNodeAsync(db, entries[2], "bridge-2");
-        await InsertNodeAsync(db, entries[2], "bridge-3");
         await InsertNodeAsync(db, entries[1], "bridge-cycle");
         await InsertNodeAsync(db, entries[0], "bridge-cycle");
-        await InsertNodeAsync(db, entries[3], "bridge-3");
         await InsertNodeAsync(db, entries[4], "bridge-1");
         await InsertNodeAsync(db, entries[5], "bridge-1");
         await InsertNodeAsync(db, entries[6], "bridge-1");

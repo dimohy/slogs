@@ -41,6 +41,7 @@ public sealed class BgeM3EmbeddingServiceTests
             new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["BgeM3:BaseUrl"] = "http://bge.test",
+                ["BgeM3:DocumentMaxTokens"] = "2048",
                 ["BgeM3:RerankMaxPassageTokens"] = "640"
             }).Build());
 
@@ -61,8 +62,10 @@ public sealed class BgeM3EmbeddingServiceTests
         Assert.Equal(0.22f, scores[1].Combined);
         Assert.All(scores, score => Assert.True(score.Dense >= 0 && score.Sparse >= 0 && score.MultiVector >= 0));
         Assert.Contains("\"max_passage_length\":640", handler.LastScoreRequest, StringComparison.Ordinal);
-        Assert.Contains(handler.EncodeRequests, value => value.Contains("\"latency_sensitive\":true", StringComparison.Ordinal));
-        Assert.Contains(handler.EncodeRequests, value => value.Contains("\"latency_sensitive\":false", StringComparison.Ordinal));
+        Assert.Contains(handler.EncodeRequests, value => value.Contains("\"latency_sensitive\":true", StringComparison.Ordinal)
+            && value.Contains("\"max_length\":512", StringComparison.Ordinal));
+        Assert.Contains(handler.EncodeRequests, value => value.Contains("\"latency_sensitive\":false", StringComparison.Ordinal)
+            && value.Contains("\"max_length\":2048", StringComparison.Ordinal));
     }
 
     [Theory]
@@ -83,6 +86,26 @@ public sealed class BgeM3EmbeddingServiceTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.ScorePairsAsync("query", ["passage"], CancellationToken.None));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("511")]
+    [InlineData("4097")]
+    public async Task DocumentEmbeddingRejectsMissingOrUnboundedTokenContract(string? configuredTokens)
+    {
+        using var httpClient = new HttpClient(new ContractHandler());
+        var settings = new Dictionary<string, string?> { ["BgeM3:BaseUrl"] = "http://bge.test" };
+        if (configuredTokens is not null)
+        {
+            settings["BgeM3:DocumentMaxTokens"] = configuredTokens;
+        }
+        var service = new BgeM3EmbeddingService(
+            httpClient,
+            new ConfigurationBuilder().AddInMemoryCollection(settings).Build());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.EmbedDocumentAsync("document", CancellationToken.None));
     }
 
     private sealed class ContractHandler : HttpMessageHandler

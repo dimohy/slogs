@@ -87,8 +87,9 @@ public sealed partial class SlogsMcpPolicyPromptService(IDbContextFactory<SlogsD
     public static bool IsExplicitPromptUpdateRequest(string request)
     {
         var value = request.Trim();
-        var namesPolicyOrPrompt = value.Contains("slogs", StringComparison.OrdinalIgnoreCase)
-            && value.Contains("llm wiki", StringComparison.OrdinalIgnoreCase)
+        var namesSlogsLlmWiki = value.Contains("slogs", StringComparison.OrdinalIgnoreCase)
+            && value.Contains("llm wiki", StringComparison.OrdinalIgnoreCase);
+        var namesPolicyOrPrompt = namesSlogsLlmWiki
             && (value.Contains("프롬프트", StringComparison.Ordinal)
                 || value.Contains("prompt", StringComparison.OrdinalIgnoreCase)
                 || value.Contains("정책", StringComparison.Ordinal)
@@ -99,7 +100,15 @@ public sealed partial class SlogsMcpPolicyPromptService(IDbContextFactory<SlogsD
             "modify", "update", "change", "apply", "reflect", "incorporate"
         }
             .Any(term => value.Contains(term, StringComparison.OrdinalIgnoreCase));
-        return namesPolicyOrPrompt && requestsChange;
+        var namesSystemEvolution = namesSlogsLlmWiki
+            && ((value.Contains("시스템", StringComparison.Ordinal)
+                    && value.Contains("진화", StringComparison.Ordinal))
+                || (value.Contains("system", StringComparison.OrdinalIgnoreCase)
+                    && value.Contains("evolv", StringComparison.OrdinalIgnoreCase)));
+        var requestsSystemEvolution = namesSystemEvolution
+            && new[] { "해줘", "시켜", "요청", "원해", "continue", "please", "request" }
+                .Any(term => value.Contains(term, StringComparison.OrdinalIgnoreCase));
+        return (namesPolicyOrPrompt && requestsChange) || requestsSystemEvolution;
     }
 
     public static string NextVersion(string currentVersion, DateTimeOffset now)

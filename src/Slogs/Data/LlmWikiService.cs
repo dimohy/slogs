@@ -1399,8 +1399,6 @@ public sealed class LlmWikiService(
             .Concat(graphNodes.Select(node => node.Key))
             .Distinct(StringComparer.Ordinal)
             .ToArray();
-        var impactedEntryIds = await ReadEntriesForGraphNodesAsync(
-            db, owner, affectedNodeKeys, cancellationToken);
         var vectorLiteral = ToVectorLiteral(embedding);
         await using (var command = db.Database.GetDbConnection().CreateCommand())
         {
@@ -1439,7 +1437,7 @@ public sealed class LlmWikiService(
         if (graphNodes.Count == 0)
         {
             await RefreshGraphNodeStatisticsAsync(
-                db, owner, affectedNodeKeys, impactedEntryIds.Append(entryId).Distinct().ToArray(), cancellationToken);
+                db, owner, affectedNodeKeys, entryId, cancellationToken);
             return;
         }
 
@@ -1477,13 +1475,11 @@ public sealed class LlmWikiService(
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
 
-        var newImpactedEntryIds = await ReadEntriesForGraphNodesAsync(
-            db, owner, affectedNodeKeys, cancellationToken);
         await RefreshGraphNodeStatisticsAsync(
             db,
             owner,
             affectedNodeKeys,
-            impactedEntryIds.Concat(newImpactedEntryIds).Append(entryId).Distinct().ToArray(),
+            entryId,
             cancellationToken);
     }
 
@@ -1505,32 +1501,6 @@ public sealed class LlmWikiService(
         while (await reader.ReadAsync(cancellationToken))
         {
             values.Add(reader.GetString(0));
-        }
-        return values.ToArray();
-    }
-
-    private static async Task<Guid[]> ReadEntriesForGraphNodesAsync(
-        SlogsDbContext db,
-        string owner,
-        string[] nodeKeys,
-        CancellationToken cancellationToken)
-    {
-        if (nodeKeys.Length == 0)
-        {
-            return [];
-        }
-        await using var command = db.Database.GetDbConnection().CreateCommand();
-        command.CommandText =
-            "SELECT DISTINCT \"EntryId\" FROM \"LlmWikiEntryGraphNodes\" WHERE \"OwnerUserName\"=@owner AND \"NodeKey\"=ANY(@nodeKeys);";
-        command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
-        command.Parameters.Add(new NpgsqlParameter("owner", owner));
-        command.Parameters.Add(new NpgsqlParameter("nodeKeys", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = nodeKeys });
-        await EnsureConnectionOpenAsync(db, cancellationToken);
-        var values = new List<Guid>();
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
-        {
-            values.Add(reader.GetGuid(0));
         }
         return values.ToArray();
     }
@@ -1929,19 +1899,16 @@ public sealed class LlmWikiService(
         SlogsDbContext db,
         string owner,
         string[] affectedNodeKeys,
-        Guid[] impactedEntryIds,
+        Guid anchorEntryId,
         CancellationToken cancellationToken)
     {
-        if (affectedNodeKeys.Length == 0 || impactedEntryIds.Length == 0)
+        if (affectedNodeKeys.Length == 0)
         {
             return;
         }
         await using var command = db.Database.GetDbConnection().CreateCommand();
         command.CommandText =
             """
-            DELETE FROM "LlmWikiGraphEdges"
-            WHERE "OwnerUserName" = @owner AND "FromEntryId"=ANY(@impactedEntryIds);
-
             DELETE FROM "LlmWikiGraphNodeStatistics"
             WHERE "OwnerUserName" = @owner AND "NodeKey"=ANY(@affectedNodeKeys);
 
@@ -1957,9 +1924,12 @@ public sealed class LlmWikiService(
             WHERE "OwnerUserName" = @owner AND "NodeKey"=ANY(@affectedNodeKeys)
             GROUP BY "OwnerUserName", "NodeKey";
 
-            WITH scored_edges AS (
+            DELETE FROM "LlmWikiGraphEdges"
+            WHERE "OwnerUserName" = @owner
+              AND ("FromEntryId" = @anchorEntryId OR "ToEntryId" = @anchorEntryId);
+
+            WITH scored_neighbors AS (
                 SELECT
-                    source_nodes."EntryId" AS "FromEntryId",
                     neighbor_nodes."EntryId" AS "ToEntryId",
                     LEAST(
                         SUM(
@@ -1977,22 +1947,78 @@ public sealed class LlmWikiService(
                     ON frequency."OwnerUserName" = source_nodes."OwnerUserName"
                    AND frequency."NodeKey" = source_nodes."NodeKey"
                 WHERE source_nodes."OwnerUserName" = @owner
-                  AND source_nodes."EntryId"=ANY(@impactedEntryIds)
-                GROUP BY source_nodes."EntryId", neighbor_nodes."EntryId"
-            ),
-            ranked_edges AS (
-                SELECT *, ROW_NUMBER() OVER (
-                    PARTITION BY "FromEntryId"
-                    ORDER BY "EdgeScore" DESC, "ToEntryId"
-                ) AS edge_rank
-                FROM scored_edges
+                  AND source_nodes."EntryId" = @anchorEntryId
+                GROUP BY neighbor_nodes."EntryId"
             )
             INSERT INTO "LlmWikiGraphEdges"
                 ("OwnerUserName", "FromEntryId", "ToEntryId", "EdgeScore", "IndexVersion", "UpdatedAt")
             SELECT
-                @owner, "FromEntryId", "ToEntryId", "EdgeScore", @graphIndexVersion, @updatedAt
-            FROM ranked_edges
-            WHERE edge_rank <= 4;
+                @owner, @anchorEntryId, "ToEntryId", "EdgeScore", @graphIndexVersion, @updatedAt
+            FROM scored_neighbors
+            ORDER BY "EdgeScore" DESC, "ToEntryId"
+            LIMIT 4;
+
+            WITH scored_neighbors AS (
+                SELECT
+                    neighbor_nodes."EntryId" AS "FromEntryId",
+                    LEAST(
+                        SUM(
+                            LEAST(source_nodes."Weight", neighbor_nodes."Weight")
+                            / LN(2.0 + frequency."EntryCount")
+                        ),
+                        1.0
+                    ) AS "EdgeScore"
+                FROM "LlmWikiEntryGraphNodes" AS source_nodes
+                INNER JOIN "LlmWikiEntryGraphNodes" AS neighbor_nodes
+                    ON neighbor_nodes."OwnerUserName" = source_nodes."OwnerUserName"
+                   AND neighbor_nodes."NodeKey" = source_nodes."NodeKey"
+                   AND neighbor_nodes."EntryId" <> source_nodes."EntryId"
+                INNER JOIN "LlmWikiGraphNodeStatistics" AS frequency
+                    ON frequency."OwnerUserName" = source_nodes."OwnerUserName"
+                   AND frequency."NodeKey" = source_nodes."NodeKey"
+                WHERE source_nodes."OwnerUserName" = @owner
+                  AND source_nodes."EntryId" = @anchorEntryId
+                GROUP BY neighbor_nodes."EntryId"
+            )
+            INSERT INTO "LlmWikiGraphEdges"
+                ("OwnerUserName", "FromEntryId", "ToEntryId", "EdgeScore", "IndexVersion", "UpdatedAt")
+            SELECT
+                @owner, "FromEntryId", @anchorEntryId, "EdgeScore", @graphIndexVersion, @updatedAt
+            FROM scored_neighbors
+            ON CONFLICT ("OwnerUserName", "FromEntryId", "ToEntryId") DO UPDATE SET
+                "EdgeScore" = EXCLUDED."EdgeScore",
+                "IndexVersion" = EXCLUDED."IndexVersion",
+                "UpdatedAt" = EXCLUDED."UpdatedAt";
+
+            WITH anchor_neighbors AS (
+                SELECT DISTINCT neighbor_nodes."EntryId" AS "FromEntryId"
+                FROM "LlmWikiEntryGraphNodes" AS source_nodes
+                INNER JOIN "LlmWikiEntryGraphNodes" AS neighbor_nodes
+                    ON neighbor_nodes."OwnerUserName" = source_nodes."OwnerUserName"
+                   AND neighbor_nodes."NodeKey" = source_nodes."NodeKey"
+                   AND neighbor_nodes."EntryId" <> source_nodes."EntryId"
+                WHERE source_nodes."OwnerUserName" = @owner
+                  AND source_nodes."EntryId" = @anchorEntryId
+            ),
+            ranked_neighbor_edges AS (
+                SELECT
+                    edges."FromEntryId",
+                    edges."ToEntryId",
+                    ROW_NUMBER() OVER (
+                        PARTITION BY edges."FromEntryId"
+                        ORDER BY edges."EdgeScore" DESC, edges."ToEntryId"
+                    ) AS edge_rank
+                FROM "LlmWikiGraphEdges" AS edges
+                INNER JOIN anchor_neighbors
+                    ON anchor_neighbors."FromEntryId" = edges."FromEntryId"
+                WHERE edges."OwnerUserName" = @owner
+            )
+            DELETE FROM "LlmWikiGraphEdges" AS edges
+            USING ranked_neighbor_edges AS ranked
+            WHERE edges."OwnerUserName" = @owner
+              AND edges."FromEntryId" = ranked."FromEntryId"
+              AND edges."ToEntryId" = ranked."ToEntryId"
+              AND ranked.edge_rank > 4;
 
             INSERT INTO "LlmWikiGraphIndexStates"
                 ("OwnerUserName", "IndexVersion", "SourceNodeCount", "BuiltAt")
@@ -2010,10 +2036,7 @@ public sealed class LlmWikiService(
         {
             Value = affectedNodeKeys
         });
-        command.Parameters.Add(new NpgsqlParameter("impactedEntryIds", NpgsqlDbType.Array | NpgsqlDbType.Uuid)
-        {
-            Value = impactedEntryIds
-        });
+        command.Parameters.Add(new NpgsqlParameter("anchorEntryId", anchorEntryId));
         command.Parameters.Add(new NpgsqlParameter("graphIndexVersion", LlmWikiGraphSearchCommand.GraphIndexVersion));
         command.Parameters.Add(new NpgsqlParameter("updatedAt", DateTime.UtcNow));
         await EnsureConnectionOpenAsync(db, cancellationToken);
@@ -2138,6 +2161,7 @@ public sealed class LlmWikiService(
                 $"title: {CleanInlineText(title)} | text:",
                 $"category: {categoryPath}",
                 $"tags: {tagText}",
+                $"summary: {CleanInlineText(DeriveSummary(content, prompt))}",
                 CleanInlineText(prompt),
                 CleanInlineText(content)
             }.Where(x => !string.IsNullOrWhiteSpace(x)));

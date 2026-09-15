@@ -11,9 +11,9 @@ public sealed class SlogsMcpPolicyPromptTests
     [Fact]
     public void VersionTextMatchesPromptVersion()
     {
-        Assert.Equal("2026.09.04.2\n", SlogsMcpPolicyPrompt.BuildVersionText());
-        Assert.Contains("Prompt Version: 2026.09.04.2", SlogsMcpPolicyPrompt.BuildKoreanMarkdown());
-        Assert.Contains("Prompt Version: 2026.09.04.2", SlogsMcpPolicyPrompt.BuildEnglishMarkdown());
+        Assert.Equal("2026.09.09.9\n", SlogsMcpPolicyPrompt.BuildVersionText());
+        Assert.Contains("Prompt Version: 2026.09.09.9", SlogsMcpPolicyPrompt.BuildKoreanMarkdown());
+        Assert.Contains("Prompt Version: 2026.09.09.9", SlogsMcpPolicyPrompt.BuildEnglishMarkdown());
     }
 
     [Fact]
@@ -82,6 +82,43 @@ public sealed class SlogsMcpPolicyPromptTests
         Assert.Contains("poll 강제 적용의 증거로 주장하지 말고", koreanPrompt);
         Assert.Contains("does not re-intercept `write_stdin` polls", englishPrompt);
         Assert.Contains("Never cite it as evidence of poll enforcement", englishPrompt);
+    }
+
+    [Fact]
+    public void LongRunCompanionWorkPolicyEvaluationContractIsFrozen()
+    {
+        var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "slogs-long-run-companion-work-policy.v1.json");
+        var lockPath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "slogs-long-run-companion-work-policy.v1.sha256");
+        var expectedHash = File.ReadAllText(lockPath).Split(' ', StringSplitOptions.RemoveEmptyEntries)[0];
+
+        Assert.Equal(expectedHash, ComputeCanonicalTextSha256(fixturePath));
+        using var document = JsonDocument.Parse(File.ReadAllBytes(fixturePath));
+        var root = document.RootElement;
+        Assert.Equal(2, root.GetProperty("positiveCases").GetArrayLength());
+        Assert.Equal(5, root.GetProperty("negativeControls").GetArrayLength());
+        Assert.Equal(2, root.GetProperty("passThresholds").GetProperty("positiveCases").GetInt32());
+        Assert.Equal(5, root.GetProperty("passThresholds").GetProperty("negativeControls").GetInt32());
+        Assert.Equal(0, root.GetProperty("passThresholds").GetProperty("forbiddenActions").GetInt32());
+
+        var positiveIds = root.GetProperty("positiveCases")
+            .EnumerateArray()
+            .Select(item => item.GetProperty("id").GetString()!)
+            .ToArray();
+        Assert.Equal([
+            "fresh-authoritative-evidence-before-every-poll",
+            "harness-proves-safe-queue-empty"
+        ], positiveIds);
+
+        var negativeControls = root.GetProperty("negativeControls")
+            .EnumerateArray()
+            .ToDictionary(
+                item => item.GetProperty("id").GetString()!,
+                item => item.GetProperty("forbidden").GetString());
+        Assert.Equal("poll", negativeControls["first-poll-with-pending-safe-work"]);
+        Assert.Equal("companion-evidence", negativeControls["status-only-before-poll"]);
+        Assert.Equal("system-evolution-evidence", negativeControls["memory-capture-or-write-before-poll"]);
+        Assert.Equal("hard-enforcement-claim", negativeControls["pretooluse-hook-without-dispatcher-trace"]);
+        Assert.Equal("companion-evidence", negativeControls["companion-work-conflicts-with-active-inputs"]);
     }
 
     [Fact]
@@ -181,8 +218,145 @@ public sealed class SlogsMcpPolicyPromptTests
     public void AgentPromptsRequireExplicitDimohyPolicyPromptUpdate()
     {
         Assert.Contains("`dimohy`", SlogsMcpPolicyPrompt.BuildKoreanMarkdown());
-        Assert.Contains("명시적으로 요청한 경우에만 `llm_wiki_update_policy_prompt`", SlogsMcpPolicyPrompt.BuildKoreanMarkdown());
-        Assert.Contains("only when authenticated user dimohy explicitly requests", SlogsMcpPolicyPrompt.BuildEnglishMarkdown());
+        Assert.Contains("정책 자산을 포함한 시스템 진화를 명시적으로 요청한 경우에만 `llm_wiki_update_policy_prompt`", SlogsMcpPolicyPrompt.BuildKoreanMarkdown());
+        Assert.Contains("system evolution that includes those policy assets", SlogsMcpPolicyPrompt.BuildEnglishMarkdown());
+    }
+
+    [Fact]
+    public void AgentPromptsScopeStandingSystemEvolutionAuthorizationToTheActiveGoal()
+    {
+        var koreanPrompt = SlogsMcpPolicyPrompt.BuildKoreanMarkdown();
+        var englishPrompt = SlogsMcpPolicyPrompt.BuildEnglishMarkdown();
+
+        Assert.Contains("같은 목표 안에서 새로 확인된 durable 신호에만 유지", koreanPrompt);
+        Assert.Contains("같은 권한을 반복해서 묻지 않는다", koreanPrompt);
+        Assert.Contains("목표 종료·범위 변경·일회성 신호·민감정보·권한 확대", koreanPrompt);
+        Assert.Contains("only for newly confirmed durable signals within the same goal", englishPrompt);
+        Assert.Contains("do not ask again for the same authority", englishPrompt);
+        Assert.Contains("scope changes, one-off signals, sensitive data, or authority expansion", englishPrompt);
+        Assert.Contains("이전 시스템 진화의 완료율을 그대로 재사용하지 않는다", koreanPrompt);
+        Assert.Contains("Agentic Shaping과 Slogs LLM Wiki 각각에 새 진화 사이클", koreanPrompt);
+        Assert.Contains("do not reuse the prior system-evolution completion percentage", englishPrompt);
+        Assert.Contains("Open a new evolution cycle for Agentic Shaping and Slogs LLM Wiki separately", englishPrompt);
+    }
+
+    [Fact]
+    public void AgentPromptsPromoteLateExpensiveFailuresBeforeFullRerun()
+    {
+        var koreanPrompt = SlogsMcpPolicyPrompt.BuildKoreanMarkdown();
+        var englishPrompt = SlogsMcpPolicyPrompt.BuildEnglishMarkdown();
+
+        Assert.Contains("늦게 발견된 실패는 다음 전체 재실행 전에 더 이른 좁은 재현 probe로 승격", koreanPrompt);
+        Assert.Contains("그 probe가 먼저 통과하지 않으면 같은 고비용 게이트를 다시 시작하지 않는다", koreanPrompt);
+        Assert.Contains("promote it to an earlier narrow reproducer probe before the next full rerun", englishPrompt);
+        Assert.Contains("do not restart the same expensive gate until that probe passes first", englishPrompt);
+    }
+
+    [Fact]
+    public void AgentPromptsRequireDurableExecutionResultRecordsWithoutReceiptTerminology()
+    {
+        var koreanPrompt = SlogsMcpPolicyPrompt.BuildKoreanMarkdown();
+        var englishPrompt = SlogsMcpPolicyPrompt.BuildEnglishMarkdown();
+
+        Assert.Contains("서로 다른 영속 로그와 구조화된 실행 결과 기록 경로", koreanPrompt);
+        Assert.Contains("실제 exit code와 정확한 실패 ID", koreanPrompt);
+        Assert.Contains("관찰 연결과 수명이 분리된 독립 감독 프로세스", koreanPrompt);
+        Assert.Contains("관찰 연결이 종료되어도 계속 실행", koreanPrompt);
+        Assert.Contains("감독 대상으로 시작한 정확한 프로세스의 종료", koreanPrompt);
+        Assert.Contains("성공 종료의 실패 ID 집합은 비어 있어야 하고 실패 ID는 실패 문맥에서만 추출", koreanPrompt);
+        Assert.Contains("마지막으로 보인 파일명에서 실패 원인을 추측하지 않는다", koreanPrompt);
+        Assert.DoesNotContain("영수증", koreanPrompt, StringComparison.Ordinal);
+        Assert.Contains("distinct durable-log and structured-completion-record paths", englishPrompt);
+        Assert.Contains("actual exit code and exact failure identifiers", englishPrompt);
+        Assert.Contains("detached supervisor whose lifetime is independent of the observing connection", englishPrompt);
+        Assert.Contains("continue after observer disconnect", englishPrompt);
+        Assert.Contains("exact supervised process rather than an inherited-handle process tree", englishPrompt);
+        Assert.Contains("successful exit must have an empty failure-identifier set", englishPrompt);
+        Assert.Contains("failure identifiers must be derived only from failure context", englishPrompt);
+        Assert.Contains("do not infer completion or guess the failure cause", englishPrompt);
+    }
+
+    [Fact]
+    public void AgentPromptsRequireDownstreamCompatibilityBeforeTightenedPolicyPublication()
+    {
+        var koreanPrompt = SlogsMcpPolicyPrompt.BuildKoreanMarkdown();
+        var englishPrompt = SlogsMcpPolicyPrompt.BuildEnglishMarkdown();
+
+        Assert.Contains("등록된 기존·이력 소비 자료의 범위를 먼저 고정", koreanPrompt);
+        Assert.Contains("권위 있는 원본 식별자를 근거로 마이그레이션", koreanPrompt);
+        Assert.Contains("로컬 평가 모음만의 통과", koreanPrompt);
+        Assert.Contains("일반 기억 요청", koreanPrompt);
+        Assert.Contains("registered current and historical consumers", englishPrompt);
+        Assert.Contains("authoritative source identities", englishPrompt);
+        Assert.Contains("local-suite-only pass", englishPrompt);
+        Assert.Contains("ordinary memory request", englishPrompt);
+    }
+
+    [Fact]
+    public void DownstreamCompatibilityPolicyEvaluationContractIsFrozen()
+    {
+        var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "slogs-downstream-policy-compatibility.v1.json");
+        var lockPath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "slogs-downstream-policy-compatibility.v1.sha256");
+        var expectedHash = File.ReadAllText(lockPath).Split(' ', StringSplitOptions.RemoveEmptyEntries)[0];
+
+        Assert.Equal(expectedHash, ComputeCanonicalTextSha256(fixturePath));
+        using var document = JsonDocument.Parse(File.ReadAllBytes(fixturePath));
+        var root = document.RootElement;
+        Assert.Equal(1, root.GetProperty("positiveCases").GetArrayLength());
+        Assert.Equal(3, root.GetProperty("negativeControls").GetArrayLength());
+        Assert.Equal(0, root.GetProperty("passThresholds").GetProperty("compatibilityForbiddenActions").GetInt32());
+        Assert.Equal(0, root.GetProperty("passThresholds").GetProperty("migrationFalseActivations").GetInt32());
+    }
+
+    [Fact]
+    public void AgentPromptsRequireSupportedCancellationAndTerminalResult()
+    {
+        var koreanPrompt = SlogsMcpPolicyPrompt.BuildKoreanMarkdown();
+        var englishPrompt = SlogsMcpPolicyPrompt.BuildEnglishMarkdown();
+
+        Assert.Contains("원시 프로세스 kill을 완료 경로로 사용하지 않는다", koreanPrompt);
+        Assert.Contains("명시적 취소 marker 또는 API", koreanPrompt);
+        Assert.Contains("고아 프로세스 0건", koreanPrompt);
+        Assert.Contains("`cancelled` 상태", koreanPrompt);
+        Assert.Contains("`CANCELLATION_REQUESTED` 실패 ID", koreanPrompt);
+        Assert.Contains("결과 기록의 `orphanProcessIds`도 비어 있어야 한다", koreanPrompt);
+        Assert.Contains("do not treat a raw process kill as the completion path", englishPrompt);
+        Assert.Contains("explicit cancellation marker or API", englishPrompt);
+        Assert.Contains("zero orphans", englishPrompt);
+        Assert.Contains("`cancelled` status", englishPrompt);
+        Assert.Contains("`CANCELLATION_REQUESTED` failure identifier", englishPrompt);
+        Assert.Contains("completion record's `orphanProcessIds` must be empty", englishPrompt);
+    }
+
+    [Fact]
+    public void CancellationTerminalPolicyEvaluationContractIsFrozen()
+    {
+        var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "slogs-cancellation-terminal-policy.v1.json");
+        var lockPath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "slogs-cancellation-terminal-policy.v1.sha256");
+        var expectedHash = File.ReadAllText(lockPath).Split(' ', StringSplitOptions.RemoveEmptyEntries)[0];
+
+        Assert.Equal(expectedHash, ComputeCanonicalTextSha256(fixturePath));
+        using var document = JsonDocument.Parse(File.ReadAllBytes(fixturePath));
+        var root = document.RootElement;
+        Assert.Equal(2, root.GetProperty("positiveCases").GetArrayLength());
+        Assert.Equal(4, root.GetProperty("negativeControls").GetArrayLength());
+        Assert.Equal(2, root.GetProperty("passThresholds").GetProperty("positiveCases").GetInt32());
+        Assert.Equal(4, root.GetProperty("passThresholds").GetProperty("negativeControls").GetInt32());
+        Assert.Equal(0, root.GetProperty("passThresholds").GetProperty("forbiddenActions").GetInt32());
+    }
+
+    [Fact]
+    public void AgentPromptsTriangulateGoldenDriftBeforeAuthoritativeUpdate()
+    {
+        var koreanPrompt = SlogsMcpPolicyPrompt.BuildKoreanMarkdown();
+        var englishPrompt = SlogsMcpPolicyPrompt.BuildEnglishMarkdown();
+
+        Assert.Contains("실제 산출물의 assemble·link·execute 통과", koreanPrompt);
+        Assert.Contains("독립 참조 구현과의 관찰 가능한 동작 일치", koreanPrompt);
+        Assert.Contains("검증한 실제 바이트와 게시된 golden의 해시 일치", koreanPrompt);
+        Assert.Contains("actual artifact assembles, links, and executes", englishPrompt);
+        Assert.Contains("matches an independent reference implementation", englishPrompt);
+        Assert.Contains("published golden hash equals the validated actual bytes", englishPrompt);
     }
 
     [Fact]

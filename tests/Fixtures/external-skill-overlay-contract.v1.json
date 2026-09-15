@@ -1,0 +1,49 @@
+{
+  "contractId": "external-skill-overlay-v1",
+  "frozenBeforeImplementation": true,
+  "cases": [
+    {
+      "id": "url-authoritative-no-body-cache",
+      "kind": "positive",
+      "expected": [
+        "external registration persists source metadata only",
+        "every resolve checks the upstream tracking ref",
+        "no external SKILL.md body is persisted"
+      ],
+      "forbidden": ["persisted upstream body", "silent stale-cache fallback"]
+    },
+    {
+      "id": "validated-overlay-composition",
+      "kind": "positive",
+      "expected": [
+        "latest compatible upstream is resolved first",
+        "a separately validated Slogs package is returned as an overlay",
+        "the upstream package is not copied into SkillRegistryVersions"
+      ],
+      "forbidden": ["same-slug immutable clone", "overlay before upstream resolution"]
+    },
+    {
+      "id": "missing-or-unvalidated-overlay",
+      "kind": "boundary",
+      "expected": ["binding fails closed unless the overlay package is validated"],
+      "forbidden": ["candidate overlay release", "missing overlay silent fallback"]
+    },
+    {
+      "id": "unrelated-external-skill",
+      "kind": "negative-control",
+      "expected": ["an unbound external skill resolves without an overlay"],
+      "forbidden": ["cross-skill overlay leakage"]
+    },
+    {
+      "id": "private-or-project-content",
+      "kind": "negative-control",
+      "expected": ["existing validated-package privacy and generalization gates remain mandatory"],
+      "forbidden": ["private memory in shared overlay", "project-only fixture in shared overlay"]
+    }
+  ],
+  "passThreshold": {
+    "passed": 5,
+    "failed": 0,
+    "forbiddenBehaviors": 0
+  }
+}

@@ -68,6 +68,10 @@ public sealed class SkillRegistryPostgresIntegrationTests
             ReviewEvidence(candidate));
         Assert.Equal("validated", validated.Status);
         Assert.Single(await registry.SearchAsync(slug, 5));
+        var publicCatalog = await registry.ListValidatedAsync(slug, 5);
+        var publicSkill = Assert.Single(publicCatalog, item => item.Slug == slug);
+        Assert.Equal("1.0.0", publicSkill.Version);
+        Assert.Equal(candidate.ContentHash, publicSkill.ContentHash);
 
         await registry.ChooseAsync(
             owner, slug, "project", "project/integration", true,

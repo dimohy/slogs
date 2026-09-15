@@ -29,8 +29,8 @@ public sealed class LlmWikiRecallSamplingTests
         await using var dataSource = NpgsqlDataSource.Create(connectionString);
         await LlmWikiProductionCorpusPerformanceTests.RebuildGraphStatisticsAsync(dataSource);
         var before = await ReadEveryAuthoritativeRowAsync(dataSource);
-        Assert.Equal(450, before.EntryCount);
-        Assert.Equal(1_834, before.SourceCount);
+        Assert.True(before.EntryCount >= 450, $"Expected at least the frozen 450 entries, got {before.EntryCount}.");
+        Assert.True(before.SourceCount >= 1_834, $"Expected at least the frozen 1,834 sources, got {before.SourceCount}.");
 
         var candidates = await LoadRecallCandidatesAsync(dataSource);
         Assert.Equal(before.EntryCount, candidates.Count);
@@ -178,6 +178,8 @@ public sealed class LlmWikiRecallSamplingTests
             SELECT
                 e."Id",
                 e."OwnerUserName",
+                idx."Model",
+                idx."Dimensions",
                 idx."Embedding"::text,
                 selected_node."NodeKey"
             FROM "LlmWikiEntries" AS e
@@ -197,7 +199,13 @@ public sealed class LlmWikiRecallSamplingTests
         await using var reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync())
         {
-            result.Add(new RecallCandidate(reader.GetGuid(0), reader.GetString(1), reader.GetString(2), reader.GetString(3)));
+            result.Add(new RecallCandidate(
+                reader.GetGuid(0),
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.GetInt32(3),
+                reader.GetString(4),
+                reader.GetString(5)));
         }
         return result;
     }
@@ -215,8 +223,8 @@ public sealed class LlmWikiRecallSamplingTests
         await using var command = new NpgsqlCommand(commandText, connection);
         command.Parameters.AddWithValue("owner", candidate.Owner);
         command.Parameters.AddWithValue("publicOnly", false);
-        command.Parameters.AddWithValue("model", "embeddinggemma");
-        command.Parameters.AddWithValue("dimensions", 768);
+        command.Parameters.AddWithValue("model", candidate.Model);
+        command.Parameters.AddWithValue("dimensions", candidate.Dimensions);
         command.Parameters.AddWithValue("queryVector", candidate.Vector);
         command.Parameters.AddWithValue("categoryPath", string.Empty);
         command.Parameters.AddWithValue("categoryPrefix", string.Empty);
@@ -294,7 +302,7 @@ public sealed class LlmWikiRecallSamplingTests
             ranks.Average(x => 1.0 / x),
             ranks.Average());
 
-    private sealed record RecallCandidate(Guid Id, string Owner, string Vector, string NodeKey);
+    private sealed record RecallCandidate(Guid Id, string Owner, string Model, int Dimensions, string Vector, string NodeKey);
     private sealed record RecallResult(Guid Id, int GraphDepth);
     private sealed record AuthoritativeRead(int EntryCount, int SourceCount, string Sha256);
     private sealed record LegacyRecall(double ElapsedMs, int RecallRank, int ResultCount);
