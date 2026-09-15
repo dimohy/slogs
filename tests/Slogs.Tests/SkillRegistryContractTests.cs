@@ -26,7 +26,8 @@ public sealed class SkillRegistryContractTests
     {
         var first = SkillRegistryContract.Prepare(
             "korean-software-terminology", "1.2.3", "Natural Korean terminology selection.",
-            SkillMarkdown.Replace("\n", "\r\n"), "Apache-2.0", "registry-candidate", Provenance, WindowsEvidence,
+            SkillMarkdown.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\n", "\r\n", StringComparison.Ordinal),
+            "Apache-2.0", "registry-candidate", Provenance, WindowsEvidence,
             "[{\"path\":\"references/terms.md\",\"content\":\"gate: 검증 단계\\n\"}]");
         var second = SkillRegistryContract.Prepare(
             "korean-software-terminology", "1.2.3", "Natural Korean terminology selection.",
