@@ -20,6 +20,14 @@ public sealed class SlogsMcpPolicyPromptServiceTests
     [InlineData("Slogs LLM Wiki 시스템이 어떻게 동작해?", false)]
     [InlineData("앞으로 이 정정을 기억해줘", false)]
     [InlineData("LLM Wiki 구현을 수정해줘", false)]
+    [InlineData("아니... 문제가 있고 정형으로 해결이 안될것 같으면 너가 직접 읽어서 문제를 확인해야지... 내말이 맞다면 에이전틱셰이핑 및 Slogs LLM 정책에도 반영해줘", true)]
+    [InlineData("Slogs LLM 정책을 원문 직접 확인 원칙으로 수정해줘", true)]
+    [InlineData("Update the Slogs LLM policy to inspect original sources", true)]
+    [InlineData("Slogs LLM 정책이 뭐야?", false)]
+    [InlineData("Slogs LLM 정책을 기억해줘", false)]
+    [InlineData("Slogs LLM 기능을 수정해줘", false)]
+    [InlineData("Slogs LLM 시스템을 진화시켜줘", false)]
+    [InlineData("Other LLM policy를 수정해줘", false)]
     public void ExplicitRequestMustNamePolicyOrPromptAndChange(string request, bool expected)
         => Assert.Equal(expected, SlogsMcpPolicyPromptService.IsExplicitPromptUpdateRequest(request));
 

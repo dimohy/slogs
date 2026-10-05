@@ -89,7 +89,8 @@ public sealed partial class SlogsMcpPolicyPromptService(IDbContextFactory<SlogsD
         var value = request.Trim();
         var namesSlogsLlmWiki = value.Contains("slogs", StringComparison.OrdinalIgnoreCase)
             && value.Contains("llm wiki", StringComparison.OrdinalIgnoreCase);
-        var namesPolicyOrPrompt = namesSlogsLlmWiki
+        var namesPolicyAlias = Regex.IsMatch(value, @"\bSlogs\s+LLM\s+(?:정책|policy\b)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        var namesPolicyOrPrompt = (namesSlogsLlmWiki || namesPolicyAlias)
             && (value.Contains("프롬프트", StringComparison.Ordinal)
                 || value.Contains("prompt", StringComparison.OrdinalIgnoreCase)
                 || value.Contains("정책", StringComparison.Ordinal)
