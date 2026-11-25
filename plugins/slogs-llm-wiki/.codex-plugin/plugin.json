@@ -1,0 +1,23 @@
+{
+  "name": "slogs-llm-wiki",
+  "version": "1.0.5",
+  "description": "Load scoped Slogs LLM Wiki corrections before drafting and remember reusable feedback privately.",
+  "author": {
+    "name": "Slogs"
+  },
+  "homepage": "https://slogs.dev",
+  "interface": {
+    "displayName": "Slogs LLM Wiki",
+    "shortDescription": "다음 작업에도 내 교정 반영",
+    "longDescription": "답변을 쓰기 전에 Slogs LLM Wiki에서 내 비공개 교정 기준을 읽습니다. 훅은 요청문과 대화 기록을 보내지 않습니다. 새로 받은 스타일이나 작업 방식에 관한 피드백은 에이전트가 적용 범위를 확인한 뒤 비공개로 저장합니다.",
+    "category": "Productivity",
+    "developerName": "Slogs"
+  },
+  "mcpServers": {
+    "slogs": {
+      "url": "https://slogs.dev/mcp",
+      "bearer_token_env_var": "SLOGS_MCP_TOKEN"
+    }
+  },
+  "hooks": "./hooks/codex.json"
+}

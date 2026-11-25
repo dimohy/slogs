@@ -1,0 +1,16 @@
+{
+  "name": "slogs-wiki",
+  "owner": {
+    "name": "Slogs"
+  },
+  "metadata": {
+    "description": "Private LLM Wiki memory and correction tools for Slogs users."
+  },
+  "plugins": [
+    {
+      "name": "slogs-llm-wiki",
+      "source": "./plugins/slogs-llm-wiki",
+      "description": "Read your private Slogs corrections and apply them to the next matching draft."
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "name": "slogs-llm-wiki",
+  "version": "1.0.5",
+  "description": "Load scoped Slogs LLM Wiki corrections before drafting and remember reusable feedback privately.",
+  "author": {
+    "name": "Slogs"
+  },
+  "homepage": "https://slogs.dev",
+  "mcpServers": {
+    "slogs": {
+      "type": "http",
+      "url": "https://slogs.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer ${SLOGS_MCP_TOKEN}"
+      }
+    }
+  },
+  "hooks": "./hooks/claude.json"
+}

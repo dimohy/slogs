@@ -1,0 +1,20 @@
+{
+  "name": "slogs-wiki",
+  "interface": {
+    "displayName": "Slogs"
+  },
+  "plugins": [
+    {
+      "name": "slogs-llm-wiki",
+      "source": {
+        "source": "local",
+        "path": "./plugins/slogs-llm-wiki"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

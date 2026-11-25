@@ -1,0 +1,30 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "statusMessage": "답변 전에 Slogs에서 내 교정 기준 읽기",
+            "command": "node \"${PLUGIN_ROOT}/hooks/corrections.mjs\" SessionStart",
+            "timeout": 10,
+            "command_windows": "node \"${PLUGIN_ROOT}/hooks/corrections.mjs\" SessionStart"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "statusMessage": "이번 대화에서 다시 쓸 판단 확인",
+            "command": "node \"${PLUGIN_ROOT}/hooks/corrections.mjs\" UserPromptSubmit",
+            "timeout": 10,
+            "command_windows": "node \"${PLUGIN_ROOT}/hooks/corrections.mjs\" UserPromptSubmit"
+          }
+        ]
+      }
+    ]
+  }
+}
