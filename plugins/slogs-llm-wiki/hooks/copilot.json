@@ -8,6 +8,14 @@
         "powershell": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/corrections.mjs\" sessionStart",
         "timeoutSec": 10
       }
+    ],
+    "userPromptTransformed": [
+      {
+        "type": "command",
+        "bash": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/corrections.mjs\" userPromptTransformed",
+        "powershell": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/corrections.mjs\" userPromptTransformed",
+        "timeoutSec": 10
+      }
     ]
   }
 }

@@ -1,4 +1,5 @@
-// Host events contain the user's message. This hook never opens stdin or a transcript.
+// Only Copilot's prompt transformation reads stdin. It adds fixed guidance and does not send it to Slogs.
+import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 const endpoint = 'https://slogs.dev/mcp';
@@ -16,6 +17,7 @@ const feedbackGuidance = [
   'Slogs LLM Wiki: Before continuing, treat a correction that states a repeatable condition and what to do there as a reusable rule, even without “always”. Honor explicit one-off limits. Interpret praise or dissatisfaction against the preceding result. Save the confirmed decision and narrow scope, never the reaction or conversation.',
   'Apply feedback to the current work. For a reusable private decision, use llm_wiki_capture with correctionDecision and correctionCategoryPath, read the matching entry, then llm_wiki_commit_correction using the original IDs. Keep one-off changes, ambiguous reactions, secrets and unauthorized content out of memory.',
 ].join(' ');
+const copilotRecallReminder = 'Slogs plugin reminder: For follow-up work governed by an earlier Slogs rule, call llm_wiki_read for that rule before drafting; it may have changed in another chat. Skip Slogs for unrelated work.';
 
 function rpcResult(body, type) {
   if (type.startsWith('text/event-stream')) {
@@ -83,7 +85,12 @@ async function loadContext(token, request) {
   return fitIndex(page, rules);
 }
 
-export async function hookOutput(event, env = process.env, request = fetch) {
+export async function hookOutput(event, env = process.env, request = fetch, input) {
+  if (event === 'userPromptTransformed') {
+    const prompt = input?.transformedPrompt;
+    if (typeof prompt !== 'string' || !prompt.trim()) return {};
+    return { modifiedTransformedPrompt: prompt + '\n\n' + copilotRecallReminder };
+  }
   if (event === 'UserPromptSubmit')
     return { hookSpecificOutput: { hookEventName: event, additionalContext: feedbackGuidance } };
   if (!['SessionStart', 'sessionStart'].includes(event)) throw new Error('Unsupported Slogs hook event');
@@ -104,5 +111,7 @@ export async function hookOutput(event, env = process.env, request = fetch) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  process.stdout.write(JSON.stringify(await hookOutput(process.argv[2])) + '\n');
+  const event = process.argv[2];
+  const input = event === 'userPromptTransformed' ? JSON.parse(readFileSync(0, 'utf8')) : undefined;
+  process.stdout.write(JSON.stringify(await hookOutput(event, process.env, fetch, input)) + '\n');
 }
