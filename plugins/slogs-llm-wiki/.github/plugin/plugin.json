@@ -1,6 +1,6 @@
 {
   "name": "slogs-llm-wiki",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Load scoped Slogs LLM Wiki corrections before drafting and remember reusable feedback privately.",
   "author": {
     "name": "Slogs"

@@ -17,7 +17,7 @@ const feedbackGuidance = [
   'Slogs LLM Wiki: Before continuing, treat a correction that states a repeatable condition and what to do there as a reusable rule, even without “always”. Honor explicit one-off limits. Interpret praise or dissatisfaction against the preceding result. Save the confirmed decision and narrow scope, never the reaction or conversation.',
   'Apply feedback to the current work. For a reusable private decision, use llm_wiki_capture with correctionDecision and correctionCategoryPath, read the matching entry, then llm_wiki_commit_correction using the original IDs. Keep one-off changes, ambiguous reactions, secrets and unauthorized content out of memory.',
 ].join(' ');
-const copilotRecallReminder = 'Slogs plugin reminder: For follow-up work governed by an earlier Slogs rule, call llm_wiki_read for that rule before drafting; it may have changed in another chat. Skip Slogs for unrelated work.';
+const copilotRecallReminder = 'Slogs plugin: For follow-up work that relies on a saved rule, use llm_wiki_read before drafting. Skip Slogs for unrelated work. On cancellation, acknowledge and stop.';
 
 function rpcResult(body, type) {
   if (type.startsWith('text/event-stream')) {
