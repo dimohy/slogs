@@ -1,1 +1,4 @@
 tests/Fixtures/slogs-summary-recall-quality.v1.json -text
+/.agents/plugins/marketplace.json text eol=lf
+/.claude-plugin/marketplace.json text eol=lf
+/plugins/slogs-llm-wiki/** text eol=lf
