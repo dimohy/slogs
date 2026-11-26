@@ -1,6 +1,6 @@
 // Only Copilot's prompt transformation reads stdin. It adds fixed guidance and does not send it to Slogs.
-import { readFileSync } from 'node:fs';
-import { pathToFileURL } from 'node:url';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 const endpoint = 'https://slogs.dev/mcp';
 const indexLimit = 6500;
@@ -110,7 +110,10 @@ export async function hookOutput(event, env = process.env, request = fetch, inpu
   return event === 'sessionStart' ? { additionalContext } : { hookSpecificOutput: { hookEventName: event, additionalContext } };
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+const entryPath = process.argv[1];
+// A Windows junction can give the command and the loaded module different paths.
+if (entryPath && existsSync(entryPath) &&
+    realpathSync(entryPath) === realpathSync(fileURLToPath(import.meta.url))) {
   const event = process.argv[2];
   const input = event === 'userPromptTransformed' ? JSON.parse(readFileSync(0, 'utf8')) : undefined;
   process.stdout.write(JSON.stringify(await hookOutput(event, process.env, fetch, input)) + '\n');
