@@ -14,8 +14,10 @@ const sessionGuidance = [
   'Check the first result against each matching rule and fix mismatches before sending.',
 ].join(' ');
 const feedbackGuidance = [
-  'Slogs LLM Wiki: Before continuing, treat a correction that states a repeatable condition and what to do there as a reusable rule, even without “always”. Honor explicit one-off limits. Interpret praise or dissatisfaction against the preceding result. Save the confirmed decision and narrow scope, never the reaction or conversation.',
-  'Apply feedback to the current work. For a reusable private decision, use llm_wiki_capture with correctionDecision and correctionCategoryPath, read the matching entry, then llm_wiki_commit_correction using the original IDs. Keep one-off changes, ambiguous reactions, secrets and unauthorized content out of memory.',
+  'Slogs LLM Wiki. If the user limits a change to this result, apply it here and skip llm_wiki_capture for it.',
+  'Before replying, privately save and verify any new standing rule, important decision, or reusable correction.',
+  'Interpret praise or criticism against the preceding result. Exclude vague reactions, secrets, and unauthorized content.',
+  'Use llm_wiki_capture with correctionDecision and correctionCategoryPath, read the matching entry, then llm_wiki_commit_correction with the original IDs. Save just the rule and scope.',
 ].join(' ');
 const copilotRecallReminder = 'Slogs plugin: For follow-up work that relies on a saved rule, use llm_wiki_read before drafting. Skip Slogs for unrelated work. On cancellation, acknowledge and stop.';
 
